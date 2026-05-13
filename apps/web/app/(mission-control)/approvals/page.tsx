@@ -25,11 +25,22 @@ const KIND_LABEL: Record<Approval["kind"], string> = {
 
 const KIND_PHASE: Record<Approval["kind"], string | null> = {
   shortlist: null,
-  outreach_send: "Phase 2",
+  outreach_send: null, // P2-C6a: drill-in live
   reply_response: "Phase 2",
   shipment: "Phase 3",
   stage_advance: null,
 };
+
+const REVIEWABLE_KINDS = new Set<Approval["kind"]>(["shortlist", "outreach_send"]);
+
+/** Best-effort subject extraction from an outreach_send recommendation (which is OutreachDraft). */
+function outreachSubject(rec: unknown): string | null {
+  if (rec && typeof rec === "object" && !Array.isArray(rec) && "subject" in rec) {
+    const s = (rec as { subject: unknown }).subject;
+    return typeof s === "string" ? s : null;
+  }
+  return null;
+}
 
 function fmtAgo(when: Date): string {
   const sec = Math.max(0, Math.floor((Date.now() - when.getTime()) / 1000));
@@ -95,6 +106,14 @@ export default async function ApprovalsPage() {
                                 </span>
                               </>
                             )}
+                            {kind === "outreach_send" && outreachSubject(a.recommendation) && (
+                              <>
+                                {" — "}
+                                <span className="text-slate-600 truncate">
+                                  “{outreachSubject(a.recommendation)?.slice(0, 60)}”
+                                </span>
+                              </>
+                            )}
                           </div>
                           <div className="mt-0.5 text-[12px] text-slate-500">{a.rationale}</div>
                           <div className="mt-1 text-[11px] mono text-slate-400">
@@ -103,7 +122,7 @@ export default async function ApprovalsPage() {
                         </div>
                         <div className="flex-shrink-0 text-right">
                           <div className="text-[11px] text-slate-400 mono">{fmtAgo(a.createdAt)}</div>
-                          {kind === "shortlist" && (
+                          {REVIEWABLE_KINDS.has(kind) && (
                             <Link href={`/approvals/${a.id}`} className="mt-1.5 inline-block">
                               <Button variant="primary">검토 →</Button>
                             </Link>
