@@ -10,3 +10,4 @@ import "./tiktok/get-creator";
 import "./gmail/send";
 import "./blacklist/check";
 import "./crm/enrich";
+import "./ranking/score";
