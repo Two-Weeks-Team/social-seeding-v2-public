@@ -3,23 +3,38 @@ import { CandidateSchema, CampaignBriefSchema } from "@ss/contracts";
 import { defineAgent } from "./runtime";
 
 /**
- * Vetting agent. For each candidate: pull profile + recent posts, compute
- * engagement / avg views (port of v1 `calculate-average-views.ts` + ranking
- * algos via the `ranking.score` capability), check brand-safety on bios/posts,
- * confirm language, surface prior-collab outcome. Outputs a fitScore [0,1] and
- * flags. Replaces the human eyeballing Step 2's table.
+ * Vetting agent. For each candidate: check the blacklist, pull profile +
+ * recent posts via `tiktok.getCreator`, then compose `ranking.score` (R1 — the
+ * shared ranking math) for engagement / avg views / influence score. Decides a
+ * fitScore [0,1] and surfaces flags (below_engagement_floor / blacklisted /
+ * wrong_language / brand_unsafe / prior_flake / data_stale). Replaces the
+ * human eyeballing v1's Step 2 table.
  *
- * Cheap, high-volume work → Haiku.
+ * Cheap, high-volume — Haiku. The brand-campaign workflow fans this out one
+ * call per candidate (see WF1 in PHASE-1-PLAN), so maxUsd is per-invocation.
  */
 export const vettingAgent = defineAgent({
   id: "vetting",
   description: "Score a candidate's brand-fit and surface risk flags using profile + recent-post data.",
-  tools: ["tiktok.getCreator", "blacklist.check"],
+  tools: ["tiktok.getCreator", "blacklist.check", "ranking.score"],
   model: "claude-haiku-4-5",
-  maxUsd: 0.1, // per candidate; the workflow fans out
-  input: z.object({ brief: CampaignBriefSchema, candidate: CandidateSchema.omit({ fitScore: true, vettedAt: true }) }),
+  maxUsd: 0.1, // per candidate
+  input: z.object({
+    brief: CampaignBriefSchema,
+    candidate: CandidateSchema.omit({ fitScore: true, vettedAt: true }),
+  }),
   output: CandidateSchema,
-  systemPrompt: ({ brief, candidate }) => `You are the Vetting agent. Score creator @${candidate.creator.uniqueId} for the "${brief.brandProduct.name}" (${brief.brandProduct.category}) campaign.
-Pull recent posts. Compute realistic engagement & avg views. Check the bio and recent captions for brand-safety conflicts (competing brands, unsafe content, political extremes). Confirm content language ∈ ${brief.targeting.languages.join(",")}.
-fitScore (0–1): how well this creator fits THIS brand — content topic overlap, audience match, authenticity (not a bot/engagement-pod). Set flags: below_engagement_floor if engagement < ${brief.targeting.minEngagementRate}; blacklisted if blacklist.check says so; wrong_language; brand_unsafe; prior_flake if priorOutcome is "flaked"; data_stale if profile data is old. Be conservative — a false "great fit" wastes a sample and an outreach slot.`,
+  systemPrompt: ({ brief, candidate }) =>
+    [
+      `You are the Vetting agent. Score creator @${candidate.creator.uniqueId} for the "${brief.brandProduct.name}" (${brief.brandProduct.category}) campaign.`,
+      "",
+      "Procedure:",
+      "1) Call blacklist.check on the candidate's uniqueId. If a hit returns severity=\"permanent\", return immediately with fitScore ≤ 0.1 and flags including \"blacklisted\".",
+      "2) Call tiktok.getCreator with withRecentPosts=true to load profile + recent posts.",
+      "3) Call ranking.score with { creator, recentPosts } from step (2) to compute avgViews / engagementRate / influenceScore.",
+      "4) Decide fitScore (0–1) from: content-topic overlap with the brand, audience match, authenticity (penalize engagement-pod / bot patterns).",
+      `5) Set flags from this list when applicable: below_engagement_floor (engagementRate < ${brief.targeting.minEngagementRate}), blacklisted, wrong_language (creator language ∉ ${brief.targeting.languages.join(",")}), brand_unsafe (bio/captions show competing brands, unsafe content, political extremes), prior_flake (priorOutcome="flaked"), data_stale (profile data > 30 days old).`,
+      "",
+      "Return the candidate exactly as given, with fitScore and flags filled and vettedAt set to the current ISO timestamp. Be conservative — a false \"great fit\" wastes a sample.",
+    ].join("\n"),
 });
