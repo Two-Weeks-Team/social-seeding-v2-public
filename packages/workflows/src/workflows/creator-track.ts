@@ -159,14 +159,26 @@ async function patchTrack(
   state: NonNullable<Parameters<typeof campaignRepo.upsertTrack>[1]["state"]>,
   patch: Partial<Parameters<typeof campaignRepo.upsertTrack>[1]> = {},
 ): Promise<void> {
+  // Stage derivation: track.stage = "content_review" once we're inside the
+  // P3 content-review leg (state in {delivered, verified, posted, flaked}),
+  // "shipping" once in the shipping leg, otherwise "outreach" carrying
+  // forward Phase 2's default. The MC reads track.stage to bucket tracks
+  // in the campaign canvas + the stage bar.
+  const stage =
+    state === "verified" || state === "posted" || state === "flaked"
+      ? "content_review"
+      : state === "delivered" || state === "shipped" || state === "address_collected"
+        ? "shipping"
+        : "outreach";
   await campaignRepo.upsertTrack(campaignId, {
     creatorId,
-    stage: "outreach",
+    stage,
     state,
     lastActivityAt: new Date(),
     emailsSent: patch.emailsSent ?? 0,
     ...(patch.threadId ? { threadId: patch.threadId } : {}),
     ...(patch.pendingApprovalId ? { pendingApprovalId: patch.pendingApprovalId } : {}),
+    ...(patch.content ? { content: patch.content } : {}),
   });
 }
 
@@ -806,11 +818,27 @@ async function runShippingAndContentReview(args: ShippingArgs): Promise<CreatorT
     };
   }
   const verdict = verifyOutcome.value;
+  // Snapshot the verdict + engagement on the track so /campaigns/[id]/posts
+  // can render it without re-reading the trace. Phase-3 content view depends
+  // on this; Phase-4 analyst will compose it with ranking.score.
+  const contentSnapshot = {
+    postId: postEvent.data.postId,
+    matches: verdict.matches,
+    mentionsBrand: verdict.mentionsBrand,
+    performanceScore: verdict.performanceScore,
+    flags: verdict.flags,
+    views: postEvent.data.views,
+    likes: postEvent.data.likes,
+    comments: postEvent.data.comments,
+    shares: postEvent.data.shares,
+    detectedAt: postEvent.data.createdAt,
+  };
 
   if (verdict.matches) {
     await patchTrack(campaignId, creatorId, "verified", {
       emailsSent: 1,
       threadId,
+      content: contentSnapshot,
     });
     return {
       campaignId,
@@ -824,10 +852,11 @@ async function runShippingAndContentReview(args: ShippingArgs): Promise<CreatorT
     };
   }
 
-  // matches=false → flaked (with rationale)
+  // matches=false → flaked (with rationale + snapshot for MC review)
   await patchTrack(campaignId, creatorId, "flaked", {
     emailsSent: 1,
     threadId,
+    content: contentSnapshot,
   });
   return {
     campaignId,

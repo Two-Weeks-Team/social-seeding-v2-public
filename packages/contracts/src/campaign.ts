@@ -47,6 +47,25 @@ export type CampaignStage = z.infer<typeof CampaignStage>;
 
 export const CampaignStatusSchema = z.enum(["draft", "running", "paused", "completed", "cancelled"]);
 
+/**
+ * Phase 3 content-review snapshot persisted on the track terminal. Drives
+ * the /campaigns/[id]/posts MC view + future analyst reporting (Phase 4).
+ */
+export const CreatorTrackContentSchema = z.object({
+  postId: z.string(),
+  matches: z.boolean(),
+  mentionsBrand: z.boolean(),
+  performanceScore: z.number().min(0).max(100),
+  flags: z.array(z.string()).default([]),
+  /** Newest engagement snapshot at verify time. */
+  views: z.number().int().nonnegative().default(0),
+  likes: z.number().int().nonnegative().default(0),
+  comments: z.number().int().nonnegative().default(0),
+  shares: z.number().int().nonnegative().default(0),
+  detectedAt: z.coerce.date(),
+});
+export type CreatorTrackContent = z.infer<typeof CreatorTrackContentSchema>;
+
 /** Per-creator track inside a campaign (its own durable child workflow). */
 export const CreatorTrackSchema = z.object({
   creatorId: z.string(),
@@ -60,6 +79,8 @@ export const CreatorTrackSchema = z.object({
   lastActivityAt: z.coerce.date(),
   emailsSent: z.number().int().nonnegative().default(0),
   pendingApprovalId: z.string().optional(), // points at an open checkpoint
+  /** Phase 3 — populated by creator-track once contentVerifyAgent runs. */
+  content: CreatorTrackContentSchema.optional(),
 });
 export type CreatorTrack = z.infer<typeof CreatorTrackSchema>;
 
