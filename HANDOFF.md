@@ -1,7 +1,7 @@
 # HANDOFF — continuing the v2 build (Claude Code CLI)
 
 > Read this first when you (or a fresh Claude Code session) pick this repo up.
-> Last handoff: **after Phase 1 + Phase 2 Chunks 1–6** — `pnpm run verify-build` is green, 165 tests pass.
+> Last handoff: **after Phase 1 + Phase 2 (all 7 chunks) done** — `pnpm run verify-build` is green, 179 tests pass.
 
 ---
 
@@ -10,16 +10,17 @@
 ```
 Phase 0  (foundation, 8 commits)              ✓ done
 Phase 1  (sourcing+vetting vertical slice, 17 + 1 docs)  ✓ done
-Phase 2  Chunk 1 (canvas paradigm UI)         ✓ done
+Phase 2  Chunk 1 (canvas paradigm UI)                                ✓ done
 Phase 2  Chunk 2 (templates.render + gmail.send platform, 5 commits) ✓ done
 Phase 2  Chunk 3 (outreach-writer agent + judges, 4 commits)         ✓ done
 Phase 2  Chunk 4 (conversation classifier + responder, 3 commits)    ✓ done
 Phase 2  Chunk 5 (creator-track workflow + brand-campaign fan-out, 2 commits)  ✓ done
 Phase 2  Chunk 6 (MC drill-ins + policy editor + canvas state, 4 commits)      ✓ done
-Phase 2  Chunk 7 (Gmail Pub/Sub webhook)                              ⏳ NEXT
+Phase 2  Chunk 7 (Gmail Pub/Sub webhook + suppression list + unsubscribe + watch-renew, 4 commits) ✓ done
+Phase 3  (shipping + content-verification slice)                     ⏳ NEXT
 ```
 
-`git log --oneline` shows ~47 commits since the scaffold (`66f4390`). `pnpm run verify-build` exits 0; 165 tests across `@ss/agents` (45) · `@ss/capabilities` (94) · `@ss/observability` (4) · `@ss/workflows` (22). `docs/PHASE-1-PLAN.md` unchanged (no scope creep).
+`git log --oneline` shows ~51 commits since the scaffold (`66f4390`). `pnpm run verify-build` exits 0; 179 tests across `@ss/agents` (45) · `@ss/capabilities` (107) · `@ss/observability` (4) · `@ss/workflows` (27). `docs/PHASE-1-PLAN.md` unchanged (no scope creep).
 
 P2-C2 added five capabilities/modules — all credential-free testable via injected fakes:
 - `templates.render` — pure `{{var}}` variable engine with HTML-escape + missing-var policy (port of v1 `email-template-engine`).
@@ -40,6 +41,15 @@ P2-C4 split the inbound side into a Haiku classifier + an Opus responder so the 
 - `conversationResponderAgent` (Opus 4.7, tools `[outreach.judge, templates.render]`, $0.25 cap) — runs only when `needsResponseDraft(turn)` returns true (interested or needs_info). Drafts the reply, self-checks deliverability via the existing judge, and returns `{subject, body, deliverabilityScore}`.
 - `needsResponseDraft()` pure helper — centralizes the branching rule so the workflow (P2-C5) and the agent tests stay in sync.
 - 5-scenario golden set pins the full branching matrix (interested+address → responder; needs_info → responder; negotiating / unsubscribe / out-of-office → no responder).
+
+P2-C7 closed the inbound side of the Phase-2 loop:
+- `apps/web/app/api/webhooks/gmail/route.ts` is now an actual producer: verifies Pub/Sub auth (User-Agent + content-type + `?token=` vs `GMAIL_PUBSUB_TOKEN`), parses the `{emailAddress, historyId}` envelope, walks `GmailClient.listHistory` from `v2_gmail_watches.lastHistoryId`, calls `getMessage` per new id, joins `v2_outbox` by `threadId` to recover `(campaignId, creatorId)`, and emits `gmail/reply.received` — which wakes the `step.waitForEvent` in creator-track.
+- `verifyPubSubAuth` / `parsePubSubMessage` / `buildPubSubMessage` live in `@ss/capabilities/gmail/pubsub`. Tests are pure (no I/O, no SDK).
+- `GmailClient` interface gets optional `getMessage` + `listHistory` + `renewWatch`. Optional on the type so existing fakes that only set `send()` keep compiling; the default-throwing factory still refuses to operate without `googleapis` wired.
+- `gmail-watch-renew` daily cron (04:00 UTC) iterates `v2_gmail_watches` and calls `renewWatch` per row — 6 chances a week to keep each watch alive (Gmail watches expire after 7 days). 5 buckets in the result: total / renewed / skipped (no renewWatch on the fake) / failed (factory threw OR renew threw) / failures[].
+- `suppression.check` + `suppression.add` capabilities — workspace-scoped do-not-mail list. `gmail.send` runs the suppression check immediately after the idempotency hit-test (before spam-score, before the client call) and refuses with `recipient_suppressed`, recording the refusal on `v2_outbox` for trace honesty.
+- `apps/web/app/unsubscribe/page.tsx` — CAN-SPAM §5 landing. HMAC token verify (dual-secret rotation honored — P2-C2b), confirm form, server action does best-effort recipient-email recovery via the outbox row keyed by `${campaignId}:${creatorId}:` prefix, then `suppressionAdd.handler(…, reason: "unsubscribed", source)`. Five UX states: ok / ok_no_email (operator reconciliation path) / expired / bad_signature / not_configured / missing_token / campaign_missing.
+- Schema additions: `V2_GMAIL_WATCHES` + `V2_SUPPRESSION_LIST` collections, `v2_outbox.threadId` compound index for the webhook lookup.
 
 P2-C6 brought Mission Control up to parity with the workflow:
 - `/approvals/[id]` `outreach_send` drill-in: OutreachDraft preview with the winning angle, 4 judge bars (brand/conversion/deliverability/skeptic) + inverted spam-score meter, groundedFacts audit list, editable subject + body, sandboxed-iframe HTML preview.
@@ -106,6 +116,7 @@ green throughout, no scope creep on `docs/`).
 | ~~**P2-C4**~~ ✓ | Split into two agents so the model bill scales with what each inbound needs: `conversationAgent` (Haiku, no tools) classifies + extracts on every inbound; `conversationResponderAgent` (Opus 4.7, tools `[outreach.judge, templates.render]`) runs only when `needsResponseDraft(turn) === true`. 5-scenario golden set pins the branching matrix. **Live demo still needs**: `ANTHROPIC_API_KEY`. | `ANTHROPIC_API_KEY` |
 | ~~**P2-C5**~~ ✓ | `creator-track` end-to-end: extractFacts → outreachWriterAgent → approveOutreachSend → gmail.send → 3-day waitForEvent → conversationAgent → branch (agreed / in_conversation / declined / no_response / writer_escalated) → optional responder + approveReplyResponse + gmail.send. brand-campaign now `step.sendEvent`-fans-out one `CreatorTrackStart` per confirmed creator and advances stage to `outreach`. **Live demo still needs**: `ANTHROPIC_API_KEY`, `EMAIL_UNSUBSCRIBE_HMAC_SECRET` (≥16 chars), Gmail OAuth wired (P2-C2 follow-up), and a real creator-email source (Phase 5 enrichment). Without enrichment, every track terminates as `no_email` cleanly. | `ANTHROPIC_API_KEY`, `EMAIL_UNSUBSCRIBE_HMAC_SECRET`, Gmail OAuth |
 | ~~**P2-C6**~~ ✓ | `/approvals/[id]` drill-ins for `outreach_send` (OutreachDraft preview + 4 judge meters + editable subject/body + sandboxed-iframe HTML preview) and `reply_response` (split: ConversationTurn escalation view vs editable responder draft). `resolveAction` learns `approveEdited` for the workflow's gate() editedPayload path. Policy editor unblocks `approveOutreachSend` (spamScoreGte / followerCountGte) and `approveReplyResponse` (proposedRateUsdGte / replyClassIn multi-select). Canvas reflects `CreatorTrack.state` aggregate buckets: outreach-writer node lights as tracks fan out, wait-reply node shows waiting count, outreach→shipping edge activates on `agreed` tracks. **Live demo still needs**: nothing new beyond C5's prereqs. Note: `/threads/[id]` manual-reply page is deferred to P2.5 — the reply_response drill-in surfaces the same data plus the approveReplyResponse action for the workflow path. | — |
+| ~~**P2-C7**~~ ✓ | Gmail Pub/Sub webhook produces `gmail/reply.received`: verify → parse envelope → listHistory + getMessage via GmailClient seam → join v2_outbox by threadId → emit. `verifyPubSubAuth` + `parsePubSubMessage` ported into `@ss/capabilities/gmail/pubsub`. Daily `gmail-watch-renew` cron + `v2_gmail_watches` collection. `suppression.check` / `.add` capabilities + workspace-scoped `v2_suppression_list`; gmail.send refuses pre-send when recipient is on the list. `/unsubscribe` page (HMAC token verify → suppressionAdd; ok / ok_no_email / 5 error states). **Live demo still needs**: `GMAIL_PUBSUB_TOKEN`, a Pub/Sub topic+subscription pointing at `/api/webhooks/gmail`, plus the P2-C2 follow-up that fills `defaultGmailClientFactory` with the `googleapis` SDK + GOOGLE_CLIENT_ID/SECRET + `googleapis`-backed `getMessage`/`listHistory`/`renewWatch` implementations. Phase-2.5 backlog: Resend bounce webhook, MC `/threads/[id]` manual-reply page. | `GMAIL_PUBSUB_TOKEN`, Pub/Sub topic, googleapis SDK |
 | **P2-C7** | Gmail Pub/Sub webhook (`apps/web/app/api/webhooks/gmail/route.ts` already stubbed) — verify JWT, decode message, pull thread, emit `gmail/reply.received`. Scheduled fn `gmail-watch-renew` (daily). Bounce webhook via Resend. Suppression list. Unsubscribe page. | `GMAIL_PUBSUB_TOPIC`, `RESEND_API_KEY` |
 
 After Phase 2 → Phase 3 (shipping + content_review), Phase 4 (analyst + MC
