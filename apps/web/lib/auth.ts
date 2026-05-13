@@ -6,6 +6,9 @@
  * issue, so the rest of the API doesn't need to change when that lands.
  */
 import { jwtVerify, SignJWT } from "jose";
+import { cookies } from "next/headers";
+
+export const SESSION_COOKIE = "ss_session";
 
 export interface SessionClaims {
   /** 21-char Google OAuth id (v1 parity) */
@@ -51,15 +54,33 @@ function unauthorized(): Response {
   });
 }
 
-/** Returns the session, or a ready-to-return 401 Response. */
+/** Returns the session, or a ready-to-return 401 Response. Bearer-only (API routes). */
 export async function getSessionOr401(req: Request): Promise<
   | { ok: true; session: SessionClaims }
   | { ok: false; response: Response }
 > {
-  const auth = req.headers.get("authorization");
-  const token = auth?.startsWith("Bearer ") ? auth.slice(7).trim() : null;
-  if (!token) return { ok: false, response: unauthorized() };
-  const session = await verifySession(token);
-  if (!session) return { ok: false, response: unauthorized() };
-  return { ok: true, session };
+  // Try Authorization: Bearer first (existing API contract), then fall back to the session cookie.
+  const authHeader = req.headers.get("authorization");
+  const bearer = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
+  if (bearer) {
+    const s = await verifySession(bearer);
+    if (s) return { ok: true, session: s };
+  }
+  const cookieToken = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (cookieToken) {
+    const s = await verifySession(cookieToken);
+    if (s) return { ok: true, session: s };
+  }
+  return { ok: false, response: unauthorized() };
+}
+
+/**
+ * Server-component / server-action helper. Returns the SessionClaims if a
+ * valid ss_session cookie is present, otherwise null. Pages that require auth
+ * should redirect or render a "sign in" view when this returns null.
+ */
+export async function getServerSession(): Promise<SessionClaims | null> {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (!token) return null;
+  return verifySession(token);
 }

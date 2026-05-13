@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { signSession } from "@/lib/auth";
+import { SESSION_COOKIE, signSession } from "@/lib/auth";
 
 /**
  * E2E auth bypass — mints a session JWT directly (mirrors v1 `/api/auth/test-login`).
@@ -30,5 +30,16 @@ export async function POST(req: NextRequest) {
   const workspaceId = typeof body.workspaceId === "string" ? body.workspaceId : "ws_test";
 
   const token = await signSession({ userId, workspaceId, email });
-  return NextResponse.json({ token, userId, workspaceId, email });
+  const res = NextResponse.json({ token, userId, workspaceId, email });
+  // Set the cookie so Mission Control's server-component pages can read the
+  // session without the caller having to handle it (matches v1's test-login
+  // behaviour). httpOnly + sameSite=lax + 30-day TTL.
+  res.cookies.set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 30 * 24 * 60 * 60,
+    secure: process.env.NODE_ENV === "production",
+  });
+  return res;
 }
