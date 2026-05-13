@@ -11,6 +11,7 @@ export default tseslint.config(
       "**/.next/**",
       "**/.turbo/**",
       "**/node_modules/**",
+      "**/.mongo-dev/**", // scratch dir for scripts/dev-mongo + ad-hoc verify scripts
       "**/*.d.ts",
     ],
   },
