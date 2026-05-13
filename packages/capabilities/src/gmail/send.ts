@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { Collections, getDb } from "@ss/db";
 import { defineCapability } from "../registry";
+import { isSuppressed } from "../suppression/check";
 import { getGmailClientFactory, tokenManager } from "./client";
 import { calculateSpamScore, DEFAULT_MAX_SPAM_SCORE } from "./spam-score";
 import { signUnsubscribeToken, unsubscribeUrl } from "./unsubscribe-token";
@@ -192,6 +193,37 @@ export const gmailSend = defineCapability({
         scheduled: false,
         spamScore: existing.spamScore ?? 0,
       };
+    }
+
+    // 1b. suppression-list pre-check (CAN-SPAM §5). If the recipient is on
+    //     the workspace's do-not-mail list, refuse the send and record the
+    //     refusal on the outbox so the trace is honest.
+    const suppression = await isSuppressed(ctx.workspaceId, input.to);
+    if (suppression.suppressed) {
+      const err = new Error(
+        `gmail.send: recipient_suppressed (${suppression.reason ?? "unknown"}) — ${input.to}`,
+      );
+      await outbox.updateOne(
+        { idempotencyKey: input.idempotencyKey },
+        {
+          $set: {
+            status: "failed",
+            lastError: err.message,
+            updatedAt: new Date(),
+          },
+          $setOnInsert: {
+            idempotencyKey: input.idempotencyKey,
+            workspaceId: ctx.workspaceId,
+            userId: ctx.userId,
+            campaignId: ctx.campaignId,
+            to: input.to,
+            subject: input.subject,
+            createdAt: new Date(),
+          },
+        },
+        { upsert: true },
+      );
+      throw err;
     }
 
     // 2. spam-score pre-check (resolve the user's Gmail address for the rules)

@@ -78,6 +78,7 @@ beforeEach(async () => {
   const db = await getDb();
   await db.collection(Collections.V2_OUTBOX).deleteMany({});
   await db.collection(Collections.SHARED_USER_TOKENS).deleteMany({});
+  await db.collection(Collections.V2_SUPPRESSION_LIST).deleteMany({});
   await tokenManager.saveToken({
     userId: ctx.userId,
     email: "sender@brand.example",
@@ -158,6 +159,26 @@ describe("gmail.send", () => {
     const row = await db.collection(Collections.V2_OUTBOX).findOne({ idempotencyKey: "ik-spam-1" });
     expect(row?.status).toBe("failed");
     expect(row?.lastError).toMatch(/spam_score_too_high/);
+  });
+
+  it("suppression list: recipient on the workspace's list ⇒ throws recipient_suppressed, never calls client", async () => {
+    const fake = fakeClient();
+    setGmailClientFactory(async () => fake);
+    const db = await getDb();
+    await db.collection(Collections.V2_SUPPRESSION_LIST).insertOne({
+      email: baseInput.to,
+      workspaceId: ctx.workspaceId,
+      reason: "unsubscribed",
+      source: "unsubscribe page",
+      addedAt: new Date(),
+    });
+    await expect(
+      gmailSend.handler({ ...baseInput, idempotencyKey: "ik-suppressed-1" }, ctx),
+    ).rejects.toThrow(/recipient_suppressed/);
+    expect(fake.calls).toHaveLength(0);
+    const row = await db.collection(Collections.V2_OUTBOX).findOne({ idempotencyKey: "ik-suppressed-1" });
+    expect(row?.status).toBe("failed");
+    expect(row?.lastError).toMatch(/recipient_suppressed/);
   });
 
   it("sendAt in the future: returns scheduled=true, writes status=scheduled, does NOT call the client", async () => {

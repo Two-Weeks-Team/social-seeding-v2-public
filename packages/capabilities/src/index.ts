@@ -40,5 +40,6 @@ import "./crm/enrich";
 import "./outreach/extract-facts";
 import "./outreach/judge";
 import "./ranking/score";
+import "./suppression/check";
 import "./templates/render";
 import "./workspace/policy";
