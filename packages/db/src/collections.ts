@@ -9,7 +9,7 @@ export const Collections = {
   SHARED_TIKTOK_POSTS: "posts_tiktok",
   SHARED_CRM_ACCOUNTS: "crm_accounts",
   SHARED_CRM_ENRICHMENT: "crm_enrichment",
-  SHARED_BLACKLIST: "blacklist",
+  SHARED_BLACKLIST: "influencer_blacklist", // v1 collection name (matches ~/social-seeding/src/app/api/blacklist/*)
   SHARED_WORKSPACES: "workspaces",
   SHARED_WORKSPACE_MEMBERS: "workspace_members",
   SHARED_USER_TOKENS: "user_tokens", // Gmail OAuth tokens
