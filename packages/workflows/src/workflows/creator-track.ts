@@ -145,7 +145,11 @@ export async function creatorTrackHandler(
 
   const trace = startTrace(campaignId);
   const agentCtx: AgentRunContext = {
-    capabilityCtx: { workspaceId, userId: brief.createdBy, rateLimitClass: "default" },
+    // campaignId is load-bearing: gmail.send writes it on v2_outbox so the
+    // Pub/Sub webhook can join replies back to (campaign, creator), AND the
+    // unsubscribe footer's HMAC token uses it as `cid` so /unsubscribe knows
+    // which campaign to look up. Codex review P1#1.
+    capabilityCtx: { workspaceId, userId: brief.createdBy, campaignId, rateLimitClass: "default" },
     trace,
     campaignBudgetUsd: policy.budgets.maxUsdPerCampaign,
     ...(deps.modelClient ? { model: deps.modelClient } : {}),
@@ -238,14 +242,17 @@ export async function creatorTrackHandler(
     }),
   );
 
-  // ── Wait for a reply (3-day timeout). Match on the threadId we got back. ─
+  // ── Wait for a reply (3-day timeout). ─────────────────────────────────────
+  // Inngest `match` correlates by extracting `event.data.<path>` from BOTH
+  // the trigger event (CreatorTrackStart) AND the awaited event. The trigger
+  // has no `threadId`, so we cannot match on it — codex review P1#2.
+  // Instead drop `match` entirely and use a self-contained `if` expression
+  // that pins the await to this specific (campaign, creator, thread) tuple
+  // by literal substitution.
   const reply = await step.waitForEvent<GmailReplyData>(`await-reply:${campaignId}:${creatorId}`, {
     event: Events.GmailReplyReceived,
-    match: "data.threadId",
     timeout: REPLY_TIMEOUT,
-    // narrow further by thread so a different creator's reply on the same
-    // pubsub channel doesn't trip this waiter.
-    if: `event.data.threadId == "${sendResult.threadId}"`,
+    if: `event.data.campaignId == "${campaignId}" && event.data.creatorId == "${creatorId}" && event.data.threadId == "${sendResult.threadId}"`,
   });
   if (!reply) {
     await patchTrack(campaignId, creatorId, "no_response", {
@@ -306,6 +313,24 @@ export async function creatorTrackHandler(
     turn.classification === "unrelated"
   ) {
     const state = turn.classification === "declined" || turn.classification === "unsubscribe" ? "declined" : "no_response";
+    // unsubscribe ⇒ honor the request at the workspace level: every future
+    // campaign in this workspace should refuse to mail this address.
+    // gmail.send's pre-send check reads the same list. Codex review P1#3.
+    if (turn.classification === "unsubscribe") {
+      await step.run("suppression-from-reply", async () =>
+        invokeCapability(
+          "suppression.add",
+          {
+            email: reply.data.fromEmail,
+            reason: "unsubscribed",
+            source: `reply.unsubscribe (${reply.data.messageId})`,
+            campaignId,
+            creatorId,
+          },
+          agentCtx.capabilityCtx,
+        ),
+      );
+    }
     await patchTrack(campaignId, creatorId, state, {
       emailsSent: 1,
       threadId: sendResult.threadId,

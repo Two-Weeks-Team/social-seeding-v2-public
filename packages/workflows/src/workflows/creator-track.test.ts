@@ -289,6 +289,7 @@ beforeEach(async () => {
   await db.collection(Collections.V2_APPROVALS).deleteMany({});
   await db.collection(Collections.V2_WORKSPACE_POLICIES).deleteMany({});
   await db.collection(Collections.V2_OUTBOX).deleteMany({});
+  await db.collection(Collections.V2_SUPPRESSION_LIST).deleteMany({});
   await db.collection(Collections.SHARED_USER_TOKENS).deleteMany({});
 
   // Seed a campaign so patchTrack works.
@@ -464,6 +465,35 @@ describe("creator-track — branching matrix", () => {
     const persisted = await campaignRepo.get(campaignId);
     const track = persisted?.tracks.find((t) => t.creatorId === creator.id);
     expect(track?.state).toBe("declined");
+  });
+
+  it("unsubscribe reply ⇒ also adds the recipient to the workspace suppression list (codex review P1#3)", async () => {
+    const gmail = fakeGmail();
+    setGmailClientFactory(async () => gmail);
+    const fake = fakeStep({
+      reply: {
+        fromEmail: "freshly@example.com",
+        subject: "Re: Quick collab",
+        bodyText: "이메일 보내지 마세요. 수신거부 부탁드립니다.",
+        messageId: "msg_in_unsub",
+      },
+    });
+    const model = dispatchingModel({
+      classification: "unsubscribe",
+      extracted: {},
+      needsHumanReason: "Explicit unsubscribe — add to suppression list.",
+    });
+    const out = await run(model, fake);
+    expect(out.terminalState).toBe("declined");
+    expect(out.classification).toBe("unsubscribe");
+
+    const db = await getDb();
+    const suppression = await db
+      .collection(Collections.V2_SUPPRESSION_LIST)
+      .findOne({ workspaceId: brief.workspaceId, email: "freshly@example.com" });
+    expect(suppression).toBeTruthy();
+    expect(suppression?.reason).toBe("unsubscribed");
+    expect(suppression?.source).toContain("reply.unsubscribe");
   });
 
   it("negotiating ⇒ surfaces approveReplyResponse approval, no auto-reply, state='in_conversation'", async () => {
