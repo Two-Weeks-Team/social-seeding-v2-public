@@ -1,4 +1,5 @@
 import { Events } from "@ss/contracts";
+import { recordCost, startTrace } from "@ss/observability";
 import { inngest } from "../client";
 
 /**
@@ -20,9 +21,26 @@ export const brandCampaign = inngest.createFunction(
     cancelOn: [{ event: Events.CampaignCancelled, match: "data.campaignId" }],
   },
   { event: Events.CampaignSubmitted },
-  // `step` will be destructured here once the stages below are filled in (Phase 1+).
-  async ({ event }) => {
-    const { campaignId } = event.data;
+  async ({ event, step }) => {
+    const { campaignId, brief } = event.data;
+
+    // Observability for the run: open a trace, emit a $0 cost-ledger entry, flush.
+    // (Real per-stage spans + agent costs come online with WF1/Phase-1.)
+    await step.run("observability", async () => {
+      const trace = startTrace(campaignId);
+      await trace.span("workflow:brand-campaign", "workflow", { campaignId }, async () => undefined);
+      await recordCost({
+        campaignId,
+        workspaceId: brief.workspaceId,
+        agent: "brand-campaign",
+        model: "none",
+        inputTokens: 0,
+        outputTokens: 0,
+        usd: 0,
+        at: Date.now(),
+      });
+      await trace.flush();
+    });
 
     // ── Stage 1: overview ────────────────────────────────────────────────
     // step.run("plan", ...) — load brief + workspace policy; persist a plan;
