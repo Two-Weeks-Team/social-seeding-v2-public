@@ -13,4 +13,5 @@ import "./gmail/send";
 import "./blacklist/check";
 import "./crm/enrich";
 import "./ranking/score";
+import "./templates/render";
 import "./workspace/policy";
