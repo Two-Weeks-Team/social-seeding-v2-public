@@ -48,6 +48,17 @@ export {
   suppressionCheck,
   type SuppressionReason,
 } from "./suppression/check";
+// Carrier seam — same shape as Gmail / TikTok seams; tests inject fakes.
+export {
+  defaultCarrierClientFactory,
+  getCarrierClientFactory,
+  setCarrierClientFactory,
+  type CarrierClient,
+  type CarrierClientFactory,
+  type CarrierCreateInput,
+  type CarrierCreateResult,
+  type CarrierTrackResult,
+} from "./shipment/carrier";
 
 import "./tiktok/search";
 import "./tiktok/get-creator";
@@ -57,6 +68,8 @@ import "./crm/enrich";
 import "./outreach/extract-facts";
 import "./outreach/judge";
 import "./ranking/score";
+import "./shipment/create";
+import "./shipment/track";
 import "./suppression/check";
 import "./templates/render";
 import "./workspace/policy";
