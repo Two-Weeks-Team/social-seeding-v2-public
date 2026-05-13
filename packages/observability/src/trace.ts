@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { getObservabilitySink } from "./sink";
 
 /**
  * Per-run trace. Agentic systems fail silently; this makes every agent call,
@@ -6,7 +7,7 @@ import { randomUUID } from "node:crypto";
  * nest (workflow → stage → agent → tool/LLM).
  *
  * Sink is configurable via AGENT_TRACE_SINK (mongo | stdout). The mongo sink
- * writes to Collections.V2_AGENT_TRACES. Stubbed flush below.
+ * writes one TraceDoc per run to Collections.V2_AGENT_TRACES (see ./sink.ts).
  */
 export interface TraceSpan {
   id: string;
@@ -56,7 +57,11 @@ export function startTrace(campaignId: string, runId = randomUUID()): RunTrace {
       process.stdout.write(JSON.stringify({ runId, campaignId, spans }) + "\n");
       return;
     }
-    // TODO(phase-0): write to Collections.V2_AGENT_TRACES via @ss/db.
+    const startTimes = spans.map((s) => s.startedAt);
+    const endTimes = spans.map((s) => s.endedAt ?? s.startedAt);
+    const startedAt = new Date(startTimes.length ? Math.min(...startTimes) : Date.now());
+    const endedAt = new Date(endTimes.length ? Math.max(...endTimes) : startedAt.getTime());
+    await getObservabilitySink().appendTrace({ runId, campaignId, startedAt, endedAt, spans });
   }
 
   return { runId, campaignId, spans, span, flush };
