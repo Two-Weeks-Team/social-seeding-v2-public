@@ -14,7 +14,34 @@ import {
 import "@xyflow/react/dist/style.css";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/cn";
-import type { CampaignStage } from "@ss/contracts";
+import type { CampaignStage, CreatorTrack } from "@ss/contracts";
+
+/**
+ * Aggregate counts per CreatorTrack.state — drives the outreach-stage node
+ * status + a per-track-state badge cluster in the canvas. Pure helper,
+ * exported for tests / Storybook.
+ */
+export type TrackStateBuckets = Record<CreatorTrack["state"], number>;
+
+export function bucketTracksByState(tracks: ReadonlyArray<CreatorTrack>): TrackStateBuckets {
+  const out: TrackStateBuckets = {
+    candidate: 0,
+    shortlisted: 0,
+    outreach_sent: 0,
+    in_conversation: 0,
+    agreed: 0,
+    address_collected: 0,
+    shipped: 0,
+    delivered: 0,
+    posted: 0,
+    verified: 0,
+    declined: 0,
+    no_response: 0,
+    flaked: 0,
+  };
+  for (const t of tracks) out[t.state]++;
+  return out;
+}
 
 /**
  * Campaign canvas — the alternative to the timeline view. Renders the
@@ -136,6 +163,12 @@ interface BuildArgs {
   shortlistCount?: number;
   shortlistGateApprovalId?: string;
   trackCount: number;
+  /**
+   * Per-track-state counts, sourced from CreatorTrack.state. Drives the
+   * outreach-node status (running while any are mid-flight, done once all
+   * are terminal) and the badge cluster in the canvas right column.
+   */
+  trackBuckets?: TrackStateBuckets;
 }
 
 function buildGraph(a: BuildArgs): { nodes: Node<SsNodeData>[]; edges: Edge[] } {
@@ -151,6 +184,29 @@ function buildGraph(a: BuildArgs): { nodes: Node<SsNodeData>[]; edges: Edge[] } 
   const vetGroupStatus: Status = sourcingStatus === "done" ? "done" : isCurrent("sourcing") ? "running" : "pending";
   const shortlistStatus: Status = a.shortlistGateApprovalId ? "done" : isCurrent("sourcing") && passed("overview") ? "running" : "pending";
   const gateStatus: Status = a.shortlistGateApprovalId ? "waiting" : a.trackCount > 0 ? "done" : "pending";
+
+  // ── outreach progress (derived from CreatorTrack.state aggregates) ─────────
+  const buckets = a.trackBuckets;
+  const liveTracks = buckets
+    ? buckets.outreach_sent + buckets.in_conversation
+    : 0;
+  const terminalTracks = buckets
+    ? buckets.agreed + buckets.declined + buckets.no_response + buckets.flaked
+    : 0;
+  const outreachStarted = a.trackCount > 0 && (liveTracks > 0 || terminalTracks > 0);
+  const outreachAllTerminal = a.trackCount > 0 && terminalTracks === a.trackCount;
+  const outreachStatus: Status = isCurrent("outreach")
+    ? outreachAllTerminal
+      ? "done"
+      : liveTracks > 0
+        ? "running"
+        : a.trackCount > 0
+          ? "running"
+          : "pending"
+    : passed("outreach")
+      ? "done"
+      : "pending";
+  const waitStatus: Status = isCurrent("outreach") && buckets && buckets.outreach_sent > 0 ? "waiting" : outreachStatus;
 
   const nodes: Node<SsNodeData>[] = [
     {
@@ -225,7 +281,7 @@ function buildGraph(a: BuildArgs): { nodes: Node<SsNodeData>[]; edges: Edge[] } 
           : {}),
       },
     },
-    // Future stages (Phase 2+) — kept faded for inventory awareness
+    // Outreach stage — lights up once tracks fan out
     {
       id: "outreach",
       position: { x: 960, y: 200 },
@@ -234,8 +290,19 @@ function buildGraph(a: BuildArgs): { nodes: Node<SsNodeData>[]; edges: Edge[] } 
         label: "outreach-writer",
         kind: "agent",
         tone: "violet",
-        status: stageStatus("outreach"),
-        attrs: [{ label: "gmail.send", tone: "cyan" }],
+        status: outreachStatus,
+        attrs: buckets
+          ? [
+              { label: "opus-4.7", tone: "violet", mono: true },
+              { label: `${buckets.outreach_sent + buckets.in_conversation + buckets.agreed + buckets.declined + buckets.no_response}/${a.trackCount}`, tone: "slate", mono: true },
+            ]
+          : [
+              { label: "opus-4.7", tone: "violet", mono: true },
+              { label: "gmail.send", tone: "cyan" },
+            ],
+        hint: outreachStarted
+          ? `${liveTracks} live · ${terminalTracks} done`
+          : "tracks pending fan-out",
       },
     },
     {
@@ -246,8 +313,8 @@ function buildGraph(a: BuildArgs): { nodes: Node<SsNodeData>[]; edges: Edge[] } 
         label: "reply · 3d",
         kind: "wait",
         tone: "slate",
-        status: stageStatus("outreach"),
-        hint: "step.sleep | reply",
+        status: waitStatus,
+        hint: buckets && buckets.outreach_sent > 0 ? `${buckets.outreach_sent} waiting` : "step.waitForEvent",
       },
     },
     {
@@ -282,8 +349,8 @@ function buildGraph(a: BuildArgs): { nodes: Node<SsNodeData>[]; edges: Edge[] } 
     edge("vetting", "shortlist", shortlistStatus !== "pending"),
     edge("shortlist", "gate-shortlist", gateStatus !== "pending"),
     edge("gate-shortlist", "outreach", a.trackCount > 0),
-    edge("outreach", "wait-reply", false),
-    edge("outreach", "shipping", false),
+    edge("outreach", "wait-reply", outreachStatus !== "pending"),
+    edge("outreach", "shipping", buckets ? buckets.agreed > 0 : false),
     edge("shipping", "content", false),
   ];
 
@@ -343,6 +410,7 @@ export interface CampaignCanvasProps {
   shortlistCount?: number;
   shortlistGateApprovalId?: string;
   trackCount: number;
+  trackBuckets?: TrackStateBuckets;
 }
 
 export function CampaignCanvas(props: CampaignCanvasProps) {

@@ -5,10 +5,37 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, SectionLabel } from "@/components/ui/card";
 import { StageBar } from "@/components/mission-control/stage-bar";
 import { ActivityTimeline } from "@/components/mission-control/activity-timeline";
-import { CampaignCanvas } from "@/components/mission-control/campaign-canvas";
+import { CampaignCanvas, bucketTracksByState } from "@/components/mission-control/campaign-canvas";
 import { getServerSession } from "@/lib/auth";
 import { approvalRepo, campaignRepo, traceRepo } from "@ss/db";
+import type { CreatorTrack } from "@ss/contracts";
 import { cn } from "@/lib/cn";
+
+/**
+ * State → badge color. Mirrors the canvas's progress narrative:
+ *   live (running) → blue/amber, terminal-good → emerald, terminal-bad → rose.
+ */
+function trackStateVariant(state: CreatorTrack["state"]): "slate" | "blue" | "amber" | "emerald" | "rose" {
+  switch (state) {
+    case "outreach_sent":
+    case "in_conversation":
+      return "blue";
+    case "agreed":
+    case "address_collected":
+    case "shipped":
+    case "delivered":
+    case "posted":
+    case "verified":
+      return "emerald";
+    case "declined":
+    case "flaked":
+      return "rose";
+    case "no_response":
+      return "amber";
+    default:
+      return "slate";
+  }
+}
 
 /**
  * W2 + W3 + Phase-2-C1 — Campaign detail.
@@ -53,6 +80,7 @@ export default async function CampaignDetailPage({
     shortlistApproval && Array.isArray(shortlistApproval.recommendation)
       ? (shortlistApproval.recommendation as unknown[]).length
       : undefined;
+  const trackBuckets = bucketTracksByState(campaign.tracks);
 
   return (
     <div className="max-w-6xl mx-auto px-8 py-8">
@@ -111,6 +139,7 @@ export default async function CampaignDetailPage({
               shortlistCount={shortlistCount}
               shortlistGateApprovalId={shortlistApproval?.id}
               trackCount={campaign.tracks.length}
+              trackBuckets={trackBuckets}
             />
           ) : (
             <Card>
@@ -188,10 +217,21 @@ export default async function CampaignDetailPage({
               {campaign.tracks.length === 0 && (
                 <div className="text-[12px] text-slate-500">아직 트랙이 없습니다.</div>
               )}
+              {campaign.tracks.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1">
+                  {(Object.entries(trackBuckets) as [keyof typeof trackBuckets, number][])
+                    .filter(([, n]) => n > 0)
+                    .map(([state, n]) => (
+                      <Badge key={state} variant={trackStateVariant(state)}>
+                        {state} · {n}
+                      </Badge>
+                    ))}
+                </div>
+              )}
               {campaign.tracks.slice(0, 5).map((t) => (
                 <div key={t.creatorId} className="flex items-center justify-between text-[12px] py-1">
                   <span className="mono">{t.creatorId}</span>
-                  <Badge variant="slate">{t.state}</Badge>
+                  <Badge variant={trackStateVariant(t.state)}>{t.state}</Badge>
                 </div>
               ))}
               {campaign.tracks.length > 5 && (
