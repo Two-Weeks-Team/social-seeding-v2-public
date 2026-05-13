@@ -7,3 +7,8 @@ export { outreachWriterAgent } from "./outreach-writer.agent";
 export { conversationAgent, needsResponseDraft } from "./conversation.agent";
 export { conversationResponderAgent } from "./conversation-responder.agent";
 export { logisticsAgent } from "./logistics.agent";
+export {
+  contentVerifyAgent,
+  type ContentVerifyOutput,
+  type ContentVerifyFlag,
+} from "./content-verify.agent";
