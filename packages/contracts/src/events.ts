@@ -89,3 +89,62 @@ export const StageAdvancedEvent = z.object({
   name: z.literal("campaign/stage.advanced"),
   data: z.object({ campaignId: z.string(), from: CampaignStage, to: CampaignStage }),
 });
+
+/**
+ * Fired by `shipment.track` (Phase 3) when the carrier reports a status flip
+ * on a shipment we own. Creator-track's shipping wait-loop awaits this with
+ * a 14-day timeout; the poller (Phase-3.5 follow-up) is the producer.
+ */
+export const ShipmentTrackingUpdatedEvent = z.object({
+  name: z.literal(Events.ShipmentTrackingUpdated),
+  data: z.object({
+    campaignId: z.string(),
+    creatorTrackId: z.string(),
+    creatorId: z.string(),
+    shipmentId: z.string(),
+    /** Latest mapped ShipmentStatus the workflow branches on. */
+    status: z.enum([
+      "pending",
+      "address_pending",
+      "shipped",
+      "in_transit",
+      "out_for_delivery",
+      "delivered",
+      "failed",
+      "returned",
+      "cancelled",
+    ]),
+    /** Tracking number for MC-side display. */
+    trackingNumber: z.string().default(""),
+  }),
+});
+
+/**
+ * Fired by `tiktok-post-poller` (Phase 3) when it spots a creator's post that
+ * looks like a match for an in-progress track (campaign hashtag overlap +
+ * brand-name mention in the description). Creator-track's content-review
+ * wait-loop awaits this with a 14-day timeout; content-verify (Phase 3 agent)
+ * scores the post afterwards.
+ */
+export const TikTokPostDetectedEvent = z.object({
+  name: z.literal(Events.TikTokPostDetected),
+  data: z.object({
+    campaignId: z.string(),
+    creatorTrackId: z.string(),
+    creatorId: z.string(),
+    postId: z.string(),
+    /** Verbatim post desc — the agent reads this. */
+    desc: z.string().default(""),
+    hashtags: z.array(z.string()).default([]),
+    views: z.number().int().nonnegative().default(0),
+    likes: z.number().int().nonnegative().default(0),
+    comments: z.number().int().nonnegative().default(0),
+    shares: z.number().int().nonnegative().default(0),
+    createdAt: z.coerce.date(),
+    /**
+     * The hashtags from the campaign brief that overlapped with this post's
+     * hashtags — what made the poller flag it.
+     */
+    matchedHashtags: z.array(z.string()).default([]),
+  }),
+});
