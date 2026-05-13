@@ -1,85 +1,142 @@
-import { Events } from "@ss/contracts";
-import { recordCost, startTrace } from "@ss/observability";
+import type { z } from "zod";
+import { type Candidate, CampaignBriefSchema, Events } from "@ss/contracts";
+import { campaignRepo, workspaceRepo } from "@ss/db";
+import { sourcingAgent, vettingAgent, runAgent, type AgentRunContext, type ModelClient } from "@ss/agents";
+import { recordCost, startTrace, type RunTrace } from "@ss/observability";
+import { gate, type StepLike } from "../gate";
 import { inngest } from "../client";
 
 /**
- * brand-campaign — the durable workflow that *is* the product. It encodes the
- * 6 stages v1 made the human click through, and runs them with agents,
- * pausing at policy gates. This file is a SKELETON: the comments describe the
- * intended `step.*` graph; `docs/PHASE-1-PLAN.md` tasks fill it in slice by
- * slice (Phase 1 = stages 1–2, Phase 2 = stage 3, etc.).
+ * brand-campaign — the durable workflow that *is* the product. It encodes
+ * the 6 stages v1 made the human click through, and runs them with agents,
+ * pausing at policy gates. Phase 1 fills in stages 1-2 (overview → sourcing +
+ * vetting fan-out → approveShortlist gate). Phase 2+ adds outreach / shipping
+ * / content_review / performance per docs/ROADMAP.md.
  *
- * Why deterministic-orchestrator-invokes-agents (not a free agent loop): a
- * 6-week business process needs retries, durable timers, human gates and
- * replayable state. The agents handle the judgment; the workflow handles the
- * choreography. (Same split v1's cold-mail pipeline already uses internally.)
+ * The handler is exported separately from inngest.createFunction so tests can
+ * drive it with a fake step + fake ModelClient without a running Inngest
+ * dev server.
  */
+
+type Brief = z.infer<typeof CampaignBriefSchema>;
+type CandidateOut = Omit<Candidate, "fitScore" | "vettedAt">;
+
+export interface BrandCampaignDeps {
+  /** Injected for tests; default = the Anthropic-backed defaultModelClient. */
+  modelClient?: ModelClient;
+}
+
+export interface BrandCampaignArgs {
+  event: { data: { campaignId: string; brief: Brief } };
+  step: StepLike;
+}
+
+/**
+ * Drop candidates whose flags include any HARD-fail flag (the workflow
+ * filters before showing the shortlist; the human still sees flagged but
+ * non-hard-fail candidates in the inbox).
+ */
+const HARD_FAIL_FLAGS = new Set(["blacklisted", "brand_unsafe", "prior_flake"]);
+
+export function pickShortlist(vetted: Candidate[], targetCount: number): Candidate[] {
+  const limit = Math.ceil(targetCount * 1.5);
+  return vetted
+    .filter((c) => !c.flags.some((f) => HARD_FAIL_FLAGS.has(f)))
+    .sort((a, b) => b.fitScore - a.fitScore)
+    .slice(0, limit);
+}
+
+export async function brandCampaignHandler(
+  { event, step }: BrandCampaignArgs,
+  deps: BrandCampaignDeps = {},
+): Promise<{ campaignId: string; stage: "sourcing"; shortlistCount: number; decision: "approved" | "edited" | "rejected" }> {
+  const { campaignId, brief } = event.data;
+  const workspaceId = brief.workspaceId;
+
+  // P0-7: trace + $0 cost on the run start.
+  await step.run("observability", async () => {
+    const t = startTrace(campaignId);
+    await t.span("workflow:brand-campaign", "workflow", { campaignId }, async () => undefined);
+    await recordCost({
+      campaignId,
+      workspaceId,
+      agent: "brand-campaign",
+      model: "none",
+      inputTokens: 0,
+      outputTokens: 0,
+      usd: 0,
+      at: Date.now(),
+    });
+    await t.flush();
+  });
+
+  // ── Stage 1: overview — load policy, persist plan, advance to sourcing ──
+  const policy = await step.run("plan", async () => {
+    const wp = await workspaceRepo.getPolicy(workspaceId);
+    await campaignRepo.patchStage(campaignId, "sourcing", "running");
+    return wp;
+  });
+
+  // shared trace + ctx for the agents (each runAgent call writes its own spans into this trace)
+  const trace: RunTrace = startTrace(campaignId);
+  const agentCtx: AgentRunContext = {
+    capabilityCtx: { workspaceId, userId: brief.createdBy, rateLimitClass: "default" },
+    trace,
+    campaignBudgetUsd: policy.budgets.maxUsdPerCampaign,
+    ...(deps.modelClient ? { model: deps.modelClient } : {}),
+  };
+
+  // ── Stage 2: sourcing — runAgent(sourcingAgent) ───────────────────────────
+  const sourcingOutcome = await step.run("source", async () =>
+    runAgent(sourcingAgent, { brief, excludeCreatorIds: [] }, agentCtx),
+  );
+  if (sourcingOutcome.kind !== "ok") {
+    throw new Error(`sourcing agent escalated: ${sourcingOutcome.reason}`);
+  }
+  const candidates: CandidateOut[] = sourcingOutcome.value.candidates;
+
+  // ── Stage 2: vetting fan-out — one step.run per candidate ────────────────
+  const vetOutcomes = await Promise.all(
+    candidates.map((c, i) =>
+      step.run(`vet-${i}`, async () => runAgent(vettingAgent, { brief, candidate: c }, agentCtx)),
+    ),
+  );
+  const vetted: Candidate[] = [];
+  for (const o of vetOutcomes) {
+    if (o.kind === "ok") vetted.push(o.value);
+    // escalated vets are dropped — the workflow has enough margin (3× target) to absorb a few
+  }
+
+  // pickShortlist: top ⌈creatorCount × 1.5⌉ by fitScore, drop hard-fail flags
+  const shortlist = pickShortlist(vetted, brief.targeting.creatorCount);
+
+  // ── approveShortlist gate (WF2) ─────────────────────────────────────────
+  const resolution = await gate(step, policy.gates.approveShortlist, {
+    campaignId,
+    workspaceId,
+    kind: "shortlist",
+    recommendation: shortlist,
+    rationale: `${vetted.length} candidates vetted; ${shortlist.length} pass hard-fail filter and rank highest by fitScore (avg ${
+      shortlist.length > 0 ? (shortlist.reduce((s, c) => s + c.fitScore, 0) / shortlist.length).toFixed(2) : "n/a"
+    }).`,
+  });
+
+  await trace.flush();
+
+  // WF3 (next commit) takes over here: persist a CreatorTrack per confirmed creator.
+  return {
+    campaignId,
+    stage: "sourcing",
+    shortlistCount: Array.isArray(resolution.payload) ? resolution.payload.length : 0,
+    decision: resolution.decision,
+  };
+}
+
 export const brandCampaign = inngest.createFunction(
   {
     id: "brand-campaign",
-    // one run per campaign; pause/resume/cancel via events
     cancelOn: [{ event: Events.CampaignCancelled, match: "data.campaignId" }],
   },
   { event: Events.CampaignSubmitted },
-  async ({ event, step }) => {
-    const { campaignId, brief } = event.data;
-
-    // Observability for the run: open a trace, emit a $0 cost-ledger entry, flush.
-    // (Real per-stage spans + agent costs come online with WF1/Phase-1.)
-    await step.run("observability", async () => {
-      const trace = startTrace(campaignId);
-      await trace.span("workflow:brand-campaign", "workflow", { campaignId }, async () => undefined);
-      await recordCost({
-        campaignId,
-        workspaceId: brief.workspaceId,
-        agent: "brand-campaign",
-        model: "none",
-        inputTokens: 0,
-        outputTokens: 0,
-        usd: 0,
-        at: Date.now(),
-      });
-      await trace.flush();
-    });
-
-    // ── Stage 1: overview ────────────────────────────────────────────────
-    // step.run("plan", ...) — load brief + workspace policy; persist a plan;
-    //   set campaign.stage = "sourcing". (campaignRepo.patchStage)
-
-    // ── Stage 2: sourcing + vetting ──────────────────────────────────────
-    // const candidates = await step.run("source", () => runAgent(sourcingAgent, ...))
-    // const vetted = await Promise.all(candidates.map((c, i) =>
-    //   step.run(`vet-${i}`, () => runAgent(vettingAgent, ...))))
-    // const shortlist = pickTop(vetted, brief.targeting.creatorCount * 1.5)
-    //
-    // GATE: approveShortlist
-    //   const decision = await gate(step, "approveShortlist", { campaignId, recommendation: shortlist })
-    //   // gate() = if policy says auto/auto_unless-and-no-escalation: return shortlist;
-    //   //          else create an Approval row, emit, and step.waitForEvent(ApprovalResolved)
-    //   const confirmed = decision.editedPayload ?? shortlist
-
-    // ── Stage 3: outreach + conversation (Phase 2) ───────────────────────
-    // For each confirmed creator, fan out a `creatorTrack` child workflow via
-    // step.invoke / step.sendEvent. Each child: extractFacts → outreachWriter →
-    // GATE approveOutreachSend → gmail.send → loop:
-    //   step.waitForEvent(GmailReplyReceived, timeout: "3d")
-    //     timeout  → step.run("follow-up", ...) (v1 follow-up cadence), repeat ≤N
-    //     reply    → runAgent(conversationAgent) → classify:
-    //                  interested + address    → mark agreed
-    //                  negotiating / question  → GATE approveReplyResponse → gmail.send
-    //                  declined / unsubscribe  → end track (feeds blacklist auto-detect)
-
-    // ── Stage 4: shipping (Phase 3) ──────────────────────────────────────
-    // GATE approveShipment → shipment.create → step.waitForEvent(ShipmentTrackingUpdated)…
-
-    // ── Stage 5: content review (Phase 3) ────────────────────────────────
-    // schedule a poller (separate scheduled fn) that emits TikTokPostDetected;
-    // the track step.waitForEvent on it (timeout 14d → escalate "no post yet").
-
-    // ── Stage 6: performance (Phase 4) ───────────────────────────────────
-    // step.run("report", () => runAgent(analystAgent, ...)); deliver weekly via
-    // a recurring child; set campaign.status = "completed" when all tracks done.
-
-    return { campaignId, status: "skeleton" as const };
-  },
+  ({ event, step }) => brandCampaignHandler({ event, step: step as unknown as StepLike }),
 );
