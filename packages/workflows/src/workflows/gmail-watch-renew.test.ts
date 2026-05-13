@@ -40,17 +40,27 @@ describe("gmail-watch-renew", () => {
     expect(out).toEqual({ total: 0, renewed: 0, skipped: 0, failed: 0, failures: [] });
   });
 
-  it("default factory throws ⇒ each row counts as failed with a clear reason (no googleapis wired)", async () => {
+  it("default factory throws when credentials are absent ⇒ each row counts as failed with a clear reason", async () => {
     await seed([
       { userId: "u_1", emailAddress: "a@example.com", lastHistoryId: "100" },
       { userId: "u_2", emailAddress: "b@example.com", lastHistoryId: "200" },
     ]);
-    // No setGmailClientFactory → default throws
-    const out = await gmailWatchRenewHandler();
-    expect(out.total).toBe(2);
-    expect(out.failed).toBe(2);
-    expect(out.failures.map((f) => f.emailAddress).sort()).toEqual(["a@example.com", "b@example.com"]);
-    expect(out.failures[0]?.reason).toMatch(/googleapis not wired/i);
+    // No setGmailClientFactory + no GOOGLE_CLIENT_ID/SECRET in env → default
+    // factory throws a clear, actionable error.
+    const prevId = process.env.GOOGLE_CLIENT_ID;
+    const prevSecret = process.env.GOOGLE_CLIENT_SECRET;
+    delete process.env.GOOGLE_CLIENT_ID;
+    delete process.env.GOOGLE_CLIENT_SECRET;
+    try {
+      const out = await gmailWatchRenewHandler();
+      expect(out.total).toBe(2);
+      expect(out.failed).toBe(2);
+      expect(out.failures.map((f) => f.emailAddress).sort()).toEqual(["a@example.com", "b@example.com"]);
+      expect(out.failures[0]?.reason).toMatch(/GOOGLE_CLIENT_ID/);
+    } finally {
+      if (prevId !== undefined) process.env.GOOGLE_CLIENT_ID = prevId;
+      if (prevSecret !== undefined) process.env.GOOGLE_CLIENT_SECRET = prevSecret;
+    }
   });
 
   it("factory without renewWatch ⇒ row counts as skipped (compat with P2-C2 GmailClient fakes)", async () => {

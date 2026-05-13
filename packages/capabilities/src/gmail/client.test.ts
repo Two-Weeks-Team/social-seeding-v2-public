@@ -128,8 +128,78 @@ describe("GmailClient factory seam", () => {
     expect(out.threadId).toBe("thread_new");
   });
 
-  it("default factory throws a clear, actionable error (no silent success)", async () => {
+  it("default factory throws a clear, actionable error when GOOGLE_CLIENT_ID/SECRET are missing", async () => {
     setGmailClientFactory(undefined);
-    await expect(defaultGmailClientFactory("any-user")).rejects.toThrow(/googleapis not wired/);
+    const prevId = process.env.GOOGLE_CLIENT_ID;
+    const prevSecret = process.env.GOOGLE_CLIENT_SECRET;
+    delete process.env.GOOGLE_CLIENT_ID;
+    delete process.env.GOOGLE_CLIENT_SECRET;
+    try {
+      await expect(defaultGmailClientFactory("any-user")).rejects.toThrow(/GOOGLE_CLIENT_ID/);
+    } finally {
+      if (prevId !== undefined) process.env.GOOGLE_CLIENT_ID = prevId;
+      if (prevSecret !== undefined) process.env.GOOGLE_CLIENT_SECRET = prevSecret;
+    }
+  });
+});
+
+describe("normalizeGmailMessage", () => {
+  it("extracts From / Subject / text/plain body from a full Gmail message payload", async () => {
+    const { normalizeGmailMessage } = await import("./client");
+    const plainText = "Hi! Yes, interested. Address: 12 Garosu-gil, Seoul.";
+    const msg = {
+      id: "msg_abc",
+      threadId: "thread_xyz",
+      internalDate: "1778677000000",
+      payload: {
+        mimeType: "multipart/alternative",
+        headers: [
+          { name: "From", value: '"Jiwoo Park" <jiwoo@example.com>' },
+          { name: "Subject", value: "Re: Quick collab idea" },
+        ],
+        parts: [
+          {
+            mimeType: "text/plain",
+            body: { data: Buffer.from(plainText, "utf8").toString("base64").replace(/=+$/, "") },
+          },
+          {
+            mimeType: "text/html",
+            body: { data: Buffer.from("<p>html version</p>", "utf8").toString("base64").replace(/=+$/, "") },
+          },
+        ],
+      },
+    };
+    const out = normalizeGmailMessage(msg);
+    expect(out.messageId).toBe("msg_abc");
+    expect(out.threadId).toBe("thread_xyz");
+    expect(out.fromEmail).toBe("jiwoo@example.com"); // angle-bracket envelope stripped
+    expect(out.subject).toBe("Re: Quick collab idea");
+    expect(out.bodyText).toBe(plainText);
+    expect(out.internalDate).toBeInstanceOf(Date);
+  });
+
+  it("falls back to HTML (tag-stripped) when no text/plain part exists", async () => {
+    const { normalizeGmailMessage } = await import("./client");
+    const html = "<html><body><p>Hi!</p><p>Yes, interested.</p></body></html>";
+    const out = normalizeGmailMessage({
+      id: "msg_h",
+      threadId: "t_h",
+      payload: {
+        mimeType: "text/html",
+        headers: [
+          { name: "From", value: "plain@example.com" },
+          { name: "Subject", value: "x" },
+        ],
+        body: { data: Buffer.from(html, "utf8").toString("base64").replace(/=+$/, "") },
+      },
+    });
+    expect(out.bodyText).toBe("Hi! Yes, interested.");
+    expect(out.fromEmail).toBe("plain@example.com"); // no envelope, just the address
+  });
+
+  it("throws when id or threadId is missing (Gmail guarantees them — defensive)", async () => {
+    const { normalizeGmailMessage } = await import("./client");
+    expect(() => normalizeGmailMessage({ threadId: "x", payload: {} })).toThrow();
+    expect(() => normalizeGmailMessage({ id: "x", payload: {} })).toThrow();
   });
 });

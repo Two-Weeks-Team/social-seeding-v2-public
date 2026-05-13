@@ -74,6 +74,13 @@ export interface GmailClient {
    * Optional — same compat reason as getMessage.
    */
   listHistory?(startHistoryId: string): Promise<GmailHistoryDelta>;
+  /**
+   * Renew the Gmail watch (Pub/Sub subscription). Returns the current
+   * historyId to persist as the watch's `lastHistoryId` baseline. Optional —
+   * the daily gmail-watch-renew cron buckets clients-without-this-method as
+   * `skipped` rather than `failed`.
+   */
+  renewWatch?(): Promise<{ historyId: string }>;
 }
 
 export type GmailClientFactory = (userId: string) => Promise<GmailClient>;
@@ -197,17 +204,186 @@ export const tokenManager = {
   },
 };
 
-export function defaultGmailClientFactory(_userId: string): Promise<GmailClient> {
-  // Live wiring uses `googleapis` + the freshly-refreshed accessToken from
-  // tokenManager.getValid. We don't import googleapis in this package yet
-  // (heavy dep; tests don't need it) — Phase 2 follow-up will pin it and fill
-  // this in. Tests must inject a fake before any code path that calls send().
-  return Promise.reject(
-    new Error(
-      "defaultGmailClientFactory: googleapis not wired in @ss/capabilities yet — " +
-        "tests should setGmailClientFactory(fake); production must complete the Phase-2 follow-up that adds googleapis + GOOGLE_CLIENT_ID/SECRET wiring.",
-    ),
+/**
+ * Production GmailClient — wraps the `googleapis` SDK with a freshly-refreshed
+ * access token from `tokenManager.getValid`. Tests inject a fake via
+ * `setGmailClientFactory`; this path runs only when no fake is installed.
+ *
+ * Requires at invocation time:
+ *   · `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` (for token refresh + OAuth2 client)
+ *   · A v2 user_tokens row for `userId` with a non-expired refresh_token
+ *   · For `renewWatch`: `GMAIL_PUBSUB_TOPIC` (e.g.
+ *     `projects/$PROJECT_ID/topics/gmail-pubsub`)
+ *
+ * Lazy-imports googleapis so test suites that never invoke a default factory
+ * don't pay the ~50MB load cost.
+ */
+export async function defaultGmailClientFactory(userId: string): Promise<GmailClient> {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    throw new Error(
+      "defaultGmailClientFactory: GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are not set. " +
+        "Either configure them OR inject a fake via setGmailClientFactory(...) for tests.",
+    );
+  }
+  const token = await tokenManager.getValid(userId);
+  const { google } = await import("googleapis");
+
+  const oauth2 = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
   );
+  oauth2.setCredentials({
+    access_token: token.accessToken,
+    refresh_token: token.refreshToken,
+  });
+  const gmail = google.gmail({ version: "v1", auth: oauth2 });
+
+  return {
+    async send(input) {
+      const res = await gmail.users.messages.send({
+        userId: "me",
+        requestBody: { raw: input.raw, ...(input.threadId ? { threadId: input.threadId } : {}) },
+      });
+      const messageId = res.data.id;
+      const threadId = res.data.threadId;
+      if (!messageId || !threadId) {
+        throw new Error("Gmail send: response missing id/threadId");
+      }
+      return { messageId, threadId };
+    },
+
+    async getMessage(messageId) {
+      const res = await gmail.users.messages.get({
+        userId: "me",
+        id: messageId,
+        format: "full",
+      });
+      return normalizeGmailMessage(res.data);
+    },
+
+    async listHistory(startHistoryId) {
+      // history.list pages by historyId; we walk all pages so the high-water
+      // mark advances atomically (one call, one new state) — Gmail returns at
+      // most ~500 events per page.
+      const added: string[] = [];
+      let latest = startHistoryId;
+      let pageToken: string | undefined;
+      do {
+        const res = await gmail.users.history.list({
+          userId: "me",
+          startHistoryId,
+          historyTypes: ["messageAdded"],
+          ...(pageToken ? { pageToken } : {}),
+        });
+        const history = res.data.history ?? [];
+        for (const h of history) {
+          for (const m of h.messagesAdded ?? []) {
+            const id = m.message?.id;
+            if (id) added.push(id);
+          }
+        }
+        if (res.data.historyId) latest = res.data.historyId;
+        pageToken = res.data.nextPageToken ?? undefined;
+      } while (pageToken);
+      return {
+        latestHistoryId: latest,
+        addedMessageIds: [...new Set(added)],
+      };
+    },
+
+    async renewWatch() {
+      const topic = process.env.GMAIL_PUBSUB_TOPIC;
+      if (!topic) {
+        throw new Error("renewWatch: GMAIL_PUBSUB_TOPIC is not set");
+      }
+      const res = await gmail.users.watch({
+        userId: "me",
+        requestBody: {
+          topicName: topic,
+          labelIds: ["INBOX"],
+          labelFilterAction: "include",
+        },
+      });
+      const historyId = res.data.historyId;
+      if (!historyId) throw new Error("renewWatch: gmail.users.watch returned no historyId");
+      return { historyId };
+    },
+  };
+}
+
+/**
+ * Minimal slice of the Gmail API message shape we read in getMessage —
+ * keeps us off `gmail_v1.Schema$Message` so the @ss/capabilities types
+ * don't leak the full googleapis surface into consumers.
+ */
+interface GmailApiHeader { name?: string | null; value?: string | null }
+interface GmailApiPart {
+  mimeType?: string | null;
+  headers?: GmailApiHeader[] | null;
+  body?: { data?: string | null } | null;
+  parts?: GmailApiPart[] | null;
+}
+interface GmailApiMessage {
+  id?: string | null;
+  threadId?: string | null;
+  internalDate?: string | null;
+  payload?: GmailApiPart | null;
+}
+
+function findHeader(headers: GmailApiHeader[] | null | undefined, name: string): string {
+  if (!headers) return "";
+  const lower = name.toLowerCase();
+  for (const h of headers) {
+    if ((h.name ?? "").toLowerCase() === lower) return h.value ?? "";
+  }
+  return "";
+}
+
+function decodeBase64Url(s: string): string {
+  return Buffer.from(s.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
+}
+
+/**
+ * Recursive find of a text/plain body anywhere in the MIME tree. Falls back to
+ * text/html stripped of tags + whitespace-normalized when no text/plain part
+ * exists (some senders only ship HTML).
+ */
+function extractTextBody(part: GmailApiPart): string {
+  function findByMime(p: GmailApiPart, mime: string): string | null {
+    if (p.mimeType === mime && p.body?.data) return decodeBase64Url(p.body.data);
+    for (const c of p.parts ?? []) {
+      const r = findByMime(c, mime);
+      if (r) return r;
+    }
+    return null;
+  }
+  const plain = findByMime(part, "text/plain");
+  if (plain) return plain;
+  const html = findByMime(part, "text/html");
+  if (html) return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return "";
+}
+
+/** Exposed for tests of the parsing logic; @ss/capabilities consumers use GmailClient.getMessage. */
+export function normalizeGmailMessage(msg: GmailApiMessage): GmailMessage {
+  if (!msg.id || !msg.threadId) {
+    throw new Error("normalizeGmailMessage: response missing id/threadId");
+  }
+  const headers = msg.payload?.headers ?? [];
+  const from = findHeader(headers, "From");
+  const subject = findHeader(headers, "Subject");
+  // Strip a `"Name" <addr@example.com>` envelope down to just the address.
+  const angle = from.match(/<([^>]+)>/);
+  const fromEmail = angle?.[1] ?? from.trim();
+  const bodyText = msg.payload ? extractTextBody(msg.payload) : "";
+  return {
+    messageId: msg.id,
+    threadId: msg.threadId,
+    fromEmail,
+    subject,
+    bodyText,
+    ...(msg.internalDate ? { internalDate: new Date(Number(msg.internalDate)) } : {}),
+  };
 }
 
 let _factory: GmailClientFactory | undefined;

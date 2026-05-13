@@ -13,6 +13,7 @@ export {
   setGmailClientFactory,
   getGmailClientFactory,
   defaultGmailClientFactory,
+  normalizeGmailMessage,
   tokenManager,
   type GmailClient,
   type GmailClientFactory,
