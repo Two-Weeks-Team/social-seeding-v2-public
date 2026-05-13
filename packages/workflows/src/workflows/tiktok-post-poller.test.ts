@@ -70,13 +70,23 @@ function trackOf(state: CreatorTrack["state"], lastActivityAt = new Date("2026-0
   };
 }
 
-function fakeFetcher(byCreator: Record<string, TikTokPost[]>): TikTokFetcher {
+/**
+ * Fake fetcher keyed by the TikTok @handle/uniqueId (which is what
+ * `getUserPosts` actually receives — codex review P1#1). The keys MUST
+ * match the uniqueId the poller resolves from accounts_tiktok.
+ */
+function fakeFetcher(byUniqueId: Record<string, TikTokPost[]>): TikTokFetcher & {
+  uniqueIdCalls: string[];
+} {
+  const uniqueIdCalls: string[] = [];
   return {
+    uniqueIdCalls,
     async getUserInfo(uniqueId: string) {
       return { id: "x", uniqueId, nickname: "x", followerCount: 0, followingCount: 0, videoCount: 0 } as RawCreator;
     },
-    async getUserPosts(creatorId: string) {
-      return byCreator[creatorId] ?? [];
+    async getUserPosts(uniqueId: string) {
+      uniqueIdCalls.push(uniqueId);
+      return byUniqueId[uniqueId] ?? [];
     },
   };
 }
@@ -108,6 +118,21 @@ beforeEach(async () => {
   const db = await getDb();
   await db.collection(Collections.V2_CAMPAIGNS).deleteMany({});
   await db.collection(Collections.V2_SHIPMENTS).deleteMany({});
+  await db.collection(Collections.SHARED_TIKTOK_ACCOUNTS).deleteMany({});
+  // Seed the accounts_tiktok doc the poller looks up to resolve uniqueId
+  // from creator.id (codex review P1#1).
+  await db.collection(Collections.SHARED_TIKTOK_ACCOUNTS).insertOne({
+    id: creator.id,
+    uniqueId: creator.uniqueId,
+    nickname: creator.nickname,
+    signature: "",
+    followerCount: creator.followerCount,
+    followingCount: creator.followingCount,
+    videoCount: creator.videoCount,
+    hashtags: [],
+    verified: false,
+    privateAccount: false,
+  });
 });
 
 afterAll(async () => { await closeMongo(); });
@@ -156,7 +181,7 @@ describe("tiktok-post-poller", () => {
       postOf("p1", ["스킨케어", "리뷰"], new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)),
     ];
     const send = recordingSend();
-    const out = await tiktokPostPollerHandler(fakeFetcher({ [creator.id]: posts }), send);
+    const out = await tiktokPostPollerHandler(fakeFetcher({ [creator.uniqueId]: posts }), send);
     expect(out.failures).toEqual([]);
     expect(out.scanned).toBe(1);
     expect(out.detected).toBe(1);
@@ -167,6 +192,37 @@ describe("tiktok-post-poller", () => {
     expect((send.calls[0]?.data.matchedHashtags as string[])).toEqual(["스킨케어"]);
   });
 
+  it("poller resolves uniqueId from accounts_tiktok before fetching (codex review P1#1)", async () => {
+    const delivered = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    await seedDeliveredTrack({ deliveredAt: delivered });
+    const fetcher = fakeFetcher({
+      [creator.uniqueId]: [
+        postOf("p_ok", ["스킨케어"], new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)),
+      ],
+    });
+    const out = await tiktokPostPollerHandler(fetcher, recordingSend());
+    expect(out.failures).toEqual([]);
+    expect(out.detected).toBe(1);
+    // CRITICAL: fetcher must have been called with the @handle/uniqueId,
+    // NOT the internal creator.id. If the poller regresses to passing
+    // creator.id, this assertion catches it.
+    expect(fetcher.uniqueIdCalls).toEqual([creator.uniqueId]);
+    expect(fetcher.uniqueIdCalls).not.toContain(creator.id);
+  });
+
+  it("creator missing from accounts_tiktok ⇒ recorded as failure (creator_not_found), no fetch, no flake", async () => {
+    const delivered = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    await seedDeliveredTrack({ deliveredAt: delivered });
+    const db = await getDb();
+    await db.collection(Collections.SHARED_TIKTOK_ACCOUNTS).deleteMany({});
+    const fetcher = fakeFetcher({});
+    const out = await tiktokPostPollerHandler(fetcher, recordingSend());
+    expect(out.scanned).toBe(1);
+    expect(out.failures).toHaveLength(1);
+    expect(out.failures[0]?.reason).toBe("creator_not_found_in_accounts_tiktok");
+    expect(fetcher.uniqueIdCalls).toEqual([]);
+  });
+
   it("post older than deliveredAt is NOT matched (defends against pre-delivery videos)", async () => {
     const delivered = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
     await seedDeliveredTrack({ deliveredAt: delivered });
@@ -175,7 +231,7 @@ describe("tiktok-post-poller", () => {
       postOf("p_old", ["스킨케어"], new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)),
     ];
     const send = recordingSend();
-    const out = await tiktokPostPollerHandler(fakeFetcher({ [creator.id]: posts }), send);
+    const out = await tiktokPostPollerHandler(fakeFetcher({ [creator.uniqueId]: posts }), send);
     expect(out.detected).toBe(0);
   });
 
@@ -186,7 +242,7 @@ describe("tiktok-post-poller", () => {
       postOf("p_unrelated", ["요리", "여행"], new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)),
     ];
     const send = recordingSend();
-    const out = await tiktokPostPollerHandler(fakeFetcher({ [creator.id]: posts }), send);
+    const out = await tiktokPostPollerHandler(fakeFetcher({ [creator.uniqueId]: posts }), send);
     expect(out.detected).toBe(0);
   });
 

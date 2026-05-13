@@ -3,7 +3,7 @@ import {
   type Campaign,
   type CreatorTrack,
 } from "@ss/contracts";
-import { campaignRepo, getDb, Collections } from "@ss/db";
+import { campaignRepo, creatorRepo, getDb, Collections } from "@ss/db";
 import { getTikTokFetcher, type TikTokFetcher, type TikTokPost } from "@ss/capabilities";
 import { inngest } from "../client";
 
@@ -143,7 +143,21 @@ export async function tiktokPostPollerHandler(
     const { campaignId, brief, track, deliveredAt } = ctx;
     try {
       const age = dayDiff(now, deliveredAt);
-      const posts = await fetcher.getUserPosts(track.creatorId);
+      // Resolve the TikTok handle. CreatorTrack stores creatorId =
+      // TikTokCreator.id (numeric/internal), but TikTokFetcher.getUserPosts
+      // takes the @handle/uniqueId. Codex review P1#1 — without this lookup
+      // every poll queries the wrong account and every track ages into
+      // 'flaked' regardless of whether the creator posted.
+      const creator = await creatorRepo.getById(track.creatorId);
+      if (!creator) {
+        result.failures.push({
+          campaignId,
+          creatorId: track.creatorId,
+          reason: "creator_not_found_in_accounts_tiktok",
+        });
+        continue;
+      }
+      const posts = await fetcher.getUserPosts(creator.uniqueId);
       let anyMatch = false;
       for (const p of posts) {
         const { matched, matchedHashtags } = matchPost(p, brief.targeting.hashtags, deliveredAt);

@@ -18,6 +18,19 @@ export const creatorRepo = {
     return doc ? TikTokCreatorSchema.parse(doc) : null;
   },
 
+  /**
+   * Lookup by TikTok's numeric/internal `id` (not `uniqueId`/handle). The
+   * creator-track workflow stores `creatorId = TikTokCreator.id` on each
+   * track; downstream callers (e.g. tiktok-post-poller) that need the
+   * handle resolve it via this method against the shared accounts_tiktok
+   * collection.
+   */
+  async getById(id: string): Promise<TikTokCreator | null> {
+    const db = await getDb();
+    const doc = await db.collection(Collections.SHARED_TIKTOK_ACCOUNTS).findOne({ id });
+    return doc ? TikTokCreatorSchema.parse(doc) : null;
+  },
+
   async search(_query: string, _opts?: { limit?: number }): Promise<TikTokCreator[]> {
     // TODO(phase-1): port v1 Atlas Search aggregation with weighted fields.
     throw new Error("creatorRepo.search not implemented — see docs/PHASE-1-PLAN.md task S2");
