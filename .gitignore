@@ -34,3 +34,6 @@ test-results/
 
 # inngest dev
 .inngest/
+
+# local dev mongod (scripts/dev-mongo.ts)
+.mongo-dev/
