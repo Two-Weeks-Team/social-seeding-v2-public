@@ -26,5 +26,6 @@ export const Collections = {
   V2_APPROVALS: "v2_approvals",
   V2_AGENT_TRACES: "v2_agent_traces", // per-run observability
   V2_COST_LEDGER: "v2_cost_ledger",
+  V2_OUTBOX: "v2_outbox", // gmail.send idempotency + scheduled-send queue (drained by creator-track)
 } as const;
 export type CollectionName = (typeof Collections)[keyof typeof Collections];

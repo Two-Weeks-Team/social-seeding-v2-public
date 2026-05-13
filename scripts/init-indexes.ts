@@ -49,6 +49,9 @@ const PLANS: IndexPlan[] = [
   { collection: Collections.V2_COST_LEDGER, keys: { at: 1 }, options: { expireAfterSeconds: ONE_YEAR_SECONDS, name: "ttl_at" } },
   // v2_workspace_policies — at most one policy per workspace (workspaceRepo upserts on this key)
   { collection: Collections.V2_WORKSPACE_POLICIES, keys: { workspaceId: 1 }, options: { unique: true } },
+  // v2_outbox — gmail.send idempotency (unique on idempotencyKey) + scheduled-send queue scan
+  { collection: Collections.V2_OUTBOX, keys: { idempotencyKey: 1 }, options: { unique: true } },
+  { collection: Collections.V2_OUTBOX, keys: { status: 1, sendAt: 1 } },
 ];
 
 function looksUnconfigured(uri: string | undefined): boolean {
