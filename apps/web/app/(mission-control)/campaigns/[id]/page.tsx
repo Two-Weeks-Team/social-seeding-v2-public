@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, SectionLabel } from "@/components/ui/card";
 import { StageBar } from "@/components/mission-control/stage-bar";
 import { getServerSession } from "@/lib/auth";
-import { approvalRepo, campaignRepo } from "@ss/db";
+import { approvalRepo, campaignRepo, traceRepo } from "@ss/db";
+import { ActivityTimeline } from "@/components/mission-control/activity-timeline";
 
 /**
  * W2 — Campaign detail. Server component. 6-stage indicator + brief summary
@@ -25,6 +26,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     .listPendingByWorkspace(session.workspaceId)
     .then((rows) => rows.filter((a) => a.campaignId === id))
     .catch(() => []);
+  const traces = await traceRepo.listByCampaign(id).catch(() => []);
 
   return (
     <div className="max-w-6xl mx-auto px-8 py-8">
@@ -56,17 +58,18 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
       </div>
 
       <div className="grid grid-cols-3 gap-6">
-        {/* LEFT — placeholder for the timeline (W3 fills it) */}
+        {/* LEFT — activity timeline (W3) */}
         <div className="col-span-2">
           <Card>
             <CardBody>
-              <SectionLabel className="mb-2">활동 타임라인</SectionLabel>
-              <div className="text-[12px] text-slate-500">
-                v2_agent_traces의 span 트리가 여기에 reverse-chron으로 렌더됩니다.
+              <div className="flex items-center justify-between mb-3">
+                <SectionLabel>활동 타임라인</SectionLabel>
+                <div className="text-[10px] text-slate-500 flex items-center gap-1.5">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  live
+                </div>
               </div>
-              <div className="mt-3 text-[11px] text-slate-400">
-                W3 (다음 commit) 에서 timeline 컴포넌트를 붙입니다.
-              </div>
+              <ActivityTimeline traces={traces} />
             </CardBody>
           </Card>
         </div>
