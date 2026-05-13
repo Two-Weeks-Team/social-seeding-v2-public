@@ -1,5 +1,5 @@
-export { getDb, getMongoClient, closeMongo } from "./client.js";
-export { Collections } from "./collections.js";
-export { campaignRepo } from "./repositories/campaign.repo.js";
-export { creatorRepo } from "./repositories/creator.repo.js";
-export { workspaceRepo } from "./repositories/workspace.repo.js";
+export { getDb, getMongoClient, closeMongo } from "./client";
+export { Collections } from "./collections";
+export { campaignRepo } from "./repositories/campaign.repo";
+export { creatorRepo } from "./repositories/creator.repo";
+export { workspaceRepo } from "./repositories/workspace.repo";

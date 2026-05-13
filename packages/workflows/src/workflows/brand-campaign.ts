@@ -1,5 +1,5 @@
 import { Events } from "@ss/contracts";
-import { inngest } from "../client.js";
+import { inngest } from "../client";
 
 /**
  * brand-campaign — the durable workflow that *is* the product. It encodes the
@@ -20,7 +20,8 @@ export const brandCampaign = inngest.createFunction(
     cancelOn: [{ event: Events.CampaignCancelled, match: "data.campaignId" }],
   },
   { event: Events.CampaignSubmitted },
-  async ({ event, step }) => {
+  // `step` will be destructured here once the stages below are filled in (Phase 1+).
+  async ({ event }) => {
     const { campaignId } = event.data;
 
     // ── Stage 1: overview ────────────────────────────────────────────────

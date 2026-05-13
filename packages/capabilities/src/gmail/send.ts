@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { defineCapability } from "../registry.js";
+import { defineCapability } from "../registry";
 
 /**
  * gmail.send — send (or schedule) an email on the workspace's connected Gmail.

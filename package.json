@@ -10,16 +10,19 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "lint": "turbo run lint",
+    "lint": "eslint .",
     "type-check": "turbo run type-check",
     "test": "turbo run test",
-    "quality": "turbo run lint type-check",
-    "verify-build": "turbo run lint type-check build",
+    "quality": "pnpm run lint && pnpm run type-check",
+    "verify-build": "pnpm run lint && pnpm run build && pnpm run type-check",
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.2",
+    "eslint": "^9.17.0",
     "turbo": "^2.3.3",
     "typescript": "^5.7.2",
-    "@types/node": "^22.10.2"
+    "typescript-eslint": "^8.18.1"
   }
 }

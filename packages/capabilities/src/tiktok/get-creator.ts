@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TikTokCreatorSchema } from "@ss/contracts";
-import { defineCapability } from "../registry.js";
+import { defineCapability } from "../registry";
 
 /**
  * tiktok.getCreator — fetch one creator + recent posts. Reads `accounts_tiktok`

@@ -2,9 +2,8 @@
   "name": "@ss/config",
   "version": "0.0.0",
   "private": true,
-  "files": ["tsconfig.json", "eslint-preset.js"],
+  "files": ["tsconfig.json"],
   "exports": {
-    "./tsconfig.json": "./tsconfig.json",
-    "./eslint-preset": "./eslint-preset.js"
+    "./tsconfig.json": "./tsconfig.json"
   }
 }

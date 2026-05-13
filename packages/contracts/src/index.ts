@@ -5,8 +5,8 @@
  * Rule: if two packages need to agree on a shape, the Zod schema lives here.
  * Nothing in here imports from another @ss/* package.
  */
-export * from "./campaign.js";
-export * from "./creator.js";
-export * from "./outreach.js";
-export * from "./policy.js";
-export * from "./events.js";
+export * from "./campaign";
+export * from "./creator";
+export * from "./outreach";
+export * from "./policy";
+export * from "./events";

@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { CampaignBriefSchema, CampaignStage } from "./campaign.js";
-import { ReplyClassSchema } from "./outreach.js";
+import { CampaignBriefSchema, CampaignStage } from "./campaign";
+import { ReplyClassSchema } from "./outreach";
 
 /**
  * Inngest event catalog. Every async boundary in the system is one of these.
@@ -12,6 +12,7 @@ export const Events = {
   CampaignPaused: "campaign/paused",
   CampaignResumed: "campaign/resumed",
   CampaignCancelled: "campaign/cancelled",
+  CreatorTrackStart: "campaign/creator-track.start", // brand-campaign → creator-track (also used with step.invoke)
   ApprovalResolved: "approval/resolved", // human acted in Mission Control
   GmailReplyReceived: "gmail/reply.received", // from the Gmail pubsub webhook
   ShipmentTrackingUpdated: "shipment/tracking.updated",

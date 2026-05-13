@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { CampaignBriefSchema, OutreachDraftSchema, TikTokCreatorSchema } from "@ss/contracts";
-import { defineAgent } from "./runtime.js";
+import { defineAgent } from "./runtime";
 
 /**
  * Outreach Writer agent. THIS WRAPS v1's `lib/cold-mail` pipeline verbatim:

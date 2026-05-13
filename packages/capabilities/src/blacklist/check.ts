@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { defineCapability } from "../registry.js";
+import { defineCapability } from "../registry";
 
 /**
  * blacklist.check — is this creator blacklisted (workspace-scoped)? Ports v1

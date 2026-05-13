@@ -7,8 +7,9 @@ import { MongoClient, type Db } from "mongodb";
  * Caches the client across hot reloads (dev) and across serverless invocations
  * (prod) the same way v1's `lib/mongodb.ts` does.
  */
+
+// `var` (not let/const) is required for `globalThis` augmentation.
 declare global {
-  // eslint-disable-next-line no-var
   var __ssMongo: { client: MongoClient; promise: Promise<MongoClient> } | undefined;
 }
 

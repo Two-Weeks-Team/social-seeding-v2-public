@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { CandidateSchema, CampaignBriefSchema } from "@ss/contracts";
-import { defineAgent } from "./runtime.js";
+import { defineAgent } from "./runtime";
 
 /**
  * Sourcing agent. Given a campaign brief, runs `tiktok.search` (possibly several

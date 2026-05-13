@@ -1,5 +1,5 @@
 import { Events } from "@ss/contracts";
-import { inngest } from "../client.js";
+import { inngest } from "../client";
 
 /**
  * creator-track — a per-creator child workflow spawned by brand-campaign once a
@@ -12,9 +12,9 @@ import { inngest } from "../client.js";
  */
 export const creatorTrack = inngest.createFunction(
   { id: "creator-track", cancelOn: [{ event: Events.CampaignCancelled, match: "data.campaignId" }] },
-  { event: "campaign/creator-track.start" }, // emitted by brand-campaign
+  { event: Events.CreatorTrackStart }, // emitted by brand-campaign (or step.invoke)
   async ({ event }) => {
-    // event.data: { campaignId, creatorId, brief, policy }
+    // event.data: { campaignId, creatorId }  (brief/policy fetched from @ss/db in the real impl)
     // 1. extractFacts(brief, creator)  — port v1 cold-mail/extract-facts; if !minContext → escalate
     // 2. runAgent(outreachWriterAgent) → OutreachDraft
     // 3. gate(approveOutreachSend) → gmail.send (idempotencyKey = `${campaignId}:${creatorId}:outreach`)
@@ -23,6 +23,6 @@ export const creatorTrack = inngest.createFunction(
     //        timer → step.run(follow-up) using cold-mail/followup.ts, continue
     //        reply → runAgent(conversationAgent) → branch on classification
     // 5. on "agreed" + address → emit to parent / advance; on "declined" → end
-    return { creatorId: (event.data as { creatorId?: string }).creatorId ?? null, status: "skeleton" as const };
+    return { creatorId: event.data.creatorId, status: "skeleton" as const };
   },
 );

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { defineCapability } from "../registry.js";
+import { defineCapability } from "../registry";
 
 /**
  * crm.enrich — crawl a company website (Modal) + analyze it (Kimi/Moonshot) into

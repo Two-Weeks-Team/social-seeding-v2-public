@@ -53,8 +53,7 @@ export function startTrace(campaignId: string, runId = randomUUID()): RunTrace {
 
   async function flush(): Promise<void> {
     if ((process.env.AGENT_TRACE_SINK ?? "mongo") === "stdout") {
-      // eslint-disable-next-line no-console
-      console.log(JSON.stringify({ runId, campaignId, spans }));
+      process.stdout.write(JSON.stringify({ runId, campaignId, spans }) + "\n");
       return;
     }
     // TODO(phase-0): write to Collections.V2_AGENT_TRACES via @ss/db.

@@ -3,15 +3,20 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
-    "build": "tsc -b",
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
-    "clean": "rm -rf dist .turbo *.tsbuildinfo"
+    "clean": "rm -rf .turbo *.tsbuildinfo"
   },
-  "dependencies": { "@ss/db": "workspace:*" },
-  "devDependencies": { "@ss/config": "workspace:*", "typescript": "^5.7.2" }
+  "dependencies": {
+    "@ss/db": "workspace:*"
+  },
+  "devDependencies": {
+    "@ss/config": "workspace:*",
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
 }

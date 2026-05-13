@@ -1,10 +1,21 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 const config: NextConfig = {
-  // monorepo: transpile the workspace packages
-  transpilePackages: ["@ss/contracts", "@ss/db", "@ss/capabilities", "@ss/workflows", "@ss/agents", "@ss/observability"],
+  // monorepo: this app is the workspace root for Turbopack, sources live one dir up
+  turbopack: {
+    root: path.join(import.meta.dirname, "..", ".."),
+  },
+  // transpile the workspace packages (JIT internal packages — exports point at src/)
+  transpilePackages: [
+    "@ss/contracts",
+    "@ss/db",
+    "@ss/capabilities",
+    "@ss/agents",
+    "@ss/workflows",
+    "@ss/observability",
+  ],
   experimental: {
-    // Mission Control is server-component heavy; keep server actions on.
     serverActions: { bodySizeLimit: "2mb" },
   },
 };

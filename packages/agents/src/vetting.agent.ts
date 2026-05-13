@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { CandidateSchema, CampaignBriefSchema } from "@ss/contracts";
-import { defineAgent } from "./runtime.js";
+import { defineAgent } from "./runtime";
 
 /**
  * Vetting agent. For each candidate: pull profile + recent posts, compute

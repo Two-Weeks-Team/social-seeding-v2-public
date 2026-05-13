@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TikTokCreatorSchema } from "@ss/contracts";
-import { defineCapability } from "../registry.js";
+import { defineCapability } from "../registry";
 
 /**
  * tiktok.search — port of v1's 3-phase Progressive search:

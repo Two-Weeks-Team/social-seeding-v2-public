@@ -1,4 +1,4 @@
-export * from "./runtime.js";
-export { sourcingAgent } from "./sourcing.agent.js";
-export { vettingAgent } from "./vetting.agent.js";
-export { outreachWriterAgent } from "./outreach-writer.agent.js";
+export * from "./runtime";
+export { sourcingAgent } from "./sourcing.agent";
+export { vettingAgent } from "./vetting.agent";
+export { outreachWriterAgent } from "./outreach-writer.agent";

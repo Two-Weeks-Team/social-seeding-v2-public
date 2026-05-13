@@ -1,6 +1,6 @@
 import { TikTokCreatorSchema, type TikTokCreator } from "@ss/contracts";
-import { getDb } from "../client.js";
-import { Collections } from "../collections.js";
+import { getDb } from "../client";
+import { Collections } from "../collections";
 
 /**
  * Reads the SHARED `accounts_tiktok` collection (v1-owned). v2 only reads here;

@@ -1,7 +1,7 @@
 import { ObjectId } from "mongodb";
 import { WorkspacePolicySchema, type WorkspacePolicy } from "@ss/contracts";
-import { getDb } from "../client.js";
-import { Collections } from "../collections.js";
+import { getDb } from "../client";
+import { Collections } from "../collections";
 
 /** A conservative default: every gate asks the human. Owners relax over time. */
 export function defaultPolicy(workspaceId: string): WorkspacePolicy {
