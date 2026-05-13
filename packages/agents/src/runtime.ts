@@ -89,16 +89,21 @@ export async function runAgent<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
         span.attrs.inputTokens = t.inputTokens;
         span.attrs.outputTokens = t.outputTokens;
         span.attrs.usd = Number(callUsd.toFixed(6));
-        await recordCost({
-          campaignId,
-          workspaceId: ctx.capabilityCtx.workspaceId,
-          agent: def.id,
-          model: def.model,
-          inputTokens: t.inputTokens,
-          outputTokens: t.outputTokens,
-          usd: callUsd,
-          at: Date.now(),
-        });
+        try {
+          await recordCost({
+            campaignId,
+            workspaceId: ctx.capabilityCtx.workspaceId,
+            agent: def.id,
+            model: def.model,
+            inputTokens: t.inputTokens,
+            outputTokens: t.outputTokens,
+            usd: callUsd,
+            at: Date.now(),
+          });
+        } catch (err) {
+          // cost recording is observability, not load-bearing — a sink hiccup must not fail the agent's work
+          console.warn(`[runAgent] recordCost failed for ${def.id}: ${err instanceof Error ? err.message : String(err)}`);
+        }
         return t;
       });
       return turn.kind === "tool_use"

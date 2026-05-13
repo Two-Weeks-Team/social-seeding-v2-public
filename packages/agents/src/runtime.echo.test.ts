@@ -1,8 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
-import { startTrace } from "@ss/observability";
+import { memorySink, setObservabilitySink, startTrace } from "@ss/observability";
 import { defineAgent, runAgent, type AgentRunContext } from "./runtime";
 import type { ModelClient, ModelTurn } from "./model";
+
+// runAgent's recordCost goes through the observability sink — give it an in-memory one
+// (the same way these tests inject a fake ModelClient) so nothing touches a database.
+beforeEach(() => setObservabilitySink(memorySink()));
+afterEach(() => setObservabilitySink(undefined));
 
 /**
  * P0-3 proof: runAgent's control flow exercised end-to-end with an injected
