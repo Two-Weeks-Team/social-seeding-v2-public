@@ -31,6 +31,22 @@ export {
   type PubSubAuthOpts,
   type PubSubMessage,
 } from "./gmail/pubsub";
+// Unsubscribe-token verify is consumed by apps/web's /unsubscribe page.
+export {
+  signUnsubscribeToken,
+  verifyUnsubscribeToken,
+  unsubscribeUrl,
+  type SignUnsubscribeOptions,
+  type UnsubscribeTokenPayload,
+  type UnsubscribeVerifyResult,
+} from "./gmail/unsubscribe-token";
+// Suppression list — apps/web's /unsubscribe page writes; gmail.send reads.
+export {
+  isSuppressed,
+  suppressionAdd,
+  suppressionCheck,
+  type SuppressionReason,
+} from "./suppression/check";
 
 import "./tiktok/search";
 import "./tiktok/get-creator";
