@@ -36,12 +36,9 @@ function fakeStep(
       for (const p of arr) log.events.push(p);
       return { ids: arr.map((_, i) => `evt_${log.events.length - arr.length + i}`) };
     },
-    async waitForEvent(stepName, opts) {
+    async waitForEvent<T = ApprovalResolvedData>(stepName: string, opts: { event: string; match: string; timeout: string }) {
       log.waits.push({ stepName, event: opts.event, match: opts.match, timeout: opts.timeout });
-      if (resolution === null) return null; // simulate timeout
-      // captured approvalId from the most-recent runs (gate creates approval before waiting)
-      // we don't actually know it here; the real flow passes it through closure.
-      // For the test we return a canned ApprovalResolvedData using the stepName as the id surrogate.
+      if (resolution === null) return null as { data: T } | null; // simulate timeout
       const approvalId = stepName.replace("await-approval:", "");
       const data: ApprovalResolvedData = {
         approvalId,
@@ -49,7 +46,7 @@ function fakeStep(
         decision: resolution.decision,
         ...(resolution.editedPayload !== undefined ? { editedPayload: resolution.editedPayload } : {}),
       };
-      return { data };
+      return { data: data as unknown as T };
     },
   };
   return { step, log };

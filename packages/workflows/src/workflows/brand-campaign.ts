@@ -49,7 +49,13 @@ export function pickShortlist(vetted: Candidate[], targetCount: number): Candida
 export async function brandCampaignHandler(
   { event, step }: BrandCampaignArgs,
   deps: BrandCampaignDeps = {},
-): Promise<{ campaignId: string; stage: "sourcing"; shortlistCount: number; trackCount: number; decision: "approved" | "edited" | "rejected" }> {
+): Promise<{
+  campaignId: string;
+  stage: "sourcing" | "outreach";
+  shortlistCount: number;
+  trackCount: number;
+  decision: "approved" | "edited" | "rejected";
+}> {
   const { campaignId, brief } = event.data;
   const workspaceId = brief.workspaceId;
 
@@ -123,8 +129,9 @@ export async function brandCampaignHandler(
 
   // ── WF3: persist a CreatorTrack per confirmed creator (approved | edited) ──
   let trackCount = 0;
+  let confirmed: Candidate[] = [];
   if (resolution.decision === "approved" || resolution.decision === "edited") {
-    const confirmed: Candidate[] = Array.isArray(resolution.payload) ? (resolution.payload as Candidate[]) : [];
+    confirmed = Array.isArray(resolution.payload) ? (resolution.payload as Candidate[]) : [];
     await step.run("persist-tracks", async () => {
       const now = new Date();
       for (const c of confirmed) {
@@ -141,14 +148,36 @@ export async function brandCampaignHandler(
   }
 
   await trace.span("decision:approveShortlist", "stage", { decision: resolution.decision, trackCount }, async () => undefined);
+
+  // ── P2-C5: fan out one creator-track child per confirmed creator. ────────
+  // Email addresses come from CRM enrichment in Phase 5; for Phase 2 we pass
+  // through whatever the candidate carries (currently nothing — many tracks
+  // will terminate as `no_email` until enrichment lands). Stage advances to
+  // "outreach" so the campaign timeline reflects the handoff.
+  if (confirmed.length > 0) {
+    await step.run("advance-stage-outreach", async () =>
+      campaignRepo.patchStage(campaignId, "outreach"),
+    );
+    await step.sendEvent(
+      "creator-track-fanout",
+      confirmed.map((c) => ({
+        name: Events.CreatorTrackStart,
+        data: {
+          campaignId,
+          brief,
+          creator: c.creator,
+          // creatorEmail intentionally absent: Phase 5 enrichment fills this in.
+          recentPosts: [],
+        },
+      })),
+    );
+  }
+
   await trace.flush();
 
-  // Campaign sits at stage="sourcing" awaiting Phase 2 (outreach). The next
-  // commit family (Phase 2) will trigger creator-track child workflows per
-  // persisted track + advance stage="outreach".
   return {
     campaignId,
-    stage: "sourcing",
+    stage: confirmed.length > 0 ? "outreach" : "sourcing",
     shortlistCount: Array.isArray(resolution.payload) ? resolution.payload.length : 0,
     decision: resolution.decision,
     trackCount,

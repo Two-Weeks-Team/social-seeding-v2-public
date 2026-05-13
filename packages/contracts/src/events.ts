@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CampaignBriefSchema, CampaignStage } from "./campaign";
+import { TikTokCreatorSchema } from "./creator";
 import { ReplyClassSchema } from "./outreach";
 
 /**
@@ -35,6 +36,12 @@ export const ApprovalResolvedEvent = z.object({
   }),
 });
 
+/**
+ * Fired by the Gmail Pub/Sub webhook (P2-C7) when a creator replies. Carries
+ * enough of the message that creator-track can classify it without a Gmail
+ * round-trip. The webhook is responsible for resolving threadId → (campaignId,
+ * creatorId) via the v2_outbox row gmail.send wrote.
+ */
 export const GmailReplyReceivedEvent = z.object({
   name: z.literal(Events.GmailReplyReceived),
   data: z.object({
@@ -42,7 +49,38 @@ export const GmailReplyReceivedEvent = z.object({
     creatorId: z.string(),
     threadId: z.string(),
     messageId: z.string(),
+    fromEmail: z.string().email(),
+    subject: z.string().default(""),
+    /** Plain-text body of the reply (HTML stripped by the webhook). */
+    bodyText: z.string(),
     classificationHint: ReplyClassSchema.optional(),
+  }),
+});
+
+/**
+ * Fired by brand-campaign once a shortlist track is confirmed. Carries the
+ * full brief + creator + (optional) prefetched recent posts so creator-track
+ * can run end-to-end without re-fetching from the shared collections.
+ *
+ * `creatorEmail` is optional — many TikTok creators don't expose one. When
+ * absent, creator-track terminates as `no_email` (Phase 5 enrichment will
+ * close that gap).
+ */
+export const CreatorTrackStartEvent = z.object({
+  name: z.literal(Events.CreatorTrackStart),
+  data: z.object({
+    campaignId: z.string(),
+    brief: CampaignBriefSchema,
+    creator: TikTokCreatorSchema,
+    creatorEmail: z.string().email().optional(),
+    recentPosts: z
+      .array(
+        z.object({
+          desc: z.string().default(""),
+          hashtags: z.array(z.string()).default([]),
+        }),
+      )
+      .default([]),
   }),
 });
 

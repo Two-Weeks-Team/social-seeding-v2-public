@@ -40,14 +40,18 @@ export interface ApprovalResolvedData {
 /**
  * Minimal step surface gate() needs. The real Inngest step is structurally
  * assignable to this (Inngest's step has more methods + richer return types).
+ *
+ * `waitForEvent` is generic so creator-track (which awaits GmailReplyReceived)
+ * can reuse the same StepLike as the approvals path. Default `T` keeps the
+ * gate() call sites untouched.
  */
 export interface StepLike {
   run<T>(name: string, fn: () => Promise<T>): Promise<T>;
   sendEvent(name: string, payload: { name: string; data: unknown } | Array<{ name: string; data: unknown }>): Promise<unknown>;
-  waitForEvent(
+  waitForEvent<T = ApprovalResolvedData>(
     name: string,
-    opts: { event: string; match: string; timeout: string },
-  ): Promise<{ data: ApprovalResolvedData } | null>;
+    opts: { event: string; match: string; timeout: string; if?: string },
+  ): Promise<{ data: T } | null>;
 }
 
 export class ApprovalTimeoutError extends Error {

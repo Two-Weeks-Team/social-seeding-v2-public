@@ -30,9 +30,10 @@ function fakeStep(approvedResolution: ApprovalResolvedData["decision"] = "approv
     async sendEvent() {
       return { ids: ["evt"] };
     },
-    async waitForEvent(name, _opts) {
+    async waitForEvent<T = ApprovalResolvedData>(name: string, _opts: { event: string; match: string; timeout: string }) {
       const approvalId = name.replace("await-approval:", "");
-      return { data: { approvalId, campaignId: "camp_wf1", decision: approvedResolution } };
+      const data: ApprovalResolvedData = { approvalId, campaignId: "camp_wf1", decision: approvedResolution };
+      return { data: data as unknown as T };
     },
   };
   return { step, log };
@@ -136,22 +137,25 @@ describe("brandCampaignHandler — integration (WF1)", () => {
     });
 
     expect(out.decision).toBe("approved");
-    expect(out.stage).toBe("sourcing");
+    // P2-C5: after persist-tracks the workflow fans out one creator-track per
+    // confirmed creator and advances stage to "outreach".
+    expect(out.stage).toBe("outreach");
     // creatorCount=1 → ceil(1*1.5)=2 shortlist max; all 3 are clean (no hard-fail flags) so top 2 by fitScore.
     expect(out.shortlistCount).toBe(2);
     expect(out.trackCount).toBe(2);
 
-    // expected step.run sequence: observability + plan + source + vet-0 + vet-1 + vet-2 + approval:create:shortlist + persist-tracks
+    // expected step.run sequence: observability + plan + source + vet-0..2 + approval + persist + advance + fan-out
     expect(log.runs).toContain("observability");
     expect(log.runs).toContain("plan");
     expect(log.runs).toContain("source");
     expect(log.runs.filter((n) => n.startsWith("vet-"))).toHaveLength(3);
     expect(log.runs).toContain("approval:create:shortlist");
     expect(log.runs).toContain("persist-tracks");
+    expect(log.runs).toContain("advance-stage-outreach");
 
-    // campaign advanced to "sourcing" + tracks upserted with state="shortlisted"
+    // campaign advanced to "outreach" + tracks upserted with state="shortlisted"
     const persisted = await campaignRepo.get(c.id);
-    expect(persisted?.stage).toBe("sourcing");
+    expect(persisted?.stage).toBe("outreach");
     expect(persisted?.tracks).toHaveLength(2);
     expect(persisted?.tracks.every((t) => t.state === "shortlisted")).toBe(true);
     expect(persisted?.tracks.every((t) => t.emailsSent === 0)).toBe(true);

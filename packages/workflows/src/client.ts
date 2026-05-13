@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   CampaignSubmittedEvent,
   ApprovalResolvedEvent,
+  CreatorTrackStartEvent,
   GmailReplyReceivedEvent,
   Events,
 } from "@ss/contracts";
@@ -23,7 +24,7 @@ export const inngest = new Inngest({
     [Events.CampaignPaused]: { data: z.object({ campaignId: z.string() }) },
     [Events.CampaignResumed]: { data: z.object({ campaignId: z.string() }) },
     [Events.CampaignCancelled]: { data: z.object({ campaignId: z.string() }) },
-    [Events.CreatorTrackStart]: { data: z.object({ campaignId: z.string(), creatorId: z.string() }) },
+    [Events.CreatorTrackStart]: { data: CreatorTrackStartEvent.shape.data },
     [Events.ShipmentTrackingUpdated]: { data: z.object({ campaignId: z.string(), creatorId: z.string(), status: z.string() }) },
     [Events.TikTokPostDetected]: { data: z.object({ campaignId: z.string(), creatorId: z.string(), postId: z.string() }) },
   }),
