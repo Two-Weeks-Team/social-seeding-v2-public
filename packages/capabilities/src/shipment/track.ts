@@ -57,7 +57,15 @@ export const shipmentTrack = defineCapability({
     const seen = new Set(
       existing.trackingEvents.map((e) => `${e.timestamp.toISOString()}|${e.statusCode}`),
     );
-    const newEvents = events.filter((e) => !seen.has(`${e.timestamp.toISOString()}|${e.statusCode}`));
+    // Sort chronologically (oldest → newest). Codex review P2#4: some
+    // carriers return their event list newest-first; if we appended in
+    // their order, the LATEST status that wins on shipment.status would be
+    // the OLDEST event in the batch — a delivered shipment could regress
+    // to in_transit on the second poll. Sorting here means the last
+    // append (and therefore the row's top-level status) is the newest event.
+    const newEvents = events
+      .filter((e) => !seen.has(`${e.timestamp.toISOString()}|${e.statusCode}`))
+      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
 
     let latest = existing;
     for (const e of newEvents) {

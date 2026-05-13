@@ -118,7 +118,8 @@ function happyScript(parsedAddress: {
           toolUseId: "ship",
           toolName: "shipment.create",
           toolInput: {
-            campaignId: "camp_log_1",
+            // Note: campaignId omitted — codex review P2#3 moved it to the
+            // trusted ctx so a model can't file under a different campaign.
             creatorTrackId: "camp_log_1:cr_freshly",
             creatorId: "cr_freshly",
             carrier: "yuntrack",

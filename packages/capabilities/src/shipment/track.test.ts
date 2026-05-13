@@ -194,4 +194,77 @@ describe("shipment.track", () => {
       shipmentTrack.handler({ shipmentId: "000000000000000000000000" }, ctx),
     ).rejects.toThrow(/no shipment with id/);
   });
+
+  it("chronological sort (codex review P2#4): carrier returning newest-first must NOT regress shipment.status", async () => {
+    const id = await setup();
+    const c = fakeCarrier();
+    setCarrierClientFactory(async () => c);
+    // Some carriers (notably yuntrack) ship the full timeline NEWEST FIRST.
+    // The poller appends in batch — if we honored the carrier's order, the
+    // LATEST status applied would be the OLDEST event in the batch, and a
+    // delivered shipment would regress to in_transit on the next poll.
+    c.setEvents([
+      {
+        timestamp: new Date("2026-06-04T14:00:00Z"), // newest first
+        statusCode: "DELIVERED",
+        status: "delivered",
+        location: "Recipient",
+        description: "Delivered",
+      },
+      {
+        timestamp: new Date("2026-06-02T08:00:00Z"), // older
+        statusCode: "IN_TRANSIT",
+        status: "in_transit",
+        location: "Seoul Hub",
+        description: "Departed",
+      },
+    ]);
+    const out = await shipmentTrack.handler({ shipmentId: id }, ctx);
+    expect(out.newEvents).toHaveLength(2);
+    // The final status MUST reflect the newest event (delivered), not the
+    // oldest one in the carrier's response order.
+    expect(out.status).toBe("delivered");
+    expect(out.shipment.deliveredAt).toEqual(new Date("2026-06-04T14:00:00Z"));
+  });
+
+  it("elemMatch dedupe (codex review P2#5): a new event (T1,B) is NOT skipped just because (T1,A)+(T2,B) exist", async () => {
+    const id = await setup();
+    const c = fakeCarrier();
+    setCarrierClientFactory(async () => c);
+    // First poll: install two distinct events.
+    c.setEvents([
+      {
+        timestamp: new Date("2026-06-02T08:00:00Z"),
+        statusCode: "PICKED_UP",
+        status: "shipped",
+        location: "Seoul Hub",
+        description: "Picked up",
+      },
+      {
+        timestamp: new Date("2026-06-03T10:00:00Z"),
+        statusCode: "IN_TRANSIT",
+        status: "in_transit",
+        location: "Air freight",
+        description: "Departed",
+      },
+    ]);
+    await shipmentTrack.handler({ shipmentId: id }, ctx);
+    // Second poll: carrier emits a NEW event with timestamp T1 (matches the
+    // first existing event's timestamp) but a different statusCode. The
+    // composite key (T1, IN_TRANSIT) is genuinely new — the broken
+    // independent-path query would erroneously match the (T1, PICKED_UP) +
+    // (T2, IN_TRANSIT) cross-product.
+    c.setEvents([
+      {
+        timestamp: new Date("2026-06-02T08:00:00Z"), // same T1 as PICKED_UP above
+        statusCode: "IN_TRANSIT", // same code as the existing T2 event
+        status: "in_transit",
+        location: "Customs",
+        description: "Hand-off to customs at same time as pickup",
+      },
+    ]);
+    const out2 = await shipmentTrack.handler({ shipmentId: id }, ctx);
+    expect(out2.newEvents).toHaveLength(1);
+    expect(out2.newEvents[0]?.description).toContain("customs");
+  });
 });

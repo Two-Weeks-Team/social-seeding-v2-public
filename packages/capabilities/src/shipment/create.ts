@@ -26,7 +26,15 @@ import { getCarrierClientFactory } from "./carrier";
  */
 
 const CreateInputSchema = z.object({
-  campaignId: z.string().min(1),
+  /**
+   * Optional — when present, MUST match `ctx.campaignId`. The handler reads
+   * the trusted ctx value and rejects an agent-supplied mismatch. Codex
+   * review P2#3: shipment.create is called by the logistics agent, whose
+   * tool args are derived from creator-controlled address text; a bad
+   * parse or prompt-injection payload must not be able to file a shipment
+   * under a different campaign/workspace.
+   */
+  campaignId: z.string().min(1).optional(),
   creatorTrackId: z.string().min(1),
   creatorId: z.string().min(1),
   carrier: ShipmentCarrierSchema.default("yuntrack"),
@@ -46,7 +54,22 @@ export const shipmentCreate = defineCapability({
   rateLimitClass: "shipment",
   input: CreateInputSchema,
   output: ShipmentSchema,
-  async handler(input, _ctx) {
+  async handler(input, ctx) {
+    // Trust boundary (codex review P2#3): the campaignId we PERSIST is the
+    // ctx.campaignId set by the workflow, not the agent-supplied value. If
+    // the agent provided one anyway, validate it matches; reject otherwise.
+    if (!ctx.campaignId) {
+      throw new Error(
+        "shipment.create: ctx.campaignId is required (the workflow must set it on capabilityCtx before invoking)",
+      );
+    }
+    if (input.campaignId !== undefined && input.campaignId !== ctx.campaignId) {
+      throw new Error(
+        `shipment.create: campaignId trust-boundary mismatch (input='${input.campaignId}', ctx='${ctx.campaignId}'). The agent's tool arg must equal the workflow's context value.`,
+      );
+    }
+    const campaignId = ctx.campaignId;
+
     // Sequential-idempotency fast path: an already-shipped row for this
     // creatorTrackId just returns. The atomic claim below handles the
     // concurrent race (codex review P1#2); this branch handles the more
@@ -64,9 +87,11 @@ export const shipmentCreate = defineCapability({
       );
     }
 
-    // Atomic claim — backed by the unique index on creatorTrackId.
+    // Atomic claim — backed by the unique index on creatorTrackId. Note:
+    // campaignId comes from the trusted ctx (set by the creator-track
+    // workflow), NOT the agent's tool arg.
     const claim = await shipmentRepo.claim({
-      campaignId: input.campaignId,
+      campaignId,
       creatorTrackId: input.creatorTrackId,
       creatorId: input.creatorId,
       carrier: input.carrier,
@@ -90,8 +115,7 @@ export const shipmentCreate = defineCapability({
     const weightGrams = sumWeight(input.products);
     const declaredValueUsdCents = sumValue(input.products);
     const reference =
-      input.reference ||
-      `${input.campaignId.slice(0, 8)}:${input.creatorId.slice(0, 12)}`;
+      input.reference || `${campaignId.slice(0, 8)}:${input.creatorId.slice(0, 12)}`;
 
     const factory = getCarrierClientFactory();
     const client = await factory(input.carrier);

@@ -107,10 +107,15 @@ export const shipmentRepo = {
     const now = new Date();
 
     // dedupe: skip if (timestamp, statusCode) already on the timeline.
+    // Use $elemMatch so the two predicates must match the SAME array element
+    // (codex review P2#5). Without $elemMatch, an existing event (T1, A)
+    // plus a separate (T2, B) makes the query erroneously match a brand-new
+    // (T1, B) event — distinct events would be silently dropped.
     const existing = await c.findOne({
       _id: oid,
-      "trackingEvents.timestamp": event.timestamp,
-      "trackingEvents.statusCode": event.statusCode,
+      trackingEvents: {
+        $elemMatch: { timestamp: event.timestamp, statusCode: event.statusCode },
+      },
     });
     if (existing) {
       // Just bump lastTrackedAt so the poller doesn't loop.

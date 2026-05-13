@@ -89,7 +89,6 @@ describe("shipment.create", () => {
     setCarrierClientFactory(async () => c);
     const out = await shipmentCreate.handler(
       {
-        campaignId: "camp_3a",
         creatorTrackId: "camp_3a:cr_freshly",
         creatorId: "cr_freshly",
         carrier: "yuntrack",
@@ -137,7 +136,6 @@ describe("shipment.create", () => {
     await expect(
       shipmentCreate.handler(
         {
-          campaignId: "camp_3a",
           creatorTrackId: "camp_3a:cr_race",
           creatorId: "cr_race",
           carrier: "yuntrack",
@@ -152,12 +150,52 @@ describe("shipment.create", () => {
     expect(c.createCalls).toBe(0);
   });
 
+  it("trust boundary (codex review P2#3): rejects input.campaignId that doesn't match ctx.campaignId", async () => {
+    const c = fakeCarrier();
+    setCarrierClientFactory(async () => c);
+    await expect(
+      shipmentCreate.handler(
+        {
+          campaignId: "camp_other_workspace", // agent-supplied — mismatched
+          creatorTrackId: "camp_3a:cr_tb",
+          creatorId: "cr_tb",
+          carrier: "yuntrack",
+          shippingAddress: address,
+          products: [product],
+          reference: "",
+          notes: "",
+        },
+        ctx, // ctx.campaignId = 'camp_3a'
+      ),
+    ).rejects.toThrow(/trust-boundary mismatch/);
+    expect(c.createCalls).toBe(0);
+  });
+
+  it("trust boundary: missing ctx.campaignId ⇒ throws (workflow must always set it)", async () => {
+    const c = fakeCarrier();
+    setCarrierClientFactory(async () => c);
+    await expect(
+      shipmentCreate.handler(
+        {
+          creatorTrackId: "camp_3a:cr_no_ctx",
+          creatorId: "cr_no_ctx",
+          carrier: "yuntrack",
+          shippingAddress: address,
+          products: [product],
+          reference: "",
+          notes: "",
+        },
+        { ...ctx, campaignId: undefined },
+      ),
+    ).rejects.toThrow(/ctx\.campaignId is required/);
+    expect(c.createCalls).toBe(0);
+  });
+
   it("idempotency: a second call for the same creatorTrackId returns the existing row, never re-calls the carrier", async () => {
     const c = fakeCarrier();
     setCarrierClientFactory(async () => c);
     const first = await shipmentCreate.handler(
       {
-        campaignId: "camp_3a",
         creatorTrackId: "camp_3a:cr_freshly",
         creatorId: "cr_freshly",
         carrier: "yuntrack",
@@ -170,7 +208,6 @@ describe("shipment.create", () => {
     );
     const second = await shipmentCreate.handler(
       {
-        campaignId: "camp_3a",
         creatorTrackId: "camp_3a:cr_freshly",
         creatorId: "cr_freshly",
         carrier: "yuntrack",
@@ -191,7 +228,6 @@ describe("shipment.create", () => {
     setCarrierClientFactory(async () => c);
     await shipmentCreate.handler(
       {
-        campaignId: "camp_3a",
         creatorTrackId: "camp_3a:cr_freshly",
         creatorId: "cr_freshly",
         carrier: "yuntrack",
@@ -214,7 +250,6 @@ describe("shipment.create", () => {
     await expect(
       shipmentCreate.handler(
         {
-          campaignId: "camp_3a",
           creatorTrackId: "camp_3a:cr_x",
           creatorId: "cr_x",
           carrier: "yuntrack",
