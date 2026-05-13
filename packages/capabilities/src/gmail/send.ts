@@ -52,7 +52,13 @@ interface OutboxDoc {
   campaignId?: string;
   to: string;
   subject: string;
-  status: "scheduled" | "sent" | "failed";
+  /**
+   * `pending` = atomic claim taken (codex review P2#5), no send attempted yet.
+   * `scheduled` = sendAt in future; workflow will drain via step.sleepUntil.
+   * `sent` = Gmail accepted; `messageId`/`threadId` populated.
+   * `failed` = pre-check refusal or send threw; `lastError` populated.
+   */
+  status: "pending" | "scheduled" | "sent" | "failed";
   sendAt?: Date;
   /** Gmail-assigned ids once sent. */
   messageId?: string;
@@ -183,21 +189,76 @@ export const gmailSend = defineCapability({
   async handler(input, ctx) {
     const db = await getDb();
     const outbox = db.collection<OutboxDoc>(Collections.V2_OUTBOX);
+    const now = new Date();
 
-    // 1. idempotency — is this key already settled?
-    const existing = await outbox.findOne({ idempotencyKey: input.idempotencyKey });
-    if (existing?.status === "sent" && existing.messageId && existing.threadId) {
-      return {
-        messageId: existing.messageId,
-        threadId: existing.threadId,
-        scheduled: false,
-        spamScore: existing.spamScore ?? 0,
-      };
+    // 1. atomic idempotency claim (codex review P2#5). Race window: two
+    //    workers both reach this concurrently with the same key. Mongo's
+    //    unique index on idempotencyKey lets exactly one win the insert;
+    //    the other gets E11000 and we read the existing row to decide.
+    const baseDoc: OutboxDoc = {
+      idempotencyKey: input.idempotencyKey,
+      status: "pending",
+      workspaceId: ctx.workspaceId,
+      userId: ctx.userId,
+      ...(ctx.campaignId ? { campaignId: ctx.campaignId } : {}),
+      to: input.to,
+      subject: input.subject,
+      createdAt: now,
+      updatedAt: now,
+    };
+    let wonClaim = false;
+    try {
+      await outbox.insertOne(baseDoc);
+      wonClaim = true;
+    } catch (err: unknown) {
+      // Mongo duplicate-key (E11000) = another worker has the row.
+      const code = (err as { code?: unknown })?.code;
+      if (code !== 11000) throw err;
     }
 
-    // 1b. suppression-list pre-check (CAN-SPAM §5). If the recipient is on
-    //     the workspace's do-not-mail list, refuse the send and record the
-    //     refusal on the outbox so the trace is honest.
+    if (!wonClaim) {
+      const existing = await outbox.findOne({ idempotencyKey: input.idempotencyKey });
+      // Settled = sent: return cached, regardless of what the current call asked.
+      if (existing?.status === "sent" && existing.messageId && existing.threadId) {
+        return {
+          messageId: existing.messageId,
+          threadId: existing.threadId,
+          scheduled: false,
+          spamScore: existing.spamScore ?? 0,
+        };
+      }
+      // Both sides asking for scheduling — confirm the existing scheduled row.
+      // A drain call (no sendAt, or sendAt in past) on a scheduled row falls
+      // through to retry instead — that's how the workflow's
+      // step.sleepUntil(sendAt) hands off to the actual send.
+      if (
+        input.sendAt &&
+        input.sendAt.getTime() > Date.now() + 5_000 &&
+        existing?.status === "scheduled"
+      ) {
+        return { messageId: "", threadId: "", scheduled: true, spamScore: existing.spamScore ?? 0 };
+      }
+      // Fresh claim in-flight by another worker.
+      if (
+        existing?.status === "pending" &&
+        existing.updatedAt &&
+        Date.now() - existing.updatedAt.getTime() < 30_000
+      ) {
+        throw new Error(
+          `gmail.send: concurrent_send (another worker is processing idempotencyKey=${input.idempotencyKey})`,
+        );
+      }
+      // Drain a scheduled-now / stale-pending / previously-failed row — we
+      // own it from here. Clear sendAt so the scheduled branch below doesn't
+      // re-park it.
+      await outbox.updateOne(
+        { idempotencyKey: input.idempotencyKey },
+        { $set: { status: "pending", updatedAt: new Date() }, $unset: { lastError: "", sendAt: "" } },
+      );
+    }
+
+    // 2. suppression-list pre-check (CAN-SPAM §5). Recipient on the
+    //    workspace do-not-mail list ⇒ refuse + persist failure.
     const suppression = await isSuppressed(ctx.workspaceId, input.to);
     if (suppression.suppressed) {
       const err = new Error(
@@ -205,28 +266,12 @@ export const gmailSend = defineCapability({
       );
       await outbox.updateOne(
         { idempotencyKey: input.idempotencyKey },
-        {
-          $set: {
-            status: "failed",
-            lastError: err.message,
-            updatedAt: new Date(),
-          },
-          $setOnInsert: {
-            idempotencyKey: input.idempotencyKey,
-            workspaceId: ctx.workspaceId,
-            userId: ctx.userId,
-            campaignId: ctx.campaignId,
-            to: input.to,
-            subject: input.subject,
-            createdAt: new Date(),
-          },
-        },
-        { upsert: true },
+        { $set: { status: "failed", lastError: err.message, updatedAt: new Date() } },
       );
       throw err;
     }
 
-    // 2. spam-score pre-check (resolve the user's Gmail address for the rules)
+    // 3. resolve the user's Gmail address (for From: + the spam-score "from").
     const token = await tokenManager.getToken(ctx.userId);
     const fromEmail = token?.email;
     if (!fromEmail) {
@@ -234,14 +279,44 @@ export const gmailSend = defineCapability({
         `gmail.send: no Gmail token for userId=${ctx.userId} — the user hasn't connected Gmail.`,
       );
     }
-    const spam = calculateSpamScore(input.subject, input.bodyHtml, fromEmail);
+
+    // 4. scheduled send — the workflow's step.sleepUntil(sendAt) re-invokes
+    //    without sendAt to actually drain.
+    if (input.sendAt && input.sendAt.getTime() > now.getTime() + 5_000) {
+      await outbox.updateOne(
+        { idempotencyKey: input.idempotencyKey },
+        {
+          $set: {
+            status: "scheduled",
+            sendAt: input.sendAt,
+            updatedAt: now,
+          },
+          $unset: { lastError: "" },
+        },
+      );
+      return { messageId: "", threadId: "", scheduled: true, spamScore: 0 };
+    }
+
+    // 5. compose body (tracking pixel + unsub footer). Tracking pixel id =
+    //    idempotencyKey so MC can correlate the open back to this row.
+    const trackingId = input.idempotencyKey;
+    const unsubToken = signUnsubscribeToken(input.creatorTrackId, ctx.campaignId ?? "no-campaign");
+    const unsubLink = unsubscribeUrl(input.publicBaseUrl, unsubToken);
+    let html = appendUnsubscribeFooter(input.bodyHtml, unsubLink);
+    html = appendTrackingPixel(html, trackingId, input.publicBaseUrl);
+
+    // 5b. spam-score on the COMPOSED HTML (post-footer + pixel) — codex
+    //     review P2#6. Scoring the pre-footer body unfairly tripped the
+    //     `noUnsubscribe` rule on otherwise clean drafts since gmail.send
+    //     always adds the footer; this fix lets the agent-authored body
+    //     stand on its own content rules.
+    const spam = calculateSpamScore(input.subject, html, fromEmail);
     const maxAllowed = input.maxSpamScore ?? DEFAULT_MAX_SPAM_SCORE;
     if (spam.score > maxAllowed) {
       const err = new Error(
         `gmail.send: spam_score_too_high (${spam.score} > ${maxAllowed}) — ` +
           `rules: ${spam.triggered.map((h) => h.ruleId).join(", ")}`,
       );
-      // Persist the failed pre-check so the trace shows the attempt
       await outbox.updateOne(
         { idempotencyKey: input.idempotencyKey },
         {
@@ -251,59 +326,10 @@ export const gmailSend = defineCapability({
             lastError: err.message,
             updatedAt: new Date(),
           },
-          $setOnInsert: {
-            idempotencyKey: input.idempotencyKey,
-            workspaceId: ctx.workspaceId,
-            userId: ctx.userId,
-            campaignId: ctx.campaignId,
-            to: input.to,
-            subject: input.subject,
-            createdAt: new Date(),
-          },
         },
-        { upsert: true },
       );
       throw err;
     }
-
-    const now = new Date();
-
-    // 3. scheduled send — record outbox row, return scheduled=true. The
-    // workflow re-invokes (same idempotencyKey) after step.sleepUntil(sendAt).
-    if (input.sendAt && input.sendAt.getTime() > now.getTime() + 5_000) {
-      await outbox.updateOne(
-        { idempotencyKey: input.idempotencyKey },
-        {
-          $set: {
-            status: "scheduled",
-            sendAt: input.sendAt,
-            spamScore: spam.score,
-            updatedAt: now,
-          },
-          $setOnInsert: {
-            idempotencyKey: input.idempotencyKey,
-            workspaceId: ctx.workspaceId,
-            userId: ctx.userId,
-            campaignId: ctx.campaignId,
-            to: input.to,
-            subject: input.subject,
-            createdAt: now,
-          },
-          $unset: { lastError: "" },
-        },
-        { upsert: true },
-      );
-      return { messageId: "", threadId: "", scheduled: true, spamScore: spam.score };
-    }
-
-    // 4. compose body (tracking pixel + unsub footer). The tracking pixel uses
-    // the same idempotencyKey-derived id so MC can correlate the open back to
-    // this outbox row.
-    const trackingId = input.idempotencyKey;
-    const unsubToken = signUnsubscribeToken(input.creatorTrackId, ctx.campaignId ?? "no-campaign");
-    const unsubLink = unsubscribeUrl(input.publicBaseUrl, unsubToken);
-    let html = appendUnsubscribeFooter(input.bodyHtml, unsubLink);
-    html = appendTrackingPixel(html, trackingId, input.publicBaseUrl);
 
     // 5. compose From header (RFC 2047 if non-ASCII display name)
     let fromHeader = fromEmail;
@@ -342,22 +368,13 @@ export const gmailSend = defineCapability({
             lastError: msg,
             updatedAt: new Date(),
           },
-          $setOnInsert: {
-            idempotencyKey: input.idempotencyKey,
-            workspaceId: ctx.workspaceId,
-            userId: ctx.userId,
-            campaignId: ctx.campaignId,
-            to: input.to,
-            subject: input.subject,
-            createdAt: new Date(),
-          },
         },
-        { upsert: true },
       );
       throw err;
     }
 
-    // 7. persist success
+    // 7. persist success — the claim-row exists already (step 1), so this
+    //    is a plain update; no upsert needed.
     await outbox.updateOne(
       { idempotencyKey: input.idempotencyKey },
       {
@@ -368,18 +385,8 @@ export const gmailSend = defineCapability({
           spamScore: spam.score,
           updatedAt: new Date(),
         },
-        $setOnInsert: {
-          idempotencyKey: input.idempotencyKey,
-          workspaceId: ctx.workspaceId,
-          userId: ctx.userId,
-          campaignId: ctx.campaignId,
-          to: input.to,
-          subject: input.subject,
-          createdAt: new Date(),
-        },
         $unset: { lastError: "", sendAt: "" },
       },
-      { upsert: true },
     );
 
     return {

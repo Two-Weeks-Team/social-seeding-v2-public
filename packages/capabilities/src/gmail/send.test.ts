@@ -66,6 +66,14 @@ beforeAll(async () => {
   }
   originalSecret = process.env.EMAIL_UNSUBSCRIBE_HMAC_SECRET;
   process.env.EMAIL_UNSUBSCRIBE_HMAC_SECRET = "test_secret_at_least_16_chars_long_xx";
+  // Atomic-claim idempotency (codex review P2#5) relies on the unique index
+  // on idempotencyKey. scripts/init-indexes.ts creates it in prod; here we
+  // create it in the test setup so we exercise the same production path.
+  const db = await getDb();
+  await db
+    .collection(Collections.V2_OUTBOX)
+    .createIndex({ idempotencyKey: 1 }, { unique: true })
+    .catch(() => undefined);
 });
 
 afterAll(async () => {
@@ -130,6 +138,29 @@ describe("gmail.send", () => {
     // The agent-authored body is below the default MAX (precision tested in spam-score.test.ts).
     expect(typeof row?.spamScore).toBe("number");
     expect(row?.spamScore).toBeLessThan(6);
+  });
+
+  it("concurrent send race (codex review P2#5): a fresh pending claim refuses subsequent in-flight callers", async () => {
+    const fake = fakeClient();
+    setGmailClientFactory(async () => fake);
+    const db = await getDb();
+    // Simulate worker A having just claimed the row (status='pending', fresh updatedAt).
+    await db.collection(Collections.V2_OUTBOX).insertOne({
+      idempotencyKey: "ik-race-1",
+      status: "pending",
+      workspaceId: ctx.workspaceId,
+      userId: ctx.userId,
+      campaignId: ctx.campaignId,
+      to: baseInput.to,
+      subject: baseInput.subject,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    // Worker B calls with the same key — should refuse rather than send.
+    await expect(
+      gmailSend.handler({ ...baseInput, idempotencyKey: "ik-race-1" }, ctx),
+    ).rejects.toThrow(/concurrent_send/);
+    expect(fake.calls).toHaveLength(0);
   });
 
   it("idempotency: retry with the same key returns the cached result without re-calling the client", async () => {

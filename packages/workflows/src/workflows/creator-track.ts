@@ -344,18 +344,21 @@ export async function creatorTrackHandler(
     };
   }
 
-  // negotiating → ALWAYS escalates. We surface an approveReplyResponse approval
-  // with the verbatim incoming + extracted info; the human responds in MC.
+  // negotiating → ALWAYS escalates. We pass `{ mode: "always_ask" }` literally
+  // instead of policy.gates.approveReplyResponse — codex review P2#7 —
+  // otherwise an operator with the policy set to `auto` would skip the human
+  // review even though the contract (and the classifier's tone) say a rate
+  // counter-offer must reach a human.
   if (turn.classification === "negotiating") {
     await step.run("escalate-negotiating", async () =>
-      gate(step, gateConfigFor(policy.gates as unknown as Record<string, GateConfig>, "approveReplyResponse"), {
+      gate(step, { mode: "always_ask" }, {
         campaignId,
         workspaceId,
         kind: "reply_response",
         recommendation: turn,
         rationale:
           turn.needsHumanReason ??
-          `Creator counter-offered (proposedRateUsd=${turn.extracted.proposedRateUsd ?? "?"}). Workspace policy escalates negotiating replies.`,
+          `Creator counter-offered (proposedRateUsd=${turn.extracted.proposedRateUsd ?? "?"}). Negotiating replies always escalate to a human.`,
       }),
     );
     await patchTrack(campaignId, creatorId, "in_conversation", {
