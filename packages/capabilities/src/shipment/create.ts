@@ -47,12 +47,45 @@ export const shipmentCreate = defineCapability({
   input: CreateInputSchema,
   output: ShipmentSchema,
   async handler(input, _ctx) {
-    // Idempotency by creatorTrackId — the workflow's step.run already
-    // guards against double-execution per-step, but a second creator-track
-    // run (manual replay / a follow-up campaign reusing the same id pair)
-    // shouldn't double-ship.
+    // Sequential-idempotency fast path: an already-shipped row for this
+    // creatorTrackId just returns. The atomic claim below handles the
+    // concurrent race (codex review P1#2); this branch handles the more
+    // common manual-replay / re-run-after-completion case.
     const existing = await shipmentRepo.findByCreatorTrack(input.creatorTrackId);
-    if (existing) return existing;
+    if (existing && existing.status !== "pending") return existing;
+    if (
+      existing &&
+      existing.status === "pending" &&
+      existing.updatedAt &&
+      Date.now() - existing.updatedAt.getTime() < 30_000
+    ) {
+      throw new Error(
+        `shipment.create: concurrent_create (another worker is mid-carrier-call for creatorTrackId=${input.creatorTrackId})`,
+      );
+    }
+
+    // Atomic claim — backed by the unique index on creatorTrackId.
+    const claim = await shipmentRepo.claim({
+      campaignId: input.campaignId,
+      creatorTrackId: input.creatorTrackId,
+      creatorId: input.creatorId,
+      carrier: input.carrier,
+      shippingAddress: input.shippingAddress,
+      products: input.products,
+      notes: input.notes,
+    });
+
+    if (!claim.wonClaim) {
+      // A racing worker won between our findByCreatorTrack and the claim.
+      // If their row is already shipped → return it. If still pending and
+      // fresh → refuse with concurrent_create (caller can retry). If stale
+      // pending → conservatively refuse rather than racing them further.
+      const r = claim.shipment;
+      if (r.status !== "pending") return r;
+      throw new Error(
+        `shipment.create: concurrent_create (another worker holds creatorTrackId=${input.creatorTrackId})`,
+      );
+    }
 
     const weightGrams = sumWeight(input.products);
     const declaredValueUsdCents = sumValue(input.products);
@@ -68,30 +101,19 @@ export const shipmentCreate = defineCapability({
       declaredValueUsdCents,
       reference,
     });
+    // Carrier-call success → seal the claim row as shipped. A failure above
+    // leaves the row in status='pending'; a Phase-3.5 janitor will sweep
+    // stale claims and either retry or mark them 'cancelled'.
 
-    const now = new Date();
-    return shipmentRepo.create({
-      campaignId: input.campaignId,
-      creatorTrackId: input.creatorTrackId,
-      creatorId: input.creatorId,
-      status: "shipped",
-      carrier: input.carrier,
+    const finalized = await shipmentRepo.finalizeShipped(claim.shipment.id, {
       trackingNumber: created.trackingNumber,
-      shippingAddress: input.shippingAddress,
-      products: input.products,
-      trackingEvents: [
-        {
-          timestamp: now,
-          statusCode: "CREATED",
-          status: "shipped",
-          location: "",
-          description: `Shipment created with ${input.carrier} (tracking ${created.trackingNumber}).`,
-        },
-      ],
       ...(created.estimatedDeliveryAt ? { estimatedDeliveryAt: created.estimatedDeliveryAt } : {}),
-      shippedAt: now,
-      notes: input.notes,
+      carrier: input.carrier,
     });
+    if (!finalized) {
+      throw new Error(`shipment.create: claim row vanished mid-update (id=${claim.shipment.id})`);
+    }
+    return finalized;
   },
 });
 

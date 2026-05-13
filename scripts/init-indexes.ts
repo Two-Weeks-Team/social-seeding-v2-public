@@ -66,7 +66,12 @@ const PLANS: IndexPlan[] = [
   // read; per-creator-track lookup is the second; tracking-number index lets
   // the carrier-poller / webhook resolve to a row without a campaign filter.
   { collection: Collections.V2_SHIPMENTS, keys: { campaignId: 1, updatedAt: -1 } },
-  { collection: Collections.V2_SHIPMENTS, keys: { creatorTrackId: 1 } },
+  // creatorTrackId — UNIQUE per codex review P3-P1#2. Backs shipment.create's
+  // atomic claim against the concurrent-create race (without the unique
+  // index, two simultaneous calls can both insert a 'pending' row + both
+  // physically ship). Phase-3 demo creators have at-most-one shipment per
+  // track; later phases can revisit if reships become a thing.
+  { collection: Collections.V2_SHIPMENTS, keys: { creatorTrackId: 1 }, options: { unique: true } },
   { collection: Collections.V2_SHIPMENTS, keys: { trackingNumber: 1 } },
 ];
 

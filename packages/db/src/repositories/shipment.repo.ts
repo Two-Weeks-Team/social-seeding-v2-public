@@ -34,6 +34,45 @@ export const shipmentRepo = {
     return { ...input, id: String(res.insertedId), createdAt: now, updatedAt: now };
   },
 
+  /**
+   * Atomic per-creatorTrackId claim — backs `shipment.create` against the
+   * concurrent-create race that codex review P1#2 identified. The unique
+   * index on `creatorTrackId` (init-indexes.ts) ensures at-most-one
+   * concurrent claimant; the loser receives E11000 and we read back the
+   * existing row to decide caller behaviour.
+   */
+  async claim(
+    input: Omit<Shipment, "id" | "createdAt" | "updatedAt" | "status" | "trackingNumber" | "trackingEvents">,
+  ): Promise<{ wonClaim: boolean; shipment: Shipment }> {
+    const c = await col();
+    const now = new Date();
+    const doc: ShipmentDoc = {
+      ...input,
+      status: "pending",
+      trackingNumber: "",
+      trackingEvents: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    try {
+      const res = await c.insertOne(doc);
+      return {
+        wonClaim: true,
+        shipment: { ...doc, id: String(res.insertedId) },
+      };
+    } catch (err: unknown) {
+      const code = (err as { code?: unknown })?.code;
+      if (code !== 11000) throw err;
+      const existing = await this.findByCreatorTrack(input.creatorTrackId);
+      if (!existing) {
+        throw new Error(
+          `shipment.claim: duplicate-key but no row for creatorTrackId=${input.creatorTrackId} — likely a race window narrower than the read; retry.`,
+        );
+      }
+      return { wonClaim: false, shipment: existing };
+    }
+  },
+
   async get(id: string): Promise<Shipment | null> {
     const c = await col();
     const doc = await c.findOne({ _id: new ObjectId(id) });
@@ -102,6 +141,42 @@ export const shipmentRepo = {
     if (status === "shipped" && !set.shippedAt) set.shippedAt = new Date();
     if (status === "delivered" && !set.deliveredAt) set.deliveredAt = new Date();
     await c.updateOne({ _id: new ObjectId(id) }, { $set: set });
+    return this.get(id);
+  },
+
+  /**
+   * Atomically seal a claimed (status='pending') row as shipped: set status,
+   * trackingNumber, estimatedDeliveryAt, shippedAt, push the CREATED event.
+   * Used by `shipment.create` once the carrier has returned a tracking number.
+   */
+  async finalizeShipped(
+    id: string,
+    args: {
+      trackingNumber: string;
+      estimatedDeliveryAt?: Date;
+      carrier: Shipment["carrier"];
+    },
+  ): Promise<Shipment | null> {
+    const c = await col();
+    const now = new Date();
+    const set: Partial<ShipmentDoc> = {
+      status: "shipped",
+      trackingNumber: args.trackingNumber,
+      shippedAt: now,
+      updatedAt: now,
+    };
+    if (args.estimatedDeliveryAt) set.estimatedDeliveryAt = args.estimatedDeliveryAt;
+    const createdEvent: TrackingEvent = {
+      timestamp: now,
+      statusCode: "CREATED",
+      status: "shipped",
+      location: "",
+      description: `Shipment created with ${args.carrier} (tracking ${args.trackingNumber}).`,
+    };
+    await c.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: set, $push: { trackingEvents: createdEvent } },
+    );
     return this.get(id);
   },
 };

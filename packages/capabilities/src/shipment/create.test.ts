@@ -62,8 +62,16 @@ function fakeCarrier(): FakeSpy {
   return f;
 }
 
-beforeAll(() => {
+beforeAll(async () => {
   if (!process.env.MONGODB_URI) throw new Error("MONGODB_URI not set — start scripts/dev-mongo first");
+  // Atomic-claim idempotency (codex review P3-P1#2) relies on the unique
+  // index on creatorTrackId. scripts/init-indexes.ts creates it in prod;
+  // here we mirror it so the test exercises the production path.
+  const db = await getDb();
+  await db
+    .collection(Collections.V2_SHIPMENTS)
+    .createIndex({ creatorTrackId: 1 }, { unique: true })
+    .catch(() => undefined);
 });
 
 beforeEach(async () => {
@@ -103,6 +111,45 @@ describe("shipment.create", () => {
     expect(out.estimatedDeliveryAt).toBeInstanceOf(Date);
     expect(out.shippedAt).toBeInstanceOf(Date);
     expect(out.notes).toBe("demo seed");
+  });
+
+  it("concurrent race (codex review P3-P1#2): a fresh pending claim refuses subsequent in-flight callers", async () => {
+    const c = fakeCarrier();
+    setCarrierClientFactory(async () => c);
+    // Pre-seed a pending claim row (mimics worker A having just inserted but
+    // not yet completed the carrier call).
+    const db = await getDb();
+    await db.collection(Collections.V2_SHIPMENTS).insertOne({
+      campaignId: "camp_3a",
+      creatorTrackId: "camp_3a:cr_race",
+      creatorId: "cr_race",
+      status: "pending",
+      carrier: "yuntrack",
+      trackingNumber: "",
+      shippingAddress: address,
+      products: [product],
+      trackingEvents: [],
+      notes: "",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    // Worker B's concurrent call must refuse rather than ship.
+    await expect(
+      shipmentCreate.handler(
+        {
+          campaignId: "camp_3a",
+          creatorTrackId: "camp_3a:cr_race",
+          creatorId: "cr_race",
+          carrier: "yuntrack",
+          shippingAddress: address,
+          products: [product],
+          reference: "",
+          notes: "",
+        },
+        ctx,
+      ),
+    ).rejects.toThrow(/concurrent_create/);
+    expect(c.createCalls).toBe(0);
   });
 
   it("idempotency: a second call for the same creatorTrackId returns the existing row, never re-calls the carrier", async () => {
