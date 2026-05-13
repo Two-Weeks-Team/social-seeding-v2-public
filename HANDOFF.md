@@ -1,7 +1,7 @@
 # HANDOFF — continuing the v2 build (Claude Code CLI)
 
 > Read this first when you (or a fresh Claude Code session) pick this repo up.
-> Last handoff: **after Phase 1 + Phase 2 Chunks 1–2** — `pnpm run verify-build` is green, 114 tests pass.
+> Last handoff: **after Phase 1 + Phase 2 Chunks 1–3** — `pnpm run verify-build` is green, 142 tests pass.
 
 ---
 
@@ -12,10 +12,11 @@ Phase 0  (foundation, 8 commits)              ✓ done
 Phase 1  (sourcing+vetting vertical slice, 17 + 1 docs)  ✓ done
 Phase 2  Chunk 1 (canvas paradigm UI)         ✓ done
 Phase 2  Chunk 2 (templates.render + gmail.send platform, 5 commits) ✓ done
-Phase 2  Chunks 3–7 (writer agent → conversation → workflow → MC → webhook)  ⏳ NEXT
+Phase 2  Chunk 3 (outreach-writer agent + judges, 4 commits)         ✓ done
+Phase 2  Chunks 4–7 (conversation → workflow → MC → webhook)         ⏳ NEXT
 ```
 
-`git log --oneline` shows ~34 commits since the scaffold (`66f4390`). `pnpm run verify-build` exits 0; 114 tests across `@ss/agents` (24) · `@ss/capabilities` (72) · `@ss/observability` (4) · `@ss/workflows` (14). `docs/PHASE-1-PLAN.md` unchanged (no scope creep).
+`git log --oneline` shows ~38 commits since the scaffold (`66f4390`). `pnpm run verify-build` exits 0; 142 tests across `@ss/agents` (30) · `@ss/capabilities` (94) · `@ss/observability` (4) · `@ss/workflows` (14). `docs/PHASE-1-PLAN.md` unchanged (no scope creep).
 
 P2-C2 added five capabilities/modules — all credential-free testable via injected fakes:
 - `templates.render` — pure `{{var}}` variable engine with HTML-escape + missing-var policy (port of v1 `email-template-engine`).
@@ -23,6 +24,13 @@ P2-C2 added five capabilities/modules — all credential-free testable via injec
 - `gmail/spam-score` — pure 10-rule engine, weights match v1 verbatim, `DEFAULT_MAX_SPAM_SCORE = 6` gates `gmail.send`.
 - `gmail/client` — `GmailClient` factory seam (matches the v1 `TikTokFetcher` pattern) + minimal `tokenManager` port (reads SHARED `user_tokens`, refreshes via Google OAuth, additive writes).
 - `gmail.send` — composes MIME with tracking pixel + unsub footer, spam-score pre-check, idempotency + scheduled-send via new `v2_outbox` collection.
+
+P2-C3 ported v1's `lib/cold-mail` tournament discipline into the v2 single-agent shape — credential-free deterministic tools so the runtime stays testable:
+- `OutreachFacts` contract + `JudgeKeySchema` / `JUDGE_WEIGHTS` (verbatim from v1: skeptic 0.40 / conversion 0.30 / deliverability 0.15 / brand 0.15) + `weightedJudgeScore()`.
+- `outreach.extractFacts` — pure, deterministic. Closed fact set ("cite only what's here"). Emits `hasMinimumContext` flag for v2's escalation pattern (v1 threw `InsufficientContextError`).
+- `outreach.judge` — 4 deterministic judges (brand / conversion / deliverability / skeptic). Each judge audits drafts against the closed fact set; the deliverability judge wraps `calculateSpamScore`. LLM-backed variants are a follow-up — each judge's score function is pure, so an upgrade is a strict superset.
+- `outreachWriterAgent` rewritten — curated tools `[outreach.extractFacts, outreach.judge, templates.render]`, system prompt encoding the v1 5-angle × 4-judge tournament reshaped to a single Opus 4.7 session with one optional revision pass.
+- 3 golden-set scenarios (happy / revision / escalation) verifying tool-call order, judge weight honoring, and the `insufficient_context` short-circuit.
 
 `apps/web` Mission Control surfaces (W1–W5) + the canvas alternative view all
 ship in `apps/web/app/(mission-control)/*` + `apps/web/components/`. Design
@@ -70,7 +78,7 @@ green throughout, no scope creep on `docs/`).
 | Chunk | Scope | New env needed for full demo |
 |---|---|---|
 | ~~**P2-C2**~~ ✓ | `gmail.send` + `templates.render` capabilities — token-manager + OAuth refresh ported; tracking pixel + unsubscribe footer + `sendAt` scheduling + spam-score pre-check all wired through the injectable `GmailClient` seam. **Live demo still needs**: a Phase-2 follow-up to fill `defaultGmailClientFactory` with `googleapis` + provide `GOOGLE_CLIENT_ID/SECRET` and a Gmail-connected user token. Tests are credential-free via the fake seam. | `GOOGLE_CLIENT_ID/SECRET`, Gmail OAuth scopes, `EMAIL_UNSUBSCRIBE_HMAC_SECRET` (≥16 chars) |
-| **P2-C3** | `outreach-writer` agent — **highest-value port**. `~/social-seeding/src/lib/cold-mail/*` (13 files) is already in the right shape: `extractFacts → draftWriter → reviser loop → verifiers; tournament: 5 angles × 4 judges (brand/conversion/deliverability/skeptic) → winner; fewshot; followup`. Update the existing scaffold's `outreachWriterAgent` to use the curated tool set + judges; add golden-set tests using `runAgent`'s injectable `ModelClient`. | `ANTHROPIC_API_KEY` for live |
+| ~~**P2-C3**~~ ✓ | `outreach-writer` agent — v1's `lib/cold-mail` discipline (extractFacts → angle plan → 4-judge tournament with revision) reshaped into a v2 single-agent runtime with curated deterministic tools (`outreach.extractFacts`, `outreach.judge`, `templates.render`). Golden tests verify tool-call order, judge weights, and `insufficient_context` escalation. **Live demo still needs**: `ANTHROPIC_API_KEY` so the actual Opus 4.7 model runs the tournament — and (optional) a Phase-2 follow-up that swaps the deterministic skeptic/conversion/brand judges for LLM-backed variants. | `ANTHROPIC_API_KEY` for live |
 | **P2-C4** | `conversation` agent — reply classification (Haiku, the cheap one) + extraction (address / rate / question / classification) + response draft (Opus when needed). Defined in `packages/contracts/src/outreach.ts` (`ReplyClassSchema`, `ConversationTurnSchema`); just needs the agent definition + tests. | `ANTHROPIC_API_KEY` |
 | **P2-C5** | `creator-track` child workflow — fully wire `packages/workflows/src/workflows/creator-track.ts`: `extractFacts` step → `runAgent(outreachWriterAgent)` → `approveOutreachSend` gate → `gmail.send` → reply loop (`step.sleep("3d") / step.waitForEvent("gmail/reply.received") / runAgent(conversationAgent) → branch on classification → approveReplyResponse gate for negotiating/question replies → gmail.send). brand-campaign fans out one `creator-track` per persisted shortlist track via `step.sendEvent("campaign/creator-track.start")`. | — |
 | **P2-C6** | Mission Control extensions — `/approvals` gets outreach_send + reply_response drill-ins (the inbox kinds already render placeholders); new `/threads/[id]` view for a single creator's Gmail thread (manual reply, demoted v1 EmailCenter); policy editor unblocks the 4 Phase-2/3 gates (currently disabled). Canvas nodes light up as outreach progresses. | — |
