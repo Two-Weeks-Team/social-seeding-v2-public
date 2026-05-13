@@ -3,3 +3,4 @@ export { Collections } from "./collections";
 export { campaignRepo } from "./repositories/campaign.repo";
 export { creatorRepo } from "./repositories/creator.repo";
 export { workspaceRepo, defaultPolicy, type PlanName } from "./repositories/workspace.repo";
+export { approvalRepo } from "./repositories/approval.repo";
