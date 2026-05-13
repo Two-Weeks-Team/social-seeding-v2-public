@@ -87,6 +87,20 @@ interface WebhookResult {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse<WebhookResult>> {
+  // Fail closed in production when GMAIL_PUBSUB_TOKEN isn't set (codex review
+  // P2#4). The capability-layer verifyPubSubAuth allows a missing
+  // expectedToken (dev/local default), but a deployed prod env without the
+  // token configured would let anyone with a Google-looking User-Agent +
+  // JSON content-type hit this endpoint. 503 with config_missing makes the
+  // misconfiguration loud rather than silently insecure.
+  const expectedToken = process.env.GMAIL_PUBSUB_TOKEN;
+  if (process.env.NODE_ENV === "production" && !expectedToken) {
+    return NextResponse.json(
+      { ok: false, processed: 0, emitted: 0, skipped: 0, reason: "config_missing:GMAIL_PUBSUB_TOKEN" },
+      { status: 503 },
+    );
+  }
+
   const url = new URL(req.url);
   const auth = verifyPubSubAuth(
     {
@@ -95,7 +109,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<WebhookResult
       authorization: req.headers.get("authorization") ?? undefined,
     },
     {
-      expectedToken: process.env.GMAIL_PUBSUB_TOKEN,
+      expectedToken,
       queryToken: url.searchParams.get("token") ?? undefined,
     },
   );

@@ -56,8 +56,12 @@ const PLANS: IndexPlan[] = [
   { collection: Collections.V2_OUTBOX, keys: { threadId: 1, status: 1 } },
   // v2_gmail_watches — one row per emailAddress; webhook reads + persists the lastHistoryId
   { collection: Collections.V2_GMAIL_WATCHES, keys: { emailAddress: 1 }, options: { unique: true } },
-  // v2_suppression_list — unique key by recipient email; gmail.send checks pre-send
-  { collection: Collections.V2_SUPPRESSION_LIST, keys: { email: 1 }, options: { unique: true } },
+  // v2_suppression_list — workspace-scoped do-not-mail list; the unique key
+  // matches the (workspaceId, email) query suppression.{check,add} use so a
+  // recipient who unsubscribed in workspace A doesn't block sends from
+  // workspace B (cross-workspace suppression is intentionally independent).
+  // Codex review P2#8.
+  { collection: Collections.V2_SUPPRESSION_LIST, keys: { workspaceId: 1, email: 1 }, options: { unique: true } },
 ];
 
 function looksUnconfigured(uri: string | undefined): boolean {
