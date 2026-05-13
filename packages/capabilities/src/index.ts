@@ -3,6 +3,7 @@
  * Add new capability files here.
  */
 export * from "./registry";
+export * from "./usage";
 
 import "./tiktok/search";
 import "./tiktok/get-creator";

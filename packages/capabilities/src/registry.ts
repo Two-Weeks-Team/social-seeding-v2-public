@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import { checkAndIncrement } from "./usage";
 
 /**
  * Capability layer — the platform's typed functions. ONE place that both the
@@ -47,11 +48,12 @@ export function listCapabilities(): ReadonlyArray<{ name: string; description: s
   return [...REGISTRY.values()].map(({ name, description, scope }) => ({ name, description, scope }));
 }
 
-/** Invoke a capability with schema validation on the way in and out. */
+/** Invoke a capability: validate input → enforce the rate-limit class → run → validate output. */
 export async function invokeCapability(name: string, rawInput: unknown, ctx: CapabilityContext): Promise<unknown> {
   const c = getCapability(name);
   const input = c.input.parse(rawInput);
-  // TODO(phase-0): enforce ctx.rateLimitClass via @ss/db usage counters (port v1 usage-limiter).
+  // rate limit on the capability's declared class (no-op for "default") — port of v1 usage-limiter
+  await checkAndIncrement(ctx.workspaceId, ctx.userId, c.rateLimitClass);
   const out = await c.handler(input, ctx);
   return c.output.parse(out);
 }

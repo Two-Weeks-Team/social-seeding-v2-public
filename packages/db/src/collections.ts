@@ -15,6 +15,9 @@ export const Collections = {
   SHARED_USER_TOKENS: "user_tokens", // Gmail OAuth tokens
   SHARED_TEMPLATES: "templates",
   SHARED_UNIFIED_EMAILS: "unified_emails",
+  SHARED_USER_USAGE: "user_usage", // monthly per-action counters (rate limiter)
+  SHARED_WORKSPACE_USAGE: "workspace_usage",
+  SHARED_USAGE_LIMIT_OVERRIDES: "usage_limit_overrides", // admin overrides (tombstone-aware)
 
   // --- new in v2 ---
   V2_CAMPAIGNS: "v2_campaigns",

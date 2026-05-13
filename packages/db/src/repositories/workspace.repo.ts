@@ -3,6 +3,9 @@ import { WorkspacePolicySchema, type WorkspacePolicy } from "@ss/contracts";
 import { getDb } from "../client";
 import { Collections } from "../collections";
 
+/** v1's billing plans (lib/feature-flags.ts). */
+export type PlanName = "FREE" | "BEAUTY_VERIFIED" | "STARTER" | "PRO" | "BUSINESS";
+
 /** A conservative default: every gate asks the human. Owners relax over time. */
 export function defaultPolicy(workspaceId: string): WorkspacePolicy {
   const askGate = { mode: "always_ask" as const };
@@ -40,5 +43,15 @@ export const workspaceRepo = {
   async getV1Workspace(workspaceId: string): Promise<Record<string, unknown> | null> {
     const db = await getDb();
     return db.collection(Collections.SHARED_WORKSPACES).findOne({ _id: new ObjectId(workspaceId) });
+  },
+
+  /**
+   * Resolve a workspace's billing plan. TODO(phase-0/1): port v1's real
+   * resolution (subscriptions / workspace_subscriptions / beauty_verified) +
+   * the 10-min plan cache — see docs/CAPABILITIES.md Domain H. Until then every
+   * workspace is treated as FREE (rate limits are still enforced, at the FREE tier).
+   */
+  async getPlan(_workspaceId: string): Promise<PlanName> {
+    return "FREE";
   },
 };
