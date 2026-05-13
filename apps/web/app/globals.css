@@ -1,11 +1,66 @@
 @import "tailwindcss";
 
-/* Mission Control is light-mode by default (carried preference from v1: only
-   the marketing landing is dark; the app surface is light). */
+/**
+ * Design tokens — minimalist editorial (Linear / Vercel tone). Locked for
+ * Phase 1; the docs/previews/mission-control-timeline.html mockup is the
+ * visual contract. See memory/design-quality-canvas.md for the no-AI-slop
+ * principles.
+ *
+ *   palette        slate-50 (bg) · white (surface) · slate-900 (text)
+ *                  blue-600 (accent / primary action)
+ *                  emerald / amber / rose / cyan / violet for status only
+ *   typography     Inter (display + body) · JetBrains Mono (IDs / numbers)
+ *                  Korean fallback: Pretendard / Apple SD Gothic Neo / system-ui
+ *   borders        single-pixel slate-200 · rounded 6px on cards · 4px inputs
+ *   shadows        absent or 0 1px 2px rgba(0,0,0,0.05) at most (cards on hover)
+ *   gradients      banned
+ *   motion         120-200ms ease · hover transitions only · no spring / bounce
+ */
+
 :root {
   color-scheme: light;
+  --font-sans: var(--font-inter, "Inter"), "Pretendard Variable", Pretendard,
+    -apple-system, "Apple SD Gothic Neo", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-jbmono, "JetBrains Mono"), ui-monospace, SFMono-Regular,
+    Menlo, Consolas, monospace;
 }
 
-body {
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+html, body {
+  font-family: var(--font-sans);
+  background: rgb(248 250 252); /* slate-50 */
+  color: rgb(15 23 42); /* slate-900 */
+  font-feature-settings: "cv11", "ss01", "ss03";
+}
+
+/* Mono utility — applied where IDs / numbers / timestamps appear. */
+.mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum", "zero" 1;
+}
+
+/* Disable iOS tap highlight; we use our own focus rings (slate-300 ring). */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Focus rings: thin, neutral — never the bright Tailwind blue default. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid rgb(148 163 184); /* slate-400 */
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+/* Custom selection — keep it muted, not browser-default blue. */
+::selection {
+  background: rgb(226 232 240); /* slate-200 */
+  color: rgb(15 23 42);
+}
+
+/* Hairline below sticky headers / between sections. */
+.hairline {
+  border-bottom: 1px solid rgb(226 232 240); /* slate-200 */
 }
