@@ -216,6 +216,9 @@ export default async function ApprovalDetailPage({ params }: { params: Promise<{
   if (approval.kind === "reply_response") {
     return renderReplyResponseApproval(approval, campaign?.brief.brandProduct.name);
   }
+  if (approval.kind === "shipment") {
+    return renderShipmentApproval(approval, campaign?.brief.brandProduct.name);
+  }
 
   if (approval.kind !== "shortlist") {
     return (
@@ -687,6 +690,133 @@ function renderReplyResponseDraft(
             승인 (편집 반영 후 발송)
           </Button>
         </div>
+      </form>
+    </div>
+  );
+}
+
+/**
+ * P3-C7a — shipment drill-in. The approveShipment gate's recommendation is
+ * `{ rawAddress, brand, products[] }` (set by creator-track's shipping leg).
+ * The human reviews the raw address text + the product manifest before the
+ * workflow hands the package to the carrier (gate is PRE-shipment.create,
+ * so a rejection here means no package physically ships).
+ *
+ * The drill-in deliberately doesn't allow editing the address — that's the
+ * logistics agent's job (the agent parses raw text into structured fields,
+ * which is hard to do correctly through a form). The reviewer's choice is
+ * binary: approve (let the logistics agent run + the carrier get the
+ * package) or reject (kill the track without shipping).
+ */
+function renderShipmentApproval(approval: Approval, brandName: string | undefined): React.ReactElement {
+  const rec = approval.recommendation as
+    | { rawAddress?: unknown; brand?: unknown; products?: unknown }
+    | undefined;
+  const rawAddress = typeof rec?.rawAddress === "string" ? rec.rawAddress : "";
+  const brand = typeof rec?.brand === "string" ? rec.brand : brandName ?? "";
+  const products = Array.isArray(rec?.products)
+    ? (rec!.products as Array<{ sku?: unknown; name?: unknown; valueUsdCents?: unknown; weightGrams?: unknown }>).map((p) => ({
+        sku: typeof p.sku === "string" ? p.sku : "?",
+        name: typeof p.name === "string" ? p.name : "?",
+        valueUsdCents: typeof p.valueUsdCents === "number" ? p.valueUsdCents : 0,
+        weightGrams: typeof p.weightGrams === "number" ? p.weightGrams : 0,
+      }))
+    : [];
+
+  return (
+    <div className="max-w-3xl mx-auto px-8 py-8">
+      <header className="mb-4">
+        <Link href="/approvals" className="text-[11px] text-slate-500 hover:text-slate-900">← 승인 인박스</Link>
+        <div className="mt-2 flex items-end justify-between flex-wrap gap-3">
+          <div>
+            <SectionLabel>SHIPMENT · approveShipment</SectionLabel>
+            <h1 className="mt-1 text-[22px] font-semibold">
+              {brandName ?? "(unknown campaign)"} · 샘플 발송 직전 검토
+            </h1>
+            <div className="mt-1 text-[12px] text-slate-500">
+              대기 시작 {Math.floor((Date.now() - approval.createdAt.getTime()) / 60000)}분 전 · 캠페인{" "}
+              <Link className="underline hover:text-slate-900 mono" href={`/campaigns/${approval.campaignId}`}>
+                camp_{approval.campaignId.slice(0, 12)}
+              </Link>
+            </div>
+          </div>
+          <Badge variant="amber">PRE-SHIPMENT</Badge>
+        </div>
+      </header>
+
+      <Card className="mb-4">
+        <CardBody>
+          <SectionLabel className="mb-2">에이전트가 보낸 사유</SectionLabel>
+          <p className="text-[13px] text-slate-700 leading-relaxed">{approval.rationale}</p>
+        </CardBody>
+      </Card>
+
+      <Card className="mb-4">
+        <CardBody>
+          <SectionLabel className="mb-2">크리에이터가 공유한 주소 (verbatim)</SectionLabel>
+          {rawAddress ? (
+            <pre className="bg-slate-50 border border-slate-200 rounded p-3 text-[13px] whitespace-pre-wrap break-words">
+              {rawAddress}
+            </pre>
+          ) : (
+            <div className="text-[12px] text-rose-600">주소 데이터가 없습니다 (워크플로 로그 확인 필요).</div>
+          )}
+          <p className="mt-2 text-[11px] text-slate-500">
+            승인하시면 logistics 에이전트가 위 텍스트를 구조화된 주소로 파싱한 다음 carrier API 에 핸드오프합니다. 거부하시면 트랙은 종료되고 패키지는 발송되지 않습니다.
+          </p>
+        </CardBody>
+      </Card>
+
+      <Card className="mb-4">
+        <CardBody>
+          <SectionLabel className="mb-2">발송 품목 ({products.length})</SectionLabel>
+          {products.length === 0 ? (
+            <div className="text-[12px] text-slate-500">(품목 없음)</div>
+          ) : (
+            <table className="w-full text-[13px]">
+              <thead className="text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                <tr>
+                  <th className="text-left py-2 font-medium">SKU</th>
+                  <th className="text-left py-2 font-medium">이름</th>
+                  <th className="text-right py-2 font-medium">신고가 (USD)</th>
+                  <th className="text-right py-2 font-medium">중량 (g)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((p, i) => (
+                  <tr key={i} className="border-b border-slate-100">
+                    <td className="py-2 mono text-slate-700">{p.sku}</td>
+                    <td className="py-2">{p.name}</td>
+                    <td className="py-2 text-right mono">${(p.valueUsdCents / 100).toFixed(2)}</td>
+                    <td className="py-2 text-right mono">{p.weightGrams.toLocaleString()} g</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <p className="mt-2 text-[11px] text-slate-500">
+            품목 / 가격 / 중량은 캠페인 설정과 워크플로의 product manifest 에서 옵니다 — 이 화면에서 편집할 수 없습니다 (현장에서 다르게 보내야 하면 트랙 거부 → 캠페인 정책 수정).
+          </p>
+        </CardBody>
+      </Card>
+
+      <Card className="mb-4">
+        <CardBody>
+          <SectionLabel className="mb-2">브랜드 / 캠페인 식별</SectionLabel>
+          <dl className="text-[12px] mono text-slate-600 space-y-1">
+            <div>brand: {brand}</div>
+            <div>approval_id: {approval.id}</div>
+            <div>campaign_id: {approval.campaignId}</div>
+          </dl>
+        </CardBody>
+      </Card>
+
+      <form action={resolveAction} className="flex justify-end gap-2">
+        <input type="hidden" name="approvalId" value={approval.id} />
+        <Button type="submit" name="decision" value="reject" tone="reject">거부 (발송 안 함)</Button>
+        <Button type="submit" name="decision" value="approveAll" variant="primary" tone="approve">
+          발송 승인
+        </Button>
       </form>
     </div>
   );
