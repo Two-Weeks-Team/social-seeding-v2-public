@@ -1,86 +1,155 @@
-# HANDOFF — continuing the v2 build (Claude Code CLI + `/goal`)
+# HANDOFF — continuing the v2 build (Claude Code CLI)
 
 > Read this first when you (or a fresh Claude Code session) pick this repo up.
-> Last handoff: **2026-05-13** — scaffold + Phase 0 / P0-1 done; `pnpm run verify-build` is green.
+> Last handoff: **after Phase 1 + Phase 2 Chunk 1** — `pnpm run verify-build` is green, 71 tests pass.
 
 ---
 
-## 1. Current state
+## 1. Current state (commits on `main`, nothing pushed)
 
-- Monorepo is real and green: `pnpm install` works; **`pnpm run verify-build` exits 0** (eslint clean → `next build` 9 routes → `tsc --noEmit` 7/7 packages).
-- Pattern: **JIT internal packages** — each `packages/*` `exports` points at `src/`, no build step, no project references; `apps/web` transpiles them via `transpilePackages`. `tsconfig.base.json` = `ESNext`/`Bundler`/`noEmit`/`verbatimModuleSyntax`/strict. Root `eslint.config.mjs` flat config; per-package `lint` = `eslint .` (walks up).
-- Everything else is **scaffold**: handlers `throw "not implemented — see docs/PHASE-1-PLAN.md task X"`. The contracts (Zod schemas), layering, capability registry, agent definitions, and the Inngest workflow graph are designed; the flesh goes on slice by slice.
-- Commits so far: `66f4390` (scaffold), `83323e5` (P0-1 monorepo green). Branch `main`.
+```
+Phase 0  (foundation, 8 commits)              ✓ done
+Phase 1  (sourcing+vetting vertical slice, 17 + 1 docs)  ✓ done
+Phase 2  Chunk 1 (canvas paradigm UI)         ✓ done
+Phase 2  Chunks 2–7 (outreach + reply slice)  ⏳ NEXT
+```
 
-## 2. Read order (before writing code)
+`git log --oneline` shows ~29 commits since the scaffold (`66f4390`). `pnpm run verify-build` exits 0; 71 tests across `@ss/agents` (24) · `@ss/capabilities` (29) · `@ss/observability` (4) · `@ss/workflows` (14). `docs/PHASE-1-PLAN.md` unchanged (no scope creep).
 
-1. `README.md` — the reframe, the layout, the key decisions.
-2. `docs/ARCHITECTURE.md` — the 6 layers, the orchestrator↔agent split, the human-checkpoint model.
-3. `docs/CAPABILITIES.md` — every v1 feature mapped to its v2 home (where things come from).
-4. `docs/PHASE-1-PLAN.md` — **the task list with DoDs**. Task IDs (`P0-1…P0-8`, `S2`, `V1`, `R1`, `V3`, `A-*`, `WF1-3`, `W1-5`) are referenced by the `throw` messages in the scaffold.
-5. `docs/ROADMAP.md` — Phases 0–6, what ships when.
+`apps/web` Mission Control surfaces (W1–W5) + the canvas alternative view all
+ship in `apps/web/app/(mission-control)/*` + `apps/web/components/`. Design
+language locked: **minimalist editorial** (Linear/Vercel tone) — see
+`docs/previews/mission-control-{timeline,canvas}.html` for the visual
+contracts and `memory/design-quality-canvas.md` for the no-AI-slop rules.
 
-The v1 codebase (`~/social-seeding`, frozen) is **reference only** — port the named assets (TikTok ranking algos, `lib/cold-mail`, `lib/gmail`, CRM enrichment, NicePay billing, rate-limiter), don't reinvent. See its `FREEZE.md`.
+## 2. What's running locally
 
-## 3. What's next — Phase 0 (P0-2 … P0-8)
+- **dev-mongo** (`mongodb-memory-server`) on `127.0.0.1:27027`, scratch dir
+  `.mongo-dev/` (gitignored). Manage with `pnpm run dev-mongo` (foreground) or
+  `kill $(cat .mongo-dev/pid)` to stop. Persistent across runs.
+- **`.mongo-dev/dev-env`** holds the test env (real `MONGODB_URI` pointing at
+  dev-mongo, generated `AUTH_SECRET`, `AUTH_TEST_LOGIN_*`). Source it before
+  running anything that needs the DB:
+  ```bash
+  set -a; source .mongo-dev/dev-env; set +a; export MONGODB_DB=ss_test
+  ```
+- `.env.local` is still byte-identical to `.env.example` (placeholders). For
+  live LLM / Gmail demos the real `.env.local` needs to be filled — see §5.
 
-DoDs are in `docs/PHASE-1-PLAN.md`. Summary + what gates each:
+## 3. Read order (when writing code)
 
-| Task | Gist | Needs |
+1. `README.md` — reframe + layout.
+2. `docs/ARCHITECTURE.md` — 6 layers, orchestrator↔agent split, human checkpoints.
+3. `docs/CAPABILITIES.md` — every v1 feature → its v2 home.
+4. `docs/PHASE-1-PLAN.md` — task list with DoDs (Phase 1 done, but the
+   wording is the contract).
+5. `docs/ROADMAP.md` — Phase 2-6.
+6. `docs/SCOPE-DECISIONS.md` — conditional-row decisions + Phase-0/1
+   implementation calls (LLM SDK seam, in-memory observability sink, etc.).
+7. `docs/previews/{mission-control-timeline,mission-control-canvas}.html` —
+   design contracts.
+
+v1 (`~/social-seeding`, frozen) is **reference only** — port named assets
+(TikTok ranking, `lib/cold-mail`, `lib/gmail`, `lib/crm` enrichment, NicePay
+billing, usage-limiter, blacklist) without reinventing.
+
+## 4. What's next — Phase 2 outreach + reply-handling slice
+
+Per `docs/ROADMAP.md` §"Phase 2". Six chunks; each ~50-80 turns; commit per
+sub-task. Same discipline as Phase 1 (one commit per task, verify-build
+green throughout, no scope creep on `docs/`).
+
+| Chunk | Scope | New env needed for full demo |
 |---|---|---|
-| **P0-2** | `@ss/db` real connection to the shared Atlas; `scripts/init-indexes.ts` for the `v2_*` collections; adjust `TikTokCreatorSchema` to match a real `accounts_tiktok` doc | `MONGODB_URI`, `MONGODB_DB` |
-| **P0-3** | `runAgent` on the Claude Agent SDK (add `@anthropic-ai/claude-agent-sdk` to `packages/agents`): tool resolution → `invokeCapability`, budget gate, tracing, output parse + one reviser pass, escalation. Prove with a throwaway echo agent in a vitest test. **Make the model call go through an injectable client so the test runs without a real key.** | `ANTHROPIC_API_KEY` (runtime); test can use a fake client |
-| **P0-4** | observability sinks: trace → `v2_agent_traces`, cost → `v2_cost_ledger`, soft-cap alerts at `COST_ALERT_THRESHOLDS` | (P0-2) |
-| **P0-5** | `apps/web` boots: Auth.js v5 + Google OAuth (carry v1 Progressive-Permission allowlist), `/api/auth/test-login` JWT bypass (`AUTH_TEST_LOGIN_ENABLED`), `prompt-guard` on user text, `POST /api/campaigns` full impl, empty Mission Control pages render | `AUTH_SECRET`, `GOOGLE_CLIENT_ID/SECRET` |
-| **P0-6** | rate-limit primitive — port v1 `lib/usage-limiter.ts` (`user_usage`/`workspace_usage` atomic `$inc` + plan compare + rollback + `usage_limit_overrides`); `invokeCapability` calls it | (P0-2) |
-| **P0-7** | Inngest end-to-end: `npx inngest-cli dev` discovers `brand-campaign`+`creator-track`; `POST /api/campaigns` → a run that completes (skeleton return); pause/resume/cancel events plumbed | `INNGEST_*` (dev works without keys) |
-| **P0-8** | `docs/SCOPE-DECISIONS.md` — which CAPABILITIES.md "conditional" rows are in v2 day-1 (guest trial? beta codes? waitlist? i18n? newsletter? landing port?) | a human decision (ask) |
+| **P2-C2** | `gmail.send` + `templates.render` capabilities — port `~/social-seeding/src/lib/gmail/*` (token-manager, OAuth refresh) + tracking pixel + unsubscribe footer + `sendAt` scheduling + spam-score pre-check. `templates.render` variable engine. Injectable Gmail-client seam (same pattern as V1's `TikTokFetcher`) so tests don't need real OAuth tokens. | `GOOGLE_CLIENT_ID/SECRET`, Gmail OAuth scopes |
+| **P2-C3** | `outreach-writer` agent — **highest-value port**. `~/social-seeding/src/lib/cold-mail/*` (13 files) is already in the right shape: `extractFacts → draftWriter → reviser loop → verifiers; tournament: 5 angles × 4 judges (brand/conversion/deliverability/skeptic) → winner; fewshot; followup`. Update the existing scaffold's `outreachWriterAgent` to use the curated tool set + judges; add golden-set tests using `runAgent`'s injectable `ModelClient`. | `ANTHROPIC_API_KEY` for live |
+| **P2-C4** | `conversation` agent — reply classification (Haiku, the cheap one) + extraction (address / rate / question / classification) + response draft (Opus when needed). Defined in `packages/contracts/src/outreach.ts` (`ReplyClassSchema`, `ConversationTurnSchema`); just needs the agent definition + tests. | `ANTHROPIC_API_KEY` |
+| **P2-C5** | `creator-track` child workflow — fully wire `packages/workflows/src/workflows/creator-track.ts`: `extractFacts` step → `runAgent(outreachWriterAgent)` → `approveOutreachSend` gate → `gmail.send` → reply loop (`step.sleep("3d") / step.waitForEvent("gmail/reply.received") / runAgent(conversationAgent) → branch on classification → approveReplyResponse gate for negotiating/question replies → gmail.send). brand-campaign fans out one `creator-track` per persisted shortlist track via `step.sendEvent("campaign/creator-track.start")`. | — |
+| **P2-C6** | Mission Control extensions — `/approvals` gets outreach_send + reply_response drill-ins (the inbox kinds already render placeholders); new `/threads/[id]` view for a single creator's Gmail thread (manual reply, demoted v1 EmailCenter); policy editor unblocks the 4 Phase-2/3 gates (currently disabled). Canvas nodes light up as outreach progresses. | — |
+| **P2-C7** | Gmail Pub/Sub webhook (`apps/web/app/api/webhooks/gmail/route.ts` already stubbed) — verify JWT, decode message, pull thread, emit `gmail/reply.received`. Scheduled fn `gmail-watch-renew` (daily). Bounce webhook via Resend. Suppression list. Unsubscribe page. | `GMAIL_PUBSUB_TOPIC`, `RESEND_API_KEY` |
 
-After Phase 0 → Phase 1 (the sourcing+vetting vertical slice; `intake`/`sourcing`/`vetting` agents, `tiktok.search`/`tiktok.getCreator`/`ranking.score`/`blacklist.check` capabilities, `brand-campaign` stages 1–2, the `gate()` helper, Mission Control campaign list + timeline + approval inbox + policy editor). See `docs/PHASE-1-PLAN.md`.
+After Phase 2 → Phase 3 (shipping + content_review), Phase 4 (analyst + MC
+polish), Phase 5 (sales-lead campaign type — CRM enrichment via Modal + Kimi),
+Phase 6 (admin / billing rollover). See `docs/ROADMAP.md`.
 
-## 4. Setup before you start
+## 5. To run the live exit demo (Phase 1)
+
+Currently the code path is wired but the LLM step throws without
+`ANTHROPIC_API_KEY`. Fill `.env.local` with at least:
 
 ```bash
-cd ~/social-seeding-v2          # already a git repo, origin = Two-Weeks-Team/social-seeding-v2
-pnpm install
-cp .env.example .env.local      # fill at minimum MONGODB_URI, ANTHROPIC_API_KEY, AUTH_SECRET, GOOGLE_CLIENT_ID/SECRET
-pnpm run verify-build           # confirm it's still green before changing anything
+MONGODB_URI="mongodb://127.0.0.1:27027/social_seeding"  # dev-mongo, or real Atlas
+MONGODB_DB="social_seeding"
+AUTH_SECRET="$(openssl rand -base64 33)"
+AUTH_TEST_LOGIN_ENABLED="true"
+AUTH_TEST_LOGIN_SECRET="$(openssl rand -hex 24)"
+ANTHROPIC_API_KEY="sk-ant-..."  # required for sourcing + vetting agents
+# optional now, needed by P2-C2+:
+# GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, RAPIDAPI_KEY_TIKTOK
 ```
 
-For `/goal` to work the workspace must be **trusted** (accept the trust dialog the first time you run `claude` here) — `/goal` is part of the hooks system.
+Then:
 
-## 5. Recommended `/goal` conditions
-
-`/goal` keeps Claude working turn-after-turn until a small fast model judges the condition met **from what's in the transcript** (it doesn't run commands itself) — so the condition tells Claude to *run and show* the checks. Pair with **auto mode** so each turn runs unattended. Bound it with a turn clause. Check progress with `/goal` (no arg); abort with `/goal clear`.
-
-**(a) No secrets available — do the parts of Phase 0 that don't need external credentials:**
-
-```
-/goal Read README.md, docs/ARCHITECTURE.md, docs/PHASE-1-PLAN.md first. Then complete the credential-free parts of Phase 0: add @anthropic-ai/claude-agent-sdk to packages/agents; implement P0-3 runAgent's control flow (tool resolution -> invokeCapability, budget gate via @ss/observability, trace spans, output parse + one reviser pass, escalate) with the LLM call behind an injectable client so a fake client makes a new echo-agent vitest test pass; wire P0-4 trace/cost code (stdout sink working, mongo sink coded against @ss/db); code P0-6 the rate-limit primitive's logic against an injectable db (no real connection); create scripts/init-indexes.ts (createIndex calls coded, not run); create docs/SCOPE-DECISIONS.md listing the open conditional-scope questions. Commit one commit per task. Done when, IN THE TURN YOU CLAIM COMPLETION, you have run and shown: `pnpm run verify-build` exits 0; `pnpm --filter @ss/agents test` passes including the echo-agent test; `git status` is clean. And no file outside the listed scope changed. Or stop after 35 turns and report what is left.
+```bash
+pnpm run dev-mongo                  # (or already running)
+pnpm exec tsx scripts/init-indexes.ts
+pnpm --filter @ss/web dev           # :3000
+npx inngest-cli@latest dev -u http://localhost:3000/api/inngest  # :8288
 ```
 
-**(b) `.env.local` is filled — full Phase 0:**
+Mint a session: `POST /api/auth/test-login {"secret":"$AUTH_TEST_LOGIN_SECRET"}`
+(sets `ss_session` cookie). Browser to `http://localhost:3000` → `/campaigns/new`
+→ submit the brief → workflow runs end-to-end → shortlist approval lands in
+`/approvals` → resolve → tracks persisted → `/campaigns/[id]?view=canvas`
+shows the graph or `?view=timeline` shows the span feed.
+
+## 6. Conventions (carried)
+
+- **One commit per task**; small diffs; commit message references the task ID
+  (P0-2 / R1 / WF2 / W3 / P2-C1 …); `Co-Authored-By: Claude Opus 4.7 (1M
+  context) <noreply@anthropic.com>` footer.
+- **`pnpm run verify-build` green throughout** — `eslint .` + `next build` +
+  `tsc --noEmit` across 7 packages. Currently fully cached (FULL TURBO).
+- **No unrelated changes** in a task's diff. No drive-by lint cleanup.
+- **Shared v1 collections** (`accounts_tiktok`, `influencer_blacklist`,
+  `workspaces`, `user_tokens`, `templates`, `unified_emails`, `subscriptions`,
+  `workspace_usage`, `user_usage`, `usage_limit_overrides`): read freely;
+  write **additive fields only**; never remove / retype.
+- **Agents** are bounded functions the workflow invokes (curated tools, Zod
+  output contract, USD cap, escalation) — never free ReAct loops.
+- **Tests** run credential-free against `dev-mongo` + injected fakes (the
+  `ModelClient` seam in `@ss/agents`, the `TikTokFetcher` seam in
+  `@ss/capabilities`, the `UsageStore` + `ObservabilitySink` seams).
+- **`docs/PHASE-1-PLAN.md` is read-only** — anything not yet implemented
+  carries a `TODO(phase-X)` in code, not an edit to the plan.
+
+## 7. Memory notes (auto-recalled)
+
+- `[[design-quality-canvas]]` — Phase 2+ canvas / UI work must explicitly use
+  the design-skill inventory. Owner flagged "AI-slop 빼라" early.
+- `[[mission-control-mockups]]` — `docs/previews/{timeline,canvas}.html` are
+  the visual contracts.
+- `[[goal-4000-char-limit]]` — `/goal` text is capped at 4000 chars; draft
+  ≤ ~3500.
+
+## 8. `/goal` patterns
+
+The "drive-to-end / 다음 진행" pattern works without `/goal` once trust is
+established; the project's chunked discipline (one commit per task,
+verify-build green, final consolidated proof per chunk) is self-imposed.
+
+For unattended runs use `/goal` with the 4-check structure that's worked
+through Phase 0/1/Chunk-3:
 
 ```
-/goal Read README.md, docs/ARCHITECTURE.md, docs/PHASE-1-PLAN.md first. Then complete all of Phase 0 (P0-1 is done; do P0-2..P0-8) per docs/PHASE-1-PLAN.md, one commit per task, no unrelated changes, additive-only to any shared v1 Atlas collection. Done when ALL of these hold and you have shown the proof in the transcript: (1) `pnpm run verify-build` exits 0; (2) `pnpm --filter @ss/agents test` passes including an echo-agent test; (3) `pnpm exec tsx scripts/init-indexes.ts` runs without error; (4) with `pnpm --filter @ss/web dev` and `npx inngest-cli@latest dev` running, `curl -s -XPOST localhost:3000/api/campaigns -H "Authorization: Bearer <token from /api/auth/test-login>" -H 'content-type: application/json' -d @<a valid brief>` returns HTTP 201 and the Inngest dev dashboard shows a brand-campaign run that completed; (5) docs/SCOPE-DECISIONS.md exists; (6) `git status` is clean and `git log --oneline` shows the P0-x commits. If you hit a missing or invalid env var, stop immediately, say exactly which var, and run /goal clear. Otherwise stop after 60 turns and report the remaining checks.
+/goal Per docs/PHASE-1-PLAN.md (or ROADMAP), implement <chunk> — one commit
+per task, additive only, verify-build green throughout. Done only when ALL
+hold AND shown in the turn you claim completion: (1) pnpm run verify-build
+exits 0; (2) pnpm --filter @ss/<pkg> test passes with new suites; (3) git
+status clean + git log shows the new commits; (4) no unrelated docs
+touched. If missing env var or irreducible decision, stop immediately, say
+what's needed, and run /goal clear. Otherwise stop after 60 turns.
 ```
 
-You can also run per-task goals (`/goal complete P0-2 per docs/PHASE-1-PLAN.md — done when scripts/init-indexes.ts runs clean against MONGODB_URI and pnpm run verify-build exits 0; stop after 15 turns`) and chain them. Headless: `claude -p "/goal ..."` runs the loop to completion in one invocation.
-
-## 6. Conventions (carried from v1 — keep them)
-
-- **One commit per P0-x / task**, small diffs; commit message references the task ID. `co-authored-by` the assisting model.
-- **`pnpm run verify-build` must stay green** — never push red.
-- **`codex review --base main`** before pushing `src/`/`packages/` changes (shrinks review-bot rounds; good at symmetry/consistency). Stop iterating per `docs/PHASE-1-PLAN.md` discipline (don't loop forever on a finding).
-- **No unrelated changes** in a task's diff (no drive-by lint cleanup, no reformatting).
-- **Shared v1 Atlas collections** (`accounts_tiktok`, `blacklist`, `workspaces`, `user_tokens`, `crm_accounts`, `templates`, `unified_emails`, …): read freely; write **additive fields only**; never remove/retype — coordinate with v1 (`~/social-seeding`, frozen). v2 owns the `v2_*` collections.
-- **Don't connect to the production Atlas casually** — for P0-2 dev, prefer a separate dev cluster or `mongodb-memory-server` for tests; only point at the real shared cluster when intentionally validating P0-2/P0-7.
-- Agents are **functions the workflow invokes** (curated tool set, Zod output contract, USD cap, escalation) — never free ReAct loops. Generalize v1's `lib/cold-mail` evaluator-optimizer + tournament pattern; don't reinvent it.
-- Each agent needs a golden-set eval (`pnpm --filter @ss/agents test:eval` once set up — add the config) before the phase that depends on it is "done".
-
-## 7. `/goal` gotchas
-
-- The evaluator (Haiku) **only sees the conversation** — if Claude doesn't run+print `pnpm run verify-build` / `git status` / the curl, the evaluator can't confirm. The conditions above already say "show the proof in the turn you claim completion."
-- It will keep spending tokens turn after turn — the turn clause bounds it; check `/goal` status for token spend; `/goal clear` to stop.
-- A goal active when the session ends is restored on `--resume`/`--continue` (timer/turn-count reset).
-- If blocked on a missing credential or an irreducible decision (e.g. P0-8 scope), the conditions tell Claude to stop, say what's needed, and clear the goal — answer it, then re-set the goal.
+Resume in a fresh session by reading this file → typing "다음 진행" or pasting
+a chunk-scoped `/goal`.
