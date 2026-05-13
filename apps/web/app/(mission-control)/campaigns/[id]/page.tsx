@@ -4,21 +4,39 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, SectionLabel } from "@/components/ui/card";
 import { StageBar } from "@/components/mission-control/stage-bar";
+import { ActivityTimeline } from "@/components/mission-control/activity-timeline";
+import { CampaignCanvas } from "@/components/mission-control/campaign-canvas";
 import { getServerSession } from "@/lib/auth";
 import { approvalRepo, campaignRepo, traceRepo } from "@ss/db";
-import { ActivityTimeline } from "@/components/mission-control/activity-timeline";
+import { cn } from "@/lib/cn";
 
 /**
- * W2 — Campaign detail. Server component. 6-stage indicator + brief summary
- * + "Needs you" panel for any pending approvals on this campaign. The
- * activity-timeline body lands in W3 (next commit); for now this view shows
- * the orchestration state without the streaming span feed.
+ * W2 + W3 + Phase-2-C1 — Campaign detail.
+ *
+ * Two co-existing views of the same workflow, toggled by ?view=:
+ *   timeline (default)  reverse-chron span feed from v2_agent_traces (W3)
+ *   canvas              spatial workflow graph via @xyflow/react (Phase 2)
+ *
+ * The cross-campaign approval inbox stays separate (/approvals); these views
+ * are single-campaign. Brief + tracks + pending-approval panel render the
+ * same regardless of view.
  */
 
-export default async function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
+type View = "timeline" | "canvas";
+
+export default async function CampaignDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ view?: string }>;
+}) {
   const session = await getServerSession();
   if (!session) redirect("/sign-in");
   const { id } = await params;
+  const { view: viewParam } = await searchParams;
+  const view: View = viewParam === "canvas" ? "canvas" : "timeline";
+
   const campaign = await campaignRepo.get(id);
   if (!campaign || campaign.brief.workspaceId !== session.workspaceId) notFound();
 
@@ -28,53 +46,89 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     .catch(() => []);
   const traces = await traceRepo.listByCampaign(id).catch(() => []);
 
+  // Derive canvas state from the trace + pending data
+  const shortlistApproval = pending.find((a) => a.kind === "shortlist");
+  const vetCount = traces.reduce((sum, t) => sum + t.spans.filter((s) => s.name === "agent:vetting").length, 0);
+  const shortlistCount =
+    shortlistApproval && Array.isArray(shortlistApproval.recommendation)
+      ? (shortlistApproval.recommendation as unknown[]).length
+      : undefined;
+
   return (
     <div className="max-w-6xl mx-auto px-8 py-8">
       <header className="mb-4">
         <Link href="/campaigns" className="text-[11px] text-slate-500 hover:text-slate-900">
           ← 캠페인 목록
         </Link>
-        <div className="mt-2 flex items-end justify-between">
+        <div className="mt-2 flex items-end justify-between gap-4">
           <div>
             <h1 className="text-[22px] font-semibold">{campaign.brief.brandProduct.name}</h1>
             <div className="mt-1 text-[12px] text-slate-500 mono">
               camp_{campaign.id} · workspace={campaign.brief.workspaceId} · created {campaign.createdAt.toISOString().slice(0, 10)}
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button>⏸ 일시정지</Button>
-            <Button tone="reject">✕ 취소</Button>
+          <div className="flex items-center gap-3">
+            {/* view toggle — timeline vs canvas */}
+            <div className="inline-flex p-0.5 bg-slate-100 border border-slate-200 rounded-md gap-0.5">
+              {(["timeline", "canvas"] as const).map((v) => {
+                const isActive = view === v;
+                return (
+                  <Link
+                    key={v}
+                    href={`/campaigns/${id}?view=${v}`}
+                    className={cn(
+                      "px-3 py-1 text-[12px] rounded transition-colors",
+                      isActive ? "bg-white shadow-sm text-slate-900 font-medium" : "text-slate-600 hover:text-slate-900",
+                    )}
+                  >
+                    {v}
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="flex gap-2">
+              <Button>⏸ 일시정지</Button>
+              <Button tone="reject">✕ 취소</Button>
+            </div>
           </div>
         </div>
       </header>
 
       <div className="mb-6">
-        <StageBar
-          current={campaign.stage}
-          notes={
-            pending.length > 0 ? { sourcing: "● 승인 대기" } : undefined
-          }
-        />
+        <StageBar current={campaign.stage} notes={shortlistApproval ? { sourcing: "● 승인 대기" } : undefined} />
       </div>
 
       <div className="grid grid-cols-3 gap-6">
-        {/* LEFT — activity timeline (W3) */}
+        {/* LEFT — view body (timeline by default, canvas if ?view=canvas) */}
         <div className="col-span-2">
-          <Card>
-            <CardBody>
-              <div className="flex items-center justify-between mb-3">
-                <SectionLabel>활동 타임라인</SectionLabel>
-                <div className="text-[10px] text-slate-500 flex items-center gap-1.5">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  live
+          {view === "canvas" ? (
+            <CampaignCanvas
+              stage={campaign.stage}
+              brandName={campaign.brief.brandProduct.name}
+              targetCreatorCount={campaign.brief.targeting.creatorCount}
+              vetCount={vetCount}
+              budgetCapUsd={25}
+              shortlistCount={shortlistCount}
+              shortlistGateApprovalId={shortlistApproval?.id}
+              trackCount={campaign.tracks.length}
+            />
+          ) : (
+            <Card>
+              <CardBody>
+                <div className="flex items-center justify-between mb-3">
+                  <SectionLabel>활동 타임라인</SectionLabel>
+                  <div className="text-[10px] text-slate-500 flex items-center gap-1.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    live
+                  </div>
                 </div>
-              </div>
-              <ActivityTimeline traces={traces} />
-            </CardBody>
-          </Card>
+                <ActivityTimeline traces={traces} />
+              </CardBody>
+            </Card>
+          )}
         </div>
 
-        {/* RIGHT — needs-you + brief summary */}
+        {/* RIGHT — needs-you + brief summary + tracks (view-independent) */}
         <aside className="space-y-5">
           {pending.length > 0 && (
             <Card className="bg-amber-50 border-amber-200">
