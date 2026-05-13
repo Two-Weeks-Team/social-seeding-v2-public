@@ -49,7 +49,7 @@ export function pickShortlist(vetted: Candidate[], targetCount: number): Candida
 export async function brandCampaignHandler(
   { event, step }: BrandCampaignArgs,
   deps: BrandCampaignDeps = {},
-): Promise<{ campaignId: string; stage: "sourcing"; shortlistCount: number; decision: "approved" | "edited" | "rejected" }> {
+): Promise<{ campaignId: string; stage: "sourcing"; shortlistCount: number; trackCount: number; decision: "approved" | "edited" | "rejected" }> {
   const { campaignId, brief } = event.data;
   const workspaceId = brief.workspaceId;
 
@@ -121,14 +121,37 @@ export async function brandCampaignHandler(
     }).`,
   });
 
+  // ── WF3: persist a CreatorTrack per confirmed creator (approved | edited) ──
+  let trackCount = 0;
+  if (resolution.decision === "approved" || resolution.decision === "edited") {
+    const confirmed: Candidate[] = Array.isArray(resolution.payload) ? (resolution.payload as Candidate[]) : [];
+    await step.run("persist-tracks", async () => {
+      const now = new Date();
+      for (const c of confirmed) {
+        await campaignRepo.upsertTrack(campaignId, {
+          creatorId: c.creator.id,
+          stage: "sourcing",
+          state: "shortlisted",
+          lastActivityAt: now,
+          emailsSent: 0,
+        });
+      }
+    });
+    trackCount = confirmed.length;
+  }
+
+  await trace.span("decision:approveShortlist", "stage", { decision: resolution.decision, trackCount }, async () => undefined);
   await trace.flush();
 
-  // WF3 (next commit) takes over here: persist a CreatorTrack per confirmed creator.
+  // Campaign sits at stage="sourcing" awaiting Phase 2 (outreach). The next
+  // commit family (Phase 2) will trigger creator-track child workflows per
+  // persisted track + advance stage="outreach".
   return {
     campaignId,
     stage: "sourcing",
     shortlistCount: Array.isArray(resolution.payload) ? resolution.payload.length : 0,
     decision: resolution.decision,
+    trackCount,
   };
 }
 

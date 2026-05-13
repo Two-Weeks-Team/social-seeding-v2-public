@@ -88,9 +88,10 @@ function dispatchingFake(scores: Record<string, number>): ModelClient {
         return { kind: "text", text, inputTokens: 200, outputTokens: 200 };
       }
       if (system.includes("Vetting agent")) {
-        // extract @handle from prompt: "Score creator @<uniqueId> for the..."
-        const m = system.match(/Score creator (@\w+)/);
-        const uniqueId = m?.[1] ?? "@unknown";
+        // extract handle from prompt: "Score creator @<uniqueId> for the..."
+        // (our fixture uniqueIds already include @, so the agent prompt produces "@@<handle>" — tolerate that)
+        const m = system.match(/Score creator @{1,2}(\w+) for/);
+        const uniqueId = m ? "@" + m[1] : "@unknown";
         const score = scores[uniqueId] ?? 0.5;
         return { kind: "text", text: JSON.stringify(fullVettedOf(uniqueId, score)), inputTokens: 200, outputTokens: 150 };
       }
@@ -138,17 +139,40 @@ describe("brandCampaignHandler — integration (WF1)", () => {
     expect(out.stage).toBe("sourcing");
     // creatorCount=1 → ceil(1*1.5)=2 shortlist max; all 3 are clean (no hard-fail flags) so top 2 by fitScore.
     expect(out.shortlistCount).toBe(2);
+    expect(out.trackCount).toBe(2);
 
-    // expected step.run sequence: observability + plan + source + vet-0 + vet-1 + vet-2 + approval:create:shortlist
+    // expected step.run sequence: observability + plan + source + vet-0 + vet-1 + vet-2 + approval:create:shortlist + persist-tracks
     expect(log.runs).toContain("observability");
     expect(log.runs).toContain("plan");
     expect(log.runs).toContain("source");
     expect(log.runs.filter((n) => n.startsWith("vet-"))).toHaveLength(3);
     expect(log.runs).toContain("approval:create:shortlist");
+    expect(log.runs).toContain("persist-tracks");
 
-    // campaign doc was advanced to "sourcing"
+    // campaign advanced to "sourcing" + tracks upserted with state="shortlisted"
     const persisted = await campaignRepo.get(c.id);
     expect(persisted?.stage).toBe("sourcing");
+    expect(persisted?.tracks).toHaveLength(2);
+    expect(persisted?.tracks.every((t) => t.state === "shortlisted")).toBe(true);
+    expect(persisted?.tracks.every((t) => t.emailsSent === 0)).toBe(true);
+    // top-2 by fitScore: @glow_kr (0.82) + @dewy_kr (0.78); @minji_skin (0.66) drops
+    const creatorIds = new Set(persisted?.tracks.map((t) => t.creatorId));
+    expect(creatorIds.has("id_@glow_kr")).toBe(true);
+    expect(creatorIds.has("id_@dewy_kr")).toBe(true);
+    expect(creatorIds.has("id_@minji_skin")).toBe(false);
+  });
+
+  it("rejected resolution → no tracks persisted (WF3)", async () => {
+    const c = await campaignRepo.create({ brief: baseBrief, status: "running", stage: "overview", tracks: [] });
+    const event = { data: { campaignId: c.id, brief: baseBrief } };
+    const { step } = fakeStep("rejected");
+    const out = await brandCampaignHandler({ event, step }, {
+      modelClient: dispatchingFake({ "@glow_kr": 0.82, "@dewy_kr": 0.78, "@minji_skin": 0.66 }),
+    });
+    expect(out.decision).toBe("rejected");
+    expect(out.trackCount).toBe(0);
+    const persisted = await campaignRepo.get(c.id);
+    expect(persisted?.tracks).toHaveLength(0);
   });
 });
 
