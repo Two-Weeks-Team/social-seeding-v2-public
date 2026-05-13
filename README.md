@@ -40,12 +40,14 @@ docs/                  ARCHITECTURE / CAPABILITIES / AGENTS / ROADMAP / PHASE-1-
 ```bash
 pnpm install
 cp .env.example .env.local            # fill MONGODB_URI (shared Atlas), AUTH_*, ANTHROPIC_API_KEY, INNGEST_*
-pnpm run verify-build                  # turbo: lint + type-check + build across all packages
+pnpm run verify-build                  # lint → next build (9 routes) → tsc --noEmit (7/7 packages) — green
 pnpm --filter @ss/web dev              # Next.js on :3000
 npx inngest-cli@latest dev             # Inngest Dev Server — discovers apps/web/app/api/inngest
 ```
 
 > The skeleton compiles structurally but most handlers `throw "not implemented — see docs/PHASE-1-PLAN.md task X"`. That's deliberate: the contracts, layering and workflow graph are designed; the flesh goes on slice by slice (Phase 1 = sourcing+vetting end-to-end, Phase 2 = outreach+replies, …). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
+**Continuing the build** (e.g. handing off to a Claude Code session with `/goal`): start at [`HANDOFF.md`](HANDOFF.md) — current state, what's next, setup, ready-to-paste `/goal` conditions, conventions.
 
 ## Read next
 
