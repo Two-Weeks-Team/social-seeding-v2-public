@@ -16,9 +16,21 @@ export {
   tokenManager,
   type GmailClient,
   type GmailClientFactory,
+  type GmailMessage,
   type GmailMessageRef,
+  type GmailHistoryDelta,
   type GmailSendInput,
 } from "./gmail/client";
+// Pub/Sub helpers — used by the apps/web webhook.
+export {
+  verifyPubSubAuth,
+  parsePubSubMessage,
+  buildPubSubMessage,
+  type GmailNotification,
+  type PubSubAuthHeaders,
+  type PubSubAuthOpts,
+  type PubSubMessage,
+} from "./gmail/pubsub";
 
 import "./tiktok/search";
 import "./tiktok/get-creator";

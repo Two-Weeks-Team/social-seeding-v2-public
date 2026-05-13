@@ -52,6 +52,12 @@ const PLANS: IndexPlan[] = [
   // v2_outbox — gmail.send idempotency (unique on idempotencyKey) + scheduled-send queue scan
   { collection: Collections.V2_OUTBOX, keys: { idempotencyKey: 1 }, options: { unique: true } },
   { collection: Collections.V2_OUTBOX, keys: { status: 1, sendAt: 1 } },
+  // v2_outbox — webhook lookup by Gmail threadId once the send is sealed
+  { collection: Collections.V2_OUTBOX, keys: { threadId: 1, status: 1 } },
+  // v2_gmail_watches — one row per emailAddress; webhook reads + persists the lastHistoryId
+  { collection: Collections.V2_GMAIL_WATCHES, keys: { emailAddress: 1 }, options: { unique: true } },
+  // v2_suppression_list — unique key by recipient email; gmail.send checks pre-send
+  { collection: Collections.V2_SUPPRESSION_LIST, keys: { email: 1 }, options: { unique: true } },
 ];
 
 function looksUnconfigured(uri: string | undefined): boolean {

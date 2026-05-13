@@ -32,6 +32,29 @@ export interface GmailSendInput {
   threadId?: string;
 }
 
+/** One Gmail message, normalized into the fields the webhook + classifier need. */
+export interface GmailMessage {
+  messageId: string;
+  threadId: string;
+  fromEmail: string;
+  subject: string;
+  /** Plain-text body, HTML-stripped, RFC-2047-decoded if applicable. */
+  bodyText: string;
+  /** RFC 3339 internal date (server-side receive time). */
+  internalDate?: Date;
+}
+
+/**
+ * Slice of the Gmail History API output we actually consume. The webhook
+ * uses this to discover which messages arrived between two historyIds.
+ */
+export interface GmailHistoryDelta {
+  /** History id reached after this call — what to persist for the next poll. */
+  latestHistoryId: string;
+  /** Newly-arrived message ids (de-duplicated, oldest-first). */
+  addedMessageIds: string[];
+}
+
 export interface GmailClient {
   /**
    * Send a single MIME message. The raw payload must already include all
@@ -39,6 +62,18 @@ export interface GmailClient {
    * footer); this layer doesn't compose — that's the capability's job.
    */
   send(input: GmailSendInput): Promise<GmailMessageRef>;
+  /**
+   * Fetch one message, normalized. Used by the Pub/Sub webhook to load the
+   * inbound reply for classification. Optional on the interface so existing
+   * test fakes that only set `send` keep compiling.
+   */
+  getMessage?(messageId: string): Promise<GmailMessage>;
+  /**
+   * Walk Gmail history from the last seen `startHistoryId`. Returns the set
+   * of newly-arrived message ids + the new high-water mark to persist.
+   * Optional — same compat reason as getMessage.
+   */
+  listHistory?(startHistoryId: string): Promise<GmailHistoryDelta>;
 }
 
 export type GmailClientFactory = (userId: string) => Promise<GmailClient>;
