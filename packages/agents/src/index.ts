@@ -6,3 +6,4 @@ export { vettingAgent } from "./vetting.agent";
 export { outreachWriterAgent } from "./outreach-writer.agent";
 export { conversationAgent, needsResponseDraft } from "./conversation.agent";
 export { conversationResponderAgent } from "./conversation-responder.agent";
+export { logisticsAgent } from "./logistics.agent";
