@@ -1,0 +1,6 @@
+{
+  "extends": "../config/tsconfig.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "dist" },
+  "references": [{ "path": "../contracts" }, { "path": "../capabilities" }, { "path": "../observability" }],
+  "include": ["src"]
+}

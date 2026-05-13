@@ -1,0 +1,11 @@
+{
+  "$comment": "Shared library tsconfig. Apps (Next.js) extend their own. extends the repo-root base.",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src"],
+  "exclude": ["dist", "node_modules", "**/*.test.ts"]
+}

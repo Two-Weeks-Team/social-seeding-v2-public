@@ -1,0 +1,25 @@
+{
+  "name": "@ss/workflows",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "scripts": {
+    "build": "tsc -b",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint .",
+    "clean": "rm -rf dist .turbo *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@ss/agents": "workspace:*",
+    "@ss/capabilities": "workspace:*",
+    "@ss/contracts": "workspace:*",
+    "@ss/db": "workspace:*",
+    "@ss/observability": "workspace:*",
+    "inngest": "^3.27.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": { "@ss/config": "workspace:*", "typescript": "^5.7.2" }
+}

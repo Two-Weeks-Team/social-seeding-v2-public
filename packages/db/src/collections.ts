@@ -1,0 +1,27 @@
+/**
+ * Collection names. Two groups:
+ *  - SHARED_*  : owned by v1; v2 reads (and carefully writes additive fields). See FREEZE.md §3/§7.
+ *  - V2_*      : new in v2.
+ */
+export const Collections = {
+  // --- shared with v1 (do not break schema) ---
+  SHARED_TIKTOK_ACCOUNTS: "accounts_tiktok",
+  SHARED_TIKTOK_POSTS: "posts_tiktok",
+  SHARED_CRM_ACCOUNTS: "crm_accounts",
+  SHARED_CRM_ENRICHMENT: "crm_enrichment",
+  SHARED_BLACKLIST: "blacklist",
+  SHARED_WORKSPACES: "workspaces",
+  SHARED_WORKSPACE_MEMBERS: "workspace_members",
+  SHARED_USER_TOKENS: "user_tokens", // Gmail OAuth tokens
+  SHARED_TEMPLATES: "templates",
+  SHARED_UNIFIED_EMAILS: "unified_emails",
+
+  // --- new in v2 ---
+  V2_CAMPAIGNS: "v2_campaigns",
+  V2_CREATOR_TRACKS: "v2_creator_tracks",
+  V2_WORKSPACE_POLICIES: "v2_workspace_policies",
+  V2_APPROVALS: "v2_approvals",
+  V2_AGENT_TRACES: "v2_agent_traces", // per-run observability
+  V2_COST_LEDGER: "v2_cost_ledger",
+} as const;
+export type CollectionName = (typeof Collections)[keyof typeof Collections];

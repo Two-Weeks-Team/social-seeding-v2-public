@@ -1,0 +1,25 @@
+{
+  "name": "social-seeding-v2",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Agent-orchestrated TikTok influencer campaign operator (v2 rewrite of social-seeding)",
+  "packageManager": "pnpm@10.18.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "test": "turbo run test",
+    "quality": "turbo run lint type-check",
+    "verify-build": "turbo run lint type-check build",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.2"
+  }
+}

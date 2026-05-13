@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+/* Mission Control is light-mode by default (carried preference from v1: only
+   the marketing landing is dark; the app surface is light). */
+:root {
+  color-scheme: light;
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
