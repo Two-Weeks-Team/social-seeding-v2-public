@@ -114,6 +114,22 @@ export default async function CampaignDetailPage({
                 );
               })}
             </div>
+            {/* Phase 3 — shipment + content list views (sibling pages). */}
+            <div className="flex items-center gap-1.5 text-[12px]">
+              <Link
+                href={`/campaigns/${id}/shipments`}
+                className="text-slate-600 hover:text-slate-900 underline-offset-2 hover:underline"
+              >
+                shipments
+              </Link>
+              <span className="text-slate-300">·</span>
+              <Link
+                href={`/campaigns/${id}/posts`}
+                className="text-slate-600 hover:text-slate-900 underline-offset-2 hover:underline"
+              >
+                posts
+              </Link>
+            </div>
             <div className="flex gap-2">
               <Button>⏸ 일시정지</Button>
               <Button tone="reject">✕ 취소</Button>
