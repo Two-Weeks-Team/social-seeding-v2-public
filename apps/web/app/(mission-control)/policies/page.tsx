@@ -19,7 +19,8 @@ import { type GateConfig, type WorkspacePolicy } from "@ss/contracts";
  *                           Predicate: replyClassIn (escalate certain
  *                           classifications even when mode='auto_unless')
  *                           + proposedRateUsdGte.
- *   · approveShipment     — Phase 3; still disabled.
+ *   · approveShipment     — before logistics agent + carrier handoff
+ *                           (P3-C6 producer). Predicate: followerCountGte.
  *   · approveStageAdvance — Phase 4; still disabled.
  *
  * Save is a server action — no client JS. Changes affect new campaigns only;
@@ -53,6 +54,8 @@ async function savePolicyAction(formData: FormData): Promise<void> {
     "gate.approveOutreachSend.followerCountGte": z.coerce.number().int().nonnegative().optional(),
     "gate.approveReplyResponse.mode": ModeEnum,
     "gate.approveReplyResponse.proposedRateUsdGte": z.coerce.number().int().nonnegative().optional(),
+    "gate.approveShipment.mode": ModeEnum,
+    "gate.approveShipment.followerCountGte": z.coerce.number().int().nonnegative().optional(),
     "budgets.maxUsdPerCampaign": z.coerce.number().positive(),
     "budgets.maxUsdPerWorkspaceMonthly": z.coerce.number().positive(),
     "voice.toneNotes": z.string().max(2000).optional(),
@@ -102,6 +105,9 @@ async function savePolicyAction(formData: FormData): Promise<void> {
         proposedRateUsdGte: f["gate.approveReplyResponse.proposedRateUsdGte"],
         ...(validReplyClasses.length > 0 ? { replyClassIn: validReplyClasses } : {}),
       }),
+      approveShipment: gateFor(f["gate.approveShipment.mode"], {
+        followerCountGte: f["gate.approveShipment.followerCountGte"],
+      }),
     },
     budgets: {
       maxUsdPerCampaign: f["budgets.maxUsdPerCampaign"],
@@ -136,7 +142,7 @@ function ModeToggle({
   gateKey,
   current,
 }: {
-  gateKey: "approveShortlist" | "approveOutreachSend" | "approveReplyResponse";
+  gateKey: "approveShortlist" | "approveOutreachSend" | "approveReplyResponse" | "approveShipment";
   current: GateConfig["mode"];
 }) {
   return (
@@ -167,6 +173,7 @@ export default async function PoliciesPage() {
   const sl = policy.gates.approveShortlist;
   const os = policy.gates.approveOutreachSend;
   const rr = policy.gates.approveReplyResponse;
+  const sh = policy.gates.approveShipment;
 
   return (
     <div className="max-w-3xl mx-auto px-8 py-8">
@@ -351,14 +358,41 @@ export default async function PoliciesPage() {
               </div>
             </div>
 
-            {/* Phase-3+ gates still disabled */}
-            <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-slate-500">
-              {(["approveShipment", "approveStageAdvance"] as const).map((g) => (
-                <div key={g} className="border border-dashed border-slate-200 rounded px-3 py-2 flex justify-between items-center">
-                  <span className="mono text-slate-400">{g}</span>
-                  <Badge variant="slate" className="!text-[10px]">Phase 3/4</Badge>
+            {/* approveShipment (Phase 3 C6 producer) */}
+            <div className="border border-slate-200 rounded-md p-4 mb-3">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <div className="text-[14px] font-medium text-slate-900">approveShipment</div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">
+                    창고에서 패키지 픽업 직전 — logistics 에이전트 실행 + carrier 핸드오프 전에 사람이 주소 + 품목 확인
+                  </div>
                 </div>
-              ))}
+              </div>
+              <ModeToggle gateKey="approveShipment" current={sh.mode} />
+              <div className="mt-3">
+                <label className="block text-[11px] text-slate-600 mb-1">
+                  팔로워가 이상이면 escalate (대형 인플루언서 / 비싼 샘플은 사람이 확인)
+                </label>
+                <div className="flex items-center gap-2 text-[12px]">
+                  <span className="mono text-slate-500">followerCountGte ≥</span>
+                  <input
+                    type="number"
+                    name="gate.approveShipment.followerCountGte"
+                    min={0}
+                    step={10_000}
+                    defaultValue={sh.escalateIf?.followerCountGte ?? 100_000}
+                    className="mono w-32 border border-slate-200 rounded px-2 py-1 text-[12px]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Phase-4 gate still disabled */}
+            <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-slate-500">
+              <div className="border border-dashed border-slate-200 rounded px-3 py-2 flex justify-between items-center">
+                <span className="mono text-slate-400">approveStageAdvance</span>
+                <Badge variant="slate" className="!text-[10px]">Phase 4</Badge>
+              </div>
             </div>
           </CardBody>
         </Card>

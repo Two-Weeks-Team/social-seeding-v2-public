@@ -325,8 +325,24 @@ function buildGraph(a: BuildArgs): { nodes: Node<SsNodeData>[]; edges: Edge[] } 
         label: "logistics",
         kind: "agent",
         tone: "violet",
-        status: stageStatus("shipping"),
-        attrs: [{ label: "shipment.create", tone: "cyan" }],
+        status: buckets
+          ? buckets.shipped + buckets.delivered + buckets.address_collected > 0
+            ? buckets.delivered + buckets.posted + buckets.verified + buckets.flaked >= a.trackCount
+              ? "done"
+              : "running"
+            : isCurrent("shipping")
+              ? "running"
+              : "pending"
+          : stageStatus("shipping"),
+        attrs: buckets
+          ? [
+              { label: "haiku-4.5", tone: "violet", mono: true },
+              { label: `${buckets.delivered + buckets.posted + buckets.verified + buckets.flaked}/${a.trackCount}`, tone: "slate", mono: true },
+            ]
+          : [{ label: "shipment.create", tone: "cyan" }],
+        hint: buckets
+          ? `${buckets.address_collected + buckets.shipped} in flight · ${buckets.delivered} delivered`
+          : "shipment.create",
       },
     },
     {
@@ -337,8 +353,26 @@ function buildGraph(a: BuildArgs): { nodes: Node<SsNodeData>[]; edges: Edge[] } 
         label: "content-verify",
         kind: "agent",
         tone: "violet",
-        status: stageStatus("content_review"),
-        attrs: [{ label: "tiktok.getCreator", tone: "cyan" }],
+        status: buckets
+          ? buckets.verified + buckets.posted > 0 || buckets.flaked > 0
+            ? buckets.delivered === 0 && buckets.shipped === 0
+              ? "done"
+              : "running"
+            : buckets.delivered > 0
+              ? "waiting"
+              : "pending"
+          : stageStatus("content_review"),
+        attrs: buckets
+          ? [
+              { label: "haiku-4.5", tone: "violet", mono: true },
+              { label: `${buckets.verified} ✓ · ${buckets.flaked} ✕`, tone: "slate", mono: true },
+            ]
+          : [{ label: "tiktok.getCreator", tone: "cyan" }],
+        hint: buckets
+          ? buckets.delivered > 0
+            ? `${buckets.delivered} delivered · awaiting post`
+            : `${buckets.verified + buckets.flaked} content reviewed`
+          : "content review pending",
       },
     },
   ];
@@ -350,8 +384,8 @@ function buildGraph(a: BuildArgs): { nodes: Node<SsNodeData>[]; edges: Edge[] } 
     edge("shortlist", "gate-shortlist", gateStatus !== "pending"),
     edge("gate-shortlist", "outreach", a.trackCount > 0),
     edge("outreach", "wait-reply", outreachStatus !== "pending"),
-    edge("outreach", "shipping", buckets ? buckets.agreed > 0 : false),
-    edge("shipping", "content", false),
+    edge("outreach", "shipping", buckets ? buckets.address_collected + buckets.shipped + buckets.delivered + buckets.verified + buckets.flaked > 0 : false),
+    edge("shipping", "content", buckets ? buckets.delivered + buckets.verified + buckets.flaked > 0 : false),
   ];
 
   return { nodes, edges };
