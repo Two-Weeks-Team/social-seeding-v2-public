@@ -1,0 +1,475 @@
+<!doctype html>
+<!--
+  Mission Control · Canvas paradigm (alternative to phase-1-mission-control.html)
+  ==============================================================================
+  Visual workflow canvas for ONE campaign + natural-language chatbox at the bottom.
+  Pattern reference: n8n / Zapier / Langflow / Mastra-style flow editor, adapted
+  for the Social Seeding brand-campaign 6-stage workflow.
+
+  Self-contained, Tailwind CDN, opens in a browser, no build. Static mockup —
+  the production version would use @xyflow/react (React Flow v12) for live
+  pan/zoom/drag/edge-routing, and route the chatbox through a workflow-editor
+  agent (Phase 5+).
+
+  Color language is the SAME as phase-1-mission-control.html so the two can be
+  evaluated as alternative UX *shells* over the same underlying domain model.
+
+  Node types:
+    · brief   (slate)   workflow input
+    · agent   (violet)  LLM-backed step
+    · tool    (cyan)    capability invocation
+    · gate    (amber)   human approval point
+    · wait    (slate)   step.sleep / step.waitForEvent
+    · group   (dashed)  fan-out container (per-creator tracks)
+    · stage   (band)    background lane per workflow stage
+-->
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=1480" />
+  <title>Mission Control — Canvas paradigm</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { color-scheme: light; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, "Pretendard", sans-serif;
+      font-feature-settings: "cv11", "ss01";
+    }
+    .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    /* Canvas: dotted grid background like n8n */
+    .canvas {
+      position: relative;
+      background-color: #fafafa;
+      background-image: radial-gradient(circle, #d4d4d4 1px, transparent 1px);
+      background-size: 16px 16px;
+      background-position: 0 0;
+      overflow: hidden;
+    }
+
+    /* Stage lanes (vertical bands across the canvas) */
+    .lane {
+      position: absolute; top: 0; bottom: 0;
+      border-right: 1px dashed #e2e8f0;
+    }
+    .lane-label {
+      position: absolute; top: 12px; left: 16px;
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+      color: #94a3b8; font-weight: 500;
+    }
+    .lane.current { background: rgba(59, 130, 246, 0.04); }
+    .lane.done { background: rgba(16, 185, 129, 0.025); }
+
+    /* Node card */
+    .node {
+      position: absolute;
+      background: white;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+      padding: 10px 12px;
+      width: 180px;
+      cursor: pointer;
+      transition: transform .12s ease, box-shadow .12s ease;
+    }
+    .node:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08); }
+    .node.selected { border-color: #0f172a; box-shadow: 0 0 0 3px #e2e8f0, 0 4px 12px rgba(15,23,42,0.08); }
+
+    .node .head { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #475569; }
+    .node .title { margin-top: 4px; font-size: 13px; font-weight: 600; color: #0f172a; line-height: 1.25; }
+    .node .meta { margin-top: 6px; font-size: 11px; color: #64748b; display: flex; flex-wrap: wrap; gap: 6px; }
+
+    /* Kind variants — left border color stripe */
+    .node.brief   { border-left-color: #475569; border-left-width: 4px; }
+    .node.agent   { border-left-color: #7c3aed; border-left-width: 4px; }
+    .node.tool    { border-left-color: #0891b2; border-left-width: 4px; }
+    .node.gate    { border-left-color: #d97706; border-left-width: 4px; background: #fffbeb; }
+    .node.wait    { border-left-color: #64748b; border-left-width: 4px; background: #f8fafc; border-style: dashed; }
+    .node.future  { opacity: 0.45; }
+
+    /* Status pulses */
+    .node.running::after, .node.waiting::after {
+      content: ""; position: absolute; top: 8px; right: 8px;
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .node.running::after { background: #3b82f6; box-shadow: 0 0 0 4px rgba(59,130,246,0.18); animation: pulse 1.6s ease-in-out infinite; }
+    .node.waiting::after { background: #f59e0b; box-shadow: 0 0 0 4px rgba(245,158,11,0.22); animation: pulse 1.6s ease-in-out infinite; }
+    .node.done::after   { content: "✓"; position: absolute; top: 6px; right: 8px; color: #10b981; font-size: 12px; font-weight: 700; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    /* Group container (fan-out) */
+    .group {
+      position: absolute;
+      border: 2px dashed #cbd5e1;
+      border-radius: 14px;
+      background: rgba(241, 245, 249, 0.45);
+      padding: 28px 12px 12px;
+    }
+    .group .group-label {
+      position: absolute; top: -10px; left: 12px;
+      background: #f1f5f9; padding: 1px 8px; border-radius: 999px;
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+      color: #475569; border: 1px solid #cbd5e1;
+    }
+
+    /* SVG edges */
+    svg.edges { position: absolute; inset: 0; pointer-events: none; }
+    svg.edges path { fill: none; stroke: #cbd5e1; stroke-width: 1.5; }
+    svg.edges path.done { stroke: #10b981; }
+    svg.edges path.active { stroke: #3b82f6; stroke-dasharray: 4 4; animation: dash 1s linear infinite; }
+    @keyframes dash { to { stroke-dashoffset: -8; } }
+
+    /* Chips */
+    .chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 999px; font-size: 10px; font-weight: 500; border: 1px solid transparent; }
+    .chip.violet { background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; }
+    .chip.cyan { background: #ecfeff; color: #0e7490; border-color: #a5f3fc; }
+    .chip.amber { background: #fef3c7; color: #b45309; border-color: #fcd34d; }
+    .chip.emerald { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+    .chip.slate { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+    .chip.blue { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+
+    /* Chatbox */
+    .chatbox {
+      position: fixed; left: 240px; right: 320px; bottom: 16px;
+      background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+      z-index: 20;
+    }
+    .chatbox .chat-history { max-height: 220px; overflow-y: auto; padding: 14px 16px; }
+    .chatbox .bub { padding: 6px 10px; border-radius: 8px; font-size: 13px; max-width: 80%; }
+    .chatbox .bub.agent { background: #f1f5f9; color: #0f172a; }
+    .chatbox .bub.user { background: #eff6ff; color: #0f172a; margin-left: auto; }
+
+    /* Right panel */
+    .right { width: 320px; border-left: 1px solid #e2e8f0; background: white; }
+
+    /* Sidebar */
+    .nav-item.on { background: #f1f5f9; color: #0f172a; font-weight: 500; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+<div class="flex h-screen">
+
+  <!-- ============ SIDEBAR (same as the other mockup) ============ -->
+  <aside class="w-60 bg-white border-r border-slate-200 flex flex-col flex-shrink-0">
+    <div class="px-4 py-4 border-b border-slate-200">
+      <div class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded bg-slate-900 text-white grid place-items-center text-xs font-bold">SS</div>
+        <div class="leading-tight">
+          <div class="text-sm font-semibold">Social Seeding</div>
+          <div class="text-[11px] text-slate-500">v2 · Canvas paradigm</div>
+        </div>
+      </div>
+    </div>
+    <nav class="flex-1 overflow-y-auto px-2 py-3 text-sm space-y-0.5">
+      <button class="nav-item on w-full text-left px-3 py-2 rounded-md flex items-center gap-2">▣ 캠페인 <span class="ml-auto text-[11px] text-slate-400">3</span></button>
+      <button class="nav-item w-full text-left px-3 py-2 rounded-md flex items-center gap-2 hover:bg-slate-50">▢ 승인 인박스 <span class="ml-auto"><span class="chip amber !text-[10px] !py-0">12</span></span></button>
+      <button class="nav-item w-full text-left px-3 py-2 rounded-md flex items-center gap-2 hover:bg-slate-50">⚙ 자율성 정책</button>
+      <button class="nav-item w-full text-left px-3 py-2 rounded-md flex items-center gap-2 hover:bg-slate-50">⊞ 워크플로우 템플릿</button>
+      <div class="pt-3 pb-1 px-3 text-[10px] uppercase tracking-wider text-slate-400">현재 캠페인</div>
+      <button class="nav-item on w-full text-left px-3 py-2 rounded-md flex items-start gap-2">
+        <span class="text-[10px] text-slate-400 mt-0.5 font-medium">●</span>
+        <span class="flex-1">
+          <div class="text-[12px] leading-tight">Test Serum · K-beauty</div>
+          <div class="text-[10px] text-slate-500 mono">camp_6a040b7f</div>
+        </span>
+      </button>
+      <button class="nav-item w-full text-left px-3 py-2 rounded-md flex items-start gap-2 hover:bg-slate-50">
+        <span class="text-[10px] text-slate-400 mt-0.5">●</span>
+        <span class="flex-1">
+          <div class="text-[12px] leading-tight">Vitamin C 리브랜드</div>
+          <div class="text-[10px] text-slate-500 mono">camp_5f038b21</div>
+        </span>
+      </button>
+      <button class="nav-item w-full text-left px-3 py-2 rounded-md flex items-start gap-2 hover:bg-slate-50">
+        <span class="text-[10px] text-amber-500 mt-0.5">⏸</span>
+        <span class="flex-1">
+          <div class="text-[12px] leading-tight">선크림 GenZ pilot</div>
+          <div class="text-[10px] text-slate-500 mono">camp_4d022a47</div>
+        </span>
+      </button>
+    </nav>
+    <div class="border-t border-slate-200 px-3 py-3 text-xs text-slate-600">
+      <div class="flex items-center justify-between mb-1">
+        <span>이번 달 예산</span><span class="mono">$23.40 / $200</span>
+      </div>
+      <div class="h-1 rounded-full bg-slate-100 overflow-hidden"><div class="h-full bg-emerald-500" style="width: 12%"></div></div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN: top bar + canvas + chatbox + right panel ============ -->
+  <main class="flex-1 flex flex-col min-w-0">
+
+    <!-- top bar -->
+    <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center gap-4 flex-shrink-0">
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-lg font-semibold">Test Serum · K-beauty 시딩</h1>
+          <span class="chip blue">running</span>
+          <span class="chip amber">⚠ 승인 대기 · 4h 12m</span>
+        </div>
+        <div class="text-[11px] text-slate-500 mono">camp_6a040b7f3b7a · stage 2/6 (sourcing) · brand-campaign workflow</div>
+      </div>
+      <div class="ml-auto flex items-center gap-2 text-xs">
+        <button class="px-2.5 py-1 border border-slate-300 rounded hover:bg-slate-50">⌖ fit</button>
+        <button class="px-2.5 py-1 border border-slate-300 rounded hover:bg-slate-50">−</button>
+        <span class="mono text-slate-500">100%</span>
+        <button class="px-2.5 py-1 border border-slate-300 rounded hover:bg-slate-50">+</button>
+        <span class="w-px h-5 bg-slate-200 mx-1"></span>
+        <button class="px-2.5 py-1 border border-slate-300 rounded hover:bg-slate-50">⏸ 일시정지</button>
+        <button class="px-2.5 py-1 border border-rose-300 text-rose-700 rounded hover:bg-rose-50">✕ 취소</button>
+      </div>
+    </header>
+
+    <!-- canvas + right panel -->
+    <div class="flex-1 flex min-h-0">
+
+      <!-- =========== CANVAS =========== -->
+      <div class="flex-1 canvas relative min-w-0">
+
+        <!-- Stage lanes -->
+        <div class="lane done"        style="left: 0;     width: 140px;"><div class="lane-label">1 · overview ✓</div></div>
+        <div class="lane current"     style="left: 140px; width: 540px;"><div class="lane-label">2 · sourcing ●</div></div>
+        <div class="lane"             style="left: 680px; width: 280px;"><div class="lane-label">3 · outreach</div></div>
+        <div class="lane"             style="left: 960px; width: 200px;"><div class="lane-label">4 · shipping</div></div>
+        <div class="lane"             style="left: 1160px; width: 200px;"><div class="lane-label">5 · content_review</div></div>
+        <div class="lane"             style="left: 1360px; width: 220px;"><div class="lane-label">6 · performance</div></div>
+
+        <!-- SVG edge layer -->
+        <svg class="edges">
+          <!-- brief → source -->
+          <path class="done" d="M 120 200 C 160 200, 180 200, 220 200" />
+          <!-- source → vetting group -->
+          <path class="done" d="M 400 200 C 440 200, 460 230, 460 270" />
+          <!-- vetting group → shortlist -->
+          <path class="done" d="M 580 270 C 580 230, 580 200, 580 200" />
+          <!-- shortlist → gate -->
+          <path class="active" d="M 580 200 C 600 200, 600 200, 620 200" />
+          <!-- gate → outreach (future, dashed/gray default) -->
+          <path d="M 660 200 C 720 200, 740 220, 760 220" />
+          <!-- outreach → shipping -->
+          <path d="M 940 220 C 980 220, 990 220, 1020 220" />
+          <!-- shipping → content -->
+          <path d="M 1140 220 C 1170 220, 1180 220, 1220 220" />
+          <!-- content → performance -->
+          <path d="M 1340 220 C 1370 220, 1380 220, 1420 220" />
+        </svg>
+
+        <!-- Nodes -->
+
+        <!-- 1. Brief -->
+        <div class="node brief done" style="left: 16px; top: 170px;" onclick="select(this, 'brief')">
+          <div class="head"><span class="chip slate">brief</span></div>
+          <div class="title">Test Serum brief</div>
+          <div class="meta">
+            <span>3 creators</span><span>·</span><span>ER ≥ 2%</span><span>·</span><span class="mono">$25 cap</span>
+          </div>
+        </div>
+
+        <!-- 2. Sourcing agent -->
+        <div class="node agent done" style="left: 220px; top: 170px;" onclick="select(this, 'sourcing')">
+          <div class="head"><span class="chip violet">agent</span><span class="mono text-[10px]">opus-4.7</span></div>
+          <div class="title">sourcing</div>
+          <div class="meta">
+            <span class="chip cyan">3 × tiktok.search</span>
+            <span class="chip cyan">blacklist.check</span>
+          </div>
+          <div class="meta mono text-[10px]">
+            <span>142 cand · $0.131</span><span>·</span><span>22.4s</span>
+          </div>
+        </div>
+
+        <!-- 3. Vetting group (fan-out) -->
+        <div class="group" style="left: 440px; top: 250px; width: 160px; height: 130px;">
+          <div class="group-label">fan-out · 22 tracks</div>
+          <div class="node agent done" style="left: 8px; top: 30px; width: 142px; position: relative;">
+            <div class="head"><span class="chip violet">agent</span><span class="mono text-[10px]">haiku-4.5</span></div>
+            <div class="title">vetting × 22</div>
+            <div class="meta mono text-[10px]"><span>avg fitScore 0.71</span></div>
+            <div class="meta">
+              <span class="chip emerald">18 clean</span>
+              <span class="chip amber">3 flagged</span>
+              <span class="chip slate">1 stale</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Shortlist (output) -->
+        <div class="node tool done" style="left: 520px; top: 170px; width: 130px;" onclick="select(this, 'shortlist')">
+          <div class="head"><span class="chip cyan">step</span></div>
+          <div class="title">pickShortlist</div>
+          <div class="meta mono text-[10px]">142 → 22</div>
+        </div>
+
+        <!-- 5. GATE (waiting) -->
+        <div class="node gate waiting" style="left: 620px; top: 170px; width: 200px;" onclick="select(this, 'gate')">
+          <div class="head"><span class="chip amber">gate</span><span class="mono text-[10px]">always_ask</span></div>
+          <div class="title">approveShortlist</div>
+          <div class="meta">
+            <span class="text-amber-700 font-medium">⏱ 4h 12m 대기 중</span>
+          </div>
+          <button class="mt-2 w-full text-[11px] bg-amber-500 text-white py-1 rounded hover:bg-amber-600">검토 →</button>
+        </div>
+
+        <!-- 6. Outreach (future) -->
+        <div class="node agent future" style="left: 700px; top: 200px;">
+          <div class="head"><span class="chip violet">agent</span><span class="mono text-[10px]">opus-4.7</span></div>
+          <div class="title">outreach-writer</div>
+          <div class="meta">
+            <span class="chip slate">pending</span>
+            <span class="chip cyan">gmail.send</span>
+          </div>
+        </div>
+
+        <!-- 7. Reply wait (future) -->
+        <div class="node wait future" style="left: 820px; top: 270px; width: 130px;">
+          <div class="head"><span class="chip slate">wait</span></div>
+          <div class="title">step.sleep("3d") | reply</div>
+          <div class="meta text-[10px]">최대 follow-up 3회</div>
+        </div>
+
+        <!-- 8. Shipping (future) -->
+        <div class="node agent future" style="left: 980px; top: 200px;">
+          <div class="head"><span class="chip violet">agent</span></div>
+          <div class="title">logistics</div>
+          <div class="meta">
+            <span class="chip cyan">shipment.create</span>
+          </div>
+        </div>
+
+        <!-- 9. Content verify (future) -->
+        <div class="node agent future" style="left: 1180px; top: 200px;">
+          <div class="head"><span class="chip violet">agent</span></div>
+          <div class="title">content-verify</div>
+          <div class="meta">
+            <span class="chip cyan">tiktok.getCreator</span>
+          </div>
+        </div>
+
+        <!-- 10. Analyst (future) -->
+        <div class="node agent future" style="left: 1380px; top: 200px;">
+          <div class="head"><span class="chip violet">agent</span></div>
+          <div class="title">analyst</div>
+          <div class="meta">
+            <span class="chip cyan">analytics.compile</span>
+          </div>
+        </div>
+
+        <!-- Mini-legend -->
+        <div class="absolute bottom-3 left-4 bg-white border border-slate-200 rounded-md px-3 py-2 text-[11px] flex items-center gap-3 z-10">
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>완료</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span>실행 중</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span>승인 대기</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-300"></span>대기 / 미래</span>
+          <span class="text-slate-300">|</span>
+          <span class="flex items-center gap-1"><span class="chip violet">violet</span> agent</span>
+          <span class="flex items-center gap-1"><span class="chip cyan">cyan</span> tool</span>
+          <span class="flex items-center gap-1"><span class="chip amber">amber</span> gate</span>
+        </div>
+
+        <!-- ============ CHATBOX (docked at bottom of main area, above canvas footer) ============ -->
+        <div class="chatbox">
+          <div class="chat-history">
+            <div class="flex gap-2 mb-2">
+              <div class="bub agent">
+                <div class="text-[10px] text-slate-500 mb-0.5">workflow assistant</div>
+                <div>sourcing 끝났고 22명 후보가 <strong>approveShortlist</strong> 게이트에서 4h 넘게 대기 중이에요. 검토하실래요, 아니면 정책 바꿔서 자동 통과시킬까요?</div>
+              </div>
+            </div>
+            <div class="flex gap-2 mb-2">
+              <div class="bub user">왜 fitScore 낮은 애들이 포함됐어?</div>
+            </div>
+            <div class="flex gap-2 mb-2">
+              <div class="bub agent">
+                <div>3명이 0.7 미만이에요 — @iso.skin (0.67, ER 1.7% / below_engagement_floor), @cleanskin_julie (0.72, data_stale 32d), @serumlover_kr (0.69). 셋 다 drop할까요? <span class="text-slate-500">[shortlist 노드를 가리킴 ↗]</span></div>
+              </div>
+            </div>
+            <div class="flex gap-2 mb-2">
+              <div class="bub user">drop. 그리고 다음부턴 자동으로 0.7 미만 빼.</div>
+            </div>
+            <div class="flex gap-2 mb-2">
+              <div class="bub agent">
+                <div>두 가지 변경 적용 — (1) 이 캠페인 shortlist 22 → 19로 줄임, (2) 워크스페이스 정책 <span class="mono">approveShortlist.escalateIf.fitScoreLt = 0.7</span> 로 설정. 다음 캠페인부터 자동 통과될 거예요. 19명으로 게이트 승인 진행할까요? <span class="text-[10px] text-slate-500">[gate 노드 ↗]</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="border-t border-slate-200 px-3 py-2 flex items-center gap-2">
+            <input class="flex-1 text-sm py-1.5 px-2 outline-none" placeholder="자연어로 명령하거나 질문… (예: '@iso.skin 빼고 보내', 'outreach 게이트 auto로 바꿔')" />
+            <kbd class="text-[10px] text-slate-400 border border-slate-200 rounded px-1.5 py-0.5">⌘ ↵</kbd>
+            <button class="text-xs bg-slate-900 text-white px-3 py-1.5 rounded hover:bg-slate-800">보내기</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- =========== RIGHT PROPERTY PANEL (selected node) =========== -->
+      <aside class="right flex-shrink-0 overflow-y-auto">
+        <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <div class="text-[10px] uppercase tracking-wider text-slate-500">선택한 노드</div>
+            <div class="font-semibold text-sm flex items-center gap-2"><span class="chip amber">gate</span>approveShortlist</div>
+          </div>
+          <button class="text-slate-400 hover:text-slate-900 text-sm">⊕</button>
+        </div>
+        <div class="px-4 py-3 space-y-4 text-sm">
+          <section>
+            <div class="text-[10px] uppercase tracking-wider text-slate-500 font-medium mb-1.5">현재 상태</div>
+            <div class="flex items-center gap-2">
+              <span class="chip amber">awaiting human</span>
+              <span class="text-xs text-slate-500 mono">4h 12m</span>
+            </div>
+            <div class="mt-2 text-xs text-slate-600">에이전트 추천: 22명 그대로 승인 — 평균 fitScore 0.71, 18 clean.</div>
+          </section>
+          <section>
+            <div class="text-[10px] uppercase tracking-wider text-slate-500 font-medium mb-1.5">정책 (워크스페이스)</div>
+            <div class="text-xs space-y-1">
+              <div class="flex justify-between"><span>mode</span><span class="mono">always_ask</span></div>
+              <div class="flex justify-between text-slate-400"><span>auto_unless predicate</span><span>(off)</span></div>
+            </div>
+            <button class="mt-2 text-[11px] text-slate-600 hover:text-slate-900 underline underline-offset-2">정책 수정 →</button>
+          </section>
+          <section>
+            <div class="text-[10px] uppercase tracking-wider text-slate-500 font-medium mb-1.5">입력 (sourcing 에이전트로부터)</div>
+            <div class="text-xs space-y-1 mono">
+              <div>candidates: 22</div>
+              <div>queriesUsed: 3</div>
+              <div>coverageNote: "comfortable margin"</div>
+              <div>agentCost: $0.131</div>
+            </div>
+          </section>
+          <section>
+            <div class="text-[10px] uppercase tracking-wider text-slate-500 font-medium mb-1.5">출력 (대기 중)</div>
+            <div class="text-xs text-slate-500">approval/resolved 이벤트 발생 시 결정 payload가 outreach 단계로 넘어갑니다.</div>
+          </section>
+          <section>
+            <div class="text-[10px] uppercase tracking-wider text-slate-500 font-medium mb-1.5">액션</div>
+            <div class="space-y-1.5">
+              <button class="w-full text-xs bg-emerald-600 text-white py-2 rounded hover:bg-emerald-700">22명 전부 승인</button>
+              <button class="w-full text-xs bg-slate-900 text-white py-2 rounded hover:bg-slate-800">선택해서 승인 (Edit)</button>
+              <button class="w-full text-xs border border-slate-300 py-2 rounded hover:bg-slate-50">거부 (Reject)</button>
+              <button class="w-full text-xs border border-amber-300 text-amber-700 py-2 rounded hover:bg-amber-50">이 게이트 → auto_unless 로 변경</button>
+            </div>
+          </section>
+        </div>
+      </aside>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  let selected = null;
+  function select(el, key) {
+    if (selected) selected.classList.remove('selected');
+    selected = el;
+    el.classList.add('selected');
+  }
+  // pre-select the gate (the "waiting on you" one)
+  document.addEventListener('DOMContentLoaded', () => {
+    const gate = document.querySelector('.node.gate');
+    if (gate) select(gate, 'gate');
+  });
+</script>
+</body>
+</html>

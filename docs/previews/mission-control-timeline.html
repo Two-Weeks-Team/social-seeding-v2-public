@@ -1,0 +1,916 @@
+<!doctype html>
+<!--
+  Social Seeding v2 — Mission Control · Phase-1 visual preview
+  =============================================================
+  Self-contained mockup. Open this file in a browser. No build, no server.
+  This is a SKETCH of the intended UX at the end of Phase 1 (the sourcing+
+  vetting slice — see docs/PHASE-1-PLAN.md). Real data is faked; nav is local.
+
+  What's in scope here (Phase 1 exit demo):
+    · Campaigns list + detail (W2)
+    · 6-stage indicator (read-only)
+    · Activity timeline sourced from v2_agent_traces (W3)
+    · Approval inbox + shortlist drill-in (W4)
+    · Policy editor — at minimum approveShortlist + budgets + level (W5)
+    · Layout/nav shell (W1) + the new-campaign intake conversation
+
+  Out of scope (Phase 2+, but stubbed in chrome so the shape is visible):
+    · Outreach drafting UI, threads view, shipment list, content review,
+      reports, library / admin sections (links present, page stubs).
+
+  Stack the real app will use: Next.js 16 App Router, Tailwind 4, shadcn/ui.
+  This file uses Tailwind via CDN to approximate; production CSS will be
+  near-identical (utility classes 1:1).
+-->
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=1280" />
+  <title>Mission Control — Phase-1 preview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { color-scheme: light; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, "Pretendard", "Segoe UI", Roboto, sans-serif;
+      font-feature-settings: "cv11", "ss01";
+    }
+    .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+    /* Timeline tree connectors */
+    .span > .row::before {
+      content: "";
+      position: absolute; left: 7px; top: 8px; width: 1px; height: calc(100% + 4px);
+      background: #e2e8f0;
+    }
+    .span:last-child > .row::before { height: 8px; }
+    .span > .row > .dot {
+      position: relative; z-index: 1; width: 15px; height: 15px; border-radius: 50%;
+      background: white; border: 2px solid #94a3b8; flex-shrink: 0;
+    }
+    .span.agent > .row > .dot { border-color: #2563eb; }
+    .span.tool > .row > .dot { border-color: #0891b2; }
+    .span.llm > .row > .dot { border-color: #7c3aed; }
+    .span.gate > .row > .dot { border-color: #d97706; background: #fef3c7; }
+    .span.workflow > .row > .dot { border-color: #10b981; background: #d1fae5; }
+    .span.done > .row > .dot { background: #10b981; border-color: #10b981; }
+    /* Stage strip */
+    .stage-bar { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+    .stage { padding: 10px 12px; border-radius: 6px; background: #f1f5f9; border: 1px solid #e2e8f0; }
+    .stage.done { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+    .stage.current { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; box-shadow: 0 0 0 3px #dbeafe; }
+    .stage.pending { color: #64748b; }
+    /* fitScore meter */
+    .meter { display: inline-block; width: 56px; height: 6px; border-radius: 3px; background: #e2e8f0; vertical-align: middle; overflow: hidden; }
+    .meter > i { display: block; height: 100%; background: linear-gradient(90deg, #f59e0b, #10b981); }
+    /* spam-score / engagement chips */
+    .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500; border: 1px solid transparent; }
+    .chip.blue { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+    .chip.emerald { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+    .chip.amber { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
+    .chip.rose { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
+    .chip.slate { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+    .chip.violet { background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; }
+    /* policy gate radio look */
+    .seg { display: inline-flex; padding: 2px; background: #f1f5f9; border-radius: 8px; gap: 2px; border: 1px solid #e2e8f0; }
+    .seg > button { padding: 6px 12px; font-size: 13px; border-radius: 6px; color: #475569; }
+    .seg > button.on { background: white; color: #0f172a; box-shadow: 0 1px 2px rgba(0,0,0,.05); font-weight: 500; }
+    /* nav active */
+    .nav-item.on { background: #f1f5f9; color: #0f172a; font-weight: 500; }
+    .nav-item.on .nav-icon { color: #0f172a; }
+    .nav-icon { color: #64748b; }
+    /* card hover */
+    .row-hover:hover { background: #f8fafc; }
+    /* intake chat bubbles */
+    .bub-agent { background: #f1f5f9; color: #0f172a; }
+    .bub-user { background: #eff6ff; color: #0f172a; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+<div class="flex h-screen">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="w-60 bg-white border-r border-slate-200 flex flex-col flex-shrink-0">
+    <div class="px-4 py-4 border-b border-slate-200">
+      <div class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded bg-slate-900 text-white grid place-items-center text-xs font-bold">SS</div>
+        <div class="leading-tight">
+          <div class="text-sm font-semibold">Social Seeding</div>
+          <div class="text-[11px] text-slate-500">v2 · Mission Control</div>
+        </div>
+      </div>
+      <button class="mt-3 w-full text-left text-xs text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-md px-2 py-1.5 flex items-center justify-between">
+        <span>2weeks 워크스페이스</span>
+        <span class="text-slate-400">⌄</span>
+      </button>
+    </div>
+    <nav class="flex-1 overflow-y-auto px-2 py-3 text-sm space-y-0.5">
+      <button data-nav="home" class="nav-item w-full text-left px-3 py-2 rounded-md flex items-center gap-2 hover:bg-slate-50">
+        <span class="nav-icon">◧</span> Mission Control
+      </button>
+      <button data-nav="campaigns" class="nav-item w-full text-left px-3 py-2 rounded-md flex items-center gap-2 hover:bg-slate-50 on">
+        <span class="nav-icon">▣</span> 캠페인 <span class="ml-auto text-[11px] text-slate-400">3</span>
+      </button>
+      <button data-nav="approvals" class="nav-item w-full text-left px-3 py-2 rounded-md flex items-center gap-2 hover:bg-slate-50">
+        <span class="nav-icon">▢</span> 승인 받기 <span class="ml-auto"><span class="chip amber !text-[10px] !py-0">12</span></span>
+      </button>
+      <button data-nav="policies" class="nav-item w-full text-left px-3 py-2 rounded-md flex items-center gap-2 hover:bg-slate-50">
+        <span class="nav-icon">⚙</span> 자율성 정책
+      </button>
+      <div class="pt-3 pb-1 px-3 text-[10px] uppercase tracking-wider text-slate-400">Drill-down</div>
+      <button class="nav-item w-full text-left px-3 py-2 rounded-md flex items-center gap-2 hover:bg-slate-50 text-slate-500" disabled>
+        <span class="nav-icon">⌕</span> 크리에이터 라이브러리 <span class="ml-auto text-[10px] text-slate-400">Phase 2</span>
+      </button>
+      <button class="nav-item w-full text-left px-3 py-2 rounded-md flex items-center gap-2 hover:bg-slate-50 text-slate-500" disabled>
+        <span class="nav-icon">✉</span> 이메일 스레드 <span class="ml-auto text-[10px] text-slate-400">Phase 2</span>
+      </button>
+      <button class="nav-item w-full text-left px-3 py-2 rounded-md flex items-center gap-2 hover:bg-slate-50 text-slate-500" disabled>
+        <span class="nav-icon">▤</span> 분석 리포트 <span class="ml-auto text-[10px] text-slate-400">Phase 4</span>
+      </button>
+      <button class="nav-item w-full text-left px-3 py-2 rounded-md flex items-center gap-2 hover:bg-slate-50 text-slate-500" disabled>
+        <span class="nav-icon">⚒</span> 관리자 <span class="ml-auto text-[10px] text-slate-400">P5+</span>
+      </button>
+    </nav>
+    <div class="border-t border-slate-200 px-3 py-3 text-xs text-slate-600">
+      <div class="flex items-center justify-between mb-1">
+        <span>이번 달 예산</span>
+        <span class="mono">$23.40 / $200</span>
+      </div>
+      <div class="h-1 rounded-full bg-slate-100 overflow-hidden"><div class="h-full bg-emerald-500" style="width: 12%"></div></div>
+      <div class="mt-3 flex items-center gap-2">
+        <div class="w-7 h-7 rounded-full bg-slate-200 grid place-items-center text-[11px] font-semibold">상</div>
+        <div class="leading-tight">
+          <div class="text-xs font-medium">sangguen@2weeks.co</div>
+          <div class="text-[10px] text-slate-500">owner</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="flex-1 overflow-y-auto">
+
+    <!-- ============ VIEW: HOME ============ -->
+    <section data-view="home" hidden class="max-w-6xl mx-auto px-8 py-8">
+      <header class="mb-6">
+        <h1 class="text-2xl font-semibold">Mission Control</h1>
+        <p class="text-sm text-slate-500 mt-1">에이전트가 한 일과, 당신이 결정할 일.</p>
+      </header>
+      <div class="grid grid-cols-4 gap-4 mb-8">
+        <div class="bg-white border border-slate-200 rounded-lg p-4">
+          <div class="text-xs text-slate-500">진행 중인 캠페인</div>
+          <div class="mt-1 text-2xl font-semibold">3</div>
+          <div class="mt-1 text-[11px] text-emerald-600">+1 이번 주</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-lg p-4">
+          <div class="text-xs text-slate-500">대기 중인 승인</div>
+          <div class="mt-1 text-2xl font-semibold">12</div>
+          <div class="mt-1 text-[11px] text-amber-600">최장 대기 4h 12m</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-lg p-4">
+          <div class="text-xs text-slate-500">이번 달 LLM 비용</div>
+          <div class="mt-1 text-2xl font-semibold mono">$23.40</div>
+          <div class="mt-1 text-[11px] text-slate-500">/$200 cap</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-lg p-4">
+          <div class="text-xs text-slate-500">24h 에이전트 활동</div>
+          <div class="mt-1 text-2xl font-semibold">147</div>
+          <div class="mt-1 text-[11px] text-slate-500">spans · 23 tool calls</div>
+        </div>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-lg p-5">
+        <div class="font-medium mb-3">진행 중인 캠페인</div>
+        <p class="text-sm text-slate-500">'캠페인' 메뉴로 이동해서 자세히 보세요. (이 패널은 Phase 4의 home view 미리보기)</p>
+      </div>
+    </section>
+
+    <!-- ============ VIEW: CAMPAIGNS LIST ============ -->
+    <section data-view="campaigns" class="max-w-6xl mx-auto px-8 py-8">
+      <header class="mb-6 flex items-end justify-between">
+        <div>
+          <h1 class="text-2xl font-semibold">캠페인</h1>
+          <p class="text-sm text-slate-500 mt-1">에이전트가 운영 중인 캠페인. 행을 클릭하면 활동 타임라인이 열립니다.</p>
+        </div>
+        <button data-nav="intake" class="text-sm bg-slate-900 text-white px-3.5 py-2 rounded-md hover:bg-slate-800 flex items-center gap-2">
+          <span>+</span> 새 캠페인
+        </button>
+      </header>
+
+      <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="text-xs uppercase tracking-wider text-slate-500 bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th class="text-left px-4 py-2.5 font-medium">캠페인</th>
+              <th class="text-left px-4 py-2.5 font-medium">상태</th>
+              <th class="text-left px-4 py-2.5 font-medium">현재 단계</th>
+              <th class="text-right px-4 py-2.5 font-medium">트랙</th>
+              <th class="text-right px-4 py-2.5 font-medium">예산 사용</th>
+              <th class="text-right px-4 py-2.5 font-medium">마지막 활동</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="row-hover border-b border-slate-100 cursor-pointer" onclick="show('campaign-detail')">
+              <td class="px-4 py-3">
+                <div class="font-medium">Test Serum · K-beauty 시딩</div>
+                <div class="text-[11px] text-slate-500 mono">camp_6a040b7f3b7a · 2026-05-13 생성</div>
+              </td>
+              <td class="px-4 py-3"><span class="chip blue">running</span></td>
+              <td class="px-4 py-3">
+                <span class="chip violet">2. sourcing</span>
+                <span class="ml-2 chip amber">⚠ 승인 대기</span>
+              </td>
+              <td class="px-4 py-3 text-right mono">22</td>
+              <td class="px-4 py-3 text-right mono">$2.18 / $25</td>
+              <td class="px-4 py-3 text-right text-slate-500 text-[12px]">방금 전</td>
+            </tr>
+            <tr class="row-hover border-b border-slate-100 cursor-pointer">
+              <td class="px-4 py-3">
+                <div class="font-medium">Vitamin C Serum 리브랜드</div>
+                <div class="text-[11px] text-slate-500 mono">camp_5f038b21a9c8 · 2026-05-08</div>
+              </td>
+              <td class="px-4 py-3"><span class="chip blue">running</span></td>
+              <td class="px-4 py-3"><span class="chip emerald">3. outreach</span></td>
+              <td class="px-4 py-3 text-right mono">18</td>
+              <td class="px-4 py-3 text-right mono">$8.94 / $40</td>
+              <td class="px-4 py-3 text-right text-slate-500 text-[12px]">8분 전</td>
+            </tr>
+            <tr class="row-hover border-b border-slate-100 cursor-pointer">
+              <td class="px-4 py-3">
+                <div class="font-medium">선크림 GenZ pilot</div>
+                <div class="text-[11px] text-slate-500 mono">camp_4d022a47e1f · 2026-04-28</div>
+              </td>
+              <td class="px-4 py-3"><span class="chip amber">paused</span></td>
+              <td class="px-4 py-3"><span class="chip emerald">4. shipping</span></td>
+              <td class="px-4 py-3 text-right mono">12</td>
+              <td class="px-4 py-3 text-right mono">$12.27 / $30</td>
+              <td class="px-4 py-3 text-right text-slate-500 text-[12px]">2시간 전</td>
+            </tr>
+            <tr class="row-hover">
+              <td class="px-4 py-3 text-slate-400">
+                <div>(완료된 캠페인 12개 숨김)</div>
+              </td>
+              <td colspan="5" class="px-4 py-3 text-right text-[12px] text-slate-500">완료 / 취소 캠페인 보기 →</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ VIEW: CAMPAIGN DETAIL ============ -->
+    <section data-view="campaign-detail" hidden class="max-w-6xl mx-auto px-8 py-8">
+      <header class="mb-4">
+        <button data-nav="campaigns" class="text-xs text-slate-500 hover:text-slate-900">← 캠페인 목록</button>
+        <div class="mt-2 flex items-end justify-between">
+          <div>
+            <h1 class="text-2xl font-semibold">Test Serum · K-beauty 시딩</h1>
+            <div class="mt-1 text-sm text-slate-500 mono">camp_6a040b7f3b7a765c2d0ed314 · workspace=ws_test · created 2026-05-13 14:23</div>
+          </div>
+          <div class="flex gap-2">
+            <button class="text-xs border border-slate-300 px-3 py-1.5 rounded-md hover:bg-slate-50">⏸ 일시정지</button>
+            <button class="text-xs border border-rose-300 text-rose-700 px-3 py-1.5 rounded-md hover:bg-rose-50">✕ 취소</button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Stage strip -->
+      <div class="mb-6">
+        <div class="stage-bar">
+          <div class="stage done">
+            <div class="text-[10px] uppercase tracking-wider opacity-70">1</div>
+            <div class="text-sm font-medium">overview</div>
+            <div class="text-[11px] opacity-80">✓ 14:23</div>
+          </div>
+          <div class="stage current">
+            <div class="text-[10px] uppercase tracking-wider opacity-70">2</div>
+            <div class="text-sm font-medium">sourcing</div>
+            <div class="text-[11px] opacity-80">● 진행 중 · 승인 대기</div>
+          </div>
+          <div class="stage pending">
+            <div class="text-[10px] uppercase tracking-wider opacity-70">3</div>
+            <div class="text-sm font-medium">outreach</div>
+          </div>
+          <div class="stage pending">
+            <div class="text-[10px] uppercase tracking-wider opacity-70">4</div>
+            <div class="text-sm font-medium">shipping</div>
+          </div>
+          <div class="stage pending">
+            <div class="text-[10px] uppercase tracking-wider opacity-70">5</div>
+            <div class="text-sm font-medium">content_review</div>
+          </div>
+          <div class="stage pending">
+            <div class="text-[10px] uppercase tracking-wider opacity-70">6</div>
+            <div class="text-sm font-medium">performance</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-6">
+
+        <!-- LEFT: Activity timeline -->
+        <div class="col-span-2">
+          <div class="bg-white border border-slate-200 rounded-lg">
+            <div class="px-5 py-3 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <div class="font-medium">활동 타임라인</div>
+                <div class="text-[11px] text-slate-500">v2_agent_traces 에서 실시간 · 가장 최근 항목이 위</div>
+              </div>
+              <div class="flex items-center gap-2 text-[11px] text-slate-500">
+                <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> live
+              </div>
+            </div>
+            <div class="px-5 py-4">
+
+              <!-- gate span -->
+              <div class="span gate mb-3">
+                <div class="row relative flex items-start gap-3">
+                  <div class="dot"></div>
+                  <div class="flex-1">
+                    <div class="flex items-baseline gap-2">
+                      <span class="font-medium">GATE · approveShortlist</span>
+                      <span class="chip amber">awaiting human</span>
+                      <span class="ml-auto text-[11px] text-slate-400 mono">14:24:08</span>
+                    </div>
+                    <div class="text-sm text-slate-600 mt-1">
+                      sourcing + vetting 22명 시작. 정책 mode=<span class="mono">always_ask</span> 이므로 승인을 기다리는 중. 4h 12m 경과.
+                    </div>
+                    <div class="mt-2">
+                      <button data-nav="approval-shortlist" class="text-xs bg-amber-500 text-white px-3 py-1.5 rounded-md hover:bg-amber-600">→ 인박스에서 검토</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- workflow span -->
+              <div class="span workflow">
+                <div class="row relative flex items-start gap-3">
+                  <div class="dot"></div>
+                  <div class="flex-1">
+                    <div class="flex items-baseline gap-2">
+                      <span class="font-medium">workflow:brand-campaign</span>
+                      <span class="chip emerald">running</span>
+                      <span class="ml-auto text-[11px] text-slate-400 mono">14:23:35 · 178ms</span>
+                    </div>
+                    <div class="text-sm text-slate-600">brief 검증 · workspace policy 로드 · plan 영속.</div>
+                  </div>
+                </div>
+
+                <!-- nested -->
+                <div class="pl-7 mt-2 space-y-2">
+
+                  <div class="span agent">
+                    <div class="row relative flex items-start gap-3">
+                      <div class="dot"></div>
+                      <div class="flex-1">
+                        <div class="flex items-baseline gap-2">
+                          <span class="font-medium">agent:sourcing</span>
+                          <span class="chip violet mono">opus-4.7</span>
+                          <span class="chip slate mono">$0.131</span>
+                          <span class="ml-auto text-[11px] text-slate-400 mono">14:23:42 · 22.4s</span>
+                        </div>
+                        <div class="text-sm text-slate-600 mt-1">3개 쿼리 → 523 후보 → blacklist 12 PERMANENT/4 TEMPORARY 제거 → <strong>142명 추렸음</strong>. coverage note: "comfortable margin".</div>
+                      </div>
+                    </div>
+                    <div class="pl-7 mt-2 space-y-1.5">
+                      <div class="span tool">
+                        <div class="row relative flex items-start gap-3">
+                          <div class="dot"></div>
+                          <div class="flex-1 text-[13px] flex items-center gap-2">
+                            <span class="font-medium mono">tool:tiktok.search</span>
+                            <span class="chip slate">text · "hydration skincare kbeauty"</span>
+                            <span class="text-slate-500">→ 200 results · 1.12s</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="span tool">
+                        <div class="row relative flex items-start gap-3">
+                          <div class="dot"></div>
+                          <div class="flex-1 text-[13px] flex items-center gap-2">
+                            <span class="font-medium mono">tool:tiktok.search</span>
+                            <span class="chip slate">hashtag · "#스킨케어"</span>
+                            <span class="text-slate-500">→ 178 results · 0.94s</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="span tool">
+                        <div class="row relative flex items-start gap-3">
+                          <div class="dot"></div>
+                          <div class="flex-1 text-[13px] flex items-center gap-2">
+                            <span class="font-medium mono">tool:tiktok.search</span>
+                            <span class="chip slate">and · "K-beauty,serum,review"</span>
+                            <span class="text-slate-500">→ 145 results · 1.03s</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="span tool">
+                        <div class="row relative flex items-start gap-3">
+                          <div class="dot"></div>
+                          <div class="flex-1 text-[13px] flex items-center gap-2">
+                            <span class="font-medium mono">tool:blacklist.check</span>
+                            <span class="chip slate">523 uniqueIds</span>
+                            <span class="text-slate-500">→ 12 PERMANENT · 4 TEMPORARY · 0 WARNING · 0.18s</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="span llm">
+                        <div class="row relative flex items-start gap-3">
+                          <div class="dot"></div>
+                          <div class="flex-1 text-[13px] flex items-center gap-2">
+                            <span class="font-medium mono">llm:claude-opus-4-7</span>
+                            <span class="text-slate-500">3,142 in · 482 out · $0.083</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="span agent">
+                    <div class="row relative flex items-start gap-3">
+                      <div class="dot"></div>
+                      <div class="flex-1">
+                        <div class="flex items-baseline gap-2">
+                          <span class="font-medium">fan-out: 22 × agent:vetting</span>
+                          <span class="chip violet mono">haiku-4.5</span>
+                          <span class="chip slate mono">$0.184 total</span>
+                          <span class="ml-auto text-[11px] text-slate-400 mono">14:24:05 · 3.2s wall</span>
+                        </div>
+                        <div class="text-sm text-slate-600 mt-1">
+                          22명 평균 fitScore 0.71 · 플래그 분포: 18 clean, 3 <span class="chip amber">below_engagement_floor</span>, 1 <span class="chip slate">data_stale</span>.
+                        </div>
+                        <details class="mt-2">
+                          <summary class="text-xs text-slate-500 cursor-pointer hover:text-slate-800">개별 결과 22건 펼치기</summary>
+                          <div class="mt-2 text-[12px] mono text-slate-600 space-y-0.5 max-h-32 overflow-y-auto bg-slate-50 rounded p-2">
+                            <div>@hyejin_skin → fitScore 0.84 · flags: [] · $0.008</div>
+                            <div>@beautyobs_kr → fitScore 0.81 · flags: [] · $0.009</div>
+                            <div>@minji_glow → fitScore 0.78 · flags: [] · $0.007</div>
+                            <div>@kbeauty.daily → fitScore 0.77 · flags: [] · $0.008</div>
+                            <div>@dewy_seoul → fitScore 0.74 · flags: [] · $0.009</div>
+                            <div>@cleanskin_julie → fitScore 0.72 · flags: [data_stale] · $0.008</div>
+                            <div>@serumlover_kr → fitScore 0.69 · flags: [] · $0.007</div>
+                            <div>@iso.skin → fitScore 0.67 · flags: [below_engagement_floor] · $0.008</div>
+                            <div>… 14개 더</div>
+                          </div>
+                        </details>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="span done">
+                    <div class="row relative flex items-start gap-3">
+                      <div class="dot"></div>
+                      <div class="flex-1 text-[13px] flex items-center gap-2">
+                        <span class="font-medium">pickShortlist</span>
+                        <span class="text-slate-500">142 → 22 (creatorCount × 1.5, fitScore 정렬, hard flag 제거)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="span done">
+                    <div class="row relative flex items-start gap-3">
+                      <div class="dot"></div>
+                      <div class="flex-1 text-[13px] flex items-center gap-2">
+                        <span class="font-medium">step:observability</span>
+                        <span class="text-slate-500">trace.flush() · recordCost($0 placeholder, P0-7) · 12ms</span>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: needs you + brief -->
+        <div class="space-y-5">
+          <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div class="text-xs uppercase tracking-wider text-amber-700 font-medium">필요한 결정</div>
+            <div class="mt-2 font-medium">22명 후보 리스트 승인</div>
+            <div class="mt-1 text-sm text-slate-700">에이전트가 추천한 22명을 검토하세요. 정책을 <span class="mono">auto_unless(fitScoreLt:0.5)</span>로 바꾸면 다음부터 자동으로 진행됩니다.</div>
+            <button data-nav="approval-shortlist" class="mt-3 w-full text-sm bg-amber-500 text-white rounded-md py-2 hover:bg-amber-600">검토하러 가기 →</button>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-lg p-4">
+            <div class="text-xs uppercase tracking-wider text-slate-500 font-medium">캠페인 brief</div>
+            <dl class="mt-3 text-sm space-y-2">
+              <div><dt class="text-slate-500 text-xs">브랜드 · 제품</dt><dd class="font-medium">Test Serum (skincare/serum)</dd></div>
+              <div><dt class="text-slate-500 text-xs">설명</dt><dd>hydration serum for the demo</dd></div>
+              <div><dt class="text-slate-500 text-xs">타겟팅</dt><dd>3명 / ER ≥ 2% / lang=ko</dd></div>
+              <div><dt class="text-slate-500 text-xs">샘플 발송</dt><dd>예</dd></div>
+              <div><dt class="text-slate-500 text-xs">목표</dt><dd>live posts 3개 by 2026-08-01</dd></div>
+              <div><dt class="text-slate-500 text-xs">예산 cap</dt><dd class="mono">$25 / 캠페인</dd></div>
+            </dl>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-lg p-4">
+            <div class="text-xs uppercase tracking-wider text-slate-500 font-medium">현재 정책 (워크스페이스)</div>
+            <ul class="mt-3 text-sm space-y-1.5">
+              <li class="flex justify-between"><span>approveShortlist</span><span class="chip blue mono">always_ask</span></li>
+              <li class="flex justify-between"><span>approveOutreachSend</span><span class="chip blue mono">always_ask</span></li>
+              <li class="flex justify-between"><span>approveReplyResponse</span><span class="chip blue mono">always_ask</span></li>
+              <li class="flex justify-between"><span>approveShipment</span><span class="chip blue mono">always_ask</span></li>
+              <li class="flex justify-between"><span>approveStageAdvance</span><span class="chip blue mono">always_ask</span></li>
+            </ul>
+            <button data-nav="policies" class="mt-3 text-xs text-slate-600 hover:text-slate-900">정책 편집 →</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ VIEW: APPROVAL INBOX (LIST) — embedded below for brevity; main inbox view ============ -->
+    <section data-view="approvals" hidden class="max-w-6xl mx-auto px-8 py-8">
+      <header class="mb-6">
+        <h1 class="text-2xl font-semibold">승인 받기 <span class="text-slate-400 font-normal text-base">· 12 pending</span></h1>
+        <p class="text-sm text-slate-500 mt-1">에이전트가 추천을 미리 채워뒀습니다. 한 번에 한 종류씩 처리해보세요.</p>
+      </header>
+      <div class="space-y-5">
+        <div>
+          <div class="text-xs uppercase tracking-wider text-slate-500 font-medium mb-2">SHORTLIST · 1</div>
+          <div class="bg-white border border-slate-200 rounded-lg p-4 row-hover cursor-pointer" onclick="show('approval-shortlist')">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="font-medium">Test Serum · K-beauty 시딩 — 22명 후보</div>
+                <div class="text-sm text-slate-500 mt-0.5">평균 fitScore 0.71 · 18 clean / 4 flagged · sourcing agent 추천</div>
+              </div>
+              <div class="text-right">
+                <div class="text-xs text-slate-400 mono">4h 12m 경과</div>
+                <button class="mt-1.5 text-xs bg-slate-900 text-white px-3 py-1.5 rounded-md">검토 →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="text-xs uppercase tracking-wider text-slate-500 font-medium mb-2">OUTREACH_SEND · 3 <span class="text-slate-400">(Phase 2)</span></div>
+          <div class="bg-white border border-slate-200 rounded-lg p-4 opacity-60">
+            <div class="flex items-center justify-between text-sm">
+              <div>Vitamin C Serum · 6명 첫 발송 배치</div>
+              <span class="text-xs text-slate-400">Phase 2부터 작동</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="text-xs uppercase tracking-wider text-slate-500 font-medium mb-2">REPLY_RESPONSE · 2 <span class="text-slate-400">(Phase 2)</span></div>
+          <div class="bg-white border border-slate-200 rounded-lg p-4 opacity-60 text-sm">@hyejin_skin가 단가 문의 · 답장 초안 준비됨</div>
+        </div>
+        <div>
+          <div class="text-xs uppercase tracking-wider text-slate-500 font-medium mb-2">SHIPMENT · 4 <span class="text-slate-400">(Phase 3)</span></div>
+          <div class="bg-white border border-slate-200 rounded-lg p-4 opacity-60 text-sm">선크림 GenZ pilot · 4명 발송 대기</div>
+        </div>
+        <div>
+          <div class="text-xs uppercase tracking-wider text-slate-500 font-medium mb-2">STAGE_ADVANCE · 2</div>
+          <div class="bg-white border border-slate-200 rounded-lg p-4 opacity-60 text-sm">Vitamin C Serum · outreach → shipping 진입</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VIEW: SHORTLIST APPROVAL DRILL-IN (Phase 1 핵심) ============ -->
+    <section data-view="approval-shortlist" hidden class="max-w-6xl mx-auto px-8 py-8">
+      <header class="mb-4">
+        <button data-nav="approvals" class="text-xs text-slate-500 hover:text-slate-900">← 승인 인박스</button>
+        <div class="mt-2 flex items-end justify-between">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-slate-500">SHORTLIST · approveShortlist</div>
+            <h1 class="text-2xl font-semibold mt-1">Test Serum · 22명 후보 검토</h1>
+            <div class="mt-1 text-sm text-slate-500">대기 시작 4h 12m 전 · 캠페인 <a class="underline hover:text-slate-900" data-nav="campaign-detail">camp_6a040b7f3b7a</a></div>
+          </div>
+          <div class="flex gap-2">
+            <button class="text-sm border border-slate-300 px-4 py-2 rounded-md hover:bg-slate-50">거부 (Reject)</button>
+            <button class="text-sm bg-slate-900 text-white px-4 py-2 rounded-md hover:bg-slate-800">선택한 17명으로 승인 (Edit)</button>
+            <button class="text-sm bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700">22명 전부 승인</button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Agent rationale -->
+      <div class="bg-white border border-slate-200 rounded-lg p-4 mb-5">
+        <div class="text-xs uppercase tracking-wider text-slate-500 font-medium mb-2">에이전트가 추천한 이유</div>
+        <p class="text-sm text-slate-700 leading-relaxed">
+          K-beauty / 스킨케어 / 수분-라이크 토픽 한국어 크리에이터 142명에서 fitScore ≥ 0.6 인 22명을 골랐습니다.
+          블랙리스트 PERMANENT 12명 / TEMPORARY 4명은 자동 제거됨. 4명은 ER가 2% 미만 (<span class="chip amber">below_engagement_floor</span>) 이지만
+          fitScore가 높아 포함시켰습니다 — 검토 후 제외하셔도 됩니다. 평균 팔로워 23.4k (12k–82k 범위).
+        </p>
+        <div class="mt-3 text-[11px] text-slate-500 mono flex gap-4">
+          <span>queriesUsed: 3</span>
+          <span>candidates: 142 (raw)</span>
+          <span>shortlist: 22</span>
+          <span>agent cost: $0.131</span>
+          <span>spam-score N/A (이건 outreach 단계)</span>
+        </div>
+      </div>
+
+      <!-- Candidate table -->
+      <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <div class="px-4 py-2.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between text-xs">
+          <div class="flex items-center gap-4">
+            <label class="flex items-center gap-1.5"><input type="checkbox" checked /> 선택한 행 <span class="mono">(17/22)</span></label>
+            <span class="text-slate-400">|</span>
+            <select class="border border-slate-300 rounded px-2 py-1 text-xs">
+              <option>fitScore 내림차순</option>
+              <option>팔로워 많은 순</option>
+              <option>플래그 있는 행 먼저</option>
+            </select>
+          </div>
+          <div class="text-slate-500">22명 표시 · 클릭 = TikTok 프로필 새 탭</div>
+        </div>
+        <table class="w-full text-sm">
+          <thead class="text-xs uppercase tracking-wider text-slate-500 border-b border-slate-200">
+            <tr>
+              <th class="w-8 px-3 py-2"></th>
+              <th class="text-left px-3 py-2 font-medium">크리에이터</th>
+              <th class="text-right px-3 py-2 font-medium">팔로워</th>
+              <th class="text-right px-3 py-2 font-medium">ER</th>
+              <th class="text-right px-3 py-2 font-medium">avg views</th>
+              <th class="text-left px-3 py-2 font-medium">fitScore</th>
+              <th class="text-left px-3 py-2 font-medium">flags</th>
+              <th class="text-left px-3 py-2 font-medium">매칭 사유</th>
+            </tr>
+          </thead>
+          <tbody class="text-[13px]">
+            <tr class="border-b border-slate-100 row-hover">
+              <td class="px-3 py-2.5"><input type="checkbox" checked /></td>
+              <td class="px-3 py-2.5 mono">@hyejin_skin</td>
+              <td class="px-3 py-2.5 text-right mono">82.4k</td>
+              <td class="px-3 py-2.5 text-right mono">4.2%</td>
+              <td class="px-3 py-2.5 text-right mono">18.1k</td>
+              <td class="px-3 py-2.5"><span class="meter"><i style="width:84%"></i></span> <span class="mono ml-1">0.84</span></td>
+              <td class="px-3 py-2.5"><span class="chip emerald">clean</span></td>
+              <td class="px-3 py-2.5 text-slate-600">bio "k-beauty / 수분 케어" · 최근 5개 글 중 3개 #스킨케어</td>
+            </tr>
+            <tr class="border-b border-slate-100 row-hover">
+              <td class="px-3 py-2.5"><input type="checkbox" checked /></td>
+              <td class="px-3 py-2.5 mono">@beautyobs_kr</td>
+              <td class="px-3 py-2.5 text-right mono">61.0k</td>
+              <td class="px-3 py-2.5 text-right mono">3.8%</td>
+              <td class="px-3 py-2.5 text-right mono">12.3k</td>
+              <td class="px-3 py-2.5"><span class="meter"><i style="width:81%"></i></span> <span class="mono ml-1">0.81</span></td>
+              <td class="px-3 py-2.5"><span class="chip emerald">clean</span></td>
+              <td class="px-3 py-2.5 text-slate-600">리뷰 채널 · 세럼 비교 콘텐츠 다수 · ER 안정</td>
+            </tr>
+            <tr class="border-b border-slate-100 row-hover">
+              <td class="px-3 py-2.5"><input type="checkbox" checked /></td>
+              <td class="px-3 py-2.5 mono">@minji_glow</td>
+              <td class="px-3 py-2.5 text-right mono">45.2k</td>
+              <td class="px-3 py-2.5 text-right mono">5.1%</td>
+              <td class="px-3 py-2.5 text-right mono">11.8k</td>
+              <td class="px-3 py-2.5"><span class="meter"><i style="width:78%"></i></span> <span class="mono ml-1">0.78</span></td>
+              <td class="px-3 py-2.5"><span class="chip emerald">clean</span></td>
+              <td class="px-3 py-2.5 text-slate-600">"수분이 곧 광채" 시리즈 · 타겟 톤 일치</td>
+            </tr>
+            <tr class="border-b border-slate-100 row-hover">
+              <td class="px-3 py-2.5"><input type="checkbox" checked /></td>
+              <td class="px-3 py-2.5 mono">@dewy_seoul</td>
+              <td class="px-3 py-2.5 text-right mono">38.7k</td>
+              <td class="px-3 py-2.5 text-right mono">3.2%</td>
+              <td class="px-3 py-2.5 text-right mono">7.4k</td>
+              <td class="px-3 py-2.5"><span class="meter"><i style="width:74%"></i></span> <span class="mono ml-1">0.74</span></td>
+              <td class="px-3 py-2.5"><span class="chip emerald">clean</span></td>
+              <td class="px-3 py-2.5 text-slate-600">최근 동일 카테고리 cold-mail 응답 이력 (priorOutcome=responded)</td>
+            </tr>
+            <tr class="border-b border-slate-100 row-hover bg-amber-50/30">
+              <td class="px-3 py-2.5"><input type="checkbox" /></td>
+              <td class="px-3 py-2.5 mono">@cleanskin_julie</td>
+              <td class="px-3 py-2.5 text-right mono">29.1k</td>
+              <td class="px-3 py-2.5 text-right mono">2.8%</td>
+              <td class="px-3 py-2.5 text-right mono">3.2k</td>
+              <td class="px-3 py-2.5"><span class="meter"><i style="width:72%"></i></span> <span class="mono ml-1">0.72</span></td>
+              <td class="px-3 py-2.5"><span class="chip slate">data_stale</span></td>
+              <td class="px-3 py-2.5 text-slate-600">프로필 데이터 32일 전 · 최근 활동 확인 후 결정 권장</td>
+            </tr>
+            <tr class="border-b border-slate-100 row-hover bg-amber-50/30">
+              <td class="px-3 py-2.5"><input type="checkbox" /></td>
+              <td class="px-3 py-2.5 mono">@iso.skin</td>
+              <td class="px-3 py-2.5 text-right mono">21.8k</td>
+              <td class="px-3 py-2.5 text-right mono">1.7%</td>
+              <td class="px-3 py-2.5 text-right mono">2.9k</td>
+              <td class="px-3 py-2.5"><span class="meter"><i style="width:67%"></i></span> <span class="mono ml-1">0.67</span></td>
+              <td class="px-3 py-2.5"><span class="chip amber">below_engagement_floor</span></td>
+              <td class="px-3 py-2.5 text-slate-600">콘텐츠는 좋지만 ER &lt; 2% — 벤더 정책 검토</td>
+            </tr>
+            <tr class="row-hover">
+              <td colspan="8" class="px-3 py-3 text-center text-xs text-slate-500">16명 더 (펼치기)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Reviewer notes + sticky action bar -->
+      <div class="mt-4 bg-white border border-slate-200 rounded-lg p-4">
+        <label class="block text-xs uppercase tracking-wider text-slate-500 font-medium mb-2">메모 (다음 캠페인의 sourcing 에이전트가 학습)</label>
+        <textarea rows="2" class="w-full text-sm border border-slate-200 rounded p-2 focus:border-sky-500 focus:ring-0" placeholder="예: data_stale 행은 신뢰도 낮으니 다음부턴 제외해줘"></textarea>
+        <div class="mt-3 flex items-center gap-3 text-xs text-slate-500">
+          <label class="flex items-center gap-1.5"><input type="checkbox" /> 이 결정으로 정책을 <span class="mono">auto_unless(fitScoreLt:0.6)</span>로 업데이트</label>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============ VIEW: POLICIES ============ -->
+    <section data-view="policies" hidden class="max-w-4xl mx-auto px-8 py-8">
+      <header class="mb-6">
+        <h1 class="text-2xl font-semibold">자율성 정책</h1>
+        <p class="text-sm text-slate-500 mt-1">에이전트에게 어디까지 맡길지 정합니다. 새 캠페인부터 적용됩니다 (진행 중 캠페인은 영향 없음).</p>
+      </header>
+
+      <!-- Level preset -->
+      <section class="bg-white border border-slate-200 rounded-lg p-5 mb-5">
+        <div class="text-xs uppercase tracking-wider text-slate-500 font-medium mb-3">자율 수준 프리셋</div>
+        <div class="grid grid-cols-3 gap-3">
+          <label class="border border-slate-200 rounded-lg p-3 cursor-pointer hover:border-slate-300">
+            <input type="radio" name="lvl" /> <span class="font-medium">copilot</span>
+            <div class="mt-1 text-xs text-slate-500">에이전트가 제안만 함 · 모든 액션은 인간이 확인</div>
+          </label>
+          <label class="border-2 border-blue-500 bg-blue-50/30 rounded-lg p-3 cursor-pointer">
+            <input type="radio" name="lvl" checked /> <span class="font-medium">checkpointed</span> <span class="chip blue ml-1">기본</span>
+            <div class="mt-1 text-xs text-slate-600">에이전트가 실행하되 각 단계에 승인 게이트</div>
+          </label>
+          <label class="border border-slate-200 rounded-lg p-3 cursor-pointer hover:border-slate-300">
+            <input type="radio" name="lvl" /> <span class="font-medium">autonomous</span>
+            <div class="mt-1 text-xs text-slate-500">예외 시에만 escalate · 신뢰가 쌓인 후</div>
+          </label>
+        </div>
+      </section>
+
+      <!-- Gates -->
+      <section class="bg-white border border-slate-200 rounded-lg p-5 mb-5">
+        <div class="text-xs uppercase tracking-wider text-slate-500 font-medium mb-3">게이트별 동작</div>
+
+        <!-- approveShortlist -->
+        <div class="border border-slate-200 rounded-md p-4 mb-3">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <div class="font-medium">approveShortlist</div>
+              <div class="text-xs text-slate-500">sourcing + vetting 끝나고 후보 리스트 확정 전</div>
+            </div>
+            <div class="seg">
+              <button>always_ask</button>
+              <button>auto</button>
+              <button class="on">auto_unless</button>
+            </div>
+          </div>
+          <div class="text-xs text-slate-500 mb-1.5">아래 조건 중 하나라도 맞으면 사람한테 묻습니다:</div>
+          <div class="flex flex-wrap gap-2">
+            <label class="chip slate"><input type="checkbox" class="mr-1" checked /> fitScoreLt &lt; <span class="mono">0.6</span></label>
+            <label class="chip slate"><input type="checkbox" class="mr-1" /> followerCountGte ≥ <span class="mono">100,000</span></label>
+            <button class="chip slate text-slate-400">+ 조건 추가</button>
+          </div>
+        </div>
+
+        <!-- approveOutreachSend -->
+        <div class="border border-slate-200 rounded-md p-4 mb-3">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <div class="font-medium">approveOutreachSend</div>
+              <div class="text-xs text-slate-500">이메일 발송 배치마다 (Phase 2)</div>
+            </div>
+            <div class="seg">
+              <button class="on">always_ask</button>
+              <button>auto</button>
+              <button>auto_unless</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- approveReplyResponse -->
+        <div class="border border-slate-200 rounded-md p-4 mb-3">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <div class="font-medium">approveReplyResponse</div>
+              <div class="text-xs text-slate-500">단가 협상/질문 답장 전 (Phase 2)</div>
+            </div>
+            <div class="seg">
+              <button class="on">always_ask</button>
+              <button>auto</button>
+              <button>auto_unless</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- approveShipment -->
+        <div class="border border-slate-200 rounded-md p-4 mb-3">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <div class="font-medium">approveShipment</div>
+              <div class="text-xs text-slate-500">샘플 발송 직전 (Phase 3)</div>
+            </div>
+            <div class="seg">
+              <button class="on">always_ask</button>
+              <button>auto</button>
+              <button>auto_unless</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- approveStageAdvance -->
+        <div class="border border-slate-200 rounded-md p-4">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <div class="font-medium">approveStageAdvance</div>
+              <div class="text-xs text-slate-500">단계 전환 (sourcing→outreach 등)</div>
+            </div>
+            <div class="seg">
+              <button class="on">always_ask</button>
+              <button>auto</button>
+              <button>auto_unless</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Budgets -->
+      <section class="bg-white border border-slate-200 rounded-lg p-5 mb-5">
+        <div class="text-xs uppercase tracking-wider text-slate-500 font-medium mb-3">예산 (hard / soft)</div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm">캠페인당 최대 ($USD)</label>
+            <div class="mt-1 flex items-center gap-2"><span class="mono text-slate-500">$</span><input type="number" value="25" class="w-32 border border-slate-300 rounded px-2 py-1 text-sm mono" /><span class="text-xs text-slate-500">초과 시 BudgetExceededError 던짐</span></div>
+          </div>
+          <div>
+            <label class="block text-sm">월별 워크스페이스 최대 ($USD)</label>
+            <div class="mt-1 flex items-center gap-2"><span class="mono text-slate-500">$</span><input type="number" value="200" class="w-32 border border-slate-300 rounded px-2 py-1 text-sm mono" /><span class="text-xs text-slate-500">soft cap · 알림 ($50/$100/$200)</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Voice -->
+      <section class="bg-white border border-slate-200 rounded-lg p-5 mb-5">
+        <div class="text-xs uppercase tracking-wider text-slate-500 font-medium mb-3">브랜드 보이스 (outreach-writer 에이전트에 주입)</div>
+        <textarea rows="3" class="w-full border border-slate-200 rounded p-2 text-sm" placeholder="예: 정중하되 간결. 한국어 존댓말. 자랑 톤 금지. 첫 줄 ≤ 14자."></textarea>
+        <div class="mt-3 text-xs text-slate-500">금지 표현 (쉼표 구분)</div>
+        <input class="mt-1 w-full border border-slate-200 rounded p-2 text-sm" placeholder="예: 대박, 갓성비, 인플루언서님" />
+      </section>
+
+      <div class="flex justify-end gap-2">
+        <button class="text-sm border border-slate-300 px-3 py-2 rounded-md hover:bg-slate-50">되돌리기</button>
+        <button class="text-sm bg-slate-900 text-white px-4 py-2 rounded-md hover:bg-slate-800">정책 저장</button>
+      </div>
+    </section>
+
+    <!-- ============ VIEW: NEW CAMPAIGN INTAKE CHAT ============ -->
+    <section data-view="intake" hidden class="max-w-3xl mx-auto px-8 py-8">
+      <header class="mb-5">
+        <button data-nav="campaigns" class="text-xs text-slate-500 hover:text-slate-900">← 캠페인</button>
+        <h1 class="text-2xl font-semibold mt-2">새 캠페인</h1>
+        <p class="text-sm text-slate-500 mt-1">아래에서 intake 에이전트가 빈칸을 채우게 도와줍니다. 막바지에 brief를 한 번 검토하고 시작하세요.</p>
+      </header>
+      <div class="bg-white border border-slate-200 rounded-lg p-5 space-y-3">
+        <div class="flex gap-3">
+          <div class="w-7 h-7 rounded-full bg-violet-100 text-violet-700 grid place-items-center text-[11px] font-bold flex-shrink-0">IA</div>
+          <div class="bub-agent rounded-lg px-3 py-2 text-sm max-w-md">안녕하세요. 어떤 제품을 어떤 크리에이터에게 보내고 싶으세요? 한두 문장이면 충분합니다.</div>
+        </div>
+        <div class="flex gap-3 justify-end">
+          <div class="bub-user rounded-lg px-3 py-2 text-sm max-w-md">수분 세럼 K-beauty 시딩이야. 한국어, 3명, ER 2% 이상. 샘플 보내고 8월 1일까지 라이브 포스트 받고 싶어.</div>
+        </div>
+        <div class="flex gap-3">
+          <div class="w-7 h-7 rounded-full bg-violet-100 text-violet-700 grid place-items-center text-[11px] font-bold flex-shrink-0">IA</div>
+          <div class="bub-agent rounded-lg px-3 py-2 text-sm max-w-md">좋아요. 제품명과 핵심 주장 1-3개 알려주세요. (예: "Test Serum / 수분 12시간 유지 / 끈적임 없음")</div>
+        </div>
+        <div class="flex gap-3 justify-end">
+          <div class="bub-user rounded-lg px-3 py-2 text-sm max-w-md">Test Serum · 수분 / 진정 / 발림성</div>
+        </div>
+        <div class="flex gap-3">
+          <div class="w-7 h-7 rounded-full bg-violet-100 text-violet-700 grid place-items-center text-[11px] font-bold flex-shrink-0">IA</div>
+          <div class="bub-agent rounded-lg px-3 py-2 text-sm max-w-md">예산 cap을 두실래요? (기본값 $25/캠페인, 정책에서 변경 가능)</div>
+        </div>
+        <div class="flex gap-3 justify-end">
+          <div class="bub-user rounded-lg px-3 py-2 text-sm max-w-md">기본값 ok.</div>
+        </div>
+      </div>
+      <div class="mt-4 bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+        <div class="text-xs uppercase tracking-wider text-emerald-700 font-medium">brief 요약 — 시작 전 확인</div>
+        <dl class="mt-2 text-sm grid grid-cols-2 gap-x-6 gap-y-1.5">
+          <div><dt class="text-xs text-slate-500">제품</dt><dd>Test Serum (skincare/serum)</dd></div>
+          <div><dt class="text-xs text-slate-500">설명</dt><dd>hydration serum for the demo</dd></div>
+          <div><dt class="text-xs text-slate-500">크리에이터 수</dt><dd>3</dd></div>
+          <div><dt class="text-xs text-slate-500">최소 ER</dt><dd>2%</dd></div>
+          <div><dt class="text-xs text-slate-500">언어</dt><dd>한국어</dd></div>
+          <div><dt class="text-xs text-slate-500">샘플 발송</dt><dd>예</dd></div>
+          <div><dt class="text-xs text-slate-500">목표</dt><dd>3 live posts by 2026-08-01</dd></div>
+          <div><dt class="text-xs text-slate-500">예산</dt><dd class="mono">$25</dd></div>
+        </dl>
+        <div class="mt-4 flex justify-end gap-2">
+          <button class="text-sm border border-slate-300 px-3 py-2 rounded-md hover:bg-slate-50">brief 수정</button>
+          <button class="text-sm bg-slate-900 text-white px-4 py-2 rounded-md hover:bg-slate-800">캠페인 시작 → sourcing 단계로</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  function show(v) {
+    document.querySelectorAll('[data-view]').forEach(s => s.hidden = s.dataset.view !== v);
+    document.querySelectorAll('[data-nav]').forEach(b => {
+      b.classList.toggle('on', b.dataset.nav === v
+        || (v === 'campaign-detail' && b.dataset.nav === 'campaigns')
+        || (v === 'approval-shortlist' && b.dataset.nav === 'approvals')
+        || (v === 'intake' && b.dataset.nav === 'campaigns'));
+    });
+    window.scrollTo(0, 0);
+  }
+  document.querySelectorAll('[data-nav]').forEach(b => b.addEventListener('click', () => show(b.dataset.nav)));
+  // open default
+  show('campaigns');
+</script>
+</body>
+</html>
