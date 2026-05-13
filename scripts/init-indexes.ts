@@ -62,6 +62,12 @@ const PLANS: IndexPlan[] = [
   // workspace B (cross-workspace suppression is intentionally independent).
   // Codex review P2#8.
   { collection: Collections.V2_SUPPRESSION_LIST, keys: { workspaceId: 1, email: 1 }, options: { unique: true } },
+  // v2_shipments — Phase 3. Listing a campaign's shipments is the dominant
+  // read; per-creator-track lookup is the second; tracking-number index lets
+  // the carrier-poller / webhook resolve to a row without a campaign filter.
+  { collection: Collections.V2_SHIPMENTS, keys: { campaignId: 1, updatedAt: -1 } },
+  { collection: Collections.V2_SHIPMENTS, keys: { creatorTrackId: 1 } },
+  { collection: Collections.V2_SHIPMENTS, keys: { trackingNumber: 1 } },
 ];
 
 function looksUnconfigured(uri: string | undefined): boolean {

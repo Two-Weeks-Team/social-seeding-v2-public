@@ -29,5 +29,6 @@ export const Collections = {
   V2_OUTBOX: "v2_outbox", // gmail.send idempotency + scheduled-send queue (drained by creator-track)
   V2_GMAIL_WATCHES: "v2_gmail_watches", // per-user Gmail Pub/Sub watch state (lastHistoryId)
   V2_SUPPRESSION_LIST: "v2_suppression_list", // unsubscribed / bounced recipients — gmail.send checks pre-send
+  V2_SHIPMENTS: "v2_shipments", // Phase 3 — one row per creator-track shipment + carrier event timeline
 } as const;
 export type CollectionName = (typeof Collections)[keyof typeof Collections];

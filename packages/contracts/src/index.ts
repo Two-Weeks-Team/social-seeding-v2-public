@@ -9,4 +9,5 @@ export * from "./campaign";
 export * from "./creator";
 export * from "./outreach";
 export * from "./policy";
+export * from "./shipment";
 export * from "./events";
