@@ -1,7 +1,7 @@
 # HANDOFF — continuing the v2 build (Claude Code CLI)
 
 > Read this first when you (or a fresh Claude Code session) pick this repo up.
-> Last handoff: **after Phase 1 + Phase 2 (all 7 chunks) done** — `pnpm run verify-build` is green, 179 tests pass.
+> Last handoff: **Phase 2 all 7 chunks + codex-review fix pass** — `pnpm run verify-build` is green, 186 tests pass.
 
 ---
 
@@ -20,7 +20,22 @@ Phase 2  Chunk 7 (Gmail Pub/Sub webhook + suppression list + unsubscribe + watch
 Phase 3  (shipping + content-verification slice)                     ⏳ NEXT
 ```
 
-`git log --oneline` shows ~51 commits since the scaffold (`66f4390`). `pnpm run verify-build` exits 0; 179 tests across `@ss/agents` (45) · `@ss/capabilities` (107) · `@ss/observability` (4) · `@ss/workflows` (27). `docs/PHASE-1-PLAN.md` unchanged (no scope creep).
+`git log --oneline` shows ~54 commits since the scaffold (`66f4390`). `pnpm run verify-build` exits 0; 186 tests across `@ss/agents` (45) · `@ss/capabilities` (109) · `@ss/observability` (4) · `@ss/workflows` (28). `docs/PHASE-1-PLAN.md` unchanged (no scope creep).
+
+### Codex review fix pass (post-P2-C7)
+
+`codex review --base p2-baseline` against the full 29-commit P2 delta surfaced 8 issues; all fixed in 3 commits:
+
+  · **P1#1** — creator-track agentCtx.capabilityCtx was missing `campaignId`. Every `gmail.send` from this workflow wrote outbox rows without it AND signed unsubscribe tokens with `cid="no-campaign"` → webhook+ unsubscribe lookups would fail in prod. **Fix**: spread `campaignId` into the ctx.
+  · **P1#2** — `step.waitForEvent` used `match: "data.threadId"`, but Inngest evaluates `match` against BOTH the trigger event (CreatorTrackStart, no threadId) and the awaited event. **Every reply wait would time out in prod.** Fix: drop `match`, use a self-contained `if` expression pinned to (campaignId, creatorId, threadId).
+  · **P1#3** — Reply classification = `unsubscribe` only set state="declined" without adding to suppression list. Fix: `step.run("suppression-from-reply")` invokes `suppression.add` before terminal patchTrack.
+  · **P2#4** — Pub/Sub webhook fails open when `GMAIL_PUBSUB_TOKEN` env is missing. Fix: route returns 503 in production when token isn't configured.
+  · **P2#5** — gmail.send idempotency race: 2 concurrent workers could both pass the existence check before either upsert → double-send. Fix: atomic claim via `insertOne({ status: "pending" })` + E11000 detect; in-flight pending row throws `concurrent_send`.
+  · **P2#6** — spam score ran on `input.bodyHtml` (pre-footer), penalizing the `noUnsubscribe` rule even though gmail.send adds the footer. Fix: score the COMPOSED HTML (post pixel + unsub footer).
+  · **P2#7** — `negotiating` branch went through the policy gate → an `auto` setting would auto-approve rate counter-offers without human review. Fix: pass `{ mode: "always_ask" }` literally for this branch.
+  · **P2#8** — `v2_suppression_list` unique index was `email` alone; the code queries `{ workspaceId, email }` → cross-workspace duplicate-key. Fix: compound `{ workspaceId: 1, email: 1 }` unique.
+
+3 regression tests added (unsubscribe→suppression, concurrent_send race, cross-workspace suppression).
 
 P2-C2 added five capabilities/modules — all credential-free testable via injected fakes:
 - `templates.render` — pure `{{var}}` variable engine with HTML-escape + missing-var policy (port of v1 `email-template-engine`).
