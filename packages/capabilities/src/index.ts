@@ -12,6 +12,7 @@ import "./tiktok/get-creator";
 import "./gmail/send";
 import "./blacklist/check";
 import "./crm/enrich";
+import "./outreach/extract-facts";
 import "./ranking/score";
 import "./templates/render";
 import "./workspace/policy";
