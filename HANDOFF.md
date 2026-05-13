@@ -1,7 +1,7 @@
 # HANDOFF — continuing the v2 build (Claude Code CLI)
 
 > Read this first when you (or a fresh Claude Code session) pick this repo up.
-> Last handoff: **Phase 2 all 7 chunks + codex-review fix pass** — `pnpm run verify-build` is green, 186 tests pass.
+> Last handoff: **Phase 2 all 7 chunks + codex-review fix pass + Step D (googleapis wiring)** — `pnpm run verify-build` is green, 189 tests pass.
 
 ---
 
@@ -20,7 +20,13 @@ Phase 2  Chunk 7 (Gmail Pub/Sub webhook + suppression list + unsubscribe + watch
 Phase 3  (shipping + content-verification slice)                     ⏳ NEXT
 ```
 
-`git log --oneline` shows ~54 commits since the scaffold (`66f4390`). `pnpm run verify-build` exits 0; 186 tests across `@ss/agents` (45) · `@ss/capabilities` (109) · `@ss/observability` (4) · `@ss/workflows` (28). `docs/PHASE-1-PLAN.md` unchanged (no scope creep).
+`git log --oneline` shows ~58 commits since the scaffold (`66f4390`). `pnpm run verify-build` exits 0; 189 tests across `@ss/agents` (45) · `@ss/capabilities` (112) · `@ss/observability` (4) · `@ss/workflows` (28). `docs/PHASE-1-PLAN.md` unchanged (no scope creep).
+
+### Step D: googleapis SDK wiring
+
+The throwing `defaultGmailClientFactory` is replaced with a real googleapis-backed implementation. `send` / `getMessage` / `listHistory` / `renewWatch` are all live. Lazy-imports googleapis so tests that always inject fakes don't load the ~50MB module on cold start. With `GOOGLE_CLIENT_ID/SECRET` + a Gmail-connected user token + `GMAIL_PUBSUB_TOPIC`, every Phase-2 code path is end-to-end runnable. See `docs/SMOKE-TEST.md` for the credential-free smoke proof.
+
+The remaining gating items for a fully-live demo are now purely **infrastructure** (not code): `ANTHROPIC_API_KEY`, `GOOGLE_CLIENT_ID/SECRET` + OAuth user-grant flow (Phase 2 didn't wire the Auth.js Gmail-connect screen — that's a Phase-2.5 polish item; for now token rows can be seeded manually), and a real GCP Pub/Sub topic for `GMAIL_PUBSUB_TOPIC`.
 
 ### Codex review fix pass (post-P2-C7)
 
