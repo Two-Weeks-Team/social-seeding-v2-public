@@ -4,19 +4,27 @@ import {
   type GateConfig,
   type OutreachDraft,
   type OutreachFacts,
+  type Shipment,
+  type ShipmentProduct,
   CreatorTrackStartEvent,
   Events,
   GmailReplyReceivedEvent,
+  ShipmentTrackingUpdatedEvent,
+  TikTokPostDetectedEvent,
+  isTerminalShipmentStatus,
 } from "@ss/contracts";
 import { campaignRepo, workspaceRepo } from "@ss/db";
 import { invokeCapability } from "@ss/capabilities";
 import {
   conversationAgent,
   conversationResponderAgent,
+  contentVerifyAgent,
+  logisticsAgent,
   needsResponseDraft,
   outreachWriterAgent,
   runAgent,
   type AgentRunContext,
+  type ContentVerifyOutput,
   type ModelClient,
 } from "@ss/agents";
 import { startTrace } from "@ss/observability";
@@ -67,16 +75,26 @@ import { inngest } from "../client";
 
 type CreatorTrackEventData = z.infer<typeof CreatorTrackStartEvent.shape.data>;
 type GmailReplyData = z.infer<typeof GmailReplyReceivedEvent.shape.data>;
+type ShipmentTrackingData = z.infer<typeof ShipmentTrackingUpdatedEvent.shape.data>;
+type PostDetectedData = z.infer<typeof TikTokPostDetectedEvent.shape.data>;
 
 export type CreatorTrackTerminalState =
   | "no_email"
   | "writer_escalated"
   | "outreach_rejected"
+  // Outreach + reply legs (Phase 2).
   | "outreach_sent" // sent + waiting (timeout path returns no_response)
   | "no_response"
   | "declined" // includes unsubscribe + not_now (collapses to a single terminal "no")
   | "in_conversation"
-  | "agreed";
+  // Shipping leg (Phase 3 C6).
+  | "shipment_rejected" // approveShipment gate said no
+  | "shipment_failed" // carrier-side terminal failure (returned / failed / cancelled)
+  | "shipped" // shipment created + handed off; awaiting carrier delivery
+  | "delivered" // carrier confirmed delivery; awaiting creator post
+  // Content-review leg (Phase 3 C6).
+  | "verified" // contentVerifyAgent → matches=true, terminal good
+  | "flaked"; // 14d-no-post OR contentVerifyAgent → matches=false
 
 export interface CreatorTrackResult {
   campaignId: string;
@@ -87,6 +105,12 @@ export interface CreatorTrackResult {
   threadId?: string;
   /** The classifier's verdict if we got a reply. */
   classification?: ConversationTurn["classification"];
+  /** Once a shipment was created, the v2_shipments row id. */
+  shipmentId?: string;
+  /** Once a post was matched + verified, the post id. */
+  postId?: string;
+  /** Content-verify scorecard if we got that far. */
+  contentVerdict?: ContentVerifyOutput;
 }
 
 export interface CreatorTrackArgs {
@@ -99,9 +123,31 @@ export interface CreatorTrackDeps {
   modelClient?: ModelClient;
   /** Public base URL plumbed into gmail.send for the tracking pixel + unsub link. */
   publicBaseUrl?: string;
+  /**
+   * Per-track product manifest. Phase 3 demo: every track in a campaign
+   * ships the same SKU; this is hard-coded here. Phase 4+ will source it
+   * from the campaign brief's `logistics.sampleSku` resolved through a
+   * product catalog.
+   */
+  products?: ShipmentProduct[];
 }
 
 const REPLY_TIMEOUT = "3d";
+/**
+ * Deadline on each shipping / content-review wait. Matches v1's
+ * 14-day-no-post heuristic + gives carriers enough room for international
+ * shipping (typical 7-10 days from Seoul → SE Asia / EU).
+ */
+const SHIPMENT_TIMEOUT = "14d";
+const CONTENT_TIMEOUT = "14d";
+
+/** Default product manifest when the caller didn't provide one. */
+const DEFAULT_DEMO_PRODUCT: ShipmentProduct = {
+  sku: "DEMO-SAMPLE",
+  name: "Demo sample",
+  valueUsdCents: 0,
+  weightGrams: 50,
+};
 
 function gateConfigFor(gates: Record<string, GateConfig>, key: keyof typeof gates): GateConfig {
   return gates[key] ?? { mode: "always_ask" };
@@ -374,21 +420,21 @@ export async function creatorTrackHandler(
     };
   }
 
-  // interested + shippingAddress → handoff to Phase 3 (shipping). For Phase 2
-  // we mark "agreed" with the threadId; the campaign rolls forward when the
-  // shipping workflow lands.
+  // interested + shippingAddress → Phase 3 shipping + content-review legs.
   if (turn.classification === "interested" && turn.extracted.shippingAddress) {
-    await patchTrack(campaignId, creatorId, "agreed", {
-      emailsSent: 1,
-      threadId: sendResult.threadId,
-    });
-    return {
+    return runShippingAndContentReview({
+      step,
+      agentCtx,
       campaignId,
       creatorId,
-      terminalState: "agreed",
-      classification: "interested",
+      creatorTrackId: `${campaignId}:${creatorId}`,
+      brief,
+      policy,
+      rawAddress: turn.extracted.shippingAddress,
+      products: deps.products ?? [DEFAULT_DEMO_PRODUCT],
       threadId: sendResult.threadId,
-    };
+      classification: turn.classification,
+    });
   }
 
   // interested (no address) / needs_info → draft a reply via the Opus
@@ -504,6 +550,295 @@ export async function creatorTrackHandler(
     terminalState: "in_conversation",
     classification: turn.classification,
     threadId: sendResult.threadId,
+  };
+}
+
+/**
+ * Phase 3 C6 — the shipping + content-review legs. Called from the
+ * `interested + shippingAddress` branch of the classification matrix once
+ * the creator has agreed and shared an address.
+ *
+ *   1. state="address_collected"; gate(approveShipment) on the (rawAddress,
+ *      brand, productManifest) tuple. Rejected → terminal shipment_rejected.
+ *   2. step.run("create-shipment") → runAgent(logisticsAgent) which parses
+ *      the address + invokes shipment.create. Escalation
+ *      ("address_unparseable") → terminal shipment_rejected.
+ *   3. state="shipped"; wait for `shipment/tracking.updated` (14d timeout)
+ *      pinned to (campaignId, creatorId). Producer is the carrier-poller
+ *      (Phase-3.5 follow-up); tests inject the event directly.
+ *   4. Branch on the carrier's reported status:
+ *        · delivered            → state="delivered"; proceed to content review.
+ *        · cancelled / failed   → terminal shipment_failed.
+ *   5. state="delivered"; wait for `tiktok/post.detected` (14d timeout).
+ *      Timeout → terminal flaked.
+ *   6. runAgent(contentVerifyAgent) on the detected post:
+ *        · matches=true → state="verified", terminal verified.
+ *        · matches=false → terminal flaked (with rationale).
+ *
+ * Gates honored at the workflow level:
+ *   · approveShipment (Phase-2 placeholder → real producer in Phase-3 C6).
+ *
+ * The Phase-2 gate() helper drives policy mode (always_ask / auto /
+ * auto_unless) and surfaces the v2_approvals row when human review is
+ * required.
+ */
+interface ShippingArgs {
+  step: StepLike;
+  agentCtx: AgentRunContext;
+  campaignId: string;
+  creatorId: string;
+  creatorTrackId: string;
+  brief: CreatorTrackEventData["brief"];
+  policy: Awaited<ReturnType<typeof workspaceRepo.getPolicy>>;
+  rawAddress: string;
+  products: ShipmentProduct[];
+  threadId: string;
+  classification: ConversationTurn["classification"];
+}
+
+async function runShippingAndContentReview(args: ShippingArgs): Promise<CreatorTrackResult> {
+  const {
+    step,
+    agentCtx,
+    campaignId,
+    creatorId,
+    creatorTrackId,
+    brief,
+    policy,
+    rawAddress,
+    products,
+    threadId,
+    classification,
+  } = args;
+
+  // ── 1. address_collected → approveShipment gate ─────────────────────────
+  await patchTrack(campaignId, creatorId, "address_collected", {
+    emailsSent: 1,
+    threadId,
+  });
+
+  const gateResolution = await gate(
+    step,
+    gateConfigFor(policy.gates as unknown as Record<string, GateConfig>, "approveShipment"),
+    {
+      campaignId,
+      workspaceId: brief.workspaceId,
+      kind: "shipment",
+      recommendation: { rawAddress, brand: brief.brandProduct.name, products },
+      rationale: `Creator agreed. About to ship ${products.length} item(s) to: "${rawAddress.slice(0, 120)}".`,
+    },
+  );
+  if (gateResolution.decision === "rejected") {
+    await patchTrack(campaignId, creatorId, "declined", {
+      emailsSent: 1,
+      threadId,
+    });
+    return {
+      campaignId,
+      creatorId,
+      terminalState: "shipment_rejected",
+      classification,
+      threadId,
+    };
+  }
+
+  // ── 2. runAgent(logistics) → shipment.create ────────────────────────────
+  const logisticsOutcome = await step.run("create-shipment", async () =>
+    runAgent(
+      logisticsAgent,
+      {
+        brief,
+        creatorTrackId,
+        creatorId,
+        rawAddress,
+        products,
+      },
+      agentCtx,
+    ),
+  );
+  if (logisticsOutcome.kind !== "ok") {
+    await patchTrack(campaignId, creatorId, "declined", {
+      emailsSent: 1,
+      threadId,
+    });
+    return {
+      campaignId,
+      creatorId,
+      terminalState: "shipment_rejected",
+      classification,
+      threadId,
+      reason: `logistics agent escalated: ${logisticsOutcome.reason}`,
+    };
+  }
+  const shipment: Shipment = logisticsOutcome.value;
+
+  // ── 3. state="shipped"; wait for carrier-side terminal status ──────────
+  await patchTrack(campaignId, creatorId, "shipped", {
+    emailsSent: 1,
+    threadId,
+  });
+
+  // Pin the wait to this specific (campaignId, creatorId, shipmentId) tuple
+  // via an `if` expression — same pattern as the Gmail reply wait (codex
+  // review P2-C5 P1#2). The carrier-poller (Phase-3.5) is the producer; for
+  // tests, the integration suite injects the event.
+  const trackingEvent = await step.waitForEvent<ShipmentTrackingData>(
+    `await-shipment:${campaignId}:${creatorId}`,
+    {
+      event: Events.ShipmentTrackingUpdated,
+      timeout: SHIPMENT_TIMEOUT,
+      if: `event.data.campaignId == "${campaignId}" && event.data.creatorId == "${creatorId}" && event.data.shipmentId == "${shipment.id}"`,
+    },
+  );
+  if (!trackingEvent) {
+    // No carrier update in 14d. Conservative: surface for human review by
+    // leaving the track in `shipped`; MC's shipment view picks it up.
+    return {
+      campaignId,
+      creatorId,
+      terminalState: "shipped",
+      classification,
+      threadId,
+      shipmentId: shipment.id,
+      reason: `no carrier update within ${SHIPMENT_TIMEOUT}`,
+    };
+  }
+  if (!isTerminalShipmentStatus(trackingEvent.data.status)) {
+    // Mid-flight status (in_transit, out_for_delivery, etc.) shouldn't fire
+    // this wait — but the `if` expression doesn't filter by status, so we
+    // gate here too. Defensive: same as no-update path.
+    return {
+      campaignId,
+      creatorId,
+      terminalState: "shipped",
+      classification,
+      threadId,
+      shipmentId: shipment.id,
+      reason: `carrier reported non-terminal status='${trackingEvent.data.status}' — awaiting next update`,
+    };
+  }
+
+  if (trackingEvent.data.status === "delivered") {
+    await patchTrack(campaignId, creatorId, "delivered", {
+      emailsSent: 1,
+      threadId,
+    });
+    // Fall through to content-review leg below.
+  } else {
+    // cancelled. The contract's terminal set is { delivered, cancelled };
+    // failed / returned trigger human review (kept in `shipped` for MC).
+    await patchTrack(campaignId, creatorId, "declined", {
+      emailsSent: 1,
+      threadId,
+    });
+    return {
+      campaignId,
+      creatorId,
+      terminalState: "shipment_failed",
+      classification,
+      threadId,
+      shipmentId: shipment.id,
+      reason: `carrier final status='${trackingEvent.data.status}'`,
+    };
+  }
+
+  // ── 4. content_review wait + verify ─────────────────────────────────────
+  const postEvent = await step.waitForEvent<PostDetectedData>(
+    `await-post:${campaignId}:${creatorId}`,
+    {
+      event: Events.TikTokPostDetected,
+      timeout: CONTENT_TIMEOUT,
+      if: `event.data.campaignId == "${campaignId}" && event.data.creatorId == "${creatorId}"`,
+    },
+  );
+  if (!postEvent) {
+    await patchTrack(campaignId, creatorId, "flaked", {
+      emailsSent: 1,
+      threadId,
+    });
+    return {
+      campaignId,
+      creatorId,
+      terminalState: "flaked",
+      classification,
+      threadId,
+      shipmentId: shipment.id,
+      reason: `no post detected within ${CONTENT_TIMEOUT}`,
+    };
+  }
+
+  const verifyOutcome = await step.run("verify-content", async () =>
+    runAgent(
+      contentVerifyAgent,
+      {
+        brief,
+        post: {
+          postId: postEvent.data.postId,
+          desc: postEvent.data.desc,
+          hashtags: postEvent.data.hashtags,
+          views: postEvent.data.views,
+          likes: postEvent.data.likes,
+          comments: postEvent.data.comments,
+          shares: postEvent.data.shares,
+          createdAt: postEvent.data.createdAt,
+          matchedHashtags: postEvent.data.matchedHashtags,
+        },
+        baselineAvgViews: 0,
+        competitorNames: [],
+      },
+      agentCtx,
+    ),
+  );
+  if (verifyOutcome.kind !== "ok") {
+    await patchTrack(campaignId, creatorId, "flaked", {
+      emailsSent: 1,
+      threadId,
+    });
+    return {
+      campaignId,
+      creatorId,
+      terminalState: "flaked",
+      classification,
+      threadId,
+      shipmentId: shipment.id,
+      postId: postEvent.data.postId,
+      reason: `content-verify escalated: ${verifyOutcome.reason}`,
+    };
+  }
+  const verdict = verifyOutcome.value;
+
+  if (verdict.matches) {
+    await patchTrack(campaignId, creatorId, "verified", {
+      emailsSent: 1,
+      threadId,
+    });
+    return {
+      campaignId,
+      creatorId,
+      terminalState: "verified",
+      classification,
+      threadId,
+      shipmentId: shipment.id,
+      postId: postEvent.data.postId,
+      contentVerdict: verdict,
+    };
+  }
+
+  // matches=false → flaked (with rationale)
+  await patchTrack(campaignId, creatorId, "flaked", {
+    emailsSent: 1,
+    threadId,
+  });
+  return {
+    campaignId,
+    creatorId,
+    terminalState: "flaked",
+    classification,
+    threadId,
+    shipmentId: shipment.id,
+    postId: postEvent.data.postId,
+    contentVerdict: verdict,
+    reason: verdict.rationale,
   };
 }
 

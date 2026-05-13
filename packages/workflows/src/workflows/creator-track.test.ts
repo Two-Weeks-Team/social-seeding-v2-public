@@ -3,9 +3,11 @@ import type { CampaignBrief, ConversationTurn, OutreachDraft, ReplyClass, TikTok
 import { campaignRepo, closeMongo, Collections, getDb } from "@ss/db";
 import { memorySink, setObservabilitySink } from "@ss/observability";
 import {
+  setCarrierClientFactory,
   setGmailClientFactory,
   setUsageStore,
   tokenManager,
+  type CarrierClient,
   type GmailClient,
   type UsageStore,
 } from "@ss/capabilities";
@@ -85,7 +87,7 @@ const cleanDraft: OutreachDraft = {
 interface StepLog {
   runs: string[];
   events: Array<{ name: string; data: unknown }>;
-  waits: Array<{ event: string; match: string; timeout: string }>;
+  waits: Array<{ event: string; match?: string; timeout: string }>;
 }
 
 interface FakeStepOpts {
@@ -93,13 +95,42 @@ interface FakeStepOpts {
   approvals?: Partial<Record<string, ApprovalResolvedData["decision"]>>;
   /** Reply event payload to inject; if null, simulate a 3-day timeout. */
   reply?: { fromEmail: string; subject: string; bodyText: string; messageId: string } | null;
+  /**
+   * Phase 3 C6 — shipment-tracking event payload to inject when the workflow
+   * hits its `await-shipment:…` wait. `null` ⇒ 14-day timeout (no carrier
+   * update).
+   */
+  shipmentEvent?: {
+    status: "delivered" | "cancelled" | "failed" | "returned" | "in_transit" | "out_for_delivery" | "shipped" | "pending" | "address_pending";
+    trackingNumber: string;
+  } | null;
+  /**
+   * Phase 3 C6 — post-detected payload to inject for the `await-post:…`
+   * wait. `null` ⇒ 14-day no-post timeout.
+   */
+  postEvent?: {
+    postId: string;
+    desc: string;
+    hashtags: string[];
+    views: number;
+    likes: number;
+    comments: number;
+    shares: number;
+    createdAt: Date;
+    matchedHashtags: string[];
+  } | null;
 }
 
 function fakeStep(opts: FakeStepOpts): { step: StepLike; log: StepLog } {
   const log: StepLog = { runs: [], events: [], waits: [] };
+  /** Most recently `step.run("approval:create:<kind>")` — drives per-kind approval decisions. */
+  let lastApprovalKind: string | undefined;
   const step: StepLike = {
     async run(name, fn) {
       log.runs.push(name);
+      if (name.startsWith("approval:create:")) {
+        lastApprovalKind = name.replace("approval:create:", "");
+      }
       return fn();
     },
     async sendEvent(_stepName, payload) {
@@ -107,14 +138,13 @@ function fakeStep(opts: FakeStepOpts): { step: StepLike; log: StepLog } {
       for (const p of arr) log.events.push(p);
       return { ids: arr.map((_, i) => `evt_${log.events.length - arr.length + i}`) };
     },
-    async waitForEvent<T = ApprovalResolvedData>(stepName: string, optsArg: { event: string; match: string; timeout: string }) {
+    async waitForEvent<T = ApprovalResolvedData>(stepName: string, optsArg: { event: string; match?: string; timeout: string }) {
       log.waits.push({ event: optsArg.event, match: optsArg.match, timeout: optsArg.timeout });
-      // approvals resolve based on gate kind embedded in the step name
+      // approvals resolve based on the kind of the most recent
+      // step.run("approval:create:<kind>") — gate() always pairs them.
       if (stepName.startsWith("await-approval:")) {
         const approvalId = stepName.replace("await-approval:", "");
-        // approvalId in our fake = the same id step.run("approval:create:<kind>") returned.
-        // Defaults to "approved".
-        const decision = (opts.approvals?.[approvalId] ?? "approved") as ApprovalResolvedData["decision"];
+        const decision = (opts.approvals?.[lastApprovalKind ?? ""] ?? "approved") as ApprovalResolvedData["decision"];
         const data: ApprovalResolvedData = { approvalId, campaignId: "", decision };
         return { data: data as unknown as T };
       }
@@ -132,10 +162,47 @@ function fakeStep(opts: FakeStepOpts): { step: StepLike; log: StepLog } {
         };
         return { data: data as unknown as T };
       }
+      // Phase 3 C6 — shipment tracking wait
+      if (stepName.startsWith("await-shipment:")) {
+        if (!opts.shipmentEvent) return null;
+        const data = {
+          campaignId,
+          creatorTrackId: `${campaignId}:${creator.id}`,
+          creatorId: creator.id,
+          shipmentId: "ship_test_1",
+          status: opts.shipmentEvent.status,
+          trackingNumber: opts.shipmentEvent.trackingNumber,
+        };
+        return { data: data as unknown as T };
+      }
+      // Phase 3 C6 — post-detected wait
+      if (stepName.startsWith("await-post:")) {
+        if (!opts.postEvent) return null;
+        const data = {
+          campaignId,
+          creatorTrackId: `${campaignId}:${creator.id}`,
+          creatorId: creator.id,
+          ...opts.postEvent,
+        };
+        return { data: data as unknown as T };
+      }
       return null;
     },
   };
   return { step, log };
+}
+
+// ── Fake CarrierClient: returns a fixed tracking number ─────────────────────
+
+function fakeCarrier(): CarrierClient {
+  let n = 0;
+  return {
+    async createShipment() {
+      n++;
+      return { trackingNumber: `YT${String(n).padStart(8, "0")}` };
+    },
+    async trackShipment() { return { events: [] }; },
+  };
 }
 
 // ── Fake GmailClient: deterministic message+thread ids ───────────────────────
@@ -163,9 +230,23 @@ function dispatchingModel(args: {
   extracted?: ConversationTurn["extracted"];
   needsHumanReason?: string;
   responder?: { subject: string; body: string } | { escalate: string };
+  /** Phase 3 C6 — drives the logistics agent's two-step (extractFacts→answer). */
+  logistics?: {
+    parsedAddress: {
+      recipientName: string; phone: string; line1: string; line2: string;
+      city: string; region: string; postalCode: string; countryCode: string;
+    };
+    escalate?: string;
+  };
+  /** Phase 3 C6 — content-verify is pure-text (no tools). */
+  contentVerdict?: {
+    matches: boolean; mentionsBrand: boolean; performanceScore: number;
+    flags: string[]; rationale: string;
+  };
 }): ModelClient {
   let writerStep = 0;
   let responderStep = 0;
+  let logisticsStep = 0;
   return {
     complete: async ({ system, messages }) => {
       // Writer agent — recognized by "Outreach Writer agent" in the prompt.
@@ -265,6 +346,57 @@ function dispatchingModel(args: {
         };
       }
 
+      // Logistics agent — recognized by "Logistics agent" in the prompt.
+      if (system.includes("Logistics agent")) {
+        if (!args.logistics) {
+          throw new Error("dispatchingModel: logistics asked but no script provided");
+        }
+        if (args.logistics.escalate) {
+          return {
+            kind: "text",
+            text: JSON.stringify({ escalate: args.logistics.escalate }),
+            inputTokens: 60, outputTokens: 10,
+          };
+        }
+        const at = logisticsStep++;
+        if (at === 0) {
+          return {
+            kind: "tool_use", toolUseId: "ship",
+            toolName: "shipment.create",
+            toolInput: {
+              // Note: campaignId intentionally omitted (codex review P2#3 —
+              // ctx provides the trusted value).
+              creatorTrackId: `${campaignId}:${creator.id}`,
+              creatorId: creator.id,
+              carrier: "yuntrack",
+              shippingAddress: args.logistics.parsedAddress,
+              products: [{ sku: "DEMO-SAMPLE", name: "Demo sample", valueUsdCents: 0, weightGrams: 50 }],
+              reference: "",
+              notes: "",
+            },
+            inputTokens: 60, outputTokens: 10,
+          } satisfies ModelTurn;
+        }
+        // Echo the shipment.create result.
+        const last = messages[messages.length - 1];
+        const jsonPart = last?.content?.startsWith("Tool result for shipment.create")
+          ? last.content.slice(last.content.indexOf("\n") + 1)
+          : "{}";
+        return { kind: "text", text: jsonPart, inputTokens: 60, outputTokens: 200 };
+      }
+
+      // Content-verify agent — recognized by "Content-Verify agent".
+      if (system.includes("Content-Verify agent")) {
+        if (!args.contentVerdict) {
+          throw new Error("dispatchingModel: contentVerify asked but no verdict provided");
+        }
+        return {
+          kind: "text",
+          text: JSON.stringify(args.contentVerdict),
+          inputTokens: 200, outputTokens: 80,
+        };
+      }
+
       throw new Error(`dispatchingModel: unknown agent in system prompt: ${system.slice(0, 120)}`);
     },
   };
@@ -281,6 +413,13 @@ beforeAll(async () => {
   }
   originalSecret = process.env.EMAIL_UNSUBSCRIBE_HMAC_SECRET;
   process.env.EMAIL_UNSUBSCRIBE_HMAC_SECRET = "test_secret_at_least_16_chars_xxxxx";
+  // Phase 3 shipment.create idempotency needs the unique index on
+  // creatorTrackId; the production scripts/init-indexes.ts creates it.
+  const db = await getDb();
+  await db
+    .collection(Collections.V2_SHIPMENTS)
+    .createIndex({ creatorTrackId: 1 }, { unique: true })
+    .catch(() => undefined);
 });
 
 beforeEach(async () => {
@@ -290,6 +429,7 @@ beforeEach(async () => {
   await db.collection(Collections.V2_WORKSPACE_POLICIES).deleteMany({});
   await db.collection(Collections.V2_OUTBOX).deleteMany({});
   await db.collection(Collections.V2_SUPPRESSION_LIST).deleteMany({});
+  await db.collection(Collections.V2_SHIPMENTS).deleteMany({});
   await db.collection(Collections.SHARED_USER_TOKENS).deleteMany({});
 
   // Seed a campaign so patchTrack works.
@@ -315,6 +455,7 @@ afterEach(() => {
   setObservabilitySink(undefined);
   setUsageStore(undefined);
   setGmailClientFactory(undefined);
+  setCarrierClientFactory(undefined);
 });
 
 afterAll(async () => {
@@ -349,9 +490,10 @@ describe("creator-track — branching matrix", () => {
     expect(fake.log.runs).not.toContain("draft-outreach");
   });
 
-  it("happy: interested + shippingAddress ⇒ writer → outreach send → classify → state='agreed'", async () => {
+  it("happy P3 full loop: outreach → reply (interested+address) → ship → delivered → post.detected → verified", async () => {
     const gmail = fakeGmail();
     setGmailClientFactory(async () => gmail);
+    setCarrierClientFactory(async () => fakeCarrier());
     const fake = fakeStep({
       reply: {
         fromEmail: "freshly@example.com",
@@ -359,26 +501,60 @@ describe("creator-track — branching matrix", () => {
         bodyText: "보내주세요. 주소는 서울 강남구 가로수길 12, 101호 06000 입니다.",
         messageId: "msg_in_1",
       },
+      shipmentEvent: { status: "delivered", trackingNumber: "YT00000001" },
+      postEvent: {
+        postId: "p_creator_1",
+        desc: "Hydra Serum 진짜 발림성 좋아요 #스킨케어",
+        hashtags: ["스킨케어"],
+        views: 22_000,
+        likes: 1_800,
+        comments: 80,
+        shares: 30,
+        createdAt: new Date(),
+        matchedHashtags: ["스킨케어"],
+      },
     });
     const model = dispatchingModel({
       classification: "interested",
       extracted: { shippingAddress: "서울 강남구 가로수길 12, 101호 06000" },
+      logistics: {
+        parsedAddress: {
+          recipientName: "Jiwoo", phone: "+82-10-0000-0000",
+          line1: "12 Garosu-gil", line2: "Apt 101",
+          city: "Seoul", region: "Gangnam-gu",
+          postalCode: "06000", countryCode: "KR",
+        },
+      },
+      contentVerdict: {
+        matches: true, mentionsBrand: true, performanceScore: 82, flags: [],
+        rationale: "Brand named, 1.8× baseline views, specific narrative.",
+      },
     });
     const out = await run(model, fake);
 
-    expect(out.terminalState).toBe("agreed");
+    expect(out.terminalState).toBe("verified");
     expect(out.classification).toBe("interested");
     expect(out.threadId).toBe("thread_test_1");
+    expect(out.shipmentId).toBeTruthy();
+    expect(out.postId).toBe("p_creator_1");
+    expect(out.contentVerdict?.matches).toBe(true);
 
-    // gmail.send called exactly once (outreach, not the reply — agreed terminates before draft-response)
+    // gmail.send: outreach only (no reply drafted on the agreed/ship path).
     expect(gmail.calls).toHaveLength(1);
 
-    // Track state in Mongo
+    // step.run sequence includes the new shipping + content steps.
+    expect(fake.log.runs).toContain("create-shipment");
+    expect(fake.log.runs).toContain("verify-content");
+    // step.waitForEvent sequence: gmail-reply, shipment, post.
+    const events = fake.log.waits.map((w) => w.event);
+    expect(events).toContain("gmail/reply.received");
+    expect(events).toContain("shipment/tracking.updated");
+    expect(events).toContain("tiktok/post.detected");
+
+    // Track state in Mongo: final state = verified.
     const persisted = await campaignRepo.get(campaignId);
     const track = persisted?.tracks.find((t) => t.creatorId === creator.id);
-    expect(track?.state).toBe("agreed");
-    expect(track?.emailsSent).toBe(1);
-    expect(track?.threadId).toBe("thread_test_1");
+    expect(track?.state).toBe("verified");
   });
 
   it("interested + no address ⇒ responder drafts a follow-up; gmail.send called 2× (outreach + reply); state='in_conversation'", async () => {
@@ -550,5 +726,153 @@ describe("creator-track — branching matrix", () => {
     expect(out.terminalState).toBe("writer_escalated");
     expect(out.reason).toContain("insufficient_context");
     expect(gmail.calls).toHaveLength(0);
+  });
+
+  // ── Phase 3 C6 — shipping + content-review branches ────────────────────────
+
+  it("P3: approveShipment rejected ⇒ terminal 'shipment_rejected' before logistics runs", async () => {
+    const gmail = fakeGmail();
+    setGmailClientFactory(async () => gmail);
+    setCarrierClientFactory(async () => fakeCarrier());
+    const fake = fakeStep({
+      reply: {
+        fromEmail: "freshly@example.com",
+        subject: "Re: Quick collab",
+        bodyText: "Address: 12 Garosu-gil 06000",
+        messageId: "msg_in_p3a",
+      },
+      approvals: { shipment: "rejected" },
+    });
+    const model = dispatchingModel({
+      classification: "interested",
+      extracted: { shippingAddress: "12 Garosu-gil 06000" },
+    });
+    const out = await run(model, fake);
+    expect(out.terminalState).toBe("shipment_rejected");
+    expect(fake.log.runs).not.toContain("create-shipment");
+  });
+
+  it("P3: logistics agent escalates address_unparseable ⇒ terminal 'shipment_rejected'", async () => {
+    const gmail = fakeGmail();
+    setGmailClientFactory(async () => gmail);
+    setCarrierClientFactory(async () => fakeCarrier());
+    const fake = fakeStep({
+      reply: {
+        fromEmail: "freshly@example.com",
+        subject: "Re: Quick collab",
+        bodyText: "Yes, here: nowhere",
+        messageId: "msg_in_p3b",
+      },
+    });
+    const model = dispatchingModel({
+      classification: "interested",
+      extracted: { shippingAddress: "nowhere" },
+      logistics: { parsedAddress: {} as never, escalate: "address_unparseable: missing postalCode" },
+    });
+    const out = await run(model, fake);
+    expect(out.terminalState).toBe("shipment_rejected");
+    expect(out.reason).toMatch(/address_unparseable/);
+  });
+
+  it("P3: carrier reports cancelled ⇒ terminal 'shipment_failed' (no post-detect wait)", async () => {
+    const gmail = fakeGmail();
+    setGmailClientFactory(async () => gmail);
+    setCarrierClientFactory(async () => fakeCarrier());
+    const fake = fakeStep({
+      reply: {
+        fromEmail: "freshly@example.com",
+        subject: "Re: Quick collab",
+        bodyText: "Address: 12 Garosu-gil 06000",
+        messageId: "msg_in_p3c",
+      },
+      shipmentEvent: { status: "cancelled", trackingNumber: "YT00000001" },
+    });
+    const model = dispatchingModel({
+      classification: "interested",
+      extracted: { shippingAddress: "서울 가로수길 12 06000" },
+      logistics: {
+        parsedAddress: {
+          recipientName: "Jiwoo", phone: "", line1: "12 Garosu-gil", line2: "",
+          city: "Seoul", region: "", postalCode: "06000", countryCode: "KR",
+        },
+      },
+    });
+    const out = await run(model, fake);
+    expect(out.terminalState).toBe("shipment_failed");
+    expect(out.shipmentId).toBeTruthy();
+    // post.detected wait was never entered.
+    expect(fake.log.waits.some((w) => w.event === "tiktok/post.detected")).toBe(false);
+  });
+
+  it("P3: delivered + no post within 14d ⇒ terminal 'flaked'", async () => {
+    const gmail = fakeGmail();
+    setGmailClientFactory(async () => gmail);
+    setCarrierClientFactory(async () => fakeCarrier());
+    const fake = fakeStep({
+      reply: {
+        fromEmail: "freshly@example.com",
+        subject: "Re: Quick collab",
+        bodyText: "Address: 12 Garosu-gil 06000",
+        messageId: "msg_in_p3d",
+      },
+      shipmentEvent: { status: "delivered", trackingNumber: "YT00000001" },
+      postEvent: null, // timeout
+    });
+    const model = dispatchingModel({
+      classification: "interested",
+      extracted: { shippingAddress: "서울 가로수길 12 06000" },
+      logistics: {
+        parsedAddress: {
+          recipientName: "Jiwoo", phone: "", line1: "12 Garosu-gil", line2: "",
+          city: "Seoul", region: "", postalCode: "06000", countryCode: "KR",
+        },
+      },
+    });
+    const out = await run(model, fake);
+    expect(out.terminalState).toBe("flaked");
+    expect(out.reason).toMatch(/no post detected/);
+    expect(fake.log.runs).not.toContain("verify-content");
+  });
+
+  it("P3: post detected but content-verify matches=false ⇒ terminal 'flaked' with rationale", async () => {
+    const gmail = fakeGmail();
+    setGmailClientFactory(async () => gmail);
+    setCarrierClientFactory(async () => fakeCarrier());
+    const fake = fakeStep({
+      reply: {
+        fromEmail: "freshly@example.com",
+        subject: "Re: Quick collab",
+        bodyText: "Address: 12 Garosu-gil 06000",
+        messageId: "msg_in_p3e",
+      },
+      shipmentEvent: { status: "delivered", trackingNumber: "YT00000001" },
+      postEvent: {
+        postId: "p_off_topic",
+        desc: "오늘 점심 떡볶이 후기 #스킨케어",
+        hashtags: ["스킨케어"],
+        views: 800, likes: 20, comments: 1, shares: 0,
+        createdAt: new Date(),
+        matchedHashtags: ["스킨케어"],
+      },
+    });
+    const model = dispatchingModel({
+      classification: "interested",
+      extracted: { shippingAddress: "서울 가로수길 12 06000" },
+      logistics: {
+        parsedAddress: {
+          recipientName: "Jiwoo", phone: "", line1: "12 Garosu-gil", line2: "",
+          city: "Seoul", region: "", postalCode: "06000", countryCode: "KR",
+        },
+      },
+      contentVerdict: {
+        matches: false, mentionsBrand: false, performanceScore: 22,
+        flags: ["off_topic", "no_brand_mention"],
+        rationale: "Hashtag overlap is coincidental — post is about food.",
+      },
+    });
+    const out = await run(model, fake);
+    expect(out.terminalState).toBe("flaked");
+    expect(out.contentVerdict?.matches).toBe(false);
+    expect(out.reason).toContain("coincidental");
   });
 });
