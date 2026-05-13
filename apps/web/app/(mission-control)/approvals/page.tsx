@@ -26,12 +26,12 @@ const KIND_LABEL: Record<Approval["kind"], string> = {
 const KIND_PHASE: Record<Approval["kind"], string | null> = {
   shortlist: null,
   outreach_send: null, // P2-C6a: drill-in live
-  reply_response: "Phase 2",
+  reply_response: null, // P2-C6b: drill-in live
   shipment: "Phase 3",
   stage_advance: null,
 };
 
-const REVIEWABLE_KINDS = new Set<Approval["kind"]>(["shortlist", "outreach_send"]);
+const REVIEWABLE_KINDS = new Set<Approval["kind"]>(["shortlist", "outreach_send", "reply_response"]);
 
 /** Best-effort subject extraction from an outreach_send recommendation (which is OutreachDraft). */
 function outreachSubject(rec: unknown): string | null {

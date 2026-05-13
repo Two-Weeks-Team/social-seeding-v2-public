@@ -9,7 +9,15 @@ import { Card, CardBody, SectionLabel } from "@/components/ui/card";
 import { getServerSession } from "@/lib/auth";
 import { approvalRepo, campaignRepo } from "@ss/db";
 import { inngest } from "@ss/workflows";
-import { Events, OutreachDraftSchema, type Approval, type Candidate, type OutreachDraft } from "@ss/contracts";
+import {
+  Events,
+  ConversationTurnSchema,
+  OutreachDraftSchema,
+  type Approval,
+  type Candidate,
+  type ConversationTurn,
+  type OutreachDraft,
+} from "@ss/contracts";
 
 /**
  * Approval drill-in. Server component (form) + server action for resolve.
@@ -204,6 +212,9 @@ export default async function ApprovalDetailPage({ params }: { params: Promise<{
 
   if (approval.kind === "outreach_send") {
     return renderOutreachSendApproval(approval, campaign?.brief.brandProduct.name);
+  }
+  if (approval.kind === "reply_response") {
+    return renderReplyResponseApproval(approval, campaign?.brief.brandProduct.name);
   }
 
   if (approval.kind !== "shortlist") {
@@ -428,6 +439,252 @@ function renderOutreachSendApproval(approval: Approval, brandName: string | unde
           <Button type="submit" name="decision" value="reject" tone="reject">거부</Button>
           <Button type="submit" name="decision" value="approveEdited" variant="primary" tone="approve">
             승인 (편집 반영)
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+const CLASSIFICATION_LABEL: Record<ConversationTurn["classification"], string> = {
+  interested: "interested",
+  needs_info: "needs_info",
+  negotiating: "negotiating",
+  not_now: "not_now",
+  declined: "declined",
+  out_of_office: "out_of_office",
+  unsubscribe: "unsubscribe",
+  unrelated: "unrelated",
+};
+
+const CLASSIFICATION_TONE: Record<ConversationTurn["classification"], "emerald" | "blue" | "amber" | "rose" | "slate"> = {
+  interested: "emerald",
+  needs_info: "blue",
+  negotiating: "amber",
+  not_now: "slate",
+  declined: "rose",
+  out_of_office: "slate",
+  unsubscribe: "rose",
+  unrelated: "slate",
+};
+
+/**
+ * reply_response drill-in. The approval's `recommendation` can be either
+ * shape depending on which workflow branch surfaced it:
+ *   · ConversationTurn  — fired by creator-track's escalate-negotiating step
+ *                         when the classifier returned 'negotiating'. No reply
+ *                         was drafted; the human writes one in MC (or rejects
+ *                         to close the track).
+ *   · responder draft   — fired by the approveReplyResponse gate when the
+ *                         responder agent produced { subject, body,
+ *                         deliverabilityScore? }. Editable + sendable.
+ *
+ * We detect the shape via Zod safeParse; whichever parses successfully wins.
+ * The "incoming" message body isn't on the approval directly — but the
+ * workflow records it on the trace, and the rationale carries the gist. We
+ * surface the extracted signals (question / proposedRateUsd / shippingAddress)
+ * verbatim instead.
+ */
+function renderReplyResponseApproval(approval: Approval, brandName: string | undefined): React.ReactElement {
+  const asTurn = ConversationTurnSchema.safeParse(approval.recommendation);
+  const asDraft = OutreachDraftSchema.pick({ subject: true, body: true }).extend({
+    deliverabilityScore: z.number().min(0).max(1).optional(),
+  }).safeParse(approval.recommendation);
+
+  if (asTurn.success && !asDraft.success) {
+    return renderReplyResponseEscalation(approval, brandName, asTurn.data);
+  }
+  if (asDraft.success) {
+    return renderReplyResponseDraft(approval, brandName, asDraft.data);
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto px-8 py-8">
+      <Link href="/approvals" className="text-[11px] text-slate-500 hover:text-slate-900">← 승인 인박스</Link>
+      <h1 className="mt-2 text-[18px] font-semibold">reply_response</h1>
+      <p className="mt-1 text-[13px] text-rose-600">
+        승인에 첨부된 데이터가 ConversationTurn 도 responder draft 도 아닙니다 (ID: {approval.id}). 워크플로 로그를 확인해주세요.
+      </p>
+    </div>
+  );
+}
+
+function renderReplyResponseEscalation(
+  approval: Approval,
+  brandName: string | undefined,
+  turn: ConversationTurn,
+): React.ReactElement {
+  return (
+    <div className="max-w-4xl mx-auto px-8 py-8">
+      <header className="mb-4">
+        <Link href="/approvals" className="text-[11px] text-slate-500 hover:text-slate-900">← 승인 인박스</Link>
+        <div className="mt-2 flex items-end justify-between flex-wrap gap-3">
+          <div>
+            <SectionLabel>REPLY_RESPONSE · escalated</SectionLabel>
+            <h1 className="mt-1 text-[22px] font-semibold">
+              {brandName ?? "(unknown campaign)"} · 사람 검토 필요
+            </h1>
+            <div className="mt-1 text-[12px] text-slate-500">
+              대기 시작 {Math.floor((Date.now() - approval.createdAt.getTime()) / 60000)}분 전 · 캠페인{" "}
+              <Link className="underline hover:text-slate-900 mono" href={`/campaigns/${approval.campaignId}`}>
+                camp_{approval.campaignId.slice(0, 12)}
+              </Link>
+            </div>
+          </div>
+          <Badge variant={CLASSIFICATION_TONE[turn.classification]}>
+            classification: {CLASSIFICATION_LABEL[turn.classification]}
+          </Badge>
+        </div>
+      </header>
+
+      <Card className="mb-4">
+        <CardBody>
+          <SectionLabel className="mb-2">분류기가 escalate 한 이유</SectionLabel>
+          <p className="text-[13px] text-slate-700 leading-relaxed">
+            {turn.needsHumanReason ?? approval.rationale}
+          </p>
+        </CardBody>
+      </Card>
+
+      <Card className="mb-4">
+        <CardBody>
+          <SectionLabel className="mb-2">추출된 신호</SectionLabel>
+          <dl className="text-[13px] space-y-2">
+            {turn.extracted.proposedRateUsd !== undefined && (
+              <div>
+                <dt className="text-[11px] text-slate-500">제안된 단가</dt>
+                <dd className="mono">USD {turn.extracted.proposedRateUsd.toLocaleString()}</dd>
+              </div>
+            )}
+            {turn.extracted.question && (
+              <div>
+                <dt className="text-[11px] text-slate-500">질문 (verbatim)</dt>
+                <dd className="bg-slate-50 border border-slate-200 rounded px-3 py-2">
+                  {turn.extracted.question}
+                </dd>
+              </div>
+            )}
+            {turn.extracted.shippingAddress && (
+              <div>
+                <dt className="text-[11px] text-slate-500">공유된 배송지</dt>
+                <dd className="mono">{turn.extracted.shippingAddress}</dd>
+              </div>
+            )}
+            {Object.values(turn.extracted).every((v) => v === undefined) && (
+              <div className="text-[12px] text-slate-500">(추출된 신호 없음 — body 전체를 트레이스에서 확인해주세요)</div>
+            )}
+          </dl>
+        </CardBody>
+      </Card>
+
+      <Card className="mb-4">
+        <CardBody>
+          <SectionLabel className="mb-2">thread 정보</SectionLabel>
+          <dl className="text-[12px] mono text-slate-600 space-y-1">
+            <div>thread_id: {turn.threadId}</div>
+            <div>creator_id: {turn.creatorId}</div>
+            <div>incoming_message_id: {turn.incomingMessageId}</div>
+          </dl>
+          <p className="mt-3 text-[12px] text-slate-500">
+            이 단계는 자동 응답이 없습니다. <strong>거부</strong>는 트랙을 종료하고, <strong>승인</strong>은 단순히 사람 검토 완료 표시입니다 — 실제 회신은 별도로 처리해주세요 (P2.5 follow-up: thread view 에서 수동 reply).
+          </p>
+        </CardBody>
+      </Card>
+
+      <form action={resolveAction} className="flex justify-end gap-2">
+        <input type="hidden" name="approvalId" value={approval.id} />
+        <Button type="submit" name="decision" value="reject" tone="reject">거부 (트랙 종료)</Button>
+        <Button type="submit" name="decision" value="approveAll" variant="primary" tone="approve">
+          확인 완료
+        </Button>
+      </form>
+    </div>
+  );
+}
+
+function renderReplyResponseDraft(
+  approval: Approval,
+  brandName: string | undefined,
+  draft: { subject: string; body: string; deliverabilityScore?: number },
+): React.ReactElement {
+  return (
+    <div className="max-w-4xl mx-auto px-8 py-8">
+      <header className="mb-4">
+        <Link href="/approvals" className="text-[11px] text-slate-500 hover:text-slate-900">← 승인 인박스</Link>
+        <div className="mt-2 flex items-end justify-between flex-wrap gap-3">
+          <div>
+            <SectionLabel>REPLY_RESPONSE · drafted reply</SectionLabel>
+            <h1 className="mt-1 text-[22px] font-semibold">
+              {brandName ?? "(unknown campaign)"} · 자동 회신 검토
+            </h1>
+            <div className="mt-1 text-[12px] text-slate-500">
+              대기 시작 {Math.floor((Date.now() - approval.createdAt.getTime()) / 60000)}분 전 · 캠페인{" "}
+              <Link className="underline hover:text-slate-900 mono" href={`/campaigns/${approval.campaignId}`}>
+                camp_{approval.campaignId.slice(0, 12)}
+              </Link>
+            </div>
+          </div>
+          {draft.deliverabilityScore !== undefined && (
+            <Badge variant={draft.deliverabilityScore >= 0.8 ? "emerald" : draft.deliverabilityScore >= 0.5 ? "amber" : "rose"}>
+              deliverability {draft.deliverabilityScore.toFixed(2)}
+            </Badge>
+          )}
+        </div>
+      </header>
+
+      <Card className="mb-4">
+        <CardBody>
+          <SectionLabel className="mb-2">에이전트가 이 안을 고른 이유</SectionLabel>
+          <p className="text-[13px] text-slate-700 leading-relaxed">{approval.rationale}</p>
+        </CardBody>
+      </Card>
+
+      {draft.deliverabilityScore !== undefined && (
+        <Card className="mb-4">
+          <CardBody>
+            <SectionLabel className="mb-2">deliverability self-check</SectionLabel>
+            <ScoreBar label="deliverability" value={draft.deliverabilityScore} />
+          </CardBody>
+        </Card>
+      )}
+
+      <form action={resolveAction}>
+        <input type="hidden" name="approvalId" value={approval.id} />
+
+        <Card className="mb-4">
+          <CardBody>
+            <SectionLabel className="mb-2">subject</SectionLabel>
+            <input
+              type="text"
+              name="editedSubject"
+              defaultValue={draft.subject}
+              maxLength={120}
+              className="w-full border border-slate-200 rounded px-3 py-2 text-[14px]"
+            />
+            <SectionLabel className="mt-4 mb-2">body (HTML)</SectionLabel>
+            <textarea
+              name="editedBody"
+              defaultValue={draft.body}
+              rows={8}
+              className="w-full border border-slate-200 rounded p-3 text-[12px] mono"
+            />
+          </CardBody>
+        </Card>
+
+        <Card className="mb-4">
+          <CardBody>
+            <SectionLabel className="mb-2">preview (sandboxed)</SectionLabel>
+            <HtmlPreview html={draft.body} height={200} />
+            <p className="mt-2 text-[11px] text-slate-500">
+              tracking pixel + unsubscribe footer 는 발송 시 gmail.send 가 추가합니다.
+            </p>
+          </CardBody>
+        </Card>
+
+        <div className="flex justify-end gap-2">
+          <Button type="submit" name="decision" value="reject" tone="reject">거부</Button>
+          <Button type="submit" name="decision" value="approveEdited" variant="primary" tone="approve">
+            승인 (편집 반영 후 발송)
           </Button>
         </div>
       </form>
