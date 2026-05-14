@@ -114,7 +114,7 @@ export default async function CampaignDetailPage({
                 );
               })}
             </div>
-            {/* Phase 3 — shipment + content list views (sibling pages). */}
+            {/* Phase 3 — shipment + content list views. Phase 4 adds report. */}
             <div className="flex items-center gap-1.5 text-[12px]">
               <Link
                 href={`/campaigns/${id}/shipments`}
@@ -128,6 +128,13 @@ export default async function CampaignDetailPage({
                 className="text-slate-600 hover:text-slate-900 underline-offset-2 hover:underline"
               >
                 posts
+              </Link>
+              <span className="text-slate-300">·</span>
+              <Link
+                href={`/campaigns/${id}/report`}
+                className="text-slate-600 hover:text-slate-900 underline-offset-2 hover:underline"
+              >
+                report
               </Link>
             </div>
             <div className="flex gap-2">
