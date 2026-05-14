@@ -1,26 +1,72 @@
 # HANDOFF — continuing the v2 build (Claude Code CLI)
 
 > Read this first when you (or a fresh Claude Code session) pick this repo up.
-> Last handoff: **Phase 2 all 7 chunks + codex-review fix pass + Step D (googleapis wiring)** — `pnpm run verify-build` is green, 189 tests pass.
+> Last handoff: **Phase 3 all 7 chunks + 2 codex-review fix passes + P3 smoke** — `pnpm run verify-build` is green, 235 tests pass (50 workflows / 126 capabilities / 53 agents / 6 observability).
 
 ---
 
 ## 1. Current state (commits on `main`, nothing pushed)
 
 ```
-Phase 0  (foundation, 8 commits)              ✓ done
-Phase 1  (sourcing+vetting vertical slice, 17 + 1 docs)  ✓ done
-Phase 2  Chunk 1 (canvas paradigm UI)                                ✓ done
-Phase 2  Chunk 2 (templates.render + gmail.send platform, 5 commits) ✓ done
-Phase 2  Chunk 3 (outreach-writer agent + judges, 4 commits)         ✓ done
-Phase 2  Chunk 4 (conversation classifier + responder, 3 commits)    ✓ done
-Phase 2  Chunk 5 (creator-track workflow + brand-campaign fan-out, 2 commits)  ✓ done
-Phase 2  Chunk 6 (MC drill-ins + policy editor + canvas state, 4 commits)      ✓ done
-Phase 2  Chunk 7 (Gmail Pub/Sub webhook + suppression list + unsubscribe + watch-renew, 4 commits) ✓ done
-Phase 3  (shipping + content-verification slice)                     ⏳ NEXT
+Phase 0  (foundation, 8 commits)                                      ✓ done
+Phase 1  (sourcing+vetting vertical slice, 17 + 1 docs)               ✓ done
+Phase 2  C1-C7 + codex-review pass + Step D googleapis (29 commits)   ✓ done
+Phase 3  C1 (Shipment contract + v2_shipments + shipmentRepo)         ✓ done
+Phase 3  C2 (shipment.create + shipment.track + CarrierClient seam)   ✓ done
+Phase 3  C3 (logistics agent — Haiku — parses address + creates ship) ✓ done
+Phase 3  C4 (tiktok-post-poller daily cron + post.detected event)     ✓ done
+Phase 3  C5 (content-verify agent — Haiku — scores detected posts)    ✓ done
+Phase 3  C6 (creator-track shipping + content-review legs wired)      ✓ done
+Phase 3  C7a-d (MC shipment + posts drill-ins + policy editor)        ✓ done
+Phase 3  codex-review P1-batch (atomic claim, poller uniqueId)        ✓ done
+Phase 3  codex-review P2-batch (trust boundary + dedupe + sort)       ✓ done
+Phase 3  codex-review P3-full P1+P2 (poller producer + wait filters)  ✓ done
+Phase 4  (analyst + ranking polish + MC final pass)                   ⏳ NEXT
 ```
 
-`git log --oneline` shows ~58 commits since the scaffold (`66f4390`). `pnpm run verify-build` exits 0; 189 tests across `@ss/agents` (45) · `@ss/capabilities` (112) · `@ss/observability` (4) · `@ss/workflows` (28). `docs/PHASE-1-PLAN.md` unchanged (no scope creep).
+`git log --oneline` shows ~78 commits since the scaffold (`66f4390`). `pnpm run verify-build` exits 0; 235 tests across `@ss/agents` (53) · `@ss/capabilities` (126) · `@ss/observability` (6) · `@ss/workflows` (50). `docs/PHASE-1-PLAN.md` unchanged (no scope creep).
+
+### Phase 3 in one paragraph
+
+Closes the loop from "creator agreed" to "verified content shipping the brand
+goal." `shipment.create` (atomic-claim against concurrent races, codex P1#2)
++ `shipment.track` (chronological event sort, watermark on every poll, codex
+P2#4) sit behind a `CarrierClient` factory seam — production binds yuntrack
+once `YUNTRACK_API_KEY` is set; tests inject a recording fake. Two new Inngest
+crons drive the producers: `tiktok-post-poller` (daily, `tiktok/post.detected`)
+and `shipment-tracking-poller` (every 12h, `shipment/tracking.updated`).
+`creator-track` grew two new legs after `interested + shippingAddress`:
+gate(approveShipment) → runAgent(logisticsAgent) → wait for terminal carrier
+status (delivered / cancelled / failed / returned; in-flight statuses are
+filtered out by the wait `if` expression — codex P3-full P1#2) →
+runAgent(contentVerifyAgent). MC gets two new pages
+(`/campaigns/[id]/shipments`, `/campaigns/[id]/posts`), an approveShipment
+drill-in at `/approvals/[id]`, and a policies-page that unblocks
+`approveShipment` with the `followerCountGte` knob — which now actually fires
+because the gate's recommendation carries `followerCount` (codex P3-full P1#3).
+
+### Codex review fix passes (post-P3)
+
+Two full `codex review --base p3-baseline` passes against the 14-commit P3
+delta surfaced 9 issues across 3 batches; all fixed in 4 commits:
+
+- **C2 + C4 P1#1 (`b2334c4`)** — tiktok-post-poller called `fetcher.getUserPosts(creator.id)` but the fetcher expects `uniqueId`. Fix: resolve via `creatorRepo.getById` before each call; added regression test for the missing-creator case.
+- **C2 P1#2 (`859442a`)** — `shipment.create` had a concurrent-create race: two workers could both pass the existence check before either inserted. Fix: atomic claim via `insertOne(status=pending)` with the unique `creatorTrackId` index + E11000 → branch on the existing row's status; mirrors the gmail.send pattern.
+- **C1-C5 P2-batch (`a2870cd`)** — trust boundary (use `ctx.campaignId` not model input), chronological sort of new tracking events before append (so the latest carrier status wins, not the oldest), `$elemMatch` dedupe in `appendTrackingEvent`, plus 4 smaller correctness fixes; 3 regression tests.
+- **P3-full P1#1 + P2#4 (`497c2f2`)** — `shipment/tracking.updated` had no producer; daily cron added that pulls every non-terminal shipment with stale `lastTrackedAt`, emits only on a status flip. `shipment.track` now bumps `lastTrackedAt` even on no-op carrier responses so the poller can skip recently-polled rows. 7-test poller suite.
+- **P3-full P1#2 + P1#3 (`70313dd`)** — workflow's shipment wait now filters to terminal carrier statuses via the `if` expression; the recommendation payload threading `followerCount` so `auto_unless` policies with a follower threshold actually fire. 2 regression tests asserting the predicate evaluates with/without the threshold met.
+
+### Phase 3 smoke (post all fixes, 2026-05-14)
+
+`docs/SMOKE-TEST-P3.md` logs the credential-free smoke. What passed:
+init-indexes provisions 18 v2_* indexes including the 3 new v2_shipments
+ones; Inngest discovery returns all 5 functions including the new
+shipment-tracking-poller (`0 4,16 * * *`) and tiktok-post-poller
+(`0 2 * * *`); the new MC pages (`/campaigns/{id}/{shipments,posts}` and
+the updated `/policies`) render under HTTP 200 against a seeded campaign
+row. What still needs creds for a full live P3 loop: `YUNTRACK_API_KEY`
+(carrier adapter) + `RAPIDAPI_KEY_TIKTOK` (post fetcher) + everything Phase 2
+already required.
 
 ### Step D: googleapis SDK wiring
 
@@ -124,11 +170,31 @@ v1 (`~/social-seeding`, frozen) is **reference only** — port named assets
 (TikTok ranking, `lib/cold-mail`, `lib/gmail`, `lib/crm` enrichment, NicePay
 billing, usage-limiter, blacklist) without reinventing.
 
-## 4. What's next — Phase 2 outreach + reply-handling slice
+## 4. What's next — Phase 4 analyst + MC final pass
 
-Per `docs/ROADMAP.md` §"Phase 2". Six chunks; each ~50-80 turns; commit per
-sub-task. Same discipline as Phase 1 (one commit per task, verify-build
-green throughout, no scope creep on `docs/`).
+Per `docs/ROADMAP.md` §"Phase 4". Goal: ranking signals + post-campaign
+analytics + final MC polish before Phase 5 (sales-lead campaign type) and
+Phase 6 (admin / billing rollover). Same discipline as Phases 1-3 (one
+commit per task, verify-build green throughout, no scope creep on `docs/`).
+
+Open work spilled out of Phase 3 (not blocking P4, fold into the next
+relevant chunk):
+
+- **Carrier adapter** — `defaultCarrierClientFactory` still throws.
+  `packages/capabilities/src/shipment/carrier.ts` defines the seam;
+  v1's `lib/shipping/carriers/yuntrack.ts` is the port reference.
+- **TikTok `getUserPosts` adapter** — `defaultTikTokFetcherFactory.getUserPosts`
+  still throws. Sourcing already uses `searchUsers` + `getUserInfo` from the
+  same fetcher; `getUserPosts` is the additional method the post-poller calls.
+- **Full live P3 demo script** — credentialed end-to-end (real creator
+  reply → real shipment → manual Inngest replay to a delivered status →
+  emit a `tiktok/post.detected` event → verify). Could become a `scripts/`
+  helper alongside `scripts/init-indexes.ts`.
+
+### Phase 2 / Phase 3 sub-tasks (now all ✓, retained for reference)
+
+Per `docs/ROADMAP.md` §"Phase 2"-§"Phase 3". Six chunks per phase; each
+~50-80 turns; commit per sub-task.
 
 | Chunk | Scope | New env needed for full demo |
 |---|---|---|
@@ -138,11 +204,18 @@ green throughout, no scope creep on `docs/`).
 | ~~**P2-C5**~~ ✓ | `creator-track` end-to-end: extractFacts → outreachWriterAgent → approveOutreachSend → gmail.send → 3-day waitForEvent → conversationAgent → branch (agreed / in_conversation / declined / no_response / writer_escalated) → optional responder + approveReplyResponse + gmail.send. brand-campaign now `step.sendEvent`-fans-out one `CreatorTrackStart` per confirmed creator and advances stage to `outreach`. **Live demo still needs**: `ANTHROPIC_API_KEY`, `EMAIL_UNSUBSCRIBE_HMAC_SECRET` (≥16 chars), Gmail OAuth wired (P2-C2 follow-up), and a real creator-email source (Phase 5 enrichment). Without enrichment, every track terminates as `no_email` cleanly. | `ANTHROPIC_API_KEY`, `EMAIL_UNSUBSCRIBE_HMAC_SECRET`, Gmail OAuth |
 | ~~**P2-C6**~~ ✓ | `/approvals/[id]` drill-ins for `outreach_send` (OutreachDraft preview + 4 judge meters + editable subject/body + sandboxed-iframe HTML preview) and `reply_response` (split: ConversationTurn escalation view vs editable responder draft). `resolveAction` learns `approveEdited` for the workflow's gate() editedPayload path. Policy editor unblocks `approveOutreachSend` (spamScoreGte / followerCountGte) and `approveReplyResponse` (proposedRateUsdGte / replyClassIn multi-select). Canvas reflects `CreatorTrack.state` aggregate buckets: outreach-writer node lights as tracks fan out, wait-reply node shows waiting count, outreach→shipping edge activates on `agreed` tracks. **Live demo still needs**: nothing new beyond C5's prereqs. Note: `/threads/[id]` manual-reply page is deferred to P2.5 — the reply_response drill-in surfaces the same data plus the approveReplyResponse action for the workflow path. | — |
 | ~~**P2-C7**~~ ✓ | Gmail Pub/Sub webhook produces `gmail/reply.received`: verify → parse envelope → listHistory + getMessage via GmailClient seam → join v2_outbox by threadId → emit. `verifyPubSubAuth` + `parsePubSubMessage` ported into `@ss/capabilities/gmail/pubsub`. Daily `gmail-watch-renew` cron + `v2_gmail_watches` collection. `suppression.check` / `.add` capabilities + workspace-scoped `v2_suppression_list`; gmail.send refuses pre-send when recipient is on the list. `/unsubscribe` page (HMAC token verify → suppressionAdd; ok / ok_no_email / 5 error states). **Live demo still needs**: `GMAIL_PUBSUB_TOKEN`, a Pub/Sub topic+subscription pointing at `/api/webhooks/gmail`, plus the P2-C2 follow-up that fills `defaultGmailClientFactory` with the `googleapis` SDK + GOOGLE_CLIENT_ID/SECRET + `googleapis`-backed `getMessage`/`listHistory`/`renewWatch` implementations. Phase-2.5 backlog: Resend bounce webhook, MC `/threads/[id]` manual-reply page. | `GMAIL_PUBSUB_TOKEN`, Pub/Sub topic, googleapis SDK |
-| **P2-C7** | Gmail Pub/Sub webhook (`apps/web/app/api/webhooks/gmail/route.ts` already stubbed) — verify JWT, decode message, pull thread, emit `gmail/reply.received`. Scheduled fn `gmail-watch-renew` (daily). Bounce webhook via Resend. Suppression list. Unsubscribe page. | `GMAIL_PUBSUB_TOPIC`, `RESEND_API_KEY` |
+| ~~**P3-C1**~~ ✓ | `Shipment` contract (port of v1 `~/social-seeding/src/types/shipping.ts` trimmed for seeding) + `v2_shipments` collection + `shipmentRepo` (create / get / findByCreatorTrack / listByCampaign / claim / appendTrackingEvent / finalizeShipped / touchLastTrackedAt). | — |
+| ~~**P3-C2**~~ ✓ | `shipment.create` (atomic claim against E11000 on unique `creatorTrackId` index — codex P1#2) + `shipment.track` (chronological event sort + `lastTrackedAt` watermark always bumped — codex P2#4) + `CarrierClient` factory seam. Production binds yuntrack once `YUNTRACK_API_KEY` is set; tests inject fakes. | `YUNTRACK_API_KEY` |
+| ~~**P3-C3**~~ ✓ | `logisticsAgent` (Haiku, tools `[shipment.create]`, $0.08 cap) — parses raw free-form addresses (Korean / English mixed) into the `ShippingAddress` schema, then invokes `shipment.create`. Escalates on `address_unparseable` / `missing_required_field`. 3 golden scenarios pin parse / escalation paths. | `ANTHROPIC_API_KEY` for live |
+| ~~**P3-C4**~~ ✓ | `tiktok-post-poller` daily cron (02:00 UTC) — walks `v2_creator_tracks` with `state=delivered + content` empty, calls `TikTokFetcher.getUserPosts` (creator's `uniqueId`, resolved via `creatorRepo.getById` — codex P1#1), matches against the brief hashtags + brand keywords, emits `tiktok/post.detected`. 14-day-no-post timeout escalates the track. 8-test suite covers the matrix. | `RAPIDAPI_KEY_TIKTOK` for live |
+| ~~**P3-C5**~~ ✓ | `contentVerifyAgent` (Haiku, no tools, $0.05 cap) — given the detected post + brief + creator baseline, returns `{matches, mentionsBrand, performanceScore, flags, rationale}`. 5-scenario golden set (verified / off-topic / no-brand-mention / borderline / sponsored-disclosure-only). | `ANTHROPIC_API_KEY` for live |
+| ~~**P3-C6**~~ ✓ | `creator-track`'s `interested + shippingAddress` branch now runs `runShippingAndContentReview`: gate(approveShipment) → runAgent(logisticsAgent) → state="shipped" → waitForEvent(`shipment/tracking.updated`, terminal-status filter — codex P3-full P1#2, 14d timeout) → delivered? then waitForEvent(`tiktok/post.detected`, 14d timeout) → runAgent(contentVerifyAgent) → terminal `verified` / `flaked` / `shipment_failed`. Track stage now derives from state. 7 new test scenarios. | — |
+| ~~**P3-C7a-d**~~ ✓ | MC drill-ins for the new gate + the new state: `/approvals/[id]` learns the `shipment` kind (parsed address preview, products list, follower-count display + edit-and-approve); `/campaigns/[id]/shipments` list view (status badges, tracking links); `/campaigns/[id]/posts` content-review view + the `CreatorTrack.content` snapshot field that backs it; `/policies` unblocks `approveShipment` (`auto_unless` + `followerCountGte` knob); canvas reflects shipping / content state buckets. | — |
+| ~~**P3 codex review**~~ ✓ | 2 full passes against the 14-commit P3 delta surfaced 9 issues; all fixed in 4 commits across `b2334c4` / `859442a` / `a2870cd` / `497c2f2` / `70313dd` with regression tests. See §1 above for the per-finding breakdown. | — |
 
-After Phase 2 → Phase 3 (shipping + content_review), Phase 4 (analyst + MC
-polish), Phase 5 (sales-lead campaign type — CRM enrichment via Modal + Kimi),
-Phase 6 (admin / billing rollover). See `docs/ROADMAP.md`.
+After Phase 3 → Phase 4 (analyst + MC polish), Phase 5 (sales-lead
+campaign type — CRM enrichment via Modal + Kimi), Phase 6 (admin / billing
+rollover). See `docs/ROADMAP.md`.
 
 ## 5. To run the live exit demo (Phase 1)
 
