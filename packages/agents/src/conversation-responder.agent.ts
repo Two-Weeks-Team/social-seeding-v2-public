@@ -31,7 +31,14 @@ export const conversationResponderAgent = defineAgent({
     "Draft a single reply to a classified inbound creator message. Cites only the OutreachFacts + the verbatim incoming message; self-checks deliverability via outreach.judge before returning.",
   tools: ["outreach.judge", "templates.render"],
   model: "claude-opus-4-7",
-  maxUsd: 0.25, // shorter than first-touch outreach; one reply, no tournament
+  // Cap raised 0.25 → 0.6: live-demo 2026-05-14 observed Opus 4.7
+  // hitting the cap after 3 turns when the inbound reply triggered
+  // outreach.judge + templates.render + a brief revise pass. Same
+  // root cause as outreach-writer + sourcing agents — Haiku-pricing
+  // intuition was too aggressive for an Opus model in a tool loop.
+  // One reply, no tournament — but tool calls + the JSON output
+  // contract reliably consume 4-5 Opus turns end-to-end.
+  maxUsd: 0.6,
   input: z.object({
     /** The just-classified turn (output of conversationAgent). */
     turn: ConversationTurnSchema.omit({ draftedReply: true }),
