@@ -79,11 +79,29 @@ export async function runAgent<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     const system = buildSystemPrompt(def, input);
     const messages: ModelMessage[] = [{ role: "user", content: "Begin." }];
 
+    /**
+     * Tracks whether the agent has produced ANY tool call yet on this run.
+     * On the FIRST turn — when tools are present + nothing has been called
+     * yet — we set `tool_choice: any` so Opus emits a native tool_use
+     * block instead of pseudo-tool-calling via text. Once the model has
+     * called at least one tool (or made it past the first turn), we drop
+     * back to `auto` so it can produce the final text answer.
+     * Live-demo lesson 2026-05-14: without this, Opus 4.7 with long
+     * system prompts sometimes "thinks out loud" by writing
+     * `[calling tool X: {...}]` as text content, which the runtime then
+     * tries to parse as the agent's final output → escalate.
+     */
+    let hasCalledATool = false;
     const callModel = async (): Promise<
       { kind: "text"; text: string } | { kind: "tool_use"; toolName: string; toolInput: unknown }
     > => {
+      const forceTool = !hasCalledATool && toolSpecs.length > 0;
       const turn = await ctx.trace.span(`llm:${def.model}`, "llm", { agent: def.id }, async (span) => {
-        const t = await model.complete({ model: def.model, system, messages, tools: toolSpecs, maxTokens: MAX_OUTPUT_TOKENS });
+        const t = await model.complete({
+          model: def.model, system, messages, tools: toolSpecs,
+          maxTokens: MAX_OUTPUT_TOKENS,
+          ...(forceTool ? { toolChoice: "any" as const } : {}),
+        });
         const callUsd = estimateUsd(def.model, t.inputTokens, t.outputTokens);
         usd += callUsd;
         span.attrs.inputTokens = t.inputTokens;
@@ -118,16 +136,65 @@ export async function runAgent<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     });
 
     // ── tool loop ──────────────────────────────────────────────────────────
+    /**
+     * The model is text-only (ModelClient deliberately doesn't expose Anthropic's
+     * native tool_use/tool_result content blocks — see model.ts). We render the
+     * model's prior tool call as a parenthetical aside on the assistant turn,
+     * NOT as a bracket-prefixed pseudo-syntax — Opus 4.7 was observed (live-demo
+     * 2026-05-14) copying our previous `[calling tool X: {...}]` synthetic
+     * format on the next turn as TEXT, which the runtime then can't route as a
+     * tool call. A parenthetical reads as commentary the model is less likely
+     * to mimic.
+     */
+    const renderPriorToolCall = (toolName: string, toolInput: unknown): string =>
+      `(I called tool ${toolName} with input: ${JSON.stringify(toolInput)})`;
+
+    /**
+     * Belt-and-suspenders: if the model DOES emit pseudo-tool-call text on a
+     * later turn (we've seen `[calling tool X: {...}]` and `(call ... )`
+     * variants), try to parse it back into a tool invocation rather than
+     * escalate. We accept the most common shapes the model produces.
+     */
+    const PSEUDO_TOOL_CALL = /^\s*[[(]\s*(?:I\s+)?call(?:ing|ed)?\s+(?:tool\s+)?(?<name>[a-zA-Z0-9_.-]+)\s*(?:with\s+input)?\s*[:=]\s*(?<json>\{[\s\S]*\})\s*[\])]\s*$/i;
+    const tryDecodePseudoToolCall = (text: string): { toolName: string; toolInput: unknown } | null => {
+      const m = text.match(PSEUDO_TOOL_CALL);
+      if (!m?.groups?.name || !m?.groups?.json) return null;
+      try {
+        return { toolName: m.groups.name, toolInput: JSON.parse(m.groups.json) };
+      } catch {
+        return null;
+      }
+    };
+
     let lastText = "";
     for (let turnNo = 0; turnNo < MAX_MODEL_TURNS; turnNo++) {
-      const r = await callModel();
+      const raw = await callModel();
       if (usd > def.maxUsd) return overCap();
+
+      // If the model returned text, check whether it's a pseudo-tool-call we
+      // should route as a real tool invocation. Otherwise, accept it as the
+      // final assistant message.
+      let r: typeof raw;
+      if (raw.kind === "text") {
+        const decoded = tryDecodePseudoToolCall(raw.text);
+        if (decoded && def.tools.includes(decoded.toolName)) {
+          r = { kind: "tool_use", toolName: decoded.toolName, toolInput: decoded.toolInput };
+          // Keep the assistant's text on the wire so the model sees its own turn,
+          // but explicitly tag the next user turn as a runtime-promoted tool call.
+          messages.push({ role: "assistant", content: raw.text });
+        } else {
+          r = raw;
+        }
+      } else {
+        r = raw;
+      }
+
       if (r.kind === "text") {
         lastText = r.text;
         break;
       }
-      // tool_use — record the call as text (our ModelClient is text-only by design) and feed the result back
-      messages.push({ role: "assistant", content: `[calling tool ${r.toolName}: ${JSON.stringify(r.toolInput)}]` });
+      hasCalledATool = true; // flip so subsequent calls drop tool_choice → auto
+      messages.push({ role: "assistant", content: renderPriorToolCall(r.toolName, r.toolInput) });
       let toolResult: string;
       if (!def.tools.includes(r.toolName)) {
         toolResult = `ERROR: "${r.toolName}" is not one of your tools (${def.tools.join(", ") || "none"}).`;

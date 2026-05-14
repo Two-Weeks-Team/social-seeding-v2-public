@@ -421,7 +421,21 @@ export const tiktokGetCreator = defineCapability({
     let recentPosts: TikTokPost[] = [];
     if (input.withRecentPosts) {
       const fetcher = getTikTokFetcher();
-      recentPosts = await fetcher.getUserPosts(input.uniqueId);
+      try {
+        recentPosts = await fetcher.getUserPosts(input.uniqueId);
+      } catch (err) {
+        // Live-demo lesson 2026-05-14: vetting + post-poller both want
+        // recent posts, but a missing RAPIDAPI_KEY_TIKTOK (or a 401 / 5xx
+        // from the provider) shouldn't fail the entire vetting call.
+        // The cached creator profile is enough for a coarse fitScore;
+        // posts inform the engagement-rate refinement but vetting has
+        // sensible defaults when posts are empty. Log + degrade.
+        console.warn(
+          `[tiktok.getCreator] getUserPosts failed for @${input.uniqueId} — proceeding without recent posts. ` +
+          `(error: ${err instanceof Error ? err.message : String(err)})`,
+        );
+        recentPosts = [];
+      }
     }
 
     return { creator, recentPosts };

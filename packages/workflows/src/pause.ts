@@ -71,10 +71,13 @@ export async function pauseCheck(step: StepLike, campaignId: string): Promise<vo
   }
   if (status !== "paused") return;
   // Park until resume / cancel.
+  // `async.data.X` for the awaited event (live-demo lesson 2026-05-14:
+  // `event.data.X` references the TRIGGER event and gets pre-evaluated by
+  // the SDK at wait-creation time — null on most triggers).
   await step.waitForEvent<{ campaignId: string }>(`await-resume:${campaignId}`, {
     event: Events.CampaignResumed,
     timeout: RESUME_WAIT_TIMEOUT,
-    if: `event.data.campaignId == "${campaignId}"`,
+    if: `async.data.campaignId == "${campaignId}"`,
   });
   // Re-check after the wait: an operator could have cancelled in the
   // same window. We trust the latest persisted status, not the event.

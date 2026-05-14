@@ -210,10 +210,13 @@ export async function leadTrackHandler(
   }>(`await-reply:${leadCampaignId}:${leadId}`, {
     event: Events.GmailReplyReceived,
     timeout: REPLY_TIMEOUT,
+    // `async.data.X` references the awaited event; `event.data.X` references
+    // the TRIGGER (pre-evaluated by the SDK at wait-creation time).
+    // Live-demo lesson 2026-05-14.
     if:
-      `event.data.campaignId == "${leadCampaignId}" && ` +
-      `event.data.creatorId == "${leadId}" && ` +
-      `event.data.threadId == "${sendResult.threadId}"`,
+      `async.data.campaignId == "${leadCampaignId}" && ` +
+      `async.data.creatorId == "${leadId}" && ` +
+      `async.data.threadId == "${sendResult.threadId}"`,
   });
   if (!reply) {
     await leadRepo.patchStage(leadId, "no_response", { notes: "3d_timeout" });

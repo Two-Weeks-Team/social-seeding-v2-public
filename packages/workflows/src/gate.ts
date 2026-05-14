@@ -152,9 +152,17 @@ export async function gate<P>(
   // `data.approvalId`, so Inngest's match semantics compare undefined →
   // never satisfied. Live-demo lesson 2026-05-14 (same root cause as
   // P2 codex P1#2 for creator-track's reply wait).
+  //
+  // CRITICAL: in waitForEvent.if, `event` = the TRIGGER event (pre-
+  // evaluated by the SDK before storing the expression!) and `async` =
+  // the incoming awaited event. Using `event.data.approvalId` makes the
+  // SDK substitute null at wait-creation time, producing a literal
+  // `null == "<id>"` stored expression that never matches. Always use
+  // `async.data.X` for fields from the awaited event.
+  // (Live-demo lesson 2026-05-14, second iteration.)
   const resolved = await step.waitForEvent(`await-approval:${approvalId}`, {
     event: "approval/resolved",
-    if: `event.data.approvalId == "${approvalId}"`,
+    if: `async.data.approvalId == "${approvalId}"`,
     timeout: "7d",
   });
 

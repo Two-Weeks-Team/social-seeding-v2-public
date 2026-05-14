@@ -52,7 +52,11 @@ async function main(): Promise<void> {
     const c = await campaignRepo.create({
       brief: {
         workspaceId: "ws_demo",
-        createdBy: "u".repeat(21),
+        // Real Google userId of the Gmail-connected sender account
+        // (kbeautypeople@gmail.com — token seeded in dev-mongo's
+        // user_tokens). gmail.send's tokenManager.getToken matches by
+        // userId or email. The 21-char Google id matches v1 parity.
+        createdBy: process.env.DEMO_SENDER_USER_ID ?? "110923062954084576905",
         brandProduct: {
           name: "Hydra Demo Serum",
           category: "skincare/serum",

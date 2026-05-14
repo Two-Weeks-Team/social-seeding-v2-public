@@ -37,6 +37,20 @@ export interface ModelCompleteArgs {
   messages: ModelMessage[];
   tools: ModelToolSpec[];
   maxTokens: number;
+  /**
+   * Force the model to use a tool (when `any`) or any tool/text (`auto` —
+   * the default). Live-demo lesson 2026-05-14: Opus 4.7 with long system
+   * prompts sometimes "thinks out loud" by emitting tool-call shaped TEXT
+   * instead of a native `tool_use` block, breaking the runtime's
+   * tool-result loop. `tool_choice: any` is the SDK-level fix — Anthropic
+   * forces the response to include a real tool_use block when tools are
+   * available.
+   *
+   * Runtime sets `any` on the first turn when tools are present and the
+   * agent expects to use them. Subsequent turns fall back to `auto` so
+   * the model can produce the final text answer.
+   */
+  toolChoice?: "auto" | "any";
 }
 
 export interface ModelClient {
@@ -77,6 +91,7 @@ interface AnthropicLike {
       system: string;
       messages: { role: "user" | "assistant"; content: string }[];
       tools?: { name: string; description: string; input_schema: Record<string, unknown> }[];
+      tool_choice?: { type: "auto" | "any" | "tool"; name?: string };
     }): Promise<{
       content: { type: string; text?: string; id?: string; name?: string; input?: unknown }[];
       usage: { input_tokens: number; output_tokens: number };
@@ -93,7 +108,7 @@ let _anthropic: AnthropicLike | undefined;
  */
 export function defaultModelClient(): ModelClient {
   return {
-    async complete({ model, system, messages, tools, maxTokens }) {
+    async complete({ model, system, messages, tools, maxTokens, toolChoice }) {
       if (!_anthropic) {
         const key = process.env.ANTHROPIC_API_KEY;
         if (!key) {
@@ -104,15 +119,27 @@ export function defaultModelClient(): ModelClient {
         const mod = (await import("@anthropic-ai/sdk")) as unknown as { default: new (o: { apiKey: string }) => AnthropicLike };
         _anthropic = new mod.default({ apiKey: key });
       }
+      const toolList = tools.length
+        ? tools.map((t) => ({ name: encodeToolName(t.name), description: t.description, input_schema: t.inputSchema }))
+        : undefined;
+      const sendToolChoice = toolChoice === "any" && Boolean(toolList);
+      if (process.env.SS_DEBUG_MODEL === "1") {
+        console.log(`[model] complete ${model} tools=${toolList?.length ?? 0} tool_choice=${sendToolChoice ? "any" : "auto"} messages=${messages.length}`);
+      }
       const res = await _anthropic.messages.create({
         model: MODEL_API_ID[model],
         max_tokens: maxTokens,
         system,
         messages,
-        tools: tools.length
-          ? tools.map((t) => ({ name: encodeToolName(t.name), description: t.description, input_schema: t.inputSchema }))
-          : undefined,
+        tools: toolList,
+        // Forward `tool_choice` only when caller asked for `any` AND tools
+        // exist. Default `auto` matches the SDK default; we don't send it
+        // explicitly to keep the payload minimal.
+        ...(sendToolChoice ? { tool_choice: { type: "any" as const } } : {}),
       });
+      if (process.env.SS_DEBUG_MODEL === "1") {
+        console.log(`[model] response types=[${res.content.map((b) => b.type).join(",")}]`);
+      }
       const usage = { inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens };
       const toolUse = res.content.find((b) => b.type === "tool_use");
       if (toolUse && toolUse.id && toolUse.name) {

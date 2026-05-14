@@ -97,7 +97,12 @@ export async function brandCampaignHandler(
     runAgent(sourcingAgent, { brief, excludeCreatorIds: [] }, agentCtx),
   );
   if (sourcingOutcome.kind !== "ok") {
-    throw new Error(`sourcing agent escalated: ${sourcingOutcome.reason}`);
+    // Include partial output in the error so live-demo debug surfaces
+    // the actual model output that failed validation.
+    const partial = "partial" in sourcingOutcome && sourcingOutcome.partial
+      ? `\nFirst-pass output:\n${String(sourcingOutcome.partial).slice(0, 1500)}`
+      : "";
+    throw new Error(`sourcing agent escalated: ${sourcingOutcome.reason}${partial}`);
   }
   const candidates: CandidateOut[] = sourcingOutcome.value.candidates;
 

@@ -319,10 +319,18 @@ export async function creatorTrackHandler(
   // Instead drop `match` entirely and use a self-contained `if` expression
   // that pins the await to this specific (campaign, creator, thread) tuple
   // by literal substitution.
+  //
+  // CRITICAL: use `async.data.X` for awaited-event fields, NOT
+  // `event.data.X`. In waitForEvent.if, `event` is the TRIGGER event and
+  // gets pre-evaluated by the SDK at wait-creation time (so
+  // `event.data.threadId` substitutes to null, making the wait never
+  // match). `async` refers to the incoming awaited event and is
+  // evaluated when each candidate event arrives.
+  // Live-demo lesson 2026-05-14 (P2 codex P1#2 second-pass).
   const reply = await step.waitForEvent<GmailReplyData>(`await-reply:${campaignId}:${creatorId}`, {
     event: Events.GmailReplyReceived,
     timeout: REPLY_TIMEOUT,
-    if: `event.data.campaignId == "${campaignId}" && event.data.creatorId == "${creatorId}" && event.data.threadId == "${sendResult.threadId}"`,
+    if: `async.data.campaignId == "${campaignId}" && async.data.creatorId == "${creatorId}" && async.data.threadId == "${sendResult.threadId}"`,
   });
   if (!reply) {
     await patchTrack(campaignId, creatorId, "no_response", {
@@ -739,18 +747,21 @@ async function runShippingAndContentReview(args: ShippingArgs): Promise<CreatorT
   // (P3 codex P1#1 producer) also only emits on status flips, so in
   // practice this filter is belt + suspenders; but the workflow side is
   // the load-bearing guarantee.
+  // Use `async.data.X` (the awaited event); `event.data.X` refers to the
+  // trigger event and gets pre-evaluated by the SDK at wait-creation time
+  // (live-demo lesson 2026-05-14).
   const TERMINAL_STATUS_CLAUSE =
-    `(event.data.status == "delivered" || event.data.status == "cancelled" || ` +
-    `event.data.status == "failed" || event.data.status == "returned")`;
+    `(async.data.status == "delivered" || async.data.status == "cancelled" || ` +
+    `async.data.status == "failed" || async.data.status == "returned")`;
   const trackingEvent = await step.waitForEvent<ShipmentTrackingData>(
     `await-shipment:${campaignId}:${creatorId}`,
     {
       event: Events.ShipmentTrackingUpdated,
       timeout: SHIPMENT_TIMEOUT,
       if:
-        `event.data.campaignId == "${campaignId}" && ` +
-        `event.data.creatorId == "${creatorId}" && ` +
-        `event.data.shipmentId == "${shipment.id}" && ` +
+        `async.data.campaignId == "${campaignId}" && ` +
+        `async.data.creatorId == "${creatorId}" && ` +
+        `async.data.shipmentId == "${shipment.id}" && ` +
         TERMINAL_STATUS_CLAUSE,
     },
   );
@@ -810,12 +821,13 @@ async function runShippingAndContentReview(args: ShippingArgs): Promise<CreatorT
   }
 
   // ── 4. content_review wait + verify ─────────────────────────────────────
+  // `async.data.X` for awaited-event fields (live-demo lesson 2026-05-14).
   const postEvent = await step.waitForEvent<PostDetectedData>(
     `await-post:${campaignId}:${creatorId}`,
     {
       event: Events.TikTokPostDetected,
       timeout: CONTENT_TIMEOUT,
-      if: `event.data.campaignId == "${campaignId}" && event.data.creatorId == "${creatorId}"`,
+      if: `async.data.campaignId == "${campaignId}" && async.data.creatorId == "${creatorId}"`,
     },
   );
   if (!postEvent) {
