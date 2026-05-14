@@ -1,7 +1,7 @@
 # HANDOFF — continuing the v2 build (Claude Code CLI)
 
 > Read this first when you (or a fresh Claude Code session) pick this repo up.
-> Last handoff: **Phase 6 C1+C2 + codex-review fix pass + P6 smoke (C4 deferred)** — `pnpm run verify-build` is green, 321 tests pass (96 workflows / 157 capabilities / 64 agents / 4 observability).
+> Last handoff: **Phase 6 C1+C2 closed + carry-over: TikTok getUserPosts adapter wired** — `pnpm run verify-build` is green, 335 tests pass (96 workflows / 171 capabilities / 64 agents / 4 observability).
 
 ---
 
@@ -428,7 +428,9 @@ When P6-C3/C4 unblock, the migration runbook would be:
 - **Carrier adapter** — `defaultCarrierClientFactory` still throws.
   `packages/capabilities/src/shipment/carrier.ts` defines the seam;
   v1's `lib/shipping/carriers/yuntrack.ts` is the port reference.
-- **TikTok `getUserPosts` adapter** — `defaultTikTokFetcherFactory.getUserPosts`
+- ~~**TikTok `getUserPosts` adapter**~~ ✓ wired in `fd29f7f` (2026-05-14). Uses RapidAPI via `RAPIDAPI_KEY_TIKTOK` + the configurable `RAPIDAPI_TIKTOK_HOST` / `RAPIDAPI_TIKTOK_USERPOSTS_PATH` env vars (defaults to `tiktok-scraper7.p.rapidapi.com/user/posts`). 14 new tests pin the response mapper across provider shape drift + the HTTP/env-guard paths. **Live demo still needs**: `RAPIDAPI_KEY_TIKTOK`. The seam is otherwise complete.
+
+  *(The line below was the original carry-over note, retained as reference for what was wired:)* `defaultTikTokFetcherFactory.getUserPosts`
   still throws. Sourcing already uses `searchUsers` + `getUserInfo` from the
   same fetcher; `getUserPosts` is the additional method the post-poller calls.
 - **Pause/resume wiring** — Phase 4 ships only the cancel switch (P4
