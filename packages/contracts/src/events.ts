@@ -2,6 +2,7 @@ import { z } from "zod";
 import { CampaignBriefSchema, CampaignStage } from "./campaign";
 import { TikTokCreatorSchema } from "./creator";
 import { ReplyClassSchema } from "./outreach";
+import { ReportTriggerSchema } from "./report";
 
 /**
  * Inngest event catalog. Every async boundary in the system is one of these.
@@ -18,6 +19,8 @@ export const Events = {
   GmailReplyReceived: "gmail/reply.received", // from the Gmail pubsub webhook
   ShipmentTrackingUpdated: "shipment/tracking.updated",
   TikTokPostDetected: "tiktok/post.detected", // content-verify poller found a matching post
+  ReportDeliverRequest: "report/deliver.request", // P4-C3 — request a fresh report for a campaign
+  ReportDelivered: "report/delivered", // P4-C3 — report-deliver workflow persisted a row
 } as const;
 export type EventName = (typeof Events)[keyof typeof Events];
 
@@ -146,5 +149,47 @@ export const TikTokPostDetectedEvent = z.object({
      * hashtags — what made the poller flag it.
      */
     matchedHashtags: z.array(z.string()).default([]),
+  }),
+});
+
+/**
+ * P4-C3 — request a report delivery for a campaign. Producers:
+ *   · weekly cron (`report-deliver-cron`) for running campaigns with
+ *     verifiedCount > 0;
+ *   · brand-campaign on stage="performance" transition (P4-C4);
+ *   · MC manual "Generate report" button (P4-C5).
+ * Consumer: `report-deliver` workflow (Phase 4).
+ */
+export const ReportDeliverRequestEvent = z.object({
+  name: z.literal(Events.ReportDeliverRequest),
+  data: z.object({
+    campaignId: z.string(),
+    trigger: ReportTriggerSchema,
+    /** Optional snapshot time; defaults to "now" inside the workflow. */
+    asOf: z.coerce.date().optional(),
+    /** Optional operator note threaded onto the persisted report row. */
+    notes: z.string().default(""),
+  }),
+});
+
+/**
+ * P4-C3 — fired by `report-deliver` workflow after persisting a row.
+ * Downstream consumers (Phase 4.5): a Resend mailer that emails the
+ * report to the workspace owner; MC subscribes to refresh the report
+ * timeline view.
+ */
+export const ReportDeliveredEvent = z.object({
+  name: z.literal(Events.ReportDelivered),
+  data: z.object({
+    campaignId: z.string(),
+    workspaceId: z.string(),
+    reportId: z.string(),
+    trigger: ReportTriggerSchema,
+    /** verifiedCount/targetLivePosts headline number — surfaces in MC standby. */
+    verifiedCount: z.number().int().nonnegative(),
+    targetLivePosts: z.number().int().positive(),
+    /** Count of report flags that fired — analyst-agent's `concerns` mirrors these 1:1. */
+    flagsCount: z.number().int().nonnegative(),
+    generatedAt: z.coerce.date(),
   }),
 });

@@ -6,3 +6,4 @@ export { workspaceRepo, defaultPolicy, type PlanName } from "./repositories/work
 export { approvalRepo } from "./repositories/approval.repo";
 export { traceRepo, type PersistedSpan, type PersistedTraceDoc } from "./repositories/trace.repo";
 export { shipmentRepo } from "./repositories/shipment.repo";
+export { reportRepo } from "./repositories/report.repo";

@@ -7,6 +7,8 @@ import {
   GmailReplyReceivedEvent,
   ShipmentTrackingUpdatedEvent,
   TikTokPostDetectedEvent,
+  ReportDeliverRequestEvent,
+  ReportDeliveredEvent,
   Events,
 } from "@ss/contracts";
 
@@ -29,5 +31,7 @@ export const inngest = new Inngest({
     [Events.CreatorTrackStart]: { data: CreatorTrackStartEvent.shape.data },
     [Events.ShipmentTrackingUpdated]: { data: ShipmentTrackingUpdatedEvent.shape.data },
     [Events.TikTokPostDetected]: { data: TikTokPostDetectedEvent.shape.data },
+    [Events.ReportDeliverRequest]: { data: ReportDeliverRequestEvent.shape.data },
+    [Events.ReportDelivered]: { data: ReportDeliveredEvent.shape.data },
   }),
 });

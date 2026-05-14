@@ -73,6 +73,11 @@ const PLANS: IndexPlan[] = [
   // track; later phases can revisit if reships become a thing.
   { collection: Collections.V2_SHIPMENTS, keys: { creatorTrackId: 1 }, options: { unique: true } },
   { collection: Collections.V2_SHIPMENTS, keys: { trackingNumber: 1 } },
+  // v2_reports — Phase 4 P4-C3. `latestForCampaign` + `listByCampaign` are
+  // the dominant reads; both sort newest-first by generatedAt.
+  { collection: Collections.V2_REPORTS, keys: { campaignId: 1, generatedAt: -1 } },
+  // Workspace filter for the (future) MC "all reports" view + cron walker.
+  { collection: Collections.V2_REPORTS, keys: { workspaceId: 1, generatedAt: -1 } },
 ];
 
 function looksUnconfigured(uri: string | undefined): boolean {

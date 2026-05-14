@@ -30,5 +30,6 @@ export const Collections = {
   V2_GMAIL_WATCHES: "v2_gmail_watches", // per-user Gmail Pub/Sub watch state (lastHistoryId)
   V2_SUPPRESSION_LIST: "v2_suppression_list", // unsubscribed / bounced recipients — gmail.send checks pre-send
   V2_SHIPMENTS: "v2_shipments", // Phase 3 — one row per creator-track shipment + carrier event timeline
+  V2_REPORTS: "v2_reports", // Phase 4 — persisted analytics + analyst narrative; one row per delivery
 } as const;
 export type CollectionName = (typeof Collections)[keyof typeof Collections];
