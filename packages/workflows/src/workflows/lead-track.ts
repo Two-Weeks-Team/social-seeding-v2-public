@@ -20,6 +20,7 @@ import {
 } from "@ss/agents";
 import { startTrace } from "@ss/observability";
 import { gate, type StepLike } from "../gate";
+import { pauseCheck } from "../pause";
 import type { GateConfig } from "@ss/contracts";
 import { inngest } from "../client";
 
@@ -177,6 +178,8 @@ export async function leadTrackHandler(
   // avoid collisions across campaign types.
   const publicBaseUrl = resolvePublicBaseUrl(deps);
   const creatorTrackId = `${leadCampaignId}:${leadId}`;
+  // P6.5 pause check before the load-bearing external send.
+  await pauseCheck(step, leadCampaignId);
   const sendResult = (await step.run("send-outreach", async () =>
     invokeCapability(
       "gmail.send",
@@ -354,6 +357,8 @@ export async function leadTrackHandler(
       );
       if (replyGate.decision !== "rejected") {
         const approved = replyGate.payload;
+        // P6.5 pause check before the reply send.
+        await pauseCheck(step, leadCampaignId);
         await step.run("send-reply", async () =>
           invokeCapability(
             "gmail.send",

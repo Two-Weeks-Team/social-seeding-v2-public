@@ -14,18 +14,19 @@ import { inngest } from "@ss/workflows";
 import { cn } from "@/lib/cn";
 
 /**
- * P4-C6 kill switch. brand-campaign's `cancelOn: [{event: CampaignCancelled,
- * match: "data.campaignId"}]` already aborts the durable run when this
- * event fires, AND patching status='cancelled' here makes MC reflect the
- * state immediately regardless of when Inngest delivers the event.
+ * Lifecycle controls — cancel (P4-C6) + pause/resume (P6.5 carry-over).
  *
- * Phase 4 ships ONLY cancel — not pause/resume. P4 codex review P1#1:
- * exposing a pause control without wiring it into every long step.run /
- * step.waitForEvent in creator-track + shipment-tracking-poller would be
- * a footgun — operators would see "paused" while gmail.send / carrier
- * pickups continued. Pause/resume is a Phase-4.5 follow-up that needs
- * each waitForEvent to also cancel-on CampaignPaused with a resumability
- * contract. Until then, the only honest control is cancel.
+ * Cancel: brand-campaign's `cancelOn: [{event: CampaignCancelled,
+ * match: "data.campaignId"}]` aborts the durable Inngest run; the patch
+ * here makes MC reflect the state immediately.
+ *
+ * Pause/Resume: P6.5 added a `pauseCheck(step, campaignId)` guard before
+ * every gmail.send in creator-track + lead-track. When the campaign is
+ * `status='paused'`, the helper parks the workflow on
+ * `step.waitForEvent('campaign/resumed', 30d)` so no further outreach
+ * goes out. Resume re-fires the event and the workflow proceeds.
+ * Already-in-flight Inngest runs survive — Inngest's durable timers +
+ * step graph carry over a pause without re-emit.
  */
 async function cancelCampaignAction(formData: FormData): Promise<void> {
   "use server";
@@ -42,6 +43,30 @@ async function cancelCampaignAction(formData: FormData): Promise<void> {
   }
   await campaignRepo.patchStage(campaignId, c.stage, "cancelled");
   await inngest.send({ name: Events.CampaignCancelled, data: { campaignId } });
+  revalidatePath(`/campaigns/${campaignId}`);
+}
+
+async function pauseCampaignAction(formData: FormData): Promise<void> {
+  "use server";
+  const session = await getServerSession();
+  if (!session) throw new Error("not authenticated");
+  const campaignId = formData.get("campaignId");
+  if (typeof campaignId !== "string") throw new Error("missing campaignId");
+  const c = await campaignRepo.get(campaignId);
+  if (!c || c.brief.workspaceId !== session.workspaceId) throw new Error("forbidden");
+  if (c.status === "cancelled" || c.status === "completed") {
+    revalidatePath(`/campaigns/${campaignId}`);
+    return;
+  }
+  const isPaused = c.status === "paused";
+  await campaignRepo.patchStage(campaignId, c.stage, isPaused ? "running" : "paused");
+  // The events are advisory; workflows pick up the new status on the
+  // next pauseCheck() / resume waitForEvent. The persisted status is
+  // the load-bearing source-of-truth.
+  await inngest.send({
+    name: isPaused ? Events.CampaignResumed : Events.CampaignPaused,
+    data: { campaignId },
+  });
   revalidatePath(`/campaigns/${campaignId}`);
 }
 
@@ -172,11 +197,17 @@ export default async function CampaignDetailPage({
               </Link>
             </div>
             <div className="flex gap-2">
-              {campaign.status === "running" ? (
-                <form action={cancelCampaignAction}>
-                  <input type="hidden" name="campaignId" value={id} />
-                  <Button tone="reject">✕ 취소</Button>
-                </form>
+              {campaign.status === "running" || campaign.status === "paused" ? (
+                <>
+                  <form action={pauseCampaignAction}>
+                    <input type="hidden" name="campaignId" value={id} />
+                    <Button>{campaign.status === "paused" ? "▶ 재개" : "⏸ 일시정지"}</Button>
+                  </form>
+                  <form action={cancelCampaignAction}>
+                    <input type="hidden" name="campaignId" value={id} />
+                    <Button tone="reject">✕ 취소</Button>
+                  </form>
+                </>
               ) : (
                 <Badge variant={campaign.status === "completed" ? "emerald" : "slate"}>
                   {campaign.status}

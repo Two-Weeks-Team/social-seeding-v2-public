@@ -29,6 +29,7 @@ import {
 } from "@ss/agents";
 import { startTrace } from "@ss/observability";
 import { gate, type StepLike } from "../gate";
+import { pauseCheck } from "../pause";
 import { inngest } from "../client";
 
 /**
@@ -275,6 +276,13 @@ export async function creatorTrackHandler(
     return { campaignId, creatorId, terminalState: "outreach_rejected" };
   }
   const finalDraft = sendResolution.payload;
+
+  // ── Pause/cancel check before the load-bearing external send ───────────
+  // Carry-over (P6.5): if the operator clicked "일시정지" on /campaigns/[id],
+  // pauseCheck parks the workflow on waitForEvent('campaign/resumed') until
+  // the operator hits "재개". If they cancelled instead, pauseCheck throws
+  // CampaignTerminalError so this step exits without sending.
+  await pauseCheck(step, campaignId);
 
   // ── Send the outreach via gmail.send (idempotencyKey scopes retries) ────
   const sendResult = (await step.run("send-outreach", async () =>
@@ -543,6 +551,8 @@ export async function creatorTrackHandler(
 
   // Send the reply. idempotencyKey carries the inbound messageId so a webhook
   // replay never produces two replies for the same inbound.
+  // P6.5 pause check before the reply send (same posture as the outreach send).
+  await pauseCheck(step, campaignId);
   await step.run("send-reply", async () =>
     invokeCapability(
       "gmail.send",
