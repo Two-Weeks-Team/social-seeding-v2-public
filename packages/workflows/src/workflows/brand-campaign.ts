@@ -1,6 +1,6 @@
 import type { z } from "zod";
 import { type Candidate, CampaignBriefSchema, Events } from "@ss/contracts";
-import { campaignRepo, workspaceRepo } from "@ss/db";
+import { campaignRepo, Collections, getDb, workspaceRepo } from "@ss/db";
 import { sourcingAgent, vettingAgent, runAgent, type AgentRunContext, type ModelClient } from "@ss/agents";
 import { recordCost, startTrace, type RunTrace } from "@ss/observability";
 import { gate, type StepLike } from "../gate";
@@ -158,6 +158,25 @@ export async function brandCampaignHandler(
     await step.run("advance-stage-outreach", async () =>
       campaignRepo.patchStage(campaignId, "outreach"),
     );
+    // Resolve `contactEmail` per creator (additive read on accounts_tiktok).
+    // The shared collection's schema doesn't define this field — v2 seeds it
+    // as part of CRM enrichment OR a demo helper. When absent, creator-track
+    // terminates as `no_email` (the documented fallback).
+    const emailLookup = await step.run("resolve-creator-emails", async () => {
+      const db = await getDb();
+      const ids = confirmed.map((c) => c.creator.id);
+      const docs = await db
+        .collection<{ id?: string; contactEmail?: string }>(Collections.SHARED_TIKTOK_ACCOUNTS)
+        .find({ id: { $in: ids } }, { projection: { id: 1, contactEmail: 1 } })
+        .toArray();
+      const map: Record<string, string> = {};
+      for (const d of docs) {
+        if (d.id && typeof d.contactEmail === "string" && d.contactEmail.length > 0) {
+          map[d.id] = d.contactEmail;
+        }
+      }
+      return map;
+    });
     await step.sendEvent(
       "creator-track-fanout",
       confirmed.map((c) => ({
@@ -166,7 +185,7 @@ export async function brandCampaignHandler(
           campaignId,
           brief,
           creator: c.creator,
-          // creatorEmail intentionally absent: Phase 5 enrichment fills this in.
+          ...(emailLookup[c.creator.id] ? { creatorEmail: emailLookup[c.creator.id] } : {}),
           recentPosts: [],
         },
       })),

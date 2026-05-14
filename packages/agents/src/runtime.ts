@@ -163,7 +163,14 @@ export async function runAgent<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       });
       const r2 = await callModel();
       if (usd > def.maxUsd) return overCap();
-      if (r2.kind !== "text") return { kind: "escalate", reason: `agent ${def.id} called a tool during the reviser pass`, usd };
+      if (r2.kind !== "text") {
+        return {
+          kind: "escalate",
+          reason: `agent ${def.id} called a tool during the reviser pass (first-pass text was: ${lastText.slice(0, 300)})`,
+          partial: lastText,
+          usd,
+        };
+      }
       parsed = parseAgentOutput(def.output, r2.text);
       if (parsed.escalate !== undefined) return { kind: "escalate", reason: parsed.escalate, usd };
       if (!parsed.ok) {

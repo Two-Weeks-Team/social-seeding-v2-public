@@ -147,9 +147,14 @@ export async function gate<P>(
     data: { approvalId, campaignId: opts.campaignId, workspaceId: opts.workspaceId, kind: opts.kind },
   });
 
+  // Use an `if` expression instead of `match: "data.approvalId"` — the
+  // trigger event (e.g. CreatorTrackStart, CampaignSubmitted) has no
+  // `data.approvalId`, so Inngest's match semantics compare undefined →
+  // never satisfied. Live-demo lesson 2026-05-14 (same root cause as
+  // P2 codex P1#2 for creator-track's reply wait).
   const resolved = await step.waitForEvent(`await-approval:${approvalId}`, {
     event: "approval/resolved",
-    match: "data.approvalId",
+    if: `event.data.approvalId == "${approvalId}"`,
     timeout: "7d",
   });
 

@@ -242,6 +242,10 @@ export async function creatorTrackHandler(
         brief,
         creator,
         recentPosts,
+        // Pass the already-computed facts so the writer doesn't have to
+        // call extractFacts again (carry-over lesson 2026-05-14: Opus
+        // sometimes refuses to call it and escalates).
+        facts,
         voiceNotes: policy.voice.toneNotes,
         signatureBlock: policy.voice.signatureBlock,
         bannedPhrases: policy.voice.bannedPhrases,
