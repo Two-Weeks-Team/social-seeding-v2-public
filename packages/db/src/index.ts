@@ -11,3 +11,8 @@ export { traceRepo, type PersistedSpan, type PersistedTraceDoc } from "./reposit
 export { shipmentRepo } from "./repositories/shipment.repo";
 export { reportRepo } from "./repositories/report.repo";
 export { leadRepo, leadCampaignRepo } from "./repositories/lead.repo";
+export {
+  importV1Workspaces,
+  type ImporterOpts,
+  type ImportResult,
+} from "./imports/v1-workspaces";
