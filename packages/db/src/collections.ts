@@ -31,5 +31,7 @@ export const Collections = {
   V2_SUPPRESSION_LIST: "v2_suppression_list", // unsubscribed / bounced recipients — gmail.send checks pre-send
   V2_SHIPMENTS: "v2_shipments", // Phase 3 — one row per creator-track shipment + carrier event timeline
   V2_REPORTS: "v2_reports", // Phase 4 — persisted analytics + analyst narrative; one row per delivery
+  V2_LEADS: "v2_leads", // Phase 5 — sales leads (B2B). v1's crm_accounts is the shared source-of-truth; v2_leads is the v2-owned overlay (enrichment + research + stage).
+  V2_LEAD_CAMPAIGNS: "v2_lead_campaigns", // Phase 5 — lead-campaign briefs (parallel to v2_campaigns for the brand loop).
 } as const;
 export type CollectionName = (typeof Collections)[keyof typeof Collections];

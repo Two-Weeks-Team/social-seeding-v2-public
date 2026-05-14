@@ -59,6 +59,17 @@ export {
   type CarrierCreateResult,
   type CarrierTrackResult,
 } from "./shipment/carrier";
+// CrmEnrich seam — Modal+Kimi for sales-lead enrichment (Phase 5).
+export {
+  defaultCrmEnrichClientFactory,
+  getCrmEnrichClientFactory,
+  setCrmEnrichClientFactory,
+  type CrmEnrichClient,
+  type CrmEnrichClientFactory,
+  type CrawlResult,
+  type AnalysisResult,
+  type AnalyzeInput,
+} from "./crm/client";
 
 import "./analytics/compile";
 import "./tiktok/search";
@@ -66,6 +77,7 @@ import "./tiktok/get-creator";
 import "./gmail/send";
 import "./blacklist/check";
 import "./crm/enrich";
+import "./crm/search";
 import "./outreach/extract-facts";
 import "./outreach/judge";
 import "./ranking/score";

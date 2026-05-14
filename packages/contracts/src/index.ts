@@ -13,3 +13,4 @@ export * from "./shipment";
 export * from "./events";
 export * from "./analytics";
 export * from "./report";
+export * from "./lead";

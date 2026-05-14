@@ -78,6 +78,22 @@ const PLANS: IndexPlan[] = [
   { collection: Collections.V2_REPORTS, keys: { campaignId: 1, generatedAt: -1 } },
   // Workspace filter for the (future) MC "all reports" view + cron walker.
   { collection: Collections.V2_REPORTS, keys: { workspaceId: 1, generatedAt: -1 } },
+  // v2_leads — Phase 5 P5-C1. workspaceId+updatedAt drives the MC list
+  // read; sharedAccountId is the dedupe key for the import path.
+  { collection: Collections.V2_LEADS, keys: { workspaceId: 1, updatedAt: -1 } },
+  // Unique per (workspace, sharedAccountId) when present — prevents
+  // importing the same v1 row twice. Partial: only enforced when the
+  // field exists (standalone-imported leads have no sharedAccountId).
+  {
+    collection: Collections.V2_LEADS,
+    keys: { workspaceId: 1, sharedAccountId: 1 },
+    options: {
+      unique: true,
+      partialFilterExpression: { sharedAccountId: { $exists: true } },
+    },
+  },
+  // v2_lead_campaigns — Phase 5. listByWorkspace is the dominant read.
+  { collection: Collections.V2_LEAD_CAMPAIGNS, keys: { "brief.workspaceId": 1, updatedAt: -1 } },
 ];
 
 function looksUnconfigured(uri: string | undefined): boolean {
