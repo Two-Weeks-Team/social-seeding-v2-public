@@ -179,14 +179,14 @@ describe("conversationResponderAgent — unit", () => {
     expect(out.reason).toMatch(/hostile_inbound/);
   });
 
-  it("agent definition: Opus 4.7, curated tools = [outreach.judge, templates.render], maxUsd ≤ 0.6", () => {
-    // Cap raised 0.5 → 0.6 after live-demo 2026-05-14 (see agent file
-    // comment). 4-5 Opus turns reliably consume ~$0.25 already; the
-    // ceiling has to budget for a self-check + revise.
+  it("agent definition: Opus 4.7, curated tools = [outreach.judge, templates.render], maxUsd ≤ 1.0", () => {
+    // Cap raised 0.5 → 1.0 over two live-demo iterations 2026-05-14
+    // (see agent file comment). 4-6 Opus turns reliably consume
+    // ~$0.5-0.7; the ceiling has to budget for a self-check + revise.
     expect(conversationResponderAgent.model).toBe("claude-opus-4-7");
     expect(conversationResponderAgent.tools.sort()).toEqual(
       ["outreach.judge", "templates.render"].sort(),
     );
-    expect(conversationResponderAgent.maxUsd).toBeLessThanOrEqual(0.6);
+    expect(conversationResponderAgent.maxUsd).toBeLessThanOrEqual(1.0);
   });
 });
