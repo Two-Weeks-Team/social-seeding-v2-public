@@ -145,8 +145,11 @@ export default async function CampaignDetailPage({
       : undefined;
   const trackBuckets = bucketTracksByState(campaign.tracks);
 
+  // Canvas view needs more horizontal room than the rest of MC's pages —
+  // ease the page-level max-width when in canvas mode so the React Flow
+  // viewport gets enough pixels to render nodes at a readable scale.
   return (
-    <div className="max-w-6xl mx-auto px-8 py-8">
+    <div className={cn(view === "canvas" ? "max-w-[1600px]" : "max-w-6xl", "mx-auto px-8 py-8")}>
       <header className="mb-4">
         <Link href="/campaigns" className="text-[11px] text-slate-500 hover:text-slate-900">
           ← 캠페인 목록
@@ -226,9 +229,18 @@ export default async function CampaignDetailPage({
         <StageBar current={campaign.stage} notes={shortlistApproval ? { sourcing: "● 승인 대기" } : undefined} />
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        {/* LEFT — view body (timeline by default, canvas if ?view=canvas) */}
-        <div className="col-span-2">
+      {/*
+        Layout adapts to ?view= — canvas needs the FULL page width because the
+        node graph is designed wide (sourcing → outreach → shipping → content
+        → performance spans ~1300px). The 3-col grid we use for the timeline
+        view crushes the canvas into ~440px and React Flow's fitView scales
+        nodes down to ~0.3x, making them unreadable (live-demo 2026-05-15).
+        In canvas mode the brief / needs-you / tracks panels stack BELOW the
+        canvas in a 3-up horizontal row instead.
+      */}
+      <div className={cn(view === "canvas" ? "space-y-5" : "grid grid-cols-3 gap-6")}>
+        {/* LEFT (or top, in canvas mode) — view body */}
+        <div className={cn(view === "canvas" ? "" : "col-span-2")}>
           {view === "canvas" ? (
             <CampaignCanvas
               stage={campaign.stage}
@@ -257,8 +269,8 @@ export default async function CampaignDetailPage({
           )}
         </div>
 
-        {/* RIGHT — needs-you + brief summary + tracks (view-independent) */}
-        <aside className="space-y-5">
+        {/* RIGHT (or bottom 3-up, in canvas mode) — needs-you + brief + tracks */}
+        <aside className={cn(view === "canvas" ? "grid grid-cols-3 gap-5" : "space-y-5")}>
           {pending.length > 0 && (
             <Card className="bg-amber-50 border-amber-200">
               <CardBody>

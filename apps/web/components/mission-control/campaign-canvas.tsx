@@ -437,7 +437,12 @@ export function CampaignCanvas(props: CampaignCanvasProps) {
   const { nodes, edges } = useMemo(() => buildGraph(props), [props]);
 
   return (
-    <div className="relative flex h-[560px] border border-slate-200 rounded-lg overflow-hidden bg-white">
+    // Height + aside width chosen to fit the 9-stage horizontal flow (designed
+    // for ~1300px wide content) at a readable scale once the page-level layout
+    // gives canvas mode full-width. Live-demo 2026-05-15: previous values
+    // (h-[560px] + w-80) forced React Flow's fitView down to ~0.3x and the
+    // node text was unreadable.
+    <div className="relative flex h-[720px] border border-slate-200 rounded-lg overflow-hidden bg-white">
       <div className="flex-1 relative">
         <StageLanes currentStage={props.stage} />
         <div className="absolute inset-0" style={{ zIndex: 1 }}>
@@ -446,7 +451,12 @@ export function CampaignCanvas(props: CampaignCanvasProps) {
             edges={edges}
             nodeTypes={nodeTypes}
             fitView
-            fitViewOptions={{ padding: 0.15 }}
+            // Tighter padding + a sensible min/max zoom so fitView never
+            // shrinks the labels below readability OR over-zooms when the
+            // viewport is unexpectedly large (live-demo 2026-05-15).
+            fitViewOptions={{ padding: 0.08, minZoom: 0.55, maxZoom: 1.1 }}
+            minZoom={0.4}
+            maxZoom={1.6}
             proOptions={{ hideAttribution: true }}
             nodesDraggable={false}
             nodesConnectable={false}
@@ -460,8 +470,9 @@ export function CampaignCanvas(props: CampaignCanvasProps) {
         </div>
       </div>
 
-      {/* Right property panel */}
-      <aside className="w-80 border-l border-slate-200 bg-white overflow-y-auto flex-shrink-0">
+      {/* Right property panel — narrower than the page-level aside so the
+          flow gets enough horizontal room. */}
+      <aside className="w-72 border-l border-slate-200 bg-white overflow-y-auto flex-shrink-0">
         {!selected ? (
           <div className="p-4 text-[12px] text-slate-500">
             노드를 클릭하면 세부 정보가 여기에 나타납니다.
