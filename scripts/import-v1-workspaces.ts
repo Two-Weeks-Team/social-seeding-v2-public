@@ -69,4 +69,8 @@ async function main(): Promise<void> {
   process.exitCode = r.failures.length > 0 ? 1 : 0;
 }
 
-await main();
+// tsx's CJS output doesn't allow top-level await; wrap in an async IIFE.
+main().catch((err) => {
+  console.error(err instanceof Error ? err.stack ?? err.message : String(err));
+  process.exitCode = 2;
+});
