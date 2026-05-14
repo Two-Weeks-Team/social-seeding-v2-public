@@ -13,3 +13,4 @@ export {
   type ContentVerifyFlag,
 } from "./content-verify.agent";
 export { analystAgent, type AnalystOutput } from "./analyst.agent";
+export { researchAgent, type ResearchOutput } from "./research.agent";
