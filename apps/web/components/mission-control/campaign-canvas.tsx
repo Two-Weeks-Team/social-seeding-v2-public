@@ -14,34 +14,19 @@ import {
 import "@xyflow/react/dist/style.css";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/cn";
-import type { CampaignStage, CreatorTrack } from "@ss/contracts";
+import type { CampaignStage } from "@ss/contracts";
+// Pure helper + type are kept in a sibling non-client module so server
+// components (campaigns/[id]/page.tsx) can import them directly. Next 16
+// rejects "calling a non-component export of a use-client module" from
+// server code (2026-05-15). Re-exported here for any existing call site
+// still importing from "campaign-canvas".
+import {
+  bucketTracksByState,
+  type TrackStateBuckets,
+} from "./campaign-track-buckets";
 
-/**
- * Aggregate counts per CreatorTrack.state — drives the outreach-stage node
- * status + a per-track-state badge cluster in the canvas. Pure helper,
- * exported for tests / Storybook.
- */
-export type TrackStateBuckets = Record<CreatorTrack["state"], number>;
-
-export function bucketTracksByState(tracks: ReadonlyArray<CreatorTrack>): TrackStateBuckets {
-  const out: TrackStateBuckets = {
-    candidate: 0,
-    shortlisted: 0,
-    outreach_sent: 0,
-    in_conversation: 0,
-    agreed: 0,
-    address_collected: 0,
-    shipped: 0,
-    delivered: 0,
-    posted: 0,
-    verified: 0,
-    declined: 0,
-    no_response: 0,
-    flaked: 0,
-  };
-  for (const t of tracks) out[t.state]++;
-  return out;
-}
+export { bucketTracksByState };
+export type { TrackStateBuckets };
 
 /**
  * Campaign canvas — the alternative to the timeline view. Renders the

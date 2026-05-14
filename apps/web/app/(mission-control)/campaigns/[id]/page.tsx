@@ -6,7 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, SectionLabel } from "@/components/ui/card";
 import { StageBar } from "@/components/mission-control/stage-bar";
 import { ActivityTimeline } from "@/components/mission-control/activity-timeline";
-import { CampaignCanvas, bucketTracksByState } from "@/components/mission-control/campaign-canvas";
+import { CampaignCanvas } from "@/components/mission-control/campaign-canvas";
+// Pure helper — imported from the non-client sibling module so this
+// server component can call it directly. (Next 16 forbids invoking a
+// non-component export of a "use client" module from server code.)
+import { bucketTracksByState } from "@/components/mission-control/campaign-track-buckets";
 import { getServerSession } from "@/lib/auth";
 import { approvalRepo, campaignRepo, traceRepo } from "@ss/db";
 import { Events, type CreatorTrack } from "@ss/contracts";
