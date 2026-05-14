@@ -219,16 +219,29 @@ export async function leadCampaignHandler(
   }
 
   // ── 5. fan out lead-track per researched lead ────────────────────────────
+  // P5 codex review P2#3: cap the first-batch fan-out at
+  // brief.outreach.maxSendsPerBatch — the operator-visible deliverability
+  // protection knob (default 20). Researched-but-not-fanned-out leads
+  // stay at stage='researched' and a follow-up batch (P5.5 cron, or a
+  // manual "Send next batch" button) drains them.
   let fannedOut = 0;
   if (ready.length > 0) {
+    const cap = brief.outreach.maxSendsPerBatch;
+    const batch = ready.slice(0, cap);
     await step.sendEvent(
       "lead-track-fanout",
-      ready.map((l) => ({
+      batch.map((l) => ({
         name: Events.LeadTrackStart,
         data: { leadCampaignId, workspaceId, brief, lead: l },
       })),
     );
-    fannedOut = ready.length;
+    fannedOut = batch.length;
+    if (ready.length > cap) {
+      // Note: not a "failure" per se — these are intentionally held back.
+      failures.push({
+        reason: `batch_cap_reached: ${ready.length - cap} researched leads held back (cap=${cap}); they remain at stage='researched' for the next batch.`,
+      });
+    }
   }
 
   await trace.flush();

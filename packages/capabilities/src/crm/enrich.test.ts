@@ -118,6 +118,28 @@ describe("crm.enrich", () => {
     const after = await leadRepo.get(lead.id);
     expect(after?.stage).toBe("enriched");
     expect(after?.enrichment?.analysis.confidence_score).toBe(85);
+    // P5 codex P1#2: first crawled email gets promoted to contactEmail
+    // when the lead didn't already have one.
+    expect(after?.contactEmail).toBe("hello@example.kr");
+  });
+
+  it("P5 codex P1#2: doesn't overwrite an operator-supplied contactEmail with a crawled one", async () => {
+    setCrmEnrichClientFactory(async () => fakeClient({ emails: ["scraped@example.kr"] }));
+    const lead = await leadRepo.create({
+      workspaceId: "ws_p5",
+      companyName: "EXAMPLE", country: "KR",
+      contactEmail: "operator@chosen.kr",
+      tags: [], snsLinks: {},
+      stage: "imported",
+      lastActivityAt: new Date(),
+      notes: "",
+    });
+    await crmEnrich.handler(
+      { url: "https://example.kr", companyName: "EXAMPLE", leadId: lead.id, maxPages: 20 },
+      { workspaceId: "ws_p5", userId: "u".repeat(21), rateLimitClass: "crm_enrich" },
+    );
+    const after = await leadRepo.get(lead.id);
+    expect(after?.contactEmail).toBe("operator@chosen.kr");
   });
 
   it("rejects mid-pipeline crawl failure — exception bubbles to caller (Inngest retries)", async () => {

@@ -66,6 +66,23 @@ export const crmEnrich = defineCapability({
     let persisted = false;
     if (leadId) {
       await leadRepo.patchEnrichment(leadId, enrichment);
+      // P5 codex review P1#2: promote the first crawled email to
+      // lead.contactEmail so the lead-track outreach path can find it.
+      // Without this, leads imported via the UI (`Company | URL` form)
+      // never get a contactEmail and lead-track flakes them at the
+      // !lead.contactEmail guard, even when the crawler found a valid
+      // address on the homepage.
+      //
+      // Only promote when the lead doesn't already have one (operator-
+      // supplied contactEmail always wins). First-email-wins heuristic
+      // is intentionally simple — the operator can edit later via MC
+      // (P5.5 follow-up).
+      if (crawl.emails.length > 0) {
+        const existing = await leadRepo.get(leadId);
+        if (existing && !existing.contactEmail) {
+          await leadRepo.patchStage(leadId, "enriched", { contactEmail: crawl.emails[0] });
+        }
+      }
       persisted = true;
     }
     return { enrichment, persisted };

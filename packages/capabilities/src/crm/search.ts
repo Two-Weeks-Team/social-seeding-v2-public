@@ -84,8 +84,12 @@ export const crmSearch = defineCapability({
     if (lowercaseQ) {
       // v1's collection has companyName + companyNameEn; both substring,
       // case-insensitive. MongoDB's $regex is case-insensitive with the
-      // `i` flag.
-      const rx = { $regex: lowercaseQ, $options: "i" };
+      // `i` flag. P5 codex review P2#4: escape regex special chars so a
+      // company name containing `[`, `(`, or `.` is treated as literal
+      // text instead of a regex pattern (or, worse, an invalid pattern
+      // that throws at query time).
+      const escaped = lowercaseQ.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const rx = { $regex: escaped, $options: "i" };
       sharedFilter.$or = [{ companyName: rx }, { companyNameEn: rx }];
     }
     const sharedDocs = await db

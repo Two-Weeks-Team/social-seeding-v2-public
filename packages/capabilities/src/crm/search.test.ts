@@ -151,6 +151,24 @@ describe("crm.search", () => {
     expect(out.leads.map((l) => l.id)).toEqual([keep.id]);
   });
 
+  it("P5 codex P2#4: regex special chars in query are escaped (no Mongo error, no .* false match)", async () => {
+    await seedSharedAccount({ companyName: "Curry House (Seoul)" });
+    await seedSharedAccount({ companyName: "Unrelated Brand" });
+    // A query containing `(` would, unescaped, be invalid regex syntax
+    // and throw at query time; the escape lets it match literally.
+    const out = await crmSearch.handler(
+      { workspaceId: "ws_s", query: "(Seoul)", excludeIds: [], limit: 50 },
+      { workspaceId: "ws_s", userId: "u".repeat(21), rateLimitClass: "default" },
+    );
+    expect(out.sharedCandidates.map((s) => s.companyName)).toEqual(["Curry House (Seoul)"]);
+    // ".*" must NOT match all rows — it should match the literal string.
+    const out2 = await crmSearch.handler(
+      { workspaceId: "ws_s", query: ".*", excludeIds: [], limit: 50 },
+      { workspaceId: "ws_s", userId: "u".repeat(21), rateLimitClass: "default" },
+    );
+    expect(out2.sharedCandidates).toHaveLength(0);
+  });
+
   it("skips soft-deleted shared rows (deletedAt set)", async () => {
     await seedSharedAccount({ companyName: "Active", deletedAt: null });
     await seedSharedAccount({ companyName: "Gone", deletedAt: new Date() });

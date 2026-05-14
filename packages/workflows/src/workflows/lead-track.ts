@@ -53,7 +53,15 @@ import { inngest } from "../client";
 export interface LeadTrackDeps {
   modelClient?: ModelClient;
   gmailClientFactory?: GmailClientFactory;
+  /**
+   * Required by gmail.send for the unsubscribe + tracking-pixel URLs.
+   * Falls back to PUBLIC_APP_URL env var, then localhost for tests.
+   */
   publicBaseUrl?: string;
+}
+
+function resolvePublicBaseUrl(deps: LeadTrackDeps): string {
+  return deps.publicBaseUrl ?? process.env.PUBLIC_APP_URL ?? "http://localhost:3000";
 }
 
 export interface LeadTrackArgs {
@@ -161,19 +169,29 @@ export async function leadTrackHandler(
   const approvedDraft = gateResolution.payload;
 
   // ── 3. gmail.send ────────────────────────────────────────────────────────
+  // P5 codex review P1#1: gmail.send's input schema requires
+  // `creatorTrackId` + `publicBaseUrl` (it uses both to compose the
+  // unsubscribe + tracking-pixel URLs). The creatorTrackId slot is the
+  // outbox dedupe key; for B2B leads we use `${leadCampaignId}:${leadId}`
+  // to mirror the brand-side `${campaignId}:${creatorId}` shape and
+  // avoid collisions across campaign types.
+  const publicBaseUrl = resolvePublicBaseUrl(deps);
+  const creatorTrackId = `${leadCampaignId}:${leadId}`;
   const sendResult = (await step.run("send-outreach", async () =>
     invokeCapability(
       "gmail.send",
       {
-        senderUserId: brief.createdBy,
         to: lead.contactEmail!,
         subject: approvedDraft.subject,
         bodyHtml: approvedDraft.body,
-        campaignId: leadCampaignId,
-        creatorId: leadId, // outbox keys creator-or-lead by id; share the slot
-        idempotencyKey: `${leadCampaignId}:${leadId}:outreach`,
+        creatorTrackId,
+        idempotencyKey: `${creatorTrackId}:outreach`,
+        publicBaseUrl,
       },
-      agentCtx.capabilityCtx,
+      // ctx carries campaignId — gmail.send writes it to v2_outbox so
+      // the Pub/Sub webhook can resolve a thread back to (campaign,
+      // creator/lead) at reply time.
+      { ...agentCtx.capabilityCtx, campaignId: leadCampaignId },
     ),
   )) as { messageId: string; threadId: string; scheduled: boolean; spamScore: number };
   await leadRepo.patchStage(leadId, "outreach_sent", { threadId: sendResult.threadId });
@@ -340,15 +358,15 @@ export async function leadTrackHandler(
           invokeCapability(
             "gmail.send",
             {
-              senderUserId: brief.createdBy,
               to: reply.data.fromEmail,
               subject: approved.subject,
               bodyHtml: approved.body,
               threadId: sendResult.threadId,
-              campaignId: leadCampaignId, creatorId: leadId,
-              idempotencyKey: `${leadCampaignId}:${leadId}:reply:${reply.data.fromEmail}`,
+              creatorTrackId,
+              idempotencyKey: `${creatorTrackId}:reply:${reply.data.fromEmail}`,
+              publicBaseUrl,
             },
-            agentCtx.capabilityCtx,
+            { ...agentCtx.capabilityCtx, campaignId: leadCampaignId },
           ),
         );
       }
