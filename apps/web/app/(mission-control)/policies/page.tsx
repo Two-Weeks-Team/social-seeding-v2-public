@@ -235,12 +235,52 @@ export default async function PoliciesPage() {
         </p>
       </header>
 
+      {/*
+        P4 codex review P2#2: presets card lives OUTSIDE the save form
+        because the per-preset buttons are their own <form action=
+        applyPresetAction>. Nested forms are invalid HTML and would have
+        SSR-rendered the inner forms as no-ops while truncating the outer
+        save form mid-way. Keep them as sibling cards.
+      */}
+      <Card className="mb-5">
+        <CardBody>
+          <div className="flex items-start justify-between gap-4 mb-3">
+            <div>
+              <SectionLabel className="mb-1">원클릭 프리셋 적용</SectionLabel>
+              <div className="text-[12px] text-slate-600 leading-relaxed">
+                레벨을 누르면 5개 게이트가 일괄로 그 레벨에 맞게 세팅됩니다.
+                <span className="text-slate-400 ml-1">
+                  개별 게이트는 아래 폼에서 다시 조정 가능합니다.
+                </span>
+              </div>
+            </div>
+            <span className="text-[10px] text-slate-500 whitespace-nowrap">
+              현재: <span className="mono font-medium">{policy.level}</span>
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(["copilot", "checkpointed", "autonomous"] as const).map((lvl) => (
+              <form key={lvl} action={applyPresetAction}>
+                <input type="hidden" name="level" value={lvl} />
+                <Button
+                  variant="secondary"
+                  tone={lvl === "autonomous" ? "approve" : lvl === "copilot" ? "warn" : "neutral"}
+                >
+                  {lvl} 적용
+                </Button>
+              </form>
+            ))}
+          </div>
+        </CardBody>
+      </Card>
+
       <form action={savePolicyAction} className="space-y-5">
-        {/* ── Level preset ──────────────────────────────────────────── */}
+        {/* ── Level radio (the form's own `level` field — independent
+              of the preset buttons above) ──────────────────────────── */}
         <Card>
           <CardBody>
             <div className="flex items-center justify-between mb-3">
-              <SectionLabel>자율 수준 프리셋</SectionLabel>
+              <SectionLabel>자율 수준 (저장 시 적용)</SectionLabel>
               <span className="text-[10px] text-slate-500">
                 현재: <span className="mono font-medium">{policy.level}</span>
               </span>
@@ -274,36 +314,6 @@ export default async function PoliciesPage() {
                   </label>
                 );
               })}
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* ── 1-click preset apply (separate from the per-gate form) ── */}
-        <Card>
-          <CardBody>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <SectionLabel className="mb-1">원클릭 프리셋 적용</SectionLabel>
-                <div className="text-[12px] text-slate-600 leading-relaxed">
-                  레벨을 누르면 5개 게이트가 일괄로 그 레벨에 맞게 세팅됩니다.
-                  <span className="text-slate-400 ml-1">
-                    개별 게이트는 아래에서 다시 조정 가능합니다.
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {(["copilot", "checkpointed", "autonomous"] as const).map((lvl) => (
-                <form key={lvl} action={applyPresetAction}>
-                  <input type="hidden" name="level" value={lvl} />
-                  <Button
-                    variant="secondary"
-                    tone={lvl === "autonomous" ? "approve" : lvl === "copilot" ? "warn" : "neutral"}
-                  >
-                    {lvl} 적용
-                  </Button>
-                </form>
-              ))}
             </div>
           </CardBody>
         </Card>

@@ -5,7 +5,7 @@ import { memorySink, setObservabilitySink } from "@ss/observability";
 import { setUsageStore, type UsageStore } from "@ss/capabilities";
 import type { ModelClient } from "@ss/agents";
 import type { ApprovalResolvedData, StepLike } from "../gate";
-import { reportDeliverHandler } from "./report-deliver";
+import { AnalystEscalatedError, reportDeliverHandler } from "./report-deliver";
 
 /**
  * P4-C3 report-deliver workflow tests. With a fake step + scripted
@@ -169,19 +169,21 @@ describe("report-deliver workflow", () => {
     expect(fake.log.events).toEqual([]);
   });
 
-  it("analyst escalates → returns analyst_escalated; no report row, no event", async () => {
+  it("analyst escalates → THROWS AnalystEscalatedError (codex P2#3); no report row, no event", async () => {
+    // The throw makes Inngest's default retry/backoff kick in. Without
+    // it, campaign-progression sees stage='performance' but no report
+    // row and sits there forever (the campaign never completes).
     const c = await campaignRepo.create({
       brief, status: "running", stage: "performance",
       tracks: [verifiedTrack("c1")],
     });
     const fake = fakeStep();
-    const out = await reportDeliverHandler(
-      { event: { data: { campaignId: c.id, trigger: "cron" } }, step: fake.step },
-      { modelClient: fakeText({ escalate: "data internally inconsistent — investigate" }) },
-    );
-    expect(out.kind).toBe("analyst_escalated");
-    if (out.kind !== "analyst_escalated") throw new Error("expected escalated");
-    expect(out.reason).toMatch(/inconsistent/);
+    await expect(
+      reportDeliverHandler(
+        { event: { data: { campaignId: c.id, trigger: "cron" } }, step: fake.step },
+        { modelClient: fakeText({ escalate: "data internally inconsistent — investigate" }) },
+      ),
+    ).rejects.toBeInstanceOf(AnalystEscalatedError);
     // Ran compile + analyst, but stopped before persist + emit
     expect(fake.log.runs).toEqual(["load-campaign", "compile-analytics", "analyst-narrative"]);
     expect(fake.log.events).toEqual([]);

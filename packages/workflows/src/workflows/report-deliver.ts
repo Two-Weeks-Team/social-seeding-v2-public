@@ -68,8 +68,21 @@ export type ReportDeliverResult =
       reportId: string;
       analytics: AnalyticsReport;
     }
-  | { kind: "missing_campaign"; campaignId: string }
-  | { kind: "analyst_escalated"; campaignId: string; reason: string };
+  | { kind: "missing_campaign"; campaignId: string };
+
+/**
+ * P4 codex review P2#3 — analyst-escalation now throws so Inngest's
+ * built-in retry/backoff kicks in. Codifying the failure shape (vs a
+ * silent "returned analyst_escalated") so campaign-progression doesn't
+ * leave a stage='performance' campaign stuck at status='running' forever
+ * when the analyst can't narrate the data.
+ */
+export class AnalystEscalatedError extends Error {
+  constructor(readonly campaignId: string, readonly originalReason: string) {
+    super(`analyst escalated for campaign ${campaignId}: ${originalReason}`);
+    this.name = "AnalystEscalatedError";
+  }
+}
 
 function defaultShareToken(): string {
   return randomBytes(24).toString("base64url");
@@ -139,11 +152,13 @@ export async function reportDeliverHandler(
     ),
   );
   if (narrativeOutcome.kind !== "ok") {
-    return {
-      kind: "analyst_escalated",
-      campaignId,
-      reason: narrativeOutcome.reason,
-    };
+    // P4 codex review P2#3: throw instead of returning a "soft" result.
+    // Inngest's default retry policy (3 attempts with exponential backoff)
+    // will replay the workflow. Persistent failures dead-letter to the
+    // Inngest dashboard so the operator can see + manually re-run via
+    // MC's "🔄 새 리포트 생성" button. Without this, campaign-progression
+    // sees stage='performance' but no report row, sits there forever.
+    throw new AnalystEscalatedError(campaignId, narrativeOutcome.reason);
   }
 
   // ── 4. Persist report ─────────────────────────────────────────────────────

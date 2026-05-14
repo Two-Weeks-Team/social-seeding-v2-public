@@ -64,12 +64,15 @@ async function loadCostRollup(workspaceId: string): Promise<{
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  // P4 codex review P2#4: on the 31st of a month, `thirtyDaysAgo` is
+  // already deep into day 2 of the current month — using only that
+  // window for MTD drops day-1 spend. Fetch from `min(monthStart,
+  // thirtyDaysAgo)` so both windows are honest, then partition in JS.
+  const lookbackStart = monthStart < thirtyDaysAgo ? monthStart : thirtyDaysAgo;
 
-  // Pull last-30-day entries — that bounds the worst case (per workspace,
-  // 30d ≈ tens of thousands of entries even at scale).
   const docs = await ledger.find({
     workspaceId,
-    at: { $gte: thirtyDaysAgo },
+    at: { $gte: lookbackStart },
   }).toArray();
 
   let spentMtd = 0;
@@ -80,10 +83,19 @@ async function loadCostRollup(workspaceId: string): Promise<{
 
   for (const e of docs) {
     const at = e.at instanceof Date ? e.at : new Date(e.at);
-    spent30d += e.usd;
-    callCount30d++;
-    if (at >= monthStart) spentMtd += e.usd;
-    // by agent
+    // 30d window is the rolling-30 view; MTD is "since month-start" —
+    // independent slices over the same fetched superset.
+    const inThirtyDays = at >= thirtyDaysAgo;
+    const inMtd = at >= monthStart;
+    if (inThirtyDays) {
+      spent30d += e.usd;
+      callCount30d++;
+    }
+    if (inMtd) spentMtd += e.usd;
+    // Per-agent + per-campaign rollups follow the 30d window — that's
+    // what the operator typically reads ("which agent did I spend on
+    // recently?"), and matches the "최근 30일" label on those tables.
+    if (!inThirtyDays) continue;
     const a = agentMap.get(e.agent) ?? {
       agent: e.agent, callCount: 0, inputTokens: 0, outputTokens: 0, spentUsd: 0,
     };
@@ -92,7 +104,6 @@ async function loadCostRollup(workspaceId: string): Promise<{
     a.outputTokens += e.outputTokens;
     a.spentUsd += e.usd;
     agentMap.set(e.agent, a);
-    // by campaign
     campaignSpent.set(e.campaignId, (campaignSpent.get(e.campaignId) ?? 0) + e.usd);
   }
 
