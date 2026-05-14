@@ -1,7 +1,7 @@
 # HANDOFF — continuing the v2 build (Claude Code CLI)
 
 > Read this first when you (or a fresh Claude Code session) pick this repo up.
-> Last handoff: **Phase 5 all 4 chunks + codex-review fix pass + P5 smoke** — `pnpm run verify-build` is green, 299 tests pass (74 workflows / 157 capabilities / 64 agents / 4 observability).
+> Last handoff: **Phase 6 C1+C2 + codex-review fix pass + P6 smoke (C4 deferred)** — `pnpm run verify-build` is green, 321 tests pass (96 workflows / 157 capabilities / 64 agents / 4 observability).
 
 ---
 
@@ -13,15 +13,85 @@ Phase 1  (sourcing+vetting vertical slice, 17 + 1 docs)               ✓ done
 Phase 2  C1-C7 + codex-review pass + Step D googleapis (29 commits)   ✓ done
 Phase 3  C1-C7 + 4-commit codex-review pass (14 commits)              ✓ done
 Phase 4  C1-C6 + codex-review fix pass + smoke (9 commits)            ✓ done
-Phase 5  C1 (Lead/LeadCampaign contracts + crm.search + crm.enrich)   ✓ done
-Phase 5  C2 (research agent — Haiku — enrichment → pitch)             ✓ done
-Phase 5  C3 (lead-campaign + lead-track + lead-outreach-writer)       ✓ done
-Phase 5  C4 (MC /leads list + /leads/new + /leads/[id])               ✓ done
-Phase 5  codex-review fixes (gmail.send shape + email-promote + …)    ✓ done
-Phase 6  (cutover: migrate v1 workspaces, retire v1 backend)          ⏳ NEXT
+Phase 5  C1-C4 + codex-review fix pass + smoke (6 commits)            ✓ done
+Phase 6  C1 (v1→v2 workspace importer + leadRepo tests)               ✓ done
+Phase 6  C2 (v2Enabled rollout flag + owner/admin gate)               ✓ done
+Phase 6  codex-review fixes (rollout owner-gate, insert-only)         ✓ done
+Phase 6  C4 (retire v1 backend)                                       ⏸ DEFERRED (operator go-ahead needed)
+Backlog (i18n, landing site, conditional CAPABILITIES rows)           ⏳ NEXT
 ```
 
-`git log --oneline` shows ~95 commits since the scaffold (`66f4390`). `pnpm run verify-build` exits 0; 299 tests across `@ss/agents` (64) · `@ss/capabilities` (157) · `@ss/observability` (4) · `@ss/workflows` (74). `docs/PHASE-1-PLAN.md` unchanged (no scope creep).
+`git log --oneline` shows ~101 commits since the scaffold (`66f4390`). `pnpm run verify-build` exits 0; 321 tests across `@ss/agents` (64) · `@ss/capabilities` (157) · `@ss/observability` (4) · `@ss/workflows` (96). `docs/PHASE-1-PLAN.md` unchanged (no scope creep).
+
+### Phase 6 in one paragraph
+
+Migration **tool** for v1 → v2 cutover. `scripts/import-v1-workspaces.ts`
+(CLI) + `@ss/db`'s `importV1Workspaces` (handler) walk the shared
+`workspaces` collection (v1-owned, read-only) and provision a
+`v2_workspace_policies` row for every workspace that doesn't already
+have one. The default policy is conservative: `checkpointed` autonomy
+level with every gate `always_ask` — operators opt INTO automation via
+MC `/policies`. Insert-only upsert (`$setOnInsert`) preserves any
+policy created by an operator (or a parallel importer run) between the
+importer's snapshot read and its write — never overwrites (codex
+review P2#3). `canceledAt != null` skipped by default; the
+point-of-no-return `cleanupMutationAt` always skipped. `--dry-run`
+prints the plan + 5-id previews per bucket; `--include-canceled` opts
+canceled workspaces into the import. P6-C2 adds the **`v2Enabled`**
+flag on the shared `workspaces` doc (camelCase per v1's existing
+convention — `canceledAt`, `cleanupStartedAt`, ...) — additive write
+permitted by FREEZE.md §3. The MC `/policies` page now shows a
+"v1 → v2 롤아웃" card with a single-button toggle; the server action
+gates on `workspaceRepo.isOwnerOrAdmin(workspaceId, userId)` (reads
+`workspaces.ownerId` + falls back to `workspace_members.role == "admin"`)
+so non-owner members can't redirect or roll back the whole workspace
+(codex review P1#1). On enable: writes `v2EnabledAt`. On disable:
+writes `v2DisabledAt`. Both history fields stay around — visible
+rollback trail.
+
+### Codex review fix pass (post-P6 C1+C2)
+
+`codex review --base p6-baseline` against the 2-commit P6 delta
+surfaced 3 issues (2 P1 + 1 P2); all fixed in `8395a5a`:
+
+- **P1#1** — policies-page rollout action only checked for a session,
+  not for owner/admin. A non-owner member could redirect the
+  workspace. Fix: new `workspaceRepo.isOwnerOrAdmin` reads
+  `workspaces.ownerId` + `workspace_members.role`. Server action
+  gates on it (silent no-op for unauthorized — no existence leak).
+  UI hides the toggle entirely for non-owners.
+- **P1#2** — HANDOFF wording said `v2_enabled` (snake_case) but the
+  code used `v2Enabled` (camelCase). v1's existing field convention
+  is camelCase, so the code wins. Fix: explicit JSDoc on
+  `isV2Enabled` pinning camelCase as the canonical name + this
+  HANDOFF section updated.
+- **P2#3** — importer used `savePolicy` which `$set`-upserts, so a
+  policy created during the run window got stomped by defaults. Fix:
+  new `createPolicyIfMissing` repo method using `$setOnInsert`;
+  importer calls it instead. "Lost race" path counts toward
+  `alreadyImported`, not `created` (honest counters).
+
+8 new tests; 321/321 pass.
+
+### Phase 6 smoke (post all fixes, 2026-05-14)
+
+`docs/SMOKE-TEST-P6.md` logs the end-to-end importer smoke against a
+hand-seeded dev-mongo fixture (5 v1 workspaces: 3 active, 1 canceled,
+1 with cleanupMutationAt). What passed:
+  · dry-run scanned 3 (filtered out canceled + cleanup), wrote nothing
+  · live run created 3 v2_workspace_policies with the expected
+    default shape
+  · re-run scanned 3, alreadyImported 3 (idempotent)
+  · `--include-canceled` opted the canceled workspace in (created +1);
+    the cleanupMutationAt workspace STAYED OUT (point-of-no-return)
+
+### P6-C4 (retire v1 backend) — DEFERRED
+
+Retirement is irreversible infrastructure work — not done
+autonomously. Open operator decisions:
+  · which v1 workspaces opt INTO v2 first (per `v2Enabled` rollout)
+  · how long the side-by-side window is
+  · which v1 admin views are genuinely needed in v2 vs droppable
 
 ### Phase 5 in one paragraph
 
@@ -42,13 +112,9 @@ from Phase 2) drafts the cold-sales email. Two new Inngest functions
 the parent walks import → enrich → research and fans out one child per
 researched lead (respecting `brief.outreach.maxSendsPerBatch`); the
 child does outreach (writer + send) + 3-day reply wait + classifier +
-branch (interested → responder + reply gate + send → 'agreed'/'in_conv';
-negotiating → always_ask escalate; declined/unsubscribe → 'declined' +
-suppression.add; not_now/OOO/unrelated → 'no_response'). MC adds
-`/leads` (list + per-campaign + recent-leads tables), `/leads/new`
-(LeadCampaignBrief form + paste-list textarea), `/leads/[id]` (9-column
-funnel strip + per-lead leaderboard with priority + confidence badges).
-Sidebar gets "리드 (B2B)" as the 2nd PRIMARY nav item.
+branch. MC adds `/leads` (list + per-campaign + recent-leads tables),
+`/leads/new` (LeadCampaignBrief form + paste-list textarea),
+`/leads/[id]` (9-column funnel strip + per-lead leaderboard).
 
 ### Codex review fix pass (post-P5)
 
@@ -319,37 +385,45 @@ v1 (`~/social-seeding`, frozen) is **reference only** — port named assets
 (TikTok ranking, `lib/cold-mail`, `lib/gmail`, `lib/crm` enrichment, NicePay
 billing, usage-limiter, blacklist) without reinventing.
 
-## 4. What's next — Phase 6 cutover
+## 4. What's next — operator decisions + backlog
 
-Per `docs/ROADMAP.md` §"Phase 6". Phase 5 added the second campaign
-type (sales-lead) so the brand + lead loops are both real. Phase 6 is
-the **migration + sunset**: move existing v1 workspaces/users to v2,
-run both side-by-side in a deprecation window, retire the v1 Go +
-LangGraph backend, then sweep the admin views v1 still owns.
+P6-C1 (importer) and P6-C2 (rollout flag) are done. P6-C3 (admin
+views sweep) and P6-C4 (retire v1 backend) are gated on **operator
+go-ahead** — they involve sequencing decisions that aren't
+autonomous-safe:
 
-Planned chunks (loose — Phase 6 is ongoing maintenance, not a single
-delivery):
+- **P6-C3** admin views sweep: which v1 `/admin/*` pages are still
+  needed? `/admin/usage-dashboard` is already ported to v2's
+  `/usage`. The remaining ones (user-override admin, billing
+  impersonation, …) need a decision on which to port vs drop.
+- **P6-C4** retire v1 backend: irreversible infrastructure work.
+  Needs the side-by-side rollout window timing first (1 week / 1
+  month / longer?), then a freeze-flag pass over
+  `~/social-seeding/FREEZE.md`, then a Modal/Kimi services
+  shutdown plan.
 
-- **P6-C1**: v1 → v2 workspace importer. Script that walks v1
-  workspaces + memberships and creates v2-side mirrors (the shared
-  Atlas already holds the historical campaign data, so this is just
-  bootstrap of the v2_* per-workspace rows: workspace_policies with
-  conservative defaults, agent_traces TTL, cost_ledger seed).
-- **P6-C2**: side-by-side rollout. Documentation + a workspace-level
-  flag (`v2_enabled` on the shared `workspaces` doc) so v1 frontend
-  hides itself for opted-in workspaces.
-- **P6-C3**: admin views (sweep of v1's `/admin/*` pages that aren't
-  yet rebuilt — usage-dashboard is already in v2 at `/usage`; the
-  remaining ones are user-overrides, billing impersonation, etc).
-- **P6-C4**: retire v1 backend (Go/LangGraph). Mark v1 as read-only
-  in `~/social-seeding/FREEZE.md`; remove the Modal+Kimi services
-  v2 doesn't depend on; spin down infra.
+When P6-C3/C4 unblock, the migration runbook would be:
 
-After Phase 6 → backlog (i18n, landing/marketing site, the small set
-of conditional CAPABILITIES.md rows that turned out to matter).
+1. Run `pnpm exec tsx scripts/init-indexes.ts` against the shared
+   Atlas (`MONGODB_URI` + `MONGODB_DB` pointing at production).
+2. Run `pnpm exec tsx scripts/import-v1-workspaces.ts --dry-run` —
+   verify the scan/skip counts match expectations.
+3. Run the live importer (no flag).
+4. For each opted-in workspace, an owner clicks "→ v2 활성화" on
+   `/policies`; v1 frontend honors the flag and redirects.
+5. Once all targeted workspaces are migrated + the side-by-side
+   window expires, run P6-C4 (mark v1 read-only, shut down infra).
 
-Open work spilled out of earlier phases (not blocking P6, fold into the
-next relevant chunk):
+### Backlog (after P6-C3/C4 unblock — or in parallel)
+
+- i18n (multi-language MC + outreach prompts; v1 supported KO/EN).
+- Landing / marketing site port (currently in v1; v2 has none).
+- Conditional CAPABILITIES.md rows that turned out to matter
+  (decided after dogfooding — see `docs/SCOPE-DECISIONS.md`).
+
+### Open work spilled out of earlier phases
+
+(not blocking any chunk; fold into the next relevant work)
 
 - **Carrier adapter** — `defaultCarrierClientFactory` still throws.
   `packages/capabilities/src/shipment/carrier.ts` defines the seam;
@@ -398,9 +472,13 @@ Per `docs/ROADMAP.md` §"Phase 2"-§"Phase 3". Six chunks per phase; each
 | ~~**P5-C3**~~ ✓ | `lead-outreach-writer` agent (Opus 4.7, tools [outreach.judge, templates.render], $1.20 cap — B2B sibling of Phase-2 writer, same OutreachDraft output). `lead-campaign` parent workflow (import → per-lead enrich + research → fan out one `lead-track` per researched lead, capped at brief.outreach.maxSendsPerBatch). `lead-track` child workflow (writer → approveOutreachSend gate → gmail.send → 3d reply wait → conversation classifier → branch: interested/needs_info → responder + reply gate + send; negotiating → always_ask escalate; declined/unsubscribe → 'declined' + suppression.add; not_now/OOO/unrelated → 'no_response'). 4 tests. | `ANTHROPIC_API_KEY`, Gmail OAuth (P2 prereqs) |
 | ~~**P5-C4**~~ ✓ | MC surfaces: `/leads` (per-campaign table + recent-leads table), `/leads/new` (LeadCampaignBriefSchema form + paste-list textarea, server action emits `lead-campaign/submitted`), `/leads/[id]` (9-column funnel strip imported → flaked + per-lead leaderboard with priority + confidence badges + pitch/summary preview). Sidebar adds "리드 (B2B)" as the 2nd PRIMARY nav item. | — |
 | ~~**P5 codex review**~~ ✓ | 1 pass against the 4-commit P5 delta surfaced 4 issues (2 P1 + 2 P2); all fixed in `1a8335e`: gmail.send shape (P1#1), crawled-email promote (P1#2), batch cap honored (P2#3), regex special chars escaped (P2#4). 3 regression tests. | — |
+| ~~**P6-C1**~~ ✓ | `importV1Workspaces` handler in `@ss/db` + `scripts/import-v1-workspaces.ts` CLI. Walks shared `workspaces` collection (read-only), provisions `v2_workspace_policies` rows for missing workspaces via `createPolicyIfMissing` (`$setOnInsert` so concurrent operator saves are never stomped — codex P2#3). Skips `canceledAt != null` by default; `--include-canceled` opts them in. `cleanupMutationAt` always skipped (point-of-no-return). `--dry-run` + 5-id preview buckets per result bucket. 8 tests. | — |
+| ~~**P6-C2**~~ ✓ | `workspaceRepo.isV2Enabled` / `setV2Enabled` — additive write of `v2Enabled` (camelCase per v1 convention; codex P1#2 pinned the naming) + audit timestamps (`v2EnabledAt` / `v2DisabledAt`, both preserved). MC `/policies` v1→v2 rollout card: server action gates on `workspaceRepo.isOwnerOrAdmin` (checks `workspaces.ownerId` + `workspace_members.role`; codex P1#1) — non-owner members see "owner / admin only" instead of the toggle. 14 tests. | — |
+| **P6-C3** | Admin views sweep — `/admin/usage-dashboard` already ported as `/usage`. Remaining v1 admin views (user-override admin, billing impersonation, …) are operator decisions on port-vs-drop. | — |
+| **P6-C4** | Retire v1 backend (Go/LangGraph). Irreversible. Operator go-ahead required. Mark v1 as read-only in `~/social-seeding/FREEZE.md`, spin down Modal/Kimi if no longer used by v2, retire the v1 LangGraph container. | — |
 
-After Phase 5 → Phase 6 (cutover: migrate v1 workspaces, retire v1
-backend, sweep remaining admin views). See `docs/ROADMAP.md`.
+After Phase 6 → backlog (i18n, landing/marketing site, conditional
+CAPABILITIES.md rows). See `docs/ROADMAP.md`.
 
 ## 5. To run the live exit demo (Phase 1)
 
