@@ -1,7 +1,7 @@
 # HANDOFF — continuing the v2 build (Claude Code CLI)
 
 > Read this first when you (or a fresh Claude Code session) pick this repo up.
-> Last handoff: **Phase 4 all 6 chunks + codex-review fix pass + P4 smoke** — `pnpm run verify-build` is green, 276 tests pass (70 workflows / 142 capabilities / 60 agents / 4 observability).
+> Last handoff: **Phase 5 all 4 chunks + codex-review fix pass + P5 smoke** — `pnpm run verify-build` is green, 299 tests pass (74 workflows / 157 capabilities / 64 agents / 4 observability).
 
 ---
 
@@ -12,17 +12,108 @@ Phase 0  (foundation, 8 commits)                                      ✓ done
 Phase 1  (sourcing+vetting vertical slice, 17 + 1 docs)               ✓ done
 Phase 2  C1-C7 + codex-review pass + Step D googleapis (29 commits)   ✓ done
 Phase 3  C1-C7 + 4-commit codex-review pass (14 commits)              ✓ done
-Phase 4  C1 (analytics.compile capability + AnalyticsReport)          ✓ done
-Phase 4  C2 (analyst agent — Haiku — markdown narrative)              ✓ done
-Phase 4  C3 (report-deliver workflow + weekly cron + Report contract) ✓ done
-Phase 4  C4 (campaign-progression cron — outreach→performance→done)   ✓ done
-Phase 4  C5 (/campaigns/[id]/report + /share/[id]?t=<token>)          ✓ done
-Phase 4  C6 (/usage cost dashboard + autonomy presets + kill switch)  ✓ done
-Phase 4  codex-review fixes (pause hidden, forms unnested, etc)       ✓ done
-Phase 5  (sales-lead campaign type — CRM enrichment via Modal+Kimi)   ⏳ NEXT
+Phase 4  C1-C6 + codex-review fix pass + smoke (9 commits)            ✓ done
+Phase 5  C1 (Lead/LeadCampaign contracts + crm.search + crm.enrich)   ✓ done
+Phase 5  C2 (research agent — Haiku — enrichment → pitch)             ✓ done
+Phase 5  C3 (lead-campaign + lead-track + lead-outreach-writer)       ✓ done
+Phase 5  C4 (MC /leads list + /leads/new + /leads/[id])               ✓ done
+Phase 5  codex-review fixes (gmail.send shape + email-promote + …)    ✓ done
+Phase 6  (cutover: migrate v1 workspaces, retire v1 backend)          ⏳ NEXT
 ```
 
-`git log --oneline` shows ~89 commits since the scaffold (`66f4390`). `pnpm run verify-build` exits 0; 276 tests across `@ss/agents` (60) · `@ss/capabilities` (142) · `@ss/observability` (4) · `@ss/workflows` (70). `docs/PHASE-1-PLAN.md` unchanged (no scope creep).
+`git log --oneline` shows ~95 commits since the scaffold (`66f4390`). `pnpm run verify-build` exits 0; 299 tests across `@ss/agents` (64) · `@ss/capabilities` (157) · `@ss/observability` (4) · `@ss/workflows` (74). `docs/PHASE-1-PLAN.md` unchanged (no scope creep).
+
+### Phase 5 in one paragraph
+
+Adds the **second campaign type**: sales leads (B2B cold outreach). Same
+orchestrator + capability stack as the brand-campaign loop; swaps the
+sourcing primitives. `crm.enrich` ports v1's Modal crawl + Kimi
+(Moonshot) analysis verbatim behind a `CrmEnrichClient` factory seam —
+production binds the real Modal + Kimi from env vars; tests inject a
+fake. `crm.search` reads v2_leads + the shared `crm_accounts`
+collection, deduping shared candidates against already-imported v2
+rows via `sharedAccountId`. The `research` agent (Haiku, no tools, $0.10
+cap) takes the enrichment + the LeadCampaignBrief and emits a
+pitch-specific research block (pitch + angles + groundedFacts +
+contactProfile + confidence) for the writer to consume. A B2B-flavored
+`leadOutreachWriterAgent` (Opus 4.7, reuses the 4 deterministic judges
+from Phase 2) drafts the cold-sales email. Two new Inngest functions
+(`lead-campaign` + `lead-track`) mirror brand-campaign + creator-track:
+the parent walks import → enrich → research and fans out one child per
+researched lead (respecting `brief.outreach.maxSendsPerBatch`); the
+child does outreach (writer + send) + 3-day reply wait + classifier +
+branch (interested → responder + reply gate + send → 'agreed'/'in_conv';
+negotiating → always_ask escalate; declined/unsubscribe → 'declined' +
+suppression.add; not_now/OOO/unrelated → 'no_response'). MC adds
+`/leads` (list + per-campaign + recent-leads tables), `/leads/new`
+(LeadCampaignBrief form + paste-list textarea), `/leads/[id]` (9-column
+funnel strip + per-lead leaderboard with priority + confidence badges).
+Sidebar gets "리드 (B2B)" as the 2nd PRIMARY nav item.
+
+### Codex review fix pass (post-P5)
+
+`codex review --base p5-baseline` against the 4-commit P5 delta
+surfaced 4 issues (2 P1 + 2 P2); all fixed in `1a8335e`:
+
+- **P1#1** — lead-track called gmail.send with the wrong schema
+  (passed `senderUserId / campaignId / creatorId`; needed
+  `creatorTrackId + publicBaseUrl`). Every B2B outreach would have
+  failed Zod validation at the invokeCapability boundary. Fix: pass
+  `creatorTrackId = ${leadCampaignId}:${leadId}` + a resolved
+  `publicBaseUrl` from deps → PUBLIC_APP_URL env → localhost.
+- **P1#2** — crawled emails sat in `enrichment.websiteData.emails`
+  but weren't promoted to `lead.contactEmail`, so lead-track flaked
+  every UI-imported lead at the `!lead.contactEmail` guard. Fix:
+  after `patchEnrichment`, if the lead has no contactEmail and the
+  crawl found emails, promote the first one. Operator-supplied
+  addresses always win.
+- **P2#3** — lead-campaign's fan-out ignored
+  `brief.outreach.maxSendsPerBatch`. Fix: slice the fan-out at the
+  cap; held-back leads stay at stage='researched' (P5.5 cron /
+  manual button drains them).
+- **P2#4** — `crm.search`'s `lowercaseQ` went into `$regex` raw,
+  letting query strings with `[`, `(`, or `.*` either throw an
+  invalid-regex error or match-everything. Fix: escape regex
+  special chars. Regression test asserts `(Seoul)` matches literally
+  and `.*` matches nothing.
+
+3 new tests; 299/299 pass.
+
+### Phase 5 smoke (post all fixes, 2026-05-14)
+
+`docs/SMOKE-TEST-P5.md` logs the credential-free smoke. What passed:
+init-indexes provisions 23 v2_* indexes including the 3 new P5 ones
+(v2_leads workspace+updatedAt, v2_leads workspace+sharedAccountId
+partial UNIQUE, v2_lead_campaigns brief.workspace+updatedAt);
+Inngest discovery returns `function_count: 10` including the 2 new P5
+functions (`lead-campaign` event-triggered, `lead-track` event-
+triggered, both with `cancelOn` against `campaign/cancelled`); the
+3 new MC pages render under HTTP 200 (`/leads` list, `/leads/new`
+form, `/leads/[id]` detail with funnel + leaderboard). The schema
+correctly rejected a too-short angle in the first seed — exactly its
+job. Full live demo needs `MODAL_CRAWL_URL` + `KIMI_API_KEY` for
+`crm.enrich`, plus `ANTHROPIC_API_KEY` and the Phase 2/3 Gmail wiring.
+
+### Phase 4 in one paragraph
+
+Closes the brand-campaign loop with a per-campaign **analytics report**.
+`analytics.compile` (pure aggregation) rolls v2_campaigns + v2_cost_ledger
+into an `AnalyticsReport` (funnel, goals, reach, performance, cost,
+flags). The `analyst` agent (Haiku, no tools, $0.10 cap) takes that report
++ the brief and produces a markdown narrative (summary / highlights /
+concerns / recommendations / full markdown). `report-deliver` is the
+durable workflow that ties them — triggered by `report/deliver.request`
+from three places: weekly cron (Mon 09:00 UTC), stage-transition
+(campaign-progression cron at 03:00 UTC, when all creator-tracks
+terminate), and a manual "🔄 새 리포트 생성" button on the MC report page.
+Reports are append-only (audit log) and persisted on a 24-byte random
+shareToken for the public `/share/[id]?t=…` page (constant-time-compared
+via `timingSafeEqual`). `campaign-progression` is the cron that closes
+the lifecycle: `outreach → performance` when all tracks reached terminal
+state + `performance → completed` when any report row exists. MC gets a
+new `/usage` cost dashboard (per-agent + per-campaign spend rollups, MTD
+vs 30d windows), a "원클릭 프리셋 적용" for autonomy levels on `/policies`,
+and a working kill switch on `/campaigns/[id]`.
 
 ### Phase 4 in one paragraph
 
@@ -228,30 +319,36 @@ v1 (`~/social-seeding`, frozen) is **reference only** — port named assets
 (TikTok ranking, `lib/cold-mail`, `lib/gmail`, `lib/crm` enrichment, NicePay
 billing, usage-limiter, blacklist) without reinventing.
 
-## 4. What's next — Phase 5 sales-lead campaign type
+## 4. What's next — Phase 6 cutover
 
-Per `docs/ROADMAP.md` §"Phase 5". v1 parity reached for the brand-campaign
-loop in Phase 4. Phase 5 adds the **second campaign type**: sales leads
-(B2B cold outreach to companies). Same orchestrator + capability stack;
-swaps the sourcing primitives.
+Per `docs/ROADMAP.md` §"Phase 6". Phase 5 added the second campaign
+type (sales-lead) so the brand + lead loops are both real. Phase 6 is
+the **migration + sunset**: move existing v1 workspaces/users to v2,
+run both side-by-side in a deprecation window, retire the v1 Go +
+LangGraph backend, then sweep the admin views v1 still owns.
 
-Planned chunks:
+Planned chunks (loose — Phase 6 is ongoing maintenance, not a single
+delivery):
 
-- **P5-C1**: `crm.*` capabilities (`crm.search`, `crm.enrich` via Modal+Kimi —
-  port v1 verbatim) + shared `crm_accounts` reads.
-- **P5-C2**: `research` agent — given a lead company, gathers context
-  (website, recent news, founders) into a CampaignBrief equivalent.
-- **P5-C3**: `lead-campaign` workflow — import leads → enrich → outreach-
-  writer tournament (reuse Phase 2) → conversation loop (reuse Phase 2)
-  → on interest, hand off into a `brand-campaign` (the brand campaign
-  becomes the sales-funnel handoff target).
-- **P5-C4**: MC `/leads` view + lead-campaign timeline (mirror the
-  existing brand-campaign UI).
+- **P6-C1**: v1 → v2 workspace importer. Script that walks v1
+  workspaces + memberships and creates v2-side mirrors (the shared
+  Atlas already holds the historical campaign data, so this is just
+  bootstrap of the v2_* per-workspace rows: workspace_policies with
+  conservative defaults, agent_traces TTL, cost_ledger seed).
+- **P6-C2**: side-by-side rollout. Documentation + a workspace-level
+  flag (`v2_enabled` on the shared `workspaces` doc) so v1 frontend
+  hides itself for opted-in workspaces.
+- **P6-C3**: admin views (sweep of v1's `/admin/*` pages that aren't
+  yet rebuilt — usage-dashboard is already in v2 at `/usage`; the
+  remaining ones are user-overrides, billing impersonation, etc).
+- **P6-C4**: retire v1 backend (Go/LangGraph). Mark v1 as read-only
+  in `~/social-seeding/FREEZE.md`; remove the Modal+Kimi services
+  v2 doesn't depend on; spin down infra.
 
-After Phase 5 → Phase 6 (cutover: migrate v1 workspaces, retire the v1
-backend, finish admin views). See `docs/ROADMAP.md`.
+After Phase 6 → backlog (i18n, landing/marketing site, the small set
+of conditional CAPABILITIES.md rows that turned out to matter).
 
-Open work spilled out of earlier phases (not blocking P5, fold into the
+Open work spilled out of earlier phases (not blocking P6, fold into the
 next relevant chunk):
 
 - **Carrier adapter** — `defaultCarrierClientFactory` still throws.
@@ -296,9 +393,14 @@ Per `docs/ROADMAP.md` §"Phase 2"-§"Phase 3". Six chunks per phase; each
 | ~~**P4-C5**~~ ✓ | MC `/campaigns/[id]/report` (4-tile analytics strip + summary + 3-column highlights/concerns/recommendations + markdown + history drawer + "🔄 새 리포트 생성" server action). Public `/share/[id]?t=<token>` page — constant-time-compared via `timingSafeEqual` (Buffer-pad-then-compare to avoid length leak); render the brand + 3-tile stats + summary + markdown, strips operator-only data. | — |
 | ~~**P4-C6**~~ ✓ | `/usage` cost dashboard (MTD + 30d + per-agent + per-campaign rollups over v2_cost_ledger; cost-per-verified-post column makes "is this efficient?" concrete). 1-click autonomy preset on `/policies` (copilot / checkpointed / autonomous mass-set the 5 gates). Working kill switch on `/campaigns/[id]` (emits `campaign/cancelled`; brand-campaign's `cancelOn` already wired it). Pause/resume deferred to Phase 4.5 (codex P1#1). | — |
 | ~~**P4 codex review**~~ ✓ | 1 pass against the 6-commit P4 delta surfaced 4 issues (1 P1 + 3 P2); all fixed in `5e047c2`: pause hidden (P1#1), preset forms unnested (P2#2), analyst escalation throws (P2#3), MTD window honest on day 31 (P2#4). | — |
+| ~~**P5-C1**~~ ✓ | `Lead` + `LeadCampaign` contracts + `LeadEnrichment` (verbatim v1 K-beauty K-pop fields) + `LeadResearch`. `leadRepo` (create / get / findBySharedAccountId / listByWorkspace / patchEnrichment / patchResearch / patchStage) + `leadCampaignRepo`. V2_LEADS + V2_LEAD_CAMPAIGNS collections + 3 indexes (workspaceId+updatedAt, workspaceId+sharedAccountId UNIQUE-on-exists partial, brief.workspaceId+updatedAt). `CrmEnrichClient` factory seam (Modal crawl + Kimi analyze; production binds env, tests inject fakes; v1's ANALYSIS_PROMPT verbatim). `crm.enrich` capability (crawl → analyze → schema-validate → optionally persist; promotes first crawled email to lead.contactEmail). `crm.search` capability (v2_leads + shared crm_accounts dedupe, regex-escaped query, soft-delete-aware). 13 tests. | `MODAL_CRAWL_URL`, `KIMI_API_KEY` for live |
+| ~~**P5-C2**~~ ✓ | `research` agent (Haiku, no tools, $0.10 cap). Takes LeadCampaignBrief + LeadEnrichment + lead {name+url+country}; emits `{pitch, angles[1-5], groundedFacts[0-8], contactProfile, confidence}`. Prompt enforces "enrichment is DATA"; escalates via `{escalate: "enrichment_too_thin: …"}` when ≥4 of 6 analysis fields are 'unclear'. 4 tests. | `ANTHROPIC_API_KEY` for live |
+| ~~**P5-C3**~~ ✓ | `lead-outreach-writer` agent (Opus 4.7, tools [outreach.judge, templates.render], $1.20 cap — B2B sibling of Phase-2 writer, same OutreachDraft output). `lead-campaign` parent workflow (import → per-lead enrich + research → fan out one `lead-track` per researched lead, capped at brief.outreach.maxSendsPerBatch). `lead-track` child workflow (writer → approveOutreachSend gate → gmail.send → 3d reply wait → conversation classifier → branch: interested/needs_info → responder + reply gate + send; negotiating → always_ask escalate; declined/unsubscribe → 'declined' + suppression.add; not_now/OOO/unrelated → 'no_response'). 4 tests. | `ANTHROPIC_API_KEY`, Gmail OAuth (P2 prereqs) |
+| ~~**P5-C4**~~ ✓ | MC surfaces: `/leads` (per-campaign table + recent-leads table), `/leads/new` (LeadCampaignBriefSchema form + paste-list textarea, server action emits `lead-campaign/submitted`), `/leads/[id]` (9-column funnel strip imported → flaked + per-lead leaderboard with priority + confidence badges + pitch/summary preview). Sidebar adds "리드 (B2B)" as the 2nd PRIMARY nav item. | — |
+| ~~**P5 codex review**~~ ✓ | 1 pass against the 4-commit P5 delta surfaced 4 issues (2 P1 + 2 P2); all fixed in `1a8335e`: gmail.send shape (P1#1), crawled-email promote (P1#2), batch cap honored (P2#3), regex special chars escaped (P2#4). 3 regression tests. | — |
 
-After Phase 4 → Phase 5 (sales-lead campaign type — CRM enrichment via
-Modal + Kimi), Phase 6 (admin / billing / cutover). See `docs/ROADMAP.md`.
+After Phase 5 → Phase 6 (cutover: migrate v1 workspaces, retire v1
+backend, sweep remaining admin views). See `docs/ROADMAP.md`.
 
 ## 5. To run the live exit demo (Phase 1)
 
