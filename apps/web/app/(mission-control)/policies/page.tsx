@@ -216,11 +216,23 @@ function ModeToggle({
   );
 }
 
+async function toggleV2RolloutAction(formData: FormData): Promise<void> {
+  "use server";
+  const session = await getServerSession();
+  if (!session) redirect("/sign-in");
+  const next = formData.get("enable") === "true";
+  await workspaceRepo.setV2Enabled(session.workspaceId, next);
+  revalidatePath("/policies");
+}
+
 export default async function PoliciesPage() {
   const session = await getServerSession();
   if (!session) redirect("/sign-in");
 
-  const policy = (await workspaceRepo.getPolicy(session.workspaceId)) ?? defaultPolicy(session.workspaceId);
+  const [policy, v2Enabled] = await Promise.all([
+    workspaceRepo.getPolicy(session.workspaceId).then((p) => p ?? defaultPolicy(session.workspaceId)),
+    workspaceRepo.isV2Enabled(session.workspaceId),
+  ]);
   const sl = policy.gates.approveShortlist;
   const os = policy.gates.approveOutreachSend;
   const rr = policy.gates.approveReplyResponse;
@@ -234,6 +246,35 @@ export default async function PoliciesPage() {
           에이전트에게 어디까지 맡길지 정합니다. 변경 사항은 새 캠페인부터 적용됩니다 (진행 중 캠페인은 영향 없음).
         </p>
       </header>
+
+      {/* P6-C2 — v1 → v2 rollout toggle. Writes `v2Enabled` on the
+          shared workspaces doc; v1's frontend reads it to redirect
+          users into v2. Sibling card (not nested in the save form). */}
+      <Card className="mb-5"><CardBody>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <SectionLabel className="mb-1">v1 → v2 롤아웃</SectionLabel>
+            <div className="text-[12px] text-slate-600 leading-relaxed">
+              이 워크스페이스의 v1 프론트엔드 사용자를 v2로 리디렉트할지 결정합니다.
+              <span className="text-slate-400 ml-1">
+                현재 상태:{" "}
+                <Badge variant={v2Enabled ? "emerald" : "slate"}>
+                  {v2Enabled ? "v2 활성화" : "v1 사용 중"}
+                </Badge>
+              </span>
+            </div>
+          </div>
+          <form action={toggleV2RolloutAction}>
+            <input type="hidden" name="enable" value={v2Enabled ? "false" : "true"} />
+            <Button
+              variant="secondary"
+              tone={v2Enabled ? "warn" : "approve"}
+            >
+              {v2Enabled ? "← v1으로 롤백" : "→ v2 활성화"}
+            </Button>
+          </form>
+        </div>
+      </CardBody></Card>
 
       {/*
         P4 codex review P2#2: presets card lives OUTSIDE the save form
