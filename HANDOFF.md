@@ -1,7 +1,7 @@
 # HANDOFF — continuing the v2 build (Claude Code CLI)
 
 > Read this first when you (or a fresh Claude Code session) pick this repo up.
-> Last handoff: **Phase 6 C1+C2 closed + carry-over: TikTok getUserPosts adapter wired** — `pnpm run verify-build` is green, 335 tests pass (96 workflows / 171 capabilities / 64 agents / 4 observability).
+> Last handoff: **Phase 6 C1+C2 closed + carry-overs: TikTok getUserPosts adapter + pause/resume wiring** — `pnpm run verify-build` is green, 342 tests pass (103 workflows / 171 capabilities / 64 agents / 4 observability).
 
 ---
 
@@ -433,10 +433,16 @@ When P6-C3/C4 unblock, the migration runbook would be:
   *(The line below was the original carry-over note, retained as reference for what was wired:)* `defaultTikTokFetcherFactory.getUserPosts`
   still throws. Sourcing already uses `searchUsers` + `getUserInfo` from the
   same fetcher; `getUserPosts` is the additional method the post-poller calls.
-- **Pause/resume wiring** — Phase 4 ships only the cancel switch (P4
-  codex P1#1). Pause/resume needs every long `step.waitForEvent` in
-  creator-track + shipment-tracking-poller to also cancel on
-  `CampaignPaused` with a resumability contract.
+- ~~**Pause/resume wiring**~~ ✓ wired in `eb46242` (2026-05-14). "Soft
+  pause" at the external-action boundary, not Inngest cancellation:
+  `pauseCheck(step, campaignId)` lives at every gmail.send site in
+  creator-track + lead-track (4 inject points). When paused, parks on
+  `waitForEvent('campaign/resumed', 30d)`; resume re-fires the event
+  and the workflow proceeds without re-emit. Cancelled/completed
+  throws `CampaignTerminalError`. UI button re-enabled on
+  `/campaigns/[id]`. 7 new tests pin the matrix (running / paused /
+  cancelled / resume-then-cancel race / 30d timeout / completed). Open
+  P6.5 item: operator visibility on 30-day-paused campaigns.
 - **Full live demo script** — credentialed end-to-end (real LLM + real
   Gmail + real carrier + real TikTok). Could become a `scripts/`
   helper alongside `scripts/init-indexes.ts`.
