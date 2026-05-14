@@ -109,13 +109,23 @@ export const ShipmentSchema = z.object({
 export type Shipment = z.infer<typeof ShipmentSchema>;
 
 /**
- * Terminal-state set the creator-track workflow exits on. `failed` and
- * `returned` aren't terminal — they trigger a human-review approval but
- * don't close the track.
+ * Carrier-side terminal statuses — the carrier won't emit further events for
+ * these. The creator-track workflow's shipment wait resumes on any of these;
+ * the workflow then branches:
+ *   · delivered          → proceed to content-review leg.
+ *   · cancelled          → terminal 'shipment_failed' (track ended).
+ *   · failed / returned  → terminal 'shipment_failed' (operator can re-ship
+ *                          via a new track / manual override).
+ *
+ * Distinct from non-terminal carrier statuses (pending, address_pending,
+ * shipped, in_transit, out_for_delivery) which the poller persists on the
+ * row but doesn't bubble up as a workflow event.
  */
 export const TERMINAL_SHIPMENT_STATUSES: ReadonlySet<ShipmentStatus> = new Set([
   "delivered",
   "cancelled",
+  "failed",
+  "returned",
 ]);
 
 export function isTerminalShipmentStatus(s: ShipmentStatus): boolean {

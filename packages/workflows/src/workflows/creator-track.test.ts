@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { CampaignBrief, ConversationTurn, OutreachDraft, ReplyClass, TikTokCreator } from "@ss/contracts";
-import { campaignRepo, closeMongo, Collections, getDb } from "@ss/db";
+import { approvalRepo, campaignRepo, closeMongo, Collections, getDb, workspaceRepo } from "@ss/db";
 import { memorySink, setObservabilitySink } from "@ss/observability";
 import {
   setCarrierClientFactory,
@@ -750,6 +750,115 @@ describe("creator-track — branching matrix", () => {
     const out = await run(model, fake);
     expect(out.terminalState).toBe("shipment_rejected");
     expect(fake.log.runs).not.toContain("create-shipment");
+  });
+
+  it("P3 codex P1#3: approveShipment auto_unless + followerCountGte hit ⇒ approval created, recommendation carries followerCount", async () => {
+    // Policy: auto_unless followerCount ≥ 30k. Creator's followerCount=42k ⇒ predicate fires.
+    await workspaceRepo.savePolicy({
+      workspaceId: brief.workspaceId,
+      level: "checkpointed",
+      gates: {
+        approveShortlist: { mode: "always_ask" },
+        approveOutreachSend: { mode: "auto" },
+        approveReplyResponse: { mode: "auto" },
+        approveShipment: { mode: "auto_unless", escalateIf: { followerCountGte: 30_000 } },
+        approveStageAdvance: { mode: "always_ask" },
+      },
+      budgets: { maxUsdPerCampaign: 25, maxUsdPerWorkspaceMonthly: 200 },
+      voice: { toneNotes: "", signatureBlock: "", bannedPhrases: [] },
+      updatedAt: new Date(),
+    });
+    const gmail = fakeGmail();
+    setGmailClientFactory(async () => gmail);
+    setCarrierClientFactory(async () => fakeCarrier());
+    const fake = fakeStep({
+      reply: {
+        fromEmail: "freshly@example.com",
+        subject: "Re: Quick collab",
+        bodyText: "Address: 12 Garosu-gil 06000",
+        messageId: "msg_in_p3f",
+      },
+      // Approve via the fake step's gate-create path (auto-resolves to "approved").
+      shipmentEvent: { status: "delivered", trackingNumber: "YT00000001" },
+      postEvent: null, // we only care about the gate firing; let the post wait time out
+    });
+    const model = dispatchingModel({
+      classification: "interested",
+      extracted: { shippingAddress: "12 Garosu-gil 06000" },
+      logistics: {
+        parsedAddress: {
+          recipientName: "Jiwoo", phone: "", line1: "12 Garosu-gil", line2: "",
+          city: "Seoul", region: "", postalCode: "06000", countryCode: "KR",
+        },
+      },
+    });
+    await run(model, fake);
+    // gate() created exactly one approval for kind=shipment because the
+    // predicate fired (followerCount=42_000 ≥ followerCountGte=30_000).
+    const db = await getDb();
+    const approvalDocs = await db
+      .collection(Collections.V2_APPROVALS)
+      .find({ campaignId, kind: "shipment" })
+      .toArray();
+    expect(approvalDocs).toHaveLength(1);
+    const approval = await approvalRepo.get(String(approvalDocs[0]?._id));
+    expect(approval).toBeTruthy();
+    // The recommendation payload must carry followerCount so the predicate
+    // can evaluate; without it the gate would silently auto-approve (codex
+    // review P3-full P1#3 — exactly the regression this test pins).
+    const rec = approval!.recommendation as { followerCount?: number; creatorHandle?: string };
+    expect(rec.followerCount).toBe(creator.followerCount);
+    expect(rec.creatorHandle).toBe(creator.uniqueId);
+  });
+
+  it("P3 codex P1#3: approveShipment auto_unless + followerCountGte NOT met ⇒ no approval (gate auto-approves)", async () => {
+    // Policy threshold above creator's 42k ⇒ predicate does NOT fire ⇒ no v2_approvals row.
+    await workspaceRepo.savePolicy({
+      workspaceId: brief.workspaceId,
+      level: "checkpointed",
+      gates: {
+        approveShortlist: { mode: "always_ask" },
+        approveOutreachSend: { mode: "auto" },
+        approveReplyResponse: { mode: "auto" },
+        approveShipment: { mode: "auto_unless", escalateIf: { followerCountGte: 1_000_000 } },
+        approveStageAdvance: { mode: "always_ask" },
+      },
+      budgets: { maxUsdPerCampaign: 25, maxUsdPerWorkspaceMonthly: 200 },
+      voice: { toneNotes: "", signatureBlock: "", bannedPhrases: [] },
+      updatedAt: new Date(),
+    });
+    const gmail = fakeGmail();
+    setGmailClientFactory(async () => gmail);
+    setCarrierClientFactory(async () => fakeCarrier());
+    const fake = fakeStep({
+      reply: {
+        fromEmail: "freshly@example.com",
+        subject: "Re: Quick collab",
+        bodyText: "Address: 12 Garosu-gil 06000",
+        messageId: "msg_in_p3g",
+      },
+      shipmentEvent: { status: "delivered", trackingNumber: "YT00000002" },
+      postEvent: null,
+    });
+    const model = dispatchingModel({
+      classification: "interested",
+      extracted: { shippingAddress: "12 Garosu-gil 06000" },
+      logistics: {
+        parsedAddress: {
+          recipientName: "Jiwoo", phone: "", line1: "12 Garosu-gil", line2: "",
+          city: "Seoul", region: "", postalCode: "06000", countryCode: "KR",
+        },
+      },
+    });
+    await run(model, fake);
+    const db = await getDb();
+    const approvalDocs = await db
+      .collection(Collections.V2_APPROVALS)
+      .find({ campaignId, kind: "shipment" })
+      .toArray();
+    expect(approvalDocs).toHaveLength(0);
+    // The fake step's `approval:create:shipment` was therefore never run.
+    expect(fake.log.runs).not.toContain("approval:create:shipment");
   });
 
   it("P3: logistics agent escalates address_unparseable ⇒ terminal 'shipment_rejected'", async () => {

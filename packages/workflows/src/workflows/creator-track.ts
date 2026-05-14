@@ -446,6 +446,14 @@ export async function creatorTrackHandler(
       products: deps.products ?? [DEFAULT_DEMO_PRODUCT],
       threadId: sendResult.threadId,
       classification: turn.classification,
+      // Codex review P3-full P1#3: the approveShipment gate's `followerCountGte`
+      // predicate needs `followerCount` on the recommendation payload, otherwise
+      // an `auto_unless` policy silently auto-approves every shipment.
+      creator: {
+        id: creator.id,
+        uniqueId: creator.uniqueId,
+        followerCount: creator.followerCount,
+      },
     });
   }
 
@@ -606,6 +614,13 @@ interface ShippingArgs {
   products: ShipmentProduct[];
   threadId: string;
   classification: ConversationTurn["classification"];
+  /**
+   * Creator metadata required for the approveShipment gate's `followerCountGte`
+   * predicate. Codex review P3-full P1#3: without this, an `auto_unless`
+   * policy with a follower threshold has nothing to evaluate against, so the
+   * gate silently auto-approves every shipment.
+   */
+  creator: { id: string; uniqueId: string; followerCount: number };
 }
 
 async function runShippingAndContentReview(args: ShippingArgs): Promise<CreatorTrackResult> {
@@ -636,8 +651,19 @@ async function runShippingAndContentReview(args: ShippingArgs): Promise<CreatorT
       campaignId,
       workspaceId: brief.workspaceId,
       kind: "shipment",
-      recommendation: { rawAddress, brand: brief.brandProduct.name, products },
-      rationale: `Creator agreed. About to ship ${products.length} item(s) to: "${rawAddress.slice(0, 120)}".`,
+      // Codex review P3-full P1#3: `followerCount` is required by the
+      // `followerCountGte` predicate on `auto_unless` policies. `creatorId` +
+      // `creatorHandle` are also bundled so MC's approval inbox can render
+      // who-is-this without an extra fetch.
+      recommendation: {
+        rawAddress,
+        brand: brief.brandProduct.name,
+        products,
+        creatorId: args.creator.id,
+        creatorHandle: args.creator.uniqueId,
+        followerCount: args.creator.followerCount,
+      },
+      rationale: `Creator @${args.creator.uniqueId} (${args.creator.followerCount.toLocaleString()} followers) agreed. About to ship ${products.length} item(s) to: "${rawAddress.slice(0, 120)}".`,
     },
   );
   if (gateResolution.decision === "rejected") {
@@ -691,20 +717,34 @@ async function runShippingAndContentReview(args: ShippingArgs): Promise<CreatorT
   });
 
   // Pin the wait to this specific (campaignId, creatorId, shipmentId) tuple
-  // via an `if` expression — same pattern as the Gmail reply wait (codex
-  // review P2-C5 P1#2). The carrier-poller (Phase-3.5) is the producer; for
-  // tests, the integration suite injects the event.
+  // AND filter to TERMINAL statuses only (delivered / cancelled / failed /
+  // returned). Codex review P3-full P1#2: without the status filter, an
+  // in-flight event (in_transit / out_for_delivery) would resolve the wait
+  // and the workflow would exit at terminalState='shipped' — missing the
+  // eventual 'delivered' that arrives later. The shipment-tracking-poller
+  // (P3 codex P1#1 producer) also only emits on status flips, so in
+  // practice this filter is belt + suspenders; but the workflow side is
+  // the load-bearing guarantee.
+  const TERMINAL_STATUS_CLAUSE =
+    `(event.data.status == "delivered" || event.data.status == "cancelled" || ` +
+    `event.data.status == "failed" || event.data.status == "returned")`;
   const trackingEvent = await step.waitForEvent<ShipmentTrackingData>(
     `await-shipment:${campaignId}:${creatorId}`,
     {
       event: Events.ShipmentTrackingUpdated,
       timeout: SHIPMENT_TIMEOUT,
-      if: `event.data.campaignId == "${campaignId}" && event.data.creatorId == "${creatorId}" && event.data.shipmentId == "${shipment.id}"`,
+      if:
+        `event.data.campaignId == "${campaignId}" && ` +
+        `event.data.creatorId == "${creatorId}" && ` +
+        `event.data.shipmentId == "${shipment.id}" && ` +
+        TERMINAL_STATUS_CLAUSE,
     },
   );
   if (!trackingEvent) {
-    // No carrier update in 14d. Conservative: surface for human review by
-    // leaving the track in `shipped`; MC's shipment view picks it up.
+    // No TERMINAL carrier update in 14d. The shipment row may have advanced
+    // through in_transit etc. (the carrier-poller is updating v2_shipments
+    // every 12h independently); the workflow just never observed a
+    // terminal flip. Surface for human review via MC's shipment view.
     return {
       campaignId,
       creatorId,
@@ -712,13 +752,13 @@ async function runShippingAndContentReview(args: ShippingArgs): Promise<CreatorT
       classification,
       threadId,
       shipmentId: shipment.id,
-      reason: `no carrier update within ${SHIPMENT_TIMEOUT}`,
+      reason: `no terminal carrier status within ${SHIPMENT_TIMEOUT}`,
     };
   }
+  // Defensive: belt + suspenders. The `if` expression already filters to
+  // terminal statuses, but if Inngest's filter parser diverges or a test
+  // injects a non-terminal event, refuse to advance prematurely.
   if (!isTerminalShipmentStatus(trackingEvent.data.status)) {
-    // Mid-flight status (in_transit, out_for_delivery, etc.) shouldn't fire
-    // this wait — but the `if` expression doesn't filter by status, so we
-    // gate here too. Defensive: same as no-update path.
     return {
       campaignId,
       creatorId,
@@ -726,7 +766,7 @@ async function runShippingAndContentReview(args: ShippingArgs): Promise<CreatorT
       classification,
       threadId,
       shipmentId: shipment.id,
-      reason: `carrier reported non-terminal status='${trackingEvent.data.status}' — awaiting next update`,
+      reason: `non-terminal status='${trackingEvent.data.status}' slipped past the if-filter — investigate`,
     };
   }
 
@@ -737,8 +777,9 @@ async function runShippingAndContentReview(args: ShippingArgs): Promise<CreatorT
     });
     // Fall through to content-review leg below.
   } else {
-    // cancelled. The contract's terminal set is { delivered, cancelled };
-    // failed / returned trigger human review (kept in `shipped` for MC).
+    // cancelled / failed / returned — all carrier-side terminal failures.
+    // The workflow exits as 'shipment_failed' and MC's shipment view
+    // surfaces the row for operator triage (manual re-ship via new track).
     await patchTrack(campaignId, creatorId, "declined", {
       emailsSent: 1,
       threadId,
