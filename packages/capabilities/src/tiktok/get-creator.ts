@@ -184,21 +184,152 @@ function readPath(r: Record<string, unknown>, path: string): unknown {
   return cur;
 }
 
+/**
+ * RapidAPI provider response → RawCreator normalization. Defensive
+ * across provider shape drift; mirrors mapRapidApiPosts's posture.
+ * Exported for unit testing.
+ */
+export function mapRapidApiCreator(raw: unknown): RawCreator | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  // Two common provider shapes for stats placement:
+  //   (a) tiktok-scraper7: { data: { user: {...}, stats: {...} } }
+  //                        — stats is SIBLING of user, both under data
+  //   (b) tiktok-scraper:  { user: {..., stats: {...}} }
+  //                        — stats is NESTED inside user
+  //   (c) top-level:       { unique_id, follower_count, ... }
+  //                        — everything flat
+  // Walk candidate (user, parent) pairs so stats lookup checks both
+  // the user object AND the doc one level up.
+  const candidates: Array<{ user: Record<string, unknown>; parent: Record<string, unknown> }> = [];
+  for (const path of ["data.user", "user", "result.user"]) {
+    const u = pickObject(r, [path]);
+    if (u) {
+      const parentPath = path.split(".").slice(0, -1).join(".");
+      const parent = parentPath ? pickObject(r, [parentPath]) ?? r : r;
+      candidates.push({ user: u, parent });
+    }
+  }
+  const flatData = pickObject(r, ["data", "result"]);
+  if (flatData) candidates.push({ user: flatData, parent: r });
+  candidates.push({ user: r, parent: r });
+
+  for (const { user: o, parent } of candidates) {
+    const uniqueId = pickString(o, ["unique_id", "uniqueId", "username", "handle"]);
+    if (!uniqueId) continue;
+    const stats =
+      pickObject(o, ["stats", "statistics"]) ??
+      pickObject(parent, ["stats", "statistics"]) ??
+      o;
+    const id = pickString(o, ["sec_uid", "secUid", "id", "user_id", "userId"]) ?? uniqueId;
+    return {
+      id,
+      uniqueId,
+      nickname: pickString(o, ["nickname", "display_name", "name"]) ?? uniqueId,
+      signature: pickString(o, ["signature", "bio", "description"]) ?? "",
+      followerCount: pickInt(stats, ["follower_count", "followerCount", "followers"]),
+      followingCount: pickInt(stats, ["following_count", "followingCount", "following"]),
+      videoCount: pickInt(stats, ["video_count", "videoCount", "videos"]),
+      heartCount: pickInt(stats, ["heart_count", "heartCount", "hearts", "likes_count"]),
+      verified: pickBool(o, ["verified", "is_verified"]),
+      privateAccount: pickBool(o, ["private_account", "privateAccount", "secret"]),
+      avatarThumb: pickString(o, ["avatar_thumb", "avatarThumb", "avatar"]),
+      avatarLarger: pickString(o, ["avatar_larger", "avatarLarger", "avatar_full"]),
+      hashtags: pickHashtagArray(o, ["hashtags", "tags"]),
+      textLanguage: pickString(o, ["language", "lang", "text_language"]),
+    };
+  }
+  return null;
+}
+
+function pickObject(r: Record<string, unknown>, paths: string[]): Record<string, unknown> | undefined {
+  for (const p of paths) {
+    const v = readPath(r, p);
+    if (v && typeof v === "object" && !Array.isArray(v)) return v as Record<string, unknown>;
+  }
+  return undefined;
+}
+
+function pickString(r: Record<string, unknown>, keys: string[]): string | undefined {
+  for (const k of keys) {
+    const v = readPath(r, k);
+    if (typeof v === "string" && v.length > 0) return v;
+  }
+  return undefined;
+}
+
+function pickInt(r: Record<string, unknown>, keys: string[]): number {
+  for (const k of keys) {
+    const v = readPath(r, k);
+    if (typeof v === "number" && Number.isFinite(v) && v >= 0) return Math.floor(v);
+    if (typeof v === "string") {
+      const n = Number(v);
+      if (Number.isFinite(n) && n >= 0) return Math.floor(n);
+    }
+  }
+  return 0;
+}
+
+function pickBool(r: Record<string, unknown>, keys: string[]): boolean {
+  for (const k of keys) {
+    const v = readPath(r, k);
+    if (typeof v === "boolean") return v;
+    if (typeof v === "number") return v !== 0;
+    if (typeof v === "string") return v === "true" || v === "1" || v === "yes";
+  }
+  return false;
+}
+
+function pickHashtagArray(r: Record<string, unknown>, keys: string[]): string[] {
+  for (const k of keys) {
+    const v = readPath(r, k);
+    if (Array.isArray(v)) {
+      const out: string[] = [];
+      for (const item of v) {
+        if (typeof item === "string" && item.length > 0) out.push(item.replace(/^#/, ""));
+        else if (item && typeof item === "object") {
+          const obj = item as Record<string, unknown>;
+          const name = typeof obj.name === "string" ? obj.name
+            : typeof obj.hashtagName === "string" ? obj.hashtagName : undefined;
+          if (name) out.push(name.replace(/^#/, ""));
+        }
+      }
+      return [...new Set(out)];
+    }
+  }
+  return [];
+}
+
 function defaultFetcher(): TikTokFetcher {
   return {
-    async getUserInfo(_uniqueId) {
-      // Phase-1 follow-up still: getUserInfo via RapidAPI hasn't been
-      // wired because Phase-1's sourcing path goes through Atlas Search
-      // on accounts_tiktok (v1 data is already populated). When v2
-      // grows a "discover unseen creators" flow this gets the same
-      // RapidAPI wiring getUserPosts now has.
+    async getUserInfo(uniqueId) {
       const cfg = rapidApiConfig();
       if (!cfg) {
         throw new Error(
           "RAPIDAPI_KEY_TIKTOK is not set — tiktok.getCreator needs it at runtime (tests should inject a fake via setTikTokFetcher)",
         );
       }
-      throw new Error("defaultFetcher.getUserInfo not yet wired to RapidAPI (Phase-1 follow-up)");
+      const handle = uniqueId.replace(/^@/, "");
+      const params = new URLSearchParams({ unique_id: handle });
+      const url = `https://${cfg.host}${cfg.userInfoPath}?${params.toString()}`;
+      const res = await fetch(url, {
+        method: "GET",
+        headers: {
+          "x-rapidapi-key": cfg.apiKey,
+          "x-rapidapi-host": cfg.host,
+          accept: "application/json",
+        },
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!res.ok) {
+        throw new Error(`tiktok.getUserInfo: RapidAPI returned ${res.status} for @${handle}`);
+      }
+      const body = (await res.json()) as unknown;
+      const creator = mapRapidApiCreator(body);
+      if (!creator) {
+        throw new Error(`tiktok.getUserInfo: response for @${handle} had no usable user object`);
+      }
+      return creator;
     },
     async getUserPosts(uniqueId, limit) {
       const cfg = rapidApiConfig();
