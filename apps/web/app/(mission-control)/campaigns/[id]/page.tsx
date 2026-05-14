@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, SectionLabel } from "@/components/ui/card";
@@ -8,8 +9,57 @@ import { ActivityTimeline } from "@/components/mission-control/activity-timeline
 import { CampaignCanvas, bucketTracksByState } from "@/components/mission-control/campaign-canvas";
 import { getServerSession } from "@/lib/auth";
 import { approvalRepo, campaignRepo, traceRepo } from "@ss/db";
-import type { CreatorTrack } from "@ss/contracts";
+import { Events, type CreatorTrack } from "@ss/contracts";
+import { inngest } from "@ss/workflows";
 import { cn } from "@/lib/cn";
+
+/**
+ * P4-C6 kill switch + pause server actions. Both emit the
+ * lifecycle events that brand-campaign + creator-track already react to
+ * (brand-campaign's cancelOn matches data.campaignId; the workflows
+ * package's StepLike doesn't need a corresponding handler for pause/
+ * resume yet — those are Phase-4.5 UX). For now the actions also patch
+ * campaignRepo.status so MC reflects the state immediately, regardless
+ * of when Inngest gets around to delivering the event.
+ */
+async function cancelCampaignAction(formData: FormData): Promise<void> {
+  "use server";
+  const session = await getServerSession();
+  if (!session) throw new Error("not authenticated");
+  const campaignId = formData.get("campaignId");
+  if (typeof campaignId !== "string") throw new Error("missing campaignId");
+  const c = await campaignRepo.get(campaignId);
+  if (!c || c.brief.workspaceId !== session.workspaceId) throw new Error("forbidden");
+  // Idempotent: already-cancelled / already-completed don't re-emit.
+  if (c.status === "cancelled" || c.status === "completed") {
+    revalidatePath(`/campaigns/${campaignId}`);
+    return;
+  }
+  await campaignRepo.patchStage(campaignId, c.stage, "cancelled");
+  await inngest.send({ name: Events.CampaignCancelled, data: { campaignId } });
+  revalidatePath(`/campaigns/${campaignId}`);
+}
+
+async function pauseCampaignAction(formData: FormData): Promise<void> {
+  "use server";
+  const session = await getServerSession();
+  if (!session) throw new Error("not authenticated");
+  const campaignId = formData.get("campaignId");
+  if (typeof campaignId !== "string") throw new Error("missing campaignId");
+  const c = await campaignRepo.get(campaignId);
+  if (!c || c.brief.workspaceId !== session.workspaceId) throw new Error("forbidden");
+  const isPaused = c.status === "paused";
+  if (c.status === "cancelled" || c.status === "completed") {
+    revalidatePath(`/campaigns/${campaignId}`);
+    return;
+  }
+  await campaignRepo.patchStage(campaignId, c.stage, isPaused ? "running" : "paused");
+  await inngest.send({
+    name: isPaused ? Events.CampaignResumed : Events.CampaignPaused,
+    data: { campaignId },
+  });
+  revalidatePath(`/campaigns/${campaignId}`);
+}
 
 /**
  * State → badge color. Mirrors the canvas's progress narrative:
@@ -138,8 +188,22 @@ export default async function CampaignDetailPage({
               </Link>
             </div>
             <div className="flex gap-2">
-              <Button>⏸ 일시정지</Button>
-              <Button tone="reject">✕ 취소</Button>
+              {campaign.status === "running" || campaign.status === "paused" ? (
+                <>
+                  <form action={pauseCampaignAction}>
+                    <input type="hidden" name="campaignId" value={id} />
+                    <Button>{campaign.status === "paused" ? "▶ 재개" : "⏸ 일시정지"}</Button>
+                  </form>
+                  <form action={cancelCampaignAction}>
+                    <input type="hidden" name="campaignId" value={id} />
+                    <Button tone="reject">✕ 취소</Button>
+                  </form>
+                </>
+              ) : (
+                <Badge variant={campaign.status === "completed" ? "emerald" : "slate"}>
+                  {campaign.status}
+                </Badge>
+              )}
             </div>
           </div>
         </div>

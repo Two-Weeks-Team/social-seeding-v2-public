@@ -134,6 +134,57 @@ const LEVEL_DESCRIPTIONS: Record<WorkspacePolicy["level"], string> = {
 };
 
 /**
+ * Level → gate-defaults mapping. P4-C6: clicking "프리셋 적용" mass-sets
+ * the 5 gates to match the chosen autonomy level — a 1-click "shift the
+ * whole workspace's posture" instead of editing 5 toggles.
+ *
+ *  · copilot       — all 5 gates always_ask (max friction, max control)
+ *  · checkpointed  — same as copilot for now; predicates left empty
+ *  · autonomous    — most gates auto_unless with conservative thresholds;
+ *                    stage-advance auto.
+ */
+function presetGatesFor(level: WorkspacePolicy["level"]): WorkspacePolicy["gates"] {
+  if (level === "autonomous") {
+    return {
+      approveShortlist: { mode: "auto_unless", escalateIf: { fitScoreLt: 0.7 } },
+      approveOutreachSend: { mode: "auto_unless", escalateIf: { spamScoreGte: 6 } },
+      approveReplyResponse: {
+        mode: "auto_unless",
+        escalateIf: { replyClassIn: ["negotiating", "declined", "unsubscribe"] },
+      },
+      approveShipment: { mode: "auto_unless", escalateIf: { followerCountGte: 1_000_000 } },
+      approveStageAdvance: { mode: "auto" },
+    };
+  }
+  // copilot + checkpointed: all gates ask. The user can still loosen
+  // individual gates from the form below — this is just the baseline.
+  const ask = { mode: "always_ask" as const };
+  return {
+    approveShortlist: ask,
+    approveOutreachSend: ask,
+    approveReplyResponse: ask,
+    approveShipment: ask,
+    approveStageAdvance: ask,
+  };
+}
+
+async function applyPresetAction(formData: FormData): Promise<void> {
+  "use server";
+  const session = await getServerSession();
+  if (!session) redirect("/sign-in");
+  const level = z.enum(["copilot", "checkpointed", "autonomous"]).parse(formData.get("level"));
+  const existing = await workspaceRepo.getPolicy(session.workspaceId);
+  const next: WorkspacePolicy = {
+    ...existing,
+    level,
+    gates: presetGatesFor(level),
+    updatedAt: new Date(),
+  };
+  await workspaceRepo.savePolicy(next);
+  revalidatePath("/policies");
+}
+
+/**
  * Tri-state mode toggle for a gate (always_ask / auto / auto_unless).
  * Pure presentational — names are scoped via the `gateKey` to match
  * the savePolicyAction schema keys.
@@ -188,7 +239,12 @@ export default async function PoliciesPage() {
         {/* ── Level preset ──────────────────────────────────────────── */}
         <Card>
           <CardBody>
-            <SectionLabel className="mb-3">자율 수준 프리셋</SectionLabel>
+            <div className="flex items-center justify-between mb-3">
+              <SectionLabel>자율 수준 프리셋</SectionLabel>
+              <span className="text-[10px] text-slate-500">
+                현재: <span className="mono font-medium">{policy.level}</span>
+              </span>
+            </div>
             <div className="grid grid-cols-3 gap-3">
               {(["copilot", "checkpointed", "autonomous"] as const).map((lvl) => {
                 const isCurrent = policy.level === lvl;
@@ -218,6 +274,36 @@ export default async function PoliciesPage() {
                   </label>
                 );
               })}
+            </div>
+          </CardBody>
+        </Card>
+
+        {/* ── 1-click preset apply (separate from the per-gate form) ── */}
+        <Card>
+          <CardBody>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <SectionLabel className="mb-1">원클릭 프리셋 적용</SectionLabel>
+                <div className="text-[12px] text-slate-600 leading-relaxed">
+                  레벨을 누르면 5개 게이트가 일괄로 그 레벨에 맞게 세팅됩니다.
+                  <span className="text-slate-400 ml-1">
+                    개별 게이트는 아래에서 다시 조정 가능합니다.
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(["copilot", "checkpointed", "autonomous"] as const).map((lvl) => (
+                <form key={lvl} action={applyPresetAction}>
+                  <input type="hidden" name="level" value={lvl} />
+                  <Button
+                    variant="secondary"
+                    tone={lvl === "autonomous" ? "approve" : lvl === "copilot" ? "warn" : "neutral"}
+                  >
+                    {lvl} 적용
+                  </Button>
+                </form>
+              ))}
             </div>
           </CardBody>
         </Card>

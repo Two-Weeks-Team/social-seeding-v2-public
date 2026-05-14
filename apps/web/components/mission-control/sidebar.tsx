@@ -22,12 +22,12 @@ const PRIMARY: NavItem[] = [
   { href: "/campaigns", label: "캠페인" },
   { href: "/approvals", label: "승인 인박스" },
   { href: "/policies", label: "자율성 정책" },
+  { href: "/usage", label: "사용량 + 비용" },
 ];
 
 const SECONDARY: NavItem[] = [
   { href: "#", label: "크리에이터 라이브러리", disabled: true, hint: "Phase 2" },
   { href: "#", label: "이메일 스레드", disabled: true, hint: "Phase 2" },
-  { href: "#", label: "분석 리포트", disabled: true, hint: "Phase 4" },
   { href: "#", label: "관리자", disabled: true, hint: "P5+" },
 ];
 
