@@ -20,6 +20,7 @@ interface NavItem {
 
 const PRIMARY: NavItem[] = [
   { href: "/campaigns", label: "캠페인" },
+  { href: "/leads", label: "리드 (B2B)" },
   { href: "/approvals", label: "승인 인박스" },
   { href: "/policies", label: "자율성 정책" },
   { href: "/usage", label: "사용량 + 비용" },
