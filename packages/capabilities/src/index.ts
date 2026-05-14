@@ -60,6 +60,7 @@ export {
   type CarrierTrackResult,
 } from "./shipment/carrier";
 
+import "./analytics/compile";
 import "./tiktok/search";
 import "./tiktok/get-creator";
 import "./gmail/send";

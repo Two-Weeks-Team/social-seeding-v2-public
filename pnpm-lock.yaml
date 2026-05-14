@@ -139,6 +139,9 @@ importers:
       '@ss/db':
         specifier: workspace:*
         version: link:../db
+      '@ss/observability':
+        specifier: workspace:*
+        version: link:../observability
       googleapis:
         specifier: ^144.0.0
         version: 144.0.0

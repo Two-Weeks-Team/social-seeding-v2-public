@@ -11,3 +11,4 @@ export * from "./outreach";
 export * from "./policy";
 export * from "./shipment";
 export * from "./events";
+export * from "./analytics";

@@ -15,6 +15,7 @@
   "dependencies": {
     "@ss/contracts": "workspace:*",
     "@ss/db": "workspace:*",
+    "@ss/observability": "workspace:*",
     "googleapis": "^144.0.0",
     "zod": "^3.24.1"
   },
