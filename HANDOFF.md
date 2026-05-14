@@ -1,7 +1,10 @@
 # HANDOFF — continuing the v2 build (Claude Code CLI)
 
 > Read this first when you (or a fresh Claude Code session) pick this repo up.
-> Last handoff: **Phase 6 C1+C2 closed + carry-overs: TikTok getUserPosts adapter + pause/resume wiring** — `pnpm run verify-build` is green, 342 tests pass (103 workflows / 171 capabilities / 64 agents / 4 observability).
+>
+> **For the one-screen summary**: see [`docs/STATUS.md`](docs/STATUS.md) — phases done, tests, env-var matrix, deferrals, how-to-pick-up.
+>
+> Last handoff: **autonomous build finished — Phase 0-6 (C1+C2) + 4 carry-overs (TikTok getUserPosts + getUserInfo + pause/resume + demo runner) all closed**. `pnpm run verify-build` green, **354 tests pass** (103 workflows / 183 capabilities / 64 agents / 4 observability).
 
 ---
 
@@ -443,9 +446,15 @@ When P6-C3/C4 unblock, the migration runbook would be:
   `/campaigns/[id]`. 7 new tests pin the matrix (running / paused /
   cancelled / resume-then-cancel race / 30d timeout / completed). Open
   P6.5 item: operator visibility on 30-day-paused campaigns.
-- **Full live demo script** — credentialed end-to-end (real LLM + real
-  Gmail + real carrier + real TikTok). Could become a `scripts/`
-  helper alongside `scripts/init-indexes.ts`.
+- ~~**Full live demo script**~~ ✓ shipped as `scripts/run-demo.ts` in
+  `351a734`. `--type=brand` / `--type=lead` / `--dry-run` / `--poll-minutes=N`.
+  Per-type env-check matrix + 5-min progress poll. Idempotent — re-runs
+  create a new campaign.
+- **Carrier adapter (yuntrack)** — explicitly deferred per operator
+  decision 2026-05-14 (skipped in favor of higher-leverage carry-overs).
+  Estimated 1 chunk (~2h) once `YUNTRACK_API_KEY` is provided.
+  `defaultCarrierClientFactory` throws clearly until wired; v1's
+  `lib/shipping/carriers/yuntrack.ts` is the port reference.
 
 ### Phase 2 / Phase 3 / Phase 4 sub-tasks (now all ✓, retained for reference)
 

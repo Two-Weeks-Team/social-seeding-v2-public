@@ -4,18 +4,22 @@ Agent-orchestrated TikTok influencer campaign operator. Rewrite of v1 (`~/social
 
 ## Continuing the build? Read these first (in order)
 
-1. `HANDOFF.md` — current state, what's next, setup, ready-to-paste `/goal` conditions, conventions. **Start here.**
-2. `README.md` — the reframe + layout + key decisions.
-3. `docs/ARCHITECTURE.md` — the 6 layers, orchestrator↔agent split, human-checkpoint model.
-4. `docs/CAPABILITIES.md` — every v1 feature → its v2 home.
-5. `docs/PHASE-1-PLAN.md` — **the task list with DoDs**. Task IDs (`P0-1…P0-8`, `S2`, `V1`, `R1`, `V3`, `A-*`, `WF1-3`, `W1-5`) are what the scaffold's `throw "not implemented — see docs/PHASE-1-PLAN.md task X"` messages reference.
+1. **`docs/STATUS.md`** — one-screen "where everything stands". Phases 0-6 are shipped; this lists what's done, what's deferred (with reasons), and how to pick up. **Start here.**
+2. `HANDOFF.md` — per-chunk granular history + carry-over breakdown.
+3. `README.md` — the reframe + layout + key decisions.
+4. `docs/ARCHITECTURE.md` — the 6 layers, orchestrator↔agent split, human-checkpoint model.
+5. `docs/CAPABILITIES.md` — every v1 feature → its v2 home.
 6. `docs/ROADMAP.md` — Phases 0–6.
+7. `docs/PHASE-1-PLAN.md` — the original task list with DoDs (now all done; kept for traceability).
+8. `docs/SMOKE-TEST*.md` — per-phase credential-free end-to-end smokes.
 
 ## Current state
 
-- Phase 0 / P0-1 done. **`pnpm run verify-build` is green** (eslint → `next build` 9 routes → `tsc --noEmit` 7/7 packages). Keep it green; never push red.
-- Everything else is **scaffold**: handlers `throw`. Contracts (Zod schemas), layering, capability registry, agent definitions, the Inngest workflow graph are designed; flesh goes on slice by slice.
-- Next: Phase 0 P0-2…P0-8 (see `docs/PHASE-1-PLAN.md`), then Phase 1 (sourcing+vetting slice).
+- **Phases 0-6 done** (Phase 6 C1+C2; C3/C4 deferred per operator decision).
+- `pnpm run verify-build` is green; **354 tests pass** (4 observability · 64 agents · 183 capabilities · 103 workflows). Keep it green; never push red.
+- 10 Inngest functions registered + 23 MongoDB indexes provisioned.
+- The full source → vet → outreach → reply → ship → verify → report loop runs end-to-end. The sales-lead campaign type is the second loop. `scripts/run-demo.ts --type=brand|lead` exercises the whole thing.
+- Open work needing operator decisions: Phase 6 C3 (admin views sweep — port-vs-drop calls), Phase 6 C4 (retire v1 backend timing), carrier adapter (deferred 2026-05-14).
 
 ## Commands
 
@@ -23,9 +27,16 @@ Agent-orchestrated TikTok influencer campaign operator. Rewrite of v1 (`~/social
 pnpm install
 cp .env.example .env.local            # MONGODB_URI (shared Atlas), AUTH_*, ANTHROPIC_API_KEY, GOOGLE_*, INNGEST_*
 pnpm run verify-build                  # lint → next build → tsc --noEmit  (must stay green)
+pnpm run dev-mongo                     # mongodb-memory-server on :27027
+pnpm exec tsx scripts/init-indexes.ts  # provision v2_* indexes (idempotent)
 pnpm --filter @ss/web dev              # Next.js :3000  (serves /api/inngest)
-npx inngest-cli@latest dev             # Inngest Dev Server
+npx inngest-cli@latest dev             # Inngest Dev Server :8288
 pnpm --filter @ss/agents test          # vitest (agent tests / evals)
+
+# End-to-end demo (after the stack is up):
+pnpm exec tsx scripts/run-demo.ts --dry-run --type=brand    # pre-flight only
+pnpm exec tsx scripts/run-demo.ts --type=brand              # live demo
+pnpm exec tsx scripts/run-demo.ts --type=lead               # sales-lead loop
 ```
 
 ## Architecture (one screen)

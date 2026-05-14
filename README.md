@@ -35,19 +35,26 @@ packages/
 docs/                  ARCHITECTURE / CAPABILITIES / AGENTS / ROADMAP / PHASE-1-PLAN
 ```
 
-## Getting started (skeleton state)
+## Getting started
 
 ```bash
 pnpm install
-cp .env.example .env.local            # fill MONGODB_URI (shared Atlas), AUTH_*, ANTHROPIC_API_KEY, INNGEST_*
-pnpm run verify-build                  # lint → next build (9 routes) → tsc --noEmit (7/7 packages) — green
-pnpm --filter @ss/web dev              # Next.js on :3000
-npx inngest-cli@latest dev             # Inngest Dev Server — discovers apps/web/app/api/inngest
+cp .env.example .env.local            # fill MONGODB_URI (shared Atlas), AUTH_*, ANTHROPIC_API_KEY, …
+pnpm run verify-build                  # lint → next build → tsc --noEmit (7/7 packages) — green
+pnpm run dev-mongo                     # mongodb-memory-server on :27027
+pnpm exec tsx scripts/init-indexes.ts  # provision v2_* indexes (idempotent)
+pnpm --filter @ss/web dev              # Mission Control on :3000
+npx inngest-cli@latest dev             # workflow runtime on :8288
+
+# Full end-to-end demo (after the above):
+pnpm exec tsx scripts/run-demo.ts --dry-run --type=brand    # env pre-flight only
+pnpm exec tsx scripts/run-demo.ts --type=brand              # live brand-campaign demo
+pnpm exec tsx scripts/run-demo.ts --type=lead               # sales-lead demo
 ```
 
-> The skeleton compiles structurally but most handlers `throw "not implemented — see docs/PHASE-1-PLAN.md task X"`. That's deliberate: the contracts, layering and workflow graph are designed; the flesh goes on slice by slice (Phase 1 = sourcing+vetting end-to-end, Phase 2 = outreach+replies, …). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+> Phases 0-6 are **shipped**: `verify-build` green, 354 tests pass, 10 Inngest functions registered, the full source → vet → outreach → reply → ship → verify → report loop runs end-to-end. The sales-lead campaign type (`/leads`) is the second loop. The v1→v2 workspace importer is ready.
 
-**Continuing the build** (e.g. handing off to a Claude Code session with `/goal`): start at [`HANDOFF.md`](HANDOFF.md) — current state, what's next, setup, ready-to-paste `/goal` conditions, conventions.
+**Pick up where this is** (e.g. a fresh Claude Code session continuing the work): start at [`docs/STATUS.md`](docs/STATUS.md) — one-screen "where everything stands": phases done, tests, env-var matrix per credential, explicit deferrals, how-to-pick-up runbook. [`HANDOFF.md`](HANDOFF.md) has the per-chunk breakdown if you want the granular history.
 
 ## Read next
 
