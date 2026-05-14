@@ -1,7 +1,7 @@
 # HANDOFF — continuing the v2 build (Claude Code CLI)
 
 > Read this first when you (or a fresh Claude Code session) pick this repo up.
-> Last handoff: **Phase 3 all 7 chunks + 2 codex-review fix passes + P3 smoke** — `pnpm run verify-build` is green, 235 tests pass (50 workflows / 126 capabilities / 53 agents / 6 observability).
+> Last handoff: **Phase 4 all 6 chunks + codex-review fix pass + P4 smoke** — `pnpm run verify-build` is green, 276 tests pass (70 workflows / 142 capabilities / 60 agents / 4 observability).
 
 ---
 
@@ -11,20 +11,78 @@
 Phase 0  (foundation, 8 commits)                                      ✓ done
 Phase 1  (sourcing+vetting vertical slice, 17 + 1 docs)               ✓ done
 Phase 2  C1-C7 + codex-review pass + Step D googleapis (29 commits)   ✓ done
-Phase 3  C1 (Shipment contract + v2_shipments + shipmentRepo)         ✓ done
-Phase 3  C2 (shipment.create + shipment.track + CarrierClient seam)   ✓ done
-Phase 3  C3 (logistics agent — Haiku — parses address + creates ship) ✓ done
-Phase 3  C4 (tiktok-post-poller daily cron + post.detected event)     ✓ done
-Phase 3  C5 (content-verify agent — Haiku — scores detected posts)    ✓ done
-Phase 3  C6 (creator-track shipping + content-review legs wired)      ✓ done
-Phase 3  C7a-d (MC shipment + posts drill-ins + policy editor)        ✓ done
-Phase 3  codex-review P1-batch (atomic claim, poller uniqueId)        ✓ done
-Phase 3  codex-review P2-batch (trust boundary + dedupe + sort)       ✓ done
-Phase 3  codex-review P3-full P1+P2 (poller producer + wait filters)  ✓ done
-Phase 4  (analyst + ranking polish + MC final pass)                   ⏳ NEXT
+Phase 3  C1-C7 + 4-commit codex-review pass (14 commits)              ✓ done
+Phase 4  C1 (analytics.compile capability + AnalyticsReport)          ✓ done
+Phase 4  C2 (analyst agent — Haiku — markdown narrative)              ✓ done
+Phase 4  C3 (report-deliver workflow + weekly cron + Report contract) ✓ done
+Phase 4  C4 (campaign-progression cron — outreach→performance→done)   ✓ done
+Phase 4  C5 (/campaigns/[id]/report + /share/[id]?t=<token>)          ✓ done
+Phase 4  C6 (/usage cost dashboard + autonomy presets + kill switch)  ✓ done
+Phase 4  codex-review fixes (pause hidden, forms unnested, etc)       ✓ done
+Phase 5  (sales-lead campaign type — CRM enrichment via Modal+Kimi)   ⏳ NEXT
 ```
 
-`git log --oneline` shows ~78 commits since the scaffold (`66f4390`). `pnpm run verify-build` exits 0; 235 tests across `@ss/agents` (53) · `@ss/capabilities` (126) · `@ss/observability` (6) · `@ss/workflows` (50). `docs/PHASE-1-PLAN.md` unchanged (no scope creep).
+`git log --oneline` shows ~89 commits since the scaffold (`66f4390`). `pnpm run verify-build` exits 0; 276 tests across `@ss/agents` (60) · `@ss/capabilities` (142) · `@ss/observability` (4) · `@ss/workflows` (70). `docs/PHASE-1-PLAN.md` unchanged (no scope creep).
+
+### Phase 4 in one paragraph
+
+Closes the brand-campaign loop with a per-campaign **analytics report**.
+`analytics.compile` (pure aggregation) rolls v2_campaigns + v2_cost_ledger
+into an `AnalyticsReport` (funnel, goals, reach, performance, cost,
+flags). The `analyst` agent (Haiku, no tools, $0.10 cap) takes that report
++ the brief and produces a markdown narrative (summary / highlights /
+concerns / recommendations / full markdown). `report-deliver` is the
+durable workflow that ties them — triggered by `report/deliver.request`
+from three places: weekly cron (Mon 09:00 UTC), stage-transition
+(campaign-progression cron at 03:00 UTC, when all creator-tracks
+terminate), and a manual "🔄 새 리포트 생성" button on the MC report page.
+Reports are append-only (audit log) and persisted on a 24-byte random
+shareToken for the public `/share/[id]?t=…` page (constant-time-compared
+via `timingSafeEqual`). `campaign-progression` is the cron that closes
+the lifecycle: `outreach → performance` when all tracks reached terminal
+state + `performance → completed` when any report row exists. MC gets a
+new `/usage` cost dashboard (per-agent + per-campaign spend rollups, MTD
+vs 30d windows), a "원클릭 프리셋 적용" for autonomy levels on `/policies`,
+and a working kill switch on `/campaigns/[id]`.
+
+### Codex review fix pass (post-P4)
+
+`codex review --base p4-baseline` against the 6-commit P4 delta surfaced
+4 issues (1 P1 + 3 P2); all fixed in `5e047c2`:
+
+- **P1#1** — pause button shown but not wired into workflows. Hiding it
+  for now; pause/resume needs every long `step.waitForEvent` to also
+  cancel on `CampaignPaused` with a resumability contract — Phase 4.5
+  follow-up. Only "취소" (cancel — already wired via brand-campaign's
+  `cancelOn`) ships in Phase 4.
+- **P2#2** — nested `<form>` on the policies page (the 1-click preset
+  card was inside the save form). HTML doesn't allow it; SSR would
+  collapse one of them. Fix: presets are now a sibling card outside the
+  save form.
+- **P2#3** — `report-deliver` analyst escalation returned a "soft"
+  `kind: 'analyst_escalated'` result. `campaign-progression`'s "any
+  report row exists → completed" rule never fired in this branch,
+  leaving the campaign at `stage='performance'`/`status='running'`
+  indefinitely. Fix: throw `AnalystEscalatedError` so Inngest's
+  retry/backoff kicks in; persistent failures dead-letter to the
+  Inngest dashboard.
+- **P2#4** — `/usage` MTD calculation used a 30-day window, so on day 31
+  of a month the first-of-month spend was dropped. Fix: fetch from
+  `min(monthStart, thirtyDaysAgo)` and partition the same superset into
+  MTD vs 30d windows in JS.
+
+### Phase 4 smoke (post all fixes, 2026-05-14)
+
+`docs/SMOKE-TEST-P4.md` logs the credential-free smoke. What passed:
+init-indexes provisions 20 v2_* indexes (added 2 new v2_reports indexes
+on top of the existing 18); Inngest discovery returns `function_count: 8`
+including the 3 new P4 functions (`report-deliver`, `report-deliver-cron`,
+`campaign-progression`); the 4 new/updated MC pages render under HTTP 200
+(`/usage`, `/policies` preset card, `/campaigns/[id]/report`,
+`/share/[id]?t=<token>`); the share token check correctly rejects wrong
+tokens with 404 (constant-time-compared via `timingSafeEqual`). Full live
+demo still needs `ANTHROPIC_API_KEY` (for the analyst agent's Haiku
+narration) on top of everything Phase 2 / 3 already required.
 
 ### Phase 3 in one paragraph
 
@@ -170,15 +228,31 @@ v1 (`~/social-seeding`, frozen) is **reference only** — port named assets
 (TikTok ranking, `lib/cold-mail`, `lib/gmail`, `lib/crm` enrichment, NicePay
 billing, usage-limiter, blacklist) without reinventing.
 
-## 4. What's next — Phase 4 analyst + MC final pass
+## 4. What's next — Phase 5 sales-lead campaign type
 
-Per `docs/ROADMAP.md` §"Phase 4". Goal: ranking signals + post-campaign
-analytics + final MC polish before Phase 5 (sales-lead campaign type) and
-Phase 6 (admin / billing rollover). Same discipline as Phases 1-3 (one
-commit per task, verify-build green throughout, no scope creep on `docs/`).
+Per `docs/ROADMAP.md` §"Phase 5". v1 parity reached for the brand-campaign
+loop in Phase 4. Phase 5 adds the **second campaign type**: sales leads
+(B2B cold outreach to companies). Same orchestrator + capability stack;
+swaps the sourcing primitives.
 
-Open work spilled out of Phase 3 (not blocking P4, fold into the next
-relevant chunk):
+Planned chunks:
+
+- **P5-C1**: `crm.*` capabilities (`crm.search`, `crm.enrich` via Modal+Kimi —
+  port v1 verbatim) + shared `crm_accounts` reads.
+- **P5-C2**: `research` agent — given a lead company, gathers context
+  (website, recent news, founders) into a CampaignBrief equivalent.
+- **P5-C3**: `lead-campaign` workflow — import leads → enrich → outreach-
+  writer tournament (reuse Phase 2) → conversation loop (reuse Phase 2)
+  → on interest, hand off into a `brand-campaign` (the brand campaign
+  becomes the sales-funnel handoff target).
+- **P5-C4**: MC `/leads` view + lead-campaign timeline (mirror the
+  existing brand-campaign UI).
+
+After Phase 5 → Phase 6 (cutover: migrate v1 workspaces, retire the v1
+backend, finish admin views). See `docs/ROADMAP.md`.
+
+Open work spilled out of earlier phases (not blocking P5, fold into the
+next relevant chunk):
 
 - **Carrier adapter** — `defaultCarrierClientFactory` still throws.
   `packages/capabilities/src/shipment/carrier.ts` defines the seam;
@@ -186,12 +260,15 @@ relevant chunk):
 - **TikTok `getUserPosts` adapter** — `defaultTikTokFetcherFactory.getUserPosts`
   still throws. Sourcing already uses `searchUsers` + `getUserInfo` from the
   same fetcher; `getUserPosts` is the additional method the post-poller calls.
-- **Full live P3 demo script** — credentialed end-to-end (real creator
-  reply → real shipment → manual Inngest replay to a delivered status →
-  emit a `tiktok/post.detected` event → verify). Could become a `scripts/`
+- **Pause/resume wiring** — Phase 4 ships only the cancel switch (P4
+  codex P1#1). Pause/resume needs every long `step.waitForEvent` in
+  creator-track + shipment-tracking-poller to also cancel on
+  `CampaignPaused` with a resumability contract.
+- **Full live demo script** — credentialed end-to-end (real LLM + real
+  Gmail + real carrier + real TikTok). Could become a `scripts/`
   helper alongside `scripts/init-indexes.ts`.
 
-### Phase 2 / Phase 3 sub-tasks (now all ✓, retained for reference)
+### Phase 2 / Phase 3 / Phase 4 sub-tasks (now all ✓, retained for reference)
 
 Per `docs/ROADMAP.md` §"Phase 2"-§"Phase 3". Six chunks per phase; each
 ~50-80 turns; commit per sub-task.
@@ -212,10 +289,16 @@ Per `docs/ROADMAP.md` §"Phase 2"-§"Phase 3". Six chunks per phase; each
 | ~~**P3-C6**~~ ✓ | `creator-track`'s `interested + shippingAddress` branch now runs `runShippingAndContentReview`: gate(approveShipment) → runAgent(logisticsAgent) → state="shipped" → waitForEvent(`shipment/tracking.updated`, terminal-status filter — codex P3-full P1#2, 14d timeout) → delivered? then waitForEvent(`tiktok/post.detected`, 14d timeout) → runAgent(contentVerifyAgent) → terminal `verified` / `flaked` / `shipment_failed`. Track stage now derives from state. 7 new test scenarios. | — |
 | ~~**P3-C7a-d**~~ ✓ | MC drill-ins for the new gate + the new state: `/approvals/[id]` learns the `shipment` kind (parsed address preview, products list, follower-count display + edit-and-approve); `/campaigns/[id]/shipments` list view (status badges, tracking links); `/campaigns/[id]/posts` content-review view + the `CreatorTrack.content` snapshot field that backs it; `/policies` unblocks `approveShipment` (`auto_unless` + `followerCountGte` knob); canvas reflects shipping / content state buckets. | — |
 | ~~**P3 codex review**~~ ✓ | 2 full passes against the 14-commit P3 delta surfaced 9 issues; all fixed in 4 commits across `b2334c4` / `859442a` / `a2870cd` / `497c2f2` / `70313dd` with regression tests. See §1 above for the per-finding breakdown. | — |
+| ~~**P4-C1**~~ ✓ | `analytics.compile` capability + `AnalyticsReport` contract. Pure aggregation over v2_campaigns + v2_cost_ledger: funnel (13 buckets per CreatorTrack.state) + goals (target vs actual, days-to-deadline) + reach (verified-track engagement sums + weighted ER) + performance (mean/median score, top performer) + cost (spent + budget %) + 6 deterministic ReportFlags. No LLM. 16 tests. | — |
+| ~~**P4-C2**~~ ✓ | `analyst` agent (Haiku, no tools, $0.10 cap). Takes the AnalyticsReport + brief + optional creatorHandle map; returns `{summary, highlights, concerns, recommendations, markdown}`. Concerns map 1:1 to fired report flags (+ at most 1 qualitative concern); recommendations are 1-3 concrete next-campaign actions. 7 tests (3 unit + 4 golden archetypes: goal_met / underperformed / budget_exceeded / in_flight). | `ANTHROPIC_API_KEY` for live |
+| ~~**P4-C3**~~ ✓ | `report-deliver` workflow + weekly `report-deliver-cron` (Mon 09:00 UTC) + `Report` contract + `reportRepo` + V2_REPORTS collection (campaignId+generatedAt + workspaceId+generatedAt indexes). Pipeline: load-campaign → compile-analytics → analyst-narrative → persist-report (with random 24-byte URL-safe shareToken) → emit `report/delivered`. Append-only audit log. Concurrency=1 keyed on campaignId. Analyst escalation throws AnalystEscalatedError so Inngest retries (codex P2#3). 12 tests (5 workflow + 7 cron). | — |
+| ~~**P4-C4**~~ ✓ | `campaign-progression` daily cron (03:00 UTC). Closes the two lifecycle transitions brand-campaign doesn't hold state for: outreach → performance (when all tracks terminal: emit report request if verified > 0, else patchStatus(completed) directly) and performance → completed (when any report row exists). Idempotent at the query (status='running' filter). 8 tests. | — |
+| ~~**P4-C5**~~ ✓ | MC `/campaigns/[id]/report` (4-tile analytics strip + summary + 3-column highlights/concerns/recommendations + markdown + history drawer + "🔄 새 리포트 생성" server action). Public `/share/[id]?t=<token>` page — constant-time-compared via `timingSafeEqual` (Buffer-pad-then-compare to avoid length leak); render the brand + 3-tile stats + summary + markdown, strips operator-only data. | — |
+| ~~**P4-C6**~~ ✓ | `/usage` cost dashboard (MTD + 30d + per-agent + per-campaign rollups over v2_cost_ledger; cost-per-verified-post column makes "is this efficient?" concrete). 1-click autonomy preset on `/policies` (copilot / checkpointed / autonomous mass-set the 5 gates). Working kill switch on `/campaigns/[id]` (emits `campaign/cancelled`; brand-campaign's `cancelOn` already wired it). Pause/resume deferred to Phase 4.5 (codex P1#1). | — |
+| ~~**P4 codex review**~~ ✓ | 1 pass against the 6-commit P4 delta surfaced 4 issues (1 P1 + 3 P2); all fixed in `5e047c2`: pause hidden (P1#1), preset forms unnested (P2#2), analyst escalation throws (P2#3), MTD window honest on day 31 (P2#4). | — |
 
-After Phase 3 → Phase 4 (analyst + MC polish), Phase 5 (sales-lead
-campaign type — CRM enrichment via Modal + Kimi), Phase 6 (admin / billing
-rollover). See `docs/ROADMAP.md`.
+After Phase 4 → Phase 5 (sales-lead campaign type — CRM enrichment via
+Modal + Kimi), Phase 6 (admin / billing / cutover). See `docs/ROADMAP.md`.
 
 ## 5. To run the live exit demo (Phase 1)
 
