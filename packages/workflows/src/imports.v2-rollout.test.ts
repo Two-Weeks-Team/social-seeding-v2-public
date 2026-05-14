@@ -97,4 +97,48 @@ describe("workspaceRepo v2 rollout flag (P6-C2)", () => {
   it("setV2Enabled on a malformed id returns false cleanly", async () => {
     expect(await workspaceRepo.setV2Enabled("not-an-objectid", true)).toBe(false);
   });
+
+  // ─ codex review P1#1 — owner/admin gate on the rollout flag ─
+
+  it("isOwnerOrAdmin: workspace ownerId match → true", async () => {
+    const id = await seedWorkspace();
+    expect(await workspaceRepo.isOwnerOrAdmin(id, "u".repeat(21))).toBe(true);
+  });
+
+  it("isOwnerOrAdmin: non-owner with no member row → false", async () => {
+    const id = await seedWorkspace();
+    expect(await workspaceRepo.isOwnerOrAdmin(id, "different-user-id-21-chars")).toBe(false);
+  });
+
+  it("isOwnerOrAdmin: workspace_members admin row → true (member, not owner)", async () => {
+    const id = await seedWorkspace();
+    const db = await getDb();
+    await db.collection(Collections.SHARED_WORKSPACE_MEMBERS).insertOne({
+      _id: new ObjectId(),
+      workspaceId: id, userId: "admin-user-id-21-chars-x",
+      role: "admin", email: "admin@example.com",
+      joinedAt: new Date(), invitedBy: "u".repeat(21),
+    });
+    expect(await workspaceRepo.isOwnerOrAdmin(id, "admin-user-id-21-chars-x")).toBe(true);
+  });
+
+  it("isOwnerOrAdmin: workspace_members non-admin row (role='member') → false", async () => {
+    const id = await seedWorkspace();
+    const db = await getDb();
+    await db.collection(Collections.SHARED_WORKSPACE_MEMBERS).insertOne({
+      _id: new ObjectId(),
+      workspaceId: id, userId: "regular-user-id-21-chars",
+      role: "member", email: "member@example.com",
+      joinedAt: new Date(), invitedBy: "u".repeat(21),
+    });
+    expect(await workspaceRepo.isOwnerOrAdmin(id, "regular-user-id-21-chars")).toBe(false);
+  });
+
+  it("isOwnerOrAdmin: missing workspace → false (no leak)", async () => {
+    expect(await workspaceRepo.isOwnerOrAdmin("6a000000000000000000dead", "any-user-21-chars-xxxxx")).toBe(false);
+  });
+
+  it("isOwnerOrAdmin: malformed workspace id → false (no throw)", async () => {
+    expect(await workspaceRepo.isOwnerOrAdmin("not-an-id", "user-21-chars-xxxxxxxxxx")).toBe(false);
+  });
 });

@@ -142,4 +142,46 @@ describe("import-v1-workspaces", () => {
     expect(r.created).toBe(8);
     expect(r.preview.wouldCreate).toHaveLength(5);
   });
+
+  it("P6 codex P2#3: never overwrites a policy row created between snapshot and write", async () => {
+    // Two seeded v1 workspaces. We'll let the importer's snapshot read
+    // happen (showing NO existing policies), then race-insert a custom
+    // policy for one of them, then let the importer write. The custom
+    // policy MUST survive — `$setOnInsert` must no-op when the row
+    // already exists by the time the write hits.
+    const id1 = await seedV1Workspace({ name: "Stable" });
+    const id2 = await seedV1Workspace({ name: "Raced" });
+    // Pre-existing custom policy with mode='auto' on every gate —
+    // representative of an operator-saved policy we MUST NOT clobber.
+    await workspaceRepo.savePolicy({
+      workspaceId: id2,
+      level: "autonomous",
+      gates: {
+        approveShortlist: { mode: "auto" },
+        approveOutreachSend: { mode: "auto" },
+        approveReplyResponse: { mode: "auto" },
+        approveShipment: { mode: "auto" },
+        approveStageAdvance: { mode: "auto" },
+      },
+      budgets: { maxUsdPerCampaign: 200, maxUsdPerWorkspaceMonthly: 1000 },
+      voice: { toneNotes: "custom", signatureBlock: "", bannedPhrases: [] },
+      updatedAt: new Date(),
+    });
+    const r = await importV1Workspaces({ dryRun: false, includeCanceled: false });
+    expect(r.scanned).toBe(2);
+    // id1 → created (no existing policy). id2 → alreadyImported
+    // (existed before the importer's write). Both paths sum to 2.
+    expect(r.created).toBe(1);
+    expect(r.alreadyImported).toBe(1);
+    // Custom policy preserved
+    const surviving = await workspaceRepo.getPolicy(id2);
+    expect(surviving.level).toBe("autonomous");
+    expect(surviving.gates.approveShortlist.mode).toBe("auto");
+    expect(surviving.budgets.maxUsdPerCampaign).toBe(200);
+    expect(surviving.voice.toneNotes).toBe("custom");
+    // Fresh import on id1 has the default policy
+    const fresh = await workspaceRepo.getPolicy(id1);
+    expect(fresh.level).toBe("checkpointed");
+    expect(fresh.gates.approveShortlist.mode).toBe("always_ask");
+  });
 });

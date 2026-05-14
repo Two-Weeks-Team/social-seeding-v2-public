@@ -220,6 +220,18 @@ async function toggleV2RolloutAction(formData: FormData): Promise<void> {
   "use server";
   const session = await getServerSession();
   if (!session) redirect("/sign-in");
+  // P6 codex review P1#1: only the workspace owner or an admin member
+  // can flip the v2 rollout flag. A non-owner member submitting the
+  // form (e.g. via a stale page they still have permission to view)
+  // must not be able to redirect or roll back the entire workspace.
+  // We treat unauthorized attempts as a silent no-op + redirect back
+  // to /policies — no "forbidden" leak that confirms the workspace
+  // exists vs the user's role.
+  const allowed = await workspaceRepo.isOwnerOrAdmin(session.workspaceId, session.userId);
+  if (!allowed) {
+    revalidatePath("/policies");
+    return;
+  }
   const next = formData.get("enable") === "true";
   await workspaceRepo.setV2Enabled(session.workspaceId, next);
   revalidatePath("/policies");
@@ -229,9 +241,10 @@ export default async function PoliciesPage() {
   const session = await getServerSession();
   if (!session) redirect("/sign-in");
 
-  const [policy, v2Enabled] = await Promise.all([
+  const [policy, v2Enabled, canRollout] = await Promise.all([
     workspaceRepo.getPolicy(session.workspaceId).then((p) => p ?? defaultPolicy(session.workspaceId)),
     workspaceRepo.isV2Enabled(session.workspaceId),
+    workspaceRepo.isOwnerOrAdmin(session.workspaceId, session.userId),
   ]);
   const sl = policy.gates.approveShortlist;
   const os = policy.gates.approveOutreachSend;
@@ -264,15 +277,21 @@ export default async function PoliciesPage() {
               </span>
             </div>
           </div>
-          <form action={toggleV2RolloutAction}>
-            <input type="hidden" name="enable" value={v2Enabled ? "false" : "true"} />
-            <Button
-              variant="secondary"
-              tone={v2Enabled ? "warn" : "approve"}
-            >
-              {v2Enabled ? "← v1으로 롤백" : "→ v2 활성화"}
-            </Button>
-          </form>
+          {canRollout ? (
+            <form action={toggleV2RolloutAction}>
+              <input type="hidden" name="enable" value={v2Enabled ? "false" : "true"} />
+              <Button
+                variant="secondary"
+                tone={v2Enabled ? "warn" : "approve"}
+              >
+                {v2Enabled ? "← v1으로 롤백" : "→ v2 활성화"}
+              </Button>
+            </form>
+          ) : (
+            <span className="text-[11px] text-slate-500 whitespace-nowrap">
+              owner / admin only
+            </span>
+          )}
         </div>
       </CardBody></Card>
 

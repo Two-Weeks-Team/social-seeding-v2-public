@@ -108,10 +108,22 @@ export async function importV1Workspaces(opts: ImporterOpts): Promise<ImportResu
         }
         continue;
       }
-      await workspaceRepo.savePolicy(defaultPolicy(workspaceId));
-      result.created++;
-      if (result.preview.wouldCreate.length < 5) {
-        result.preview.wouldCreate.push(workspaceId);
+      // Insert-only upsert. Codex review P6 P2#3: `savePolicy` uses
+      // `$set` + upsert, which would stomp a row created between our
+      // snapshot read and this write (operator saving /policies during
+      // a long import, or another concurrent importer run). The
+      // `$setOnInsert` variant is a no-op when a row exists, preserving
+      // the additive-only / never-overwrite guarantee.
+      const inserted = await workspaceRepo.createPolicyIfMissing(defaultPolicy(workspaceId));
+      if (inserted) {
+        result.created++;
+        if (result.preview.wouldCreate.length < 5) {
+          result.preview.wouldCreate.push(workspaceId);
+        }
+      } else {
+        // Lost the race — a policy row appeared between our snapshot
+        // and this write. Treat as alreadyImported for the counters.
+        result.alreadyImported++;
       }
     } catch (err) {
       result.failures.push({
