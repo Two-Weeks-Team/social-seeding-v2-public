@@ -3,6 +3,8 @@ import { brandCampaign } from "./workflows/brand-campaign";
 import { campaignProgression } from "./workflows/campaign-progression";
 import { creatorTrack } from "./workflows/creator-track";
 import { gmailWatchRenew } from "./workflows/gmail-watch-renew";
+import { leadCampaign } from "./workflows/lead-campaign";
+import { leadTrack } from "./workflows/lead-track";
 import { reportDeliver } from "./workflows/report-deliver";
 import { reportDeliverCron } from "./workflows/report-deliver-cron";
 import { shipmentTrackingPoller } from "./workflows/shipment-tracking-poller";
@@ -14,6 +16,8 @@ export const functions = [
   campaignProgression,
   creatorTrack,
   gmailWatchRenew,
+  leadCampaign,
+  leadTrack,
   reportDeliver,
   reportDeliverCron,
   shipmentTrackingPoller,

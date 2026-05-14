@@ -3,6 +3,7 @@ import { CampaignBriefSchema, CampaignStage } from "./campaign";
 import { TikTokCreatorSchema } from "./creator";
 import { ReplyClassSchema } from "./outreach";
 import { ReportTriggerSchema } from "./report";
+import { LeadCampaignBriefSchema, LeadSchema } from "./lead";
 
 /**
  * Inngest event catalog. Every async boundary in the system is one of these.
@@ -21,6 +22,8 @@ export const Events = {
   TikTokPostDetected: "tiktok/post.detected", // content-verify poller found a matching post
   ReportDeliverRequest: "report/deliver.request", // P4-C3 — request a fresh report for a campaign
   ReportDelivered: "report/delivered", // P4-C3 — report-deliver workflow persisted a row
+  LeadCampaignSubmitted: "lead-campaign/submitted", // P5-C3 — operator submitted a lead-campaign brief
+  LeadTrackStart: "lead-campaign/lead-track.start", // P5-C3 — fan out one per researched lead
 } as const;
 export type EventName = (typeof Events)[keyof typeof Events];
 
@@ -191,5 +194,44 @@ export const ReportDeliveredEvent = z.object({
     /** Count of report flags that fired — analyst-agent's `concerns` mirrors these 1:1. */
     flagsCount: z.number().int().nonnegative(),
     generatedAt: z.coerce.date(),
+  }),
+});
+
+/**
+ * P5-C3 — operator submitted a new lead-campaign. The handler is
+ * lead-campaign workflow (parent); it walks the import + enrich +
+ * research path and fans out one LeadTrackStart per researched lead.
+ */
+export const LeadCampaignSubmittedEvent = z.object({
+  name: z.literal(Events.LeadCampaignSubmitted),
+  data: z.object({
+    leadCampaignId: z.string(),
+    brief: LeadCampaignBriefSchema,
+    /**
+     * Raw leads to import — operator's submission. Each item is either
+     * { name + url } (standalone) or { sharedAccountId } (pulled from
+     * crm.search's sharedCandidates).
+     */
+    leadInputs: z.array(z.object({
+      companyName: z.string().min(1),
+      homepageUrl: z.string().url().optional(),
+      sharedAccountId: z.string().optional(),
+      contactEmail: z.string().email().optional(),
+    })).min(1).max(200),
+  }),
+});
+
+/**
+ * P5-C3 — fan-out from lead-campaign once a lead is researched. One
+ * lead-track per researched lead handles the outreach + reply loop
+ * (mirrors the brand-campaign → creator-track architecture).
+ */
+export const LeadTrackStartEvent = z.object({
+  name: z.literal(Events.LeadTrackStart),
+  data: z.object({
+    leadCampaignId: z.string(),
+    workspaceId: z.string(),
+    brief: LeadCampaignBriefSchema,
+    lead: LeadSchema,
   }),
 });
