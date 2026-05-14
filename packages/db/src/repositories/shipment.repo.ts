@@ -139,6 +139,22 @@ export const shipmentRepo = {
     return this.get(id);
   },
 
+  /**
+   * Bump `lastTrackedAt` after a no-op carrier poll (no new events). The
+   * shipment-tracking poller (Phase-3 carrier-poller cron) uses this
+   * watermark to skip recently-polled rows and stay under the carrier rate
+   * limit. Distinct from `appendTrackingEvent` which only bumps on a hit.
+   */
+  async touchLastTrackedAt(id: string): Promise<Shipment | null> {
+    const c = await col();
+    const now = new Date();
+    await c.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { lastTrackedAt: now, updatedAt: now } },
+    );
+    return this.get(id);
+  },
+
   async patchStatus(id: string, status: ShipmentStatus, notes?: string): Promise<Shipment | null> {
     const c = await col();
     const set: Partial<ShipmentDoc> = { status, updatedAt: new Date() };

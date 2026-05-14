@@ -73,6 +73,16 @@ export const shipmentTrack = defineCapability({
       if (after) latest = after;
     }
 
+    // P3 codex review P2#4 — always bump `lastTrackedAt` on a successful
+    // carrier call, even when newEvents is empty. The shipment-tracking
+    // poller (cron) uses this watermark to skip recently-polled rows; without
+    // the bump it would re-poll the carrier every cycle even after a
+    // no-op fetch.
+    if (newEvents.length === 0) {
+      const refreshed = await shipmentRepo.touchLastTrackedAt(shipmentId);
+      if (refreshed) latest = refreshed;
+    }
+
     return { shipment: latest, newEvents, status: latest.status };
   },
 });
