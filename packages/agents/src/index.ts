@@ -12,3 +12,4 @@ export {
   type ContentVerifyOutput,
   type ContentVerifyFlag,
 } from "./content-verify.agent";
+export { analystAgent, type AnalystOutput } from "./analyst.agent";
