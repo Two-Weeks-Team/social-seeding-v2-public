@@ -1,7 +1,7 @@
 # Social Seeding v2 — agent-orchestrated TikTok influencer campaign operator
 
 <p align="center">
-  <a href="https://two-weeks-team.github.io/social-seeding-v2/"><img src="https://img.shields.io/badge/LIVE%20DEMO-two--weeks--team.github.io%2Fsocial--seeding--v2-1A73E8?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Live Demo"/></a>
+  <a href="https://ss-landing-80064221403.us-central1.run.app/"><img src="https://img.shields.io/badge/LIVE%20DEMO-Cloud%20Run-1A73E8?style=for-the-badge&logo=googlecloud&logoColor=white" alt="Live Demo"/></a>
   <a href="https://github.com/Two-Weeks-Team/social-seeding-v2/pull/1"><img src="https://img.shields.io/badge/PR%20%231-MERGED-34A853?style=for-the-badge&logo=github&logoColor=white" alt="PR #1 MERGED"/></a>
   <a href="./gcp-research/reports/social-seeding-status-2026-05-19.html"><img src="https://img.shields.io/badge/PROGRESS%20REPORT-2026--05--19-7C3AED?style=for-the-badge&logo=googledocs&logoColor=white" alt="Progress Report"/></a>
 </p>
@@ -24,11 +24,11 @@
 
 Click here to view a 6-minute interactive walkthrough — no signup, no GCP setup, runs entirely in your browser:
 
-👉 **[https://two-weeks-team.github.io/social-seeding-v2/](https://two-weeks-team.github.io/social-seeding-v2/)**
+👉 **[https://ss-landing-80064221403.us-central1.run.app/](https://ss-landing-80064221403.us-central1.run.app/)**
 
 The demo simulates a real mouse session over Mission Control: brand brief intake → 22-agent fleet → AP2 mandate signing → multimodal creative → reply classification → cost ledger. Toggle 4 locales (ko / en / ja / zh-CN), adjust playback `0.5×` ~ `8×`, jump to any of 24 scenes (Track 2 + Track 3).
 
-> Source: `site/` directory (committed). Auto-published via `.github/workflows/pages.yml` on every `main` push that touches `site/`, `scripts/demo/web-demo/`, or the progress report. The workflow re-syncs `site/demo/` and `site/report/` from their canonical sources at build time.
+> **Hosting**: Cloud Run on `ss-shared-infra` project (D39 GCP credits, us-central1, min=0 / max=10, 256Mi memory). Source: `site/` directory. Manual re-deploy: `cd site && gcloud run deploy ss-landing --source=. --project=ss-shared-infra --region=us-central1 --allow-unauthenticated --quiet`. The Cloud Run service auto-rebuilds the container from `site/Dockerfile` (nginx:alpine static server). Total cost target: < $1/month at demo traffic.
 
 ---
 
