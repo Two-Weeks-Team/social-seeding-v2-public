@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Social Seeding v2 — Google AI Agents Challenge 진행 보고서 (2026-05-19)</title>
+<style>
+  :root {
+    --gcp-blue: #1A73E8;
+    --gcp-green: #34A853;
+    --gcp-red: #EA4335;
+    --gcp-yellow: #FBBC04;
+    --ink-900: #111827;
+    --ink-700: #374151;
+    --ink-600: #4B5563;
+    --ink-500: #6B7280;
+    --ink-300: #D1D5DB;
+    --ink-200: #E5E7EB;
+    --ink-100: #F3F4F6;
+    --ink-50:  #F9FAFB;
+    --paper:   #FFFFFF;
+    --accent-amber: #F59E0B;
+    --accent-purple: #7C3AED;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--ink-900);
+    background: var(--ink-50);
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 56px;
+    background: var(--paper);
+    min-height: 100vh;
+  }
+  header.report-header {
+    border-bottom: 3px solid var(--ink-900);
+    padding-bottom: 28px;
+    margin-bottom: 36px;
+  }
+  .badge-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 9px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    background: var(--ink-100);
+    color: var(--ink-700);
+    border: 1px solid var(--ink-200);
+  }
+  .badge.green { background: #E6F4EA; color: #137333; border-color: #B6E1C6; }
+  .badge.blue  { background: #E8F0FE; color: #1967D2; border-color: #C2D7F8; }
+  .badge.amber { background: #FEF7E0; color: #B06000; border-color: #FCE8B2; }
+  .badge.red   { background: #FCE8E6; color: #C5221F; border-color: #F8C7C5; }
+  .badge.purple{ background: #F3E8FF; color: #6B21A8; border-color: #DDD0F4; }
+  h1 {
+    font-size: 28px;
+    line-height: 1.25;
+    font-weight: 800;
+    margin: 0 0 8px 0;
+    letter-spacing: -0.01em;
+  }
+  h1 .sub { display: block; font-size: 15px; font-weight: 500; color: var(--ink-600); margin-top: 6px; letter-spacing: 0; }
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-top: 22px;
+    font-size: 12px;
+  }
+  .meta-grid .cell {
+    background: var(--ink-50);
+    border-left: 3px solid var(--gcp-blue);
+    padding: 10px 14px;
+    border-radius: 0 4px 4px 0;
+  }
+  .meta-grid .cell .k { color: var(--ink-500); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px; }
+  .meta-grid .cell .v { color: var(--ink-900); font-weight: 600; font-size: 13px; }
+  .meta-grid .cell .v code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: var(--gcp-blue); }
+  nav.toc {
+    background: var(--ink-50);
+    border: 1px solid var(--ink-200);
+    border-radius: 8px;
+    padding: 18px 22px;
+    margin-bottom: 40px;
+  }
+  nav.toc h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-500); margin: 0 0 10px 0; font-weight: 700; }
+  nav.toc ol { margin: 0; padding-left: 22px; }
+  nav.toc li { margin: 4px 0; }
+  nav.toc a { color: var(--gcp-blue); text-decoration: none; font-weight: 500; }
+  nav.toc a:hover { text-decoration: underline; }
+  section { margin-bottom: 56px; }
+  section.section-major { padding-top: 8px; }
+  h2.section-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 6px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--ink-200);
+    letter-spacing: -0.01em;
+  }
+  h2.section-title .num { color: var(--gcp-blue); font-weight: 800; margin-right: 8px; }
+  .section-desc { color: var(--ink-600); font-size: 13.5px; margin: 0 0 24px 0; }
+  h3.subhead {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 28px 0 12px 0;
+    color: var(--ink-900);
+    padding-left: 10px;
+    border-left: 3px solid var(--gcp-blue);
+  }
+  h4.minihead {
+    font-size: 13.5px;
+    font-weight: 700;
+    margin: 18px 0 8px 0;
+    color: var(--ink-700);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 22px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0 18px 0; font-size: 12.5px; }
+  th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--ink-200); vertical-align: top; }
+  th { background: var(--ink-50); font-weight: 700; color: var(--ink-700); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+  td code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; background: var(--ink-100); padding: 1px 6px; border-radius: 3px; color: var(--ink-900); }
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin: 20px 0 28px 0;
+  }
+  .stat {
+    background: var(--ink-50);
+    border: 1px solid var(--ink-200);
+    border-radius: 6px;
+    padding: 14px 16px;
+  }
+  .stat .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-500); margin-bottom: 4px; font-weight: 600; }
+  .stat .number { font-size: 26px; font-weight: 800; color: var(--ink-900); line-height: 1.1; }
+  .stat .number.green { color: #137333; }
+  .stat .number.blue { color: #1967D2; }
+  .stat .number.amber { color: #B06000; }
+  .stat .number.purple { color: #6B21A8; }
+  .stat .sub { font-size: 11.5px; color: var(--ink-600); margin-top: 4px; }
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--ink-200);
+    border-left: 4px solid var(--gcp-blue);
+    border-radius: 6px;
+    padding: 18px 22px;
+    margin: 14px 0;
+  }
+  .card.green { border-left-color: var(--gcp-green); }
+  .card.amber { border-left-color: var(--accent-amber); }
+  .card.red { border-left-color: var(--gcp-red); }
+  .card.purple { border-left-color: var(--accent-purple); }
+  .card h4 { margin: 0 0 6px 0; font-size: 14.5px; font-weight: 700; }
+  .card .small { font-size: 12px; color: var(--ink-600); }
+  .callout {
+    background: #F8F4FF;
+    border: 1px solid #DDD0F4;
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  .callout strong { color: #6B21A8; }
+  .ok-callout {
+    background: #E6F4EA;
+    border: 1px solid #B6E1C6;
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  .ok-callout strong { color: #137333; }
+  .warn-callout {
+    background: #FEF7E0;
+    border: 1px solid #FCE8B2;
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  .warn-callout strong { color: #B06000; }
+  pre, code.block {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    background: #0F172A;
+    color: #E2E8F0;
+    padding: 14px 18px;
+    border-radius: 6px;
+    overflow-x: auto;
+    line-height: 1.55;
+  }
+  .timeline {
+    position: relative;
+    padding-left: 26px;
+    margin: 18px 0;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 8px; top: 4px; bottom: 4px;
+    width: 2px;
+    background: var(--ink-200);
+  }
+  .timeline-item {
+    position: relative;
+    margin-bottom: 18px;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -22px; top: 4px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--gcp-blue);
+    border: 2px solid var(--paper);
+    box-shadow: 0 0 0 1px var(--ink-300);
+  }
+  .timeline-item.done::before { background: var(--gcp-green); }
+  .timeline-item.next::before { background: var(--accent-amber); }
+  .timeline-item.future::before { background: var(--ink-300); }
+  .timeline-item h5 { margin: 0 0 4px 0; font-size: 13.5px; font-weight: 700; }
+  .timeline-item .ts { font-size: 11px; color: var(--ink-500); margin-bottom: 4px; font-family: ui-monospace, monospace; }
+  .timeline-item p { margin: 4px 0; font-size: 12.5px; color: var(--ink-700); }
+  .scene-grid {
+    display: grid;
+    grid-template-columns: 60px 90px 90px 1fr;
+    gap: 8px 14px;
+    font-size: 12px;
+    margin: 12px 0 18px 0;
+  }
+  .scene-grid .head { font-weight: 700; font-size: 11px; text-transform: uppercase; color: var(--ink-500); letter-spacing: 0.04em; padding-bottom: 6px; border-bottom: 1px solid var(--ink-200); }
+  .scene-grid .row { padding: 8px 0; border-bottom: 1px dashed var(--ink-200); }
+  .scene-grid .scene-num { font-weight: 700; color: var(--gcp-blue); }
+  .scene-grid .narrative { color: var(--ink-700); }
+  .scene-grid .angle { font-size: 11px; color: var(--ink-500); }
+  footer.report-footer {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--ink-200);
+    font-size: 11.5px;
+    color: var(--ink-500);
+    line-height: 1.5;
+  }
+  footer.report-footer a { color: var(--gcp-blue); text-decoration: none; }
+  footer.report-footer code { font-family: ui-monospace, monospace; font-size: 11px; color: var(--ink-700); background: var(--ink-100); padding: 1px 5px; border-radius: 3px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .progress-bar { background: var(--ink-100); height: 8px; border-radius: 4px; overflow: hidden; margin: 4px 0 10px 0; }
+  .progress-bar .fill { height: 100%; background: var(--gcp-green); border-radius: 4px; transition: width 0.3s; }
+  .progress-bar .fill.amber { background: var(--accent-amber); }
+  .progress-bar .fill.blue { background: var(--gcp-blue); }
+  @media print {
+    body, .page { background: white; }
+    .page { padding: 24px; max-width: 100%; }
+    pre, code.block { background: #F1F5F9; color: #0F172A; }
+    section { page-break-inside: avoid; }
+    nav.toc { page-break-after: always; }
+    h2.section-title { page-break-after: avoid; }
+  }
+  @media (max-width: 800px) {
+    .page { padding: 24px 18px; }
+    .stats-row, .meta-grid, .two-col { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ─────────────────────────────────────── HEADER ─────────────────────────────────────── -->
+<header class="report-header">
+  <div class="badge-row">
+    <span class="badge green">PR #1 MERGED</span>
+    <span class="badge blue">P0 + P1 prep 완료</span>
+    <span class="badge amber">Operator final mile 잔여</span>
+    <span class="badge purple">자율 /goal 세션</span>
+  </div>
+  <h1>
+    Social Seeding v2 — Google for Startups AI Agents Challenge 진행 보고서
+    <span class="sub">22-agent ADK 함대, AP2 Mission Control UI, GCP-네이티브 인프라 베이스라인 완성. 데드라인 2026-06-05까지 14일 잔여.</span>
+  </h1>
+  <div class="meta-grid">
+    <div class="cell"><div class="k">보고일</div><div class="v">2026년 5월 19일</div></div>
+    <div class="cell"><div class="k">대상 챌린지</div><div class="v">Google AI Agents Challenge</div></div>
+    <div class="cell"><div class="k">트랙</div><div class="v">Track 2 + Track 3 동시 제출</div></div>
+    <div class="cell"><div class="k">데드라인</div><div class="v">2026-06-05 23:59 PT</div></div>
+    <div class="cell"><div class="k">머지된 PR</div><div class="v"><code>#1 → main</code></div></div>
+    <div class="cell"><div class="k">최종 커밋</div><div class="v"><code>905f469</code></div></div>
+    <div class="cell"><div class="k">테스트</div><div class="v">0 failed / 2,668 passed</div></div>
+    <div class="cell"><div class="k">현재 GCP 비용</div><div class="v">$0.00 / $1,500</div></div>
+  </div>
+</header>
+
+<!-- ─────────────────────────────────────── TOC ─────────────────────────────────────── -->
+<nav class="toc">
+  <h2>목차</h2>
+  <ol>
+    <li><a href="#summary">Executive Summary — 한 화면 요약</a></li>
+    <li><a href="#completed">소셜시딩에서 완성한 작업 — 6대 영역</a></li>
+    <li><a href="#decisions">결정 이력 — D40~D44 (이번 세션 신규 5건)</a></li>
+    <li><a href="#roadmap">진행 계획 — 6/5 데드라인까지의 운영자 마일스톤</a></li>
+    <li><a href="#cost">비용 시나리오 — 3가지 옵션</a></li>
+    <li><a href="#demo">최종 제출 데모 구성 — Track 2 + Track 3 × 4 로케일</a></li>
+    <li><a href="#appendix">부록 — 통계, 커밋, 외부 리뷰, 알려진 한계</a></li>
+  </ol>
+</nav>
+
+<!-- ─────────────────────────────────────── 1. EXECUTIVE SUMMARY ─────────────────────────────────────── -->
+<section id="summary" class="section-major">
+  <h2 class="section-title"><span class="num">01.</span>Executive Summary</h2>
+  <p class="section-desc">하루 자율 빌드 세션의 결과를 한 페이지에 요약합니다.</p>
+
+  <div class="stats-row">
+    <div class="stat">
+      <div class="label">백그라운드 에이전트</div>
+      <div class="number purple">25+</div>
+      <div class="sub">security / python-expert / devops / frontend / QA / writer / backend</div>
+    </div>
+    <div class="stat">
+      <div class="label">신규 파일</div>
+      <div class="number blue">535+</div>
+      <div class="sub">+116,000 lines</div>
+    </div>
+    <div class="stat">
+      <div class="label">22-agent fleet 도구</div>
+      <div class="number green">49</div>
+      <div class="sub">capability-layer FunctionTools (D41)</div>
+    </div>
+    <div class="stat">
+      <div class="label">테스트 통과</div>
+      <div class="number green">2,668</div>
+      <div class="sub">0 failed; 50/50 smoke; 0.18s</div>
+    </div>
+  </div>
+
+  <div class="card green">
+    <h4>✅ 완료된 산출물</h4>
+    <p class="small">소셜시딩 v2의 백엔드 (22-agent ADK 함대) · 프론트엔드 (AP2 Mission Control UI) · 인프라 (8-module Terraform GCP 스택) · 테스트 하네스 (5-layer pytest + Hypothesis + 시뮬레이션 + 카오스) · 데모 파이프라인 (OBS 프로파일 + ffmpeg 8× + PII OCR 게이트 + YouTube 업로드) · Track 3 tiktok-mcp-server 리팩터 (A2A v0.3 + Identity Platform + 멀티컨테이너 Cloud Run) · Devpost 제출문 2건 (각 3,000 단어) · 운영자 체크리스트 — <strong>모두 PR #1로 main 머지 완료.</strong></p>
+  </div>
+
+  <div class="card amber">
+    <h4>⚠️ 운영자만 가능한 잔여 작업 (4개)</h4>
+    <ul class="small" style="margin: 6px 0 0 0;">
+      <li><strong>OBS 데모 녹화 × 2 트랙</strong> — D30에 따라 진짜 마우스 액션 필요 (24분 raw × 2 = 48분); 자율 자동화 불가.</li>
+      <li><strong>ffmpeg 8× 압축 + 4 로케일 자막 굽기 + YouTube unlisted 업로드</strong> — 스크립트는 모두 준비됨, 운영자가 실행만 하면 됨 (~10분).</li>
+      <li><strong>Devpost 폼 작성</strong> — 텍스트 3,000단어 × 2 트랙 + 스크린샷 24장 + YouTube URL 붙여넣기.</li>
+      <li><strong>제출 버튼 클릭</strong> — Devpost UI는 자동화 불가; 2026-06-05 23:59 PT 이전 필수.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h4>💰 현재 GCP 비용 = $0.00</h4>
+    <p class="small">3개 GCP 프로젝트 (<code>ss-v2-prod</code>, <code>ss-mcp-prod</code>, <code>ss-shared-infra</code>)는 생성 + 빌링 링크만 완료. 어떤 GCP 리소스도 프로비전되지 않음 (KMS 0, Cloud Run 0, Compute 0, Spanner 0). 데모 시 권장 비용 시나리오: $50-100 (D39 $1,500 캡의 3-7%).</p>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────── 2. 완료한 작업 ─────────────────────────────────────── -->
+<section id="completed" class="section-major">
+  <h2 class="section-title"><span class="num">02.</span>소셜시딩에서 완성한 작업 — 6대 영역</h2>
+  <p class="section-desc">현재 코드베이스 (main 브랜치) 기준 6개 주요 영역에서 무엇을 완성했고, 어떤 D-ID 결정에 기반하는지 정리합니다.</p>
+
+  <!-- 2.1 22-agent ADK fleet -->
+  <h3 class="subhead">2.1 백엔드 — 22-agent ADK 함대</h3>
+  <p>Claude SDK 기반 v2의 11-agent 구조에서 <strong>Google ADK 2.0 Beta + Gemini 2.5 패밀리</strong>로 전면 재구성하고, 메타-에이전트 + 워치독을 추가하여 22-agent로 확장.</p>
+
+  <table>
+    <thead>
+      <tr><th style="width: 110px;">계층</th><th>에이전트 (수)</th><th>역할</th><th>모델</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Tier-1 도메인 (16)</strong></td><td>intake · sourcing · vetting · outreach_writer · conversation · conversation_responder · logistics · content_verify · analyst · research · creative · a11y · lead_outreach_writer · payment_mandate · compliance · customer_success</td><td>실제 캠페인 루프 수행</td><td>Gemini 2.5 Flash / Pro / Flash-Lite</td></tr>
+      <tr><td><strong>Tier-2 메타 (3)</strong></td><td>coordinator · critic · optimizer</td><td>다른 에이전트 조율 / LLM-as-judge / 프롬프트 자동 튜닝</td><td>Gemini 2.5 Pro</td></tr>
+      <tr><td><strong>Tier-3 워치독 (3)</strong></td><td>anomaly_watch · cost_watch · security_watch</td><td>비용 / 보안 / 이상 감지 + Auto-runbook</td><td>cost_watch는 룰 기반 (LLM 없음)</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>각 에이전트의 5요소 (Agent-as-function 패턴, D29 차별화 #1):</strong> 큐레이팅된 도구 셋 · Zod/Pydantic 입출력 계약 · USD 캡 · 에스컬레이션 게이트 · LLM-as-judge 평가. ReAct 자유 루프 대비 운영 가능성 ↑.</p>
+
+  <h4 class="minihead">49개 Capability-layer FunctionTool (D41 신규 결정)</h4>
+  <p>모든 22개 에이전트가 <code>tools=[]</code> 플레이스홀더에서 실제 도구 와이어링 완료. <code>CAPABILITY_LAYER_MODE=stub|live</code> 환경변수로 dev/CI 결정론 vs prod 실제 SDK 콜 단일 시임.</p>
+
+  <div class="two-col">
+    <div>
+      <h4 class="minihead">데이터 소싱 / 검증</h4>
+      <ul class="small">
+        <li><code>rapidapi_tiktok_search</code> · <code>rapidapi_instagram_search</code></li>
+        <li><code>rapidapi_get_user_info</code> · <code>ranking_score</code></li>
+        <li><code>blacklist_check</code> · <code>vector_search_creator</code> (D16 Vertex AI Vector Search)</li>
+        <li><code>vector_search_competitor</code> · <code>web_search</code></li>
+      </ul>
+      <h4 class="minihead">아웃리치 / 회신</h4>
+      <ul class="small">
+        <li><code>templates_list</code> (4 로케일, D34)</li>
+        <li><code>outreach_extract_facts</code> · <code>outreach_render</code></li>
+        <li><code>gmail_thread_classify</code> (8 카테고리)</li>
+        <li><code>gmail_send_reply</code> (D10 allowlist 가드)</li>
+        <li><code>memory_bank_search</code> (D33 14일 TTL)</li>
+      </ul>
+      <h4 class="minihead">콘텐츠 / 멀티모달 (D29 #3)</h4>
+      <ul class="small">
+        <li><code>imagen_generate</code> (Imagen 4)</li>
+        <li><code>veo_generate</code> (Veo 3, SynthID watermark)</li>
+        <li><code>lyria_generate</code> · <code>assets_upload</code></li>
+        <li><code>vision_brand_logo_detect</code></li>
+        <li><code>vision_describe</code> · <code>stt_transcribe</code> · <code>tts_synthesize</code> · <code>translation_translate</code></li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="minihead">AP2 결제 / 컴플라이언스</h4>
+      <ul class="small">
+        <li><code>ap2_compose_intent_mandate</code> (D27, UUIDv7 replay 보호)</li>
+        <li><code>gate_approveOutreachSend</code> (4 로케일)</li>
+        <li><code>pipa_check_consent</code> (PIPA 22/23조)</li>
+        <li><code>canspam_check_unsubscribe</code></li>
+        <li><code>dlp_inspect</code> (RRN/이메일/전화 패턴)</li>
+      </ul>
+      <h4 class="minihead">애널리틱스 / CS</h4>
+      <ul class="small">
+        <li><code>bigquery_query</code> (template-name only, SQL injection 가드)</li>
+        <li><code>view_metrics_aggregate</code> (D28 $0.01/view 인보이스 invariant)</li>
+        <li><code>analytics_funnel</code> · <code>intervention_propose</code></li>
+        <li><code>crm_enrich</code> · <code>forms_upsert</code> (UUIDv7)</li>
+      </ul>
+      <h4 class="minihead">메타 / 워치독</h4>
+      <ul class="small">
+        <li><code>agent_registry_list</code> · <code>a2a_invoke</code></li>
+        <li><code>evaluation_score</code> · <code>gate_escalate</code></li>
+        <li><code>agent_optimizer_tune</code> · <code>prompt_registry_update</code></li>
+        <li><code>metrics_query</code> · <code>runbook_execute</code> (D32)</li>
+        <li><code>billing_query</code> · <code>pubsub_alert</code> (50/75/90/95% 임계)</li>
+        <li><code>model_armor_query_blocks</code> · <code>chronicle_query</code> · <code>tenant_quarantine</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <h4 class="minihead">보안 강화 — BN-9 트립와이어 해결 (D40)</h4>
+  <p>한국어/일본어/중국어 <strong>조사가 포함된 prompt injection</strong>이 기존 정규식 <code>이전 지시(?:를|을)?\s*무시</code>를 우회하던 보안 구멍을 해결. Particle-aware 문자 클래스 <code>[\s　을를은는의에이가도]*</code> (KO) / <code>[\s　をにへでがのは]*</code> (JA) / <code>[\s　的了也]*</code> (ZH)로 교체. 6개 particle-rich 회귀 테스트로 보안 경계 고정.</p>
+
+  <!-- 2.2 AP2 Mission Control UI -->
+  <h3 class="subhead">2.2 프론트엔드 — AP2 Mission Control UI</h3>
+  <p>Next.js 16 App Router 기반 내부 운영자 대시보드. <strong>AP2 Intent Mandate</strong> (D27) 결제 권한 부여 흐름을 풀스택으로 구현. v2의 better-auth는 유지되지만 향후 Identity Platform으로 이관 예정 (D19).</p>
+
+  <table>
+    <thead><tr><th>화면 / 컴포넌트</th><th>역할</th><th>D-ID</th></tr></thead>
+    <tbody>
+      <tr><td><code>approvals/[id]/_ap2/mandate-detail.tsx</code></td><td>AP2 Mandate drill-in (757 lines): 의도 / 수령인 테이블 / 위험 칩 / 파트너 뱃지 / WebAuthn 사인</td><td>D26, D27</td></tr>
+      <tr><td><code>approvals/[id]/_ap2/edit-then-sign-drawer.tsx</code></td><td>금액 / TTL / 수령인 편집 후 사인</td><td>D27</td></tr>
+      <tr><td><code>approvals/[id]/_ap2/webauthn-step-up.tsx</code></td><td>매 사인마다 새 WebAuthn ceremony (D27 안티-자동승인)</td><td>D27</td></tr>
+      <tr><td><code>approvals/_bulk-approve-toolbar.tsx</code></td><td>최대 10개 Mandate 묶음 사인 (R4 atomic)</td><td>D27</td></tr>
+      <tr><td><code>components/mission-control/dialogflow/dcx-chat-widget.tsx</code></td><td>Dialogflow CX 챗봇 위젯 (오퍼레이터 도움말)</td><td>D26</td></tr>
+      <tr><td><code>messages/{ko,en,ja,zh-CN}.json</code></td><td>4 로케일 next-intl 메시지</td><td>D34</td></tr>
+      <tr><td><code>lib/ap2/partner-registry.ts</code></td><td>61개 AP2 결제 파트너 정적 등록부</td><td>D27</td></tr>
+    </tbody>
+  </table>
+
+  <h4 class="minihead">PR #1 외부 리뷰로 발견된 3개 버그 (모두 수정)</h4>
+  <ol class="small">
+    <li><strong>P1</strong> — <code>ApprovalSchema.kind</code> Zod enum에 <code>payment_mandate</code> 누락. <code>approvalRepo.get()</code>이 parse 실패로 throw하던 버그. <code>packages/contracts/src/policy.ts</code>에 enum 추가 + cast 제거.</li>
+    <li><strong>P2</strong> — Edit-then-sign → WebAuthn 취소 → 재시도 시 <code>handleSignAll</code>이 실행되어 편집 사항 (금액/수령인/TTL) 손실. <code>handleSignWithSavedEdits()</code> 새 핸들러로 edits 보존.</li>
+    <li><strong>P2</strong> — <code>sumMoney()</code>가 KRW/JPY zero-decimal currency 합계를 100× 인플레이션. BigInt 100n 나눗셈으로 zero-decimal 분기 추가.</li>
+  </ol>
+
+  <!-- 2.3 Terraform -->
+  <h3 class="subhead">2.3 인프라 — 8-module Terraform GCP 스택</h3>
+  <p>D17 Vertex AI Agent Runtime + D13 3-region active-active + D18 Cloud Workflows + Pub/Sub + Cloud Tasks + Eventarc 기반. 모든 8개 모듈 <code>terraform validate</code> 통과.</p>
+
+  <div class="two-col">
+    <div>
+      <h4 class="minihead">8개 모듈</h4>
+      <ul class="small">
+        <li><code>compute/</code> — Cloud Run + Agent Runtime 폴백 (D17)</li>
+        <li><code>data/</code> — Spanner multi-region + AlloyDB AI + Firestore + Vector Search (D15, D16)</li>
+        <li><code>networking/</code> — Global LB + VPC + Cloud NAT + Cloud Armor (D31)</li>
+        <li><code>security/</code> — CMEK KMS + Identity Platform + Workforce IF + DLP + Model Armor (D19, D20, D21)</li>
+        <li><code>observability/</code> — Cloud Logging + Monitoring + Trace + Chronicle SIEM (D32)</li>
+        <li><code>devops/</code> — Cloud Build + Deploy + Artifact Registry (D9 SLSA)</li>
+        <li><code>ai/</code> — Imagen / Veo / Lyria / 22-agent 등록부 (D5)</li>
+        <li><code>integration/</code> — Workflows + Eventarc + Pub/Sub + Cloud Tasks + Apigee (D18)</li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="minihead">환경별 root 설정 (D44, 이번 세션 신규)</h4>
+      <ul class="small">
+        <li><code>environments/dev/</code> — 단일 리전 us-central1, CMEK off, 최소 인스턴스, validate <strong>SUCCESS</strong></li>
+        <li><code>environments/prod/</code> — D13 3 리전 (us/eu/apac), CMEK on, full SLO, validate <strong>SUCCESS</strong></li>
+      </ul>
+      <h4 class="minihead">D42 신규 패턴 — Workflows agent_url 주입</h4>
+      <p class="small">워크플로 YAML이 <code>${args.agent_url}</code> 변수 치환을 사용하고 Terraform <code>output</code>이 실제 URL을 주입. 하드코딩된 호스트네임 0개.</p>
+      <h4 class="minihead">BN-11 해결 — 13개 provider-compat 버그</h4>
+      <p class="small">2회의 devops-architect 라운드를 통해 모든 13개 정리: Category A (리네임) / B (스키마 드리프트) / C (pre-GA → null_resource + gcloud 폴백, 특히 <code>google_vertex_ai_reasoning_engine</code>).</p>
+    </div>
+  </div>
+
+  <!-- 2.4 Test harness -->
+  <h3 class="subhead">2.4 테스트 — 5-layer Test Harness (D37)</h3>
+  <p>Vertex AI Agent Evaluation + Vitest (capabilities) + pytest (agents) + Agent Simulation + Chaos engineering 5계층 테스트 피라미드.</p>
+  <ul>
+    <li><strong>22개 evalsets</strong> (Tier-1/2/3 × 골든 케이스) — Vertex AI Agent Evaluation 호환</li>
+    <li><strong>104개 시뮬레이션 시나리오</strong> — Inngest 워크플로 단계마다 의도적 결함 주입</li>
+    <li><strong>25개 카오스 YAML</strong> — Litmus / Gremlin 호환 (Spanner failover, Pub/Sub drop, 메모리 압박 등)</li>
+    <li><strong>122개 엣지 케이스</strong> — UUIDv7 충돌, AP2 replay, Korean particle prompt injection, 토큰 캡 초과 등</li>
+    <li><strong>End-to-end smoke test</strong> — 22/22 에이전트, 50/50 도구 호출, 0.18초, exit 0; <code>expected-output.json</code> 골든 파일로 회귀 가드</li>
+  </ul>
+
+  <!-- 2.5 Demo pipeline -->
+  <h3 class="subhead">2.5 데모 파이프라인 (D30 + D34)</h3>
+  <p>슬라이드 없이 진짜 마우스 액션을 24분 녹화 → 8× 속도 압축 → 3분 영상. 4 로케일 자막. PII OCR 게이트로 YouTube 업로드 전 민감 정보 마스킹.</p>
+  <ul>
+    <li><strong>OBS 프로파일</strong> (<code>scripts/demo/obs/profile.json</code>) — 2560×1440 @ 60fps</li>
+    <li><strong>ffmpeg 8× 파이프라인</strong> (<code>scripts/demo/ffmpeg-8x.sh</code>) — <code>setpts=PTS/8 + atempo</code> 체인, lower-third overlay, 4 자막 굽기</li>
+    <li><strong>PII OCR 게이트</strong> (<code>scripts/demo/pii-redact.sh</code>) — Cloud Vision OCR로 모든 프레임 스캔, bbox-scoped boxblur로 마스킹</li>
+    <li><strong>YouTube 업로드</strong> (<code>scripts/demo/youtube-upload.sh</code>) — unlisted 모드, OAuth refresh-token 부재 시 <code>OPERATOR_MANUAL</code>로 정상 강등</li>
+    <li><strong>스토리보드 × 2 트랙</strong> — 각 12 씬 (D29 3-angle 매핑)</li>
+    <li><strong>8개 자막 .srt</strong> — Track 2/3 × ko/en/ja/zh-CN, 15 cues each</li>
+  </ul>
+
+  <!-- 2.6 Track 3 refactor -->
+  <h3 class="subhead">2.6 Track 3 — tiktok-mcp-server 리팩터</h3>
+  <p>기존 OSS tiktok-mcp-server를 <strong>A2A v0.3 호환 ADK 에이전트</strong>로 래핑하여 Gemini Enterprise에 등록 가능한 형태로 변환.</p>
+  <ul>
+    <li><strong>25개 파일 / ~4,600 LOC</strong></li>
+    <li><strong>agent.json</strong> — A2A v0.3 capabilities 카드 (JSON-valid, 표준 필드 충족)</li>
+    <li><strong>ADK orchestration 에이전트</strong> — Python 3.12 + uv, 다중 컨테이너 Cloud Run</li>
+    <li><strong>Identity Platform OIDC</strong> — 기존 SQLite OAuth 대체 (D19 멀티-테넌트)</li>
+    <li><strong>OSS 위생</strong> — LICENSE (Apache-2.0 per D9), NOTICE, SECURITY.md (90일 공개 정책), MAINTAINERS.md, SPDX 헤더 × 6 Python 파일</li>
+    <li><strong>D2 → D3 리프레이밍</strong> — 한국 법인의 Marketplace 직접 등록 불가 한계를 "A2A-only 배포 패턴" 혁신 기여로 전환</li>
+  </ul>
+
+  <!-- 2.7 W5 GCP 프로젝트 -->
+  <h3 class="subhead">2.7 GCP 프로젝트 W5 — 실제 프로비전 (이번 세션 자율 실행)</h3>
+  <p>gcloud auth가 이미 <code>app.2weeks@gmail.com</code>으로 설정되어 있음을 확인 → 자율 실행. <code>day-1-setup.sh init</code>에서 발견된 표시명 괄호 문제 패치 후 정상 완료.</p>
+  <table>
+    <thead><tr><th>프로젝트</th><th>용도</th><th>빌링 계정</th><th>현재 상태</th></tr></thead>
+    <tbody>
+      <tr><td><code>ss-v2-prod</code></td><td>Track 2 (소셜시딩 v2)</td><td><code>01B677-A6E5C9-B265AF</code> "크레딧계정"</td><td>22 default APIs, 0 리소스</td></tr>
+      <tr><td><code>ss-mcp-prod</code></td><td>Track 3 (tiktok-mcp-server)</td><td><code>01B677-A6E5C9-B265AF</code> "크레딧계정"</td><td>22 default APIs, 0 리소스</td></tr>
+      <tr><td><code>ss-shared-infra</code></td><td>공유 인프라</td><td><code>01C009-2F37C9-852DCA</code> "크레딧2" (1번 계정 프로젝트 쿼터 초과 우회)</td><td>22 default APIs, 0 리소스</td></tr>
+    </tbody>
+  </table>
+  <div class="ok-callout">
+    <strong>비용 영향:</strong> 프로젝트 생성 + 빌링 링크는 무료. KMS / Cloud Run / Compute 등 어떤 리소스도 프로비전되지 않아 현재까지 누적 청구액 <strong>$0.00</strong>. <code>./day-1-setup.sh all</code> 실행 시점부터 KMS 키 (≈$80/월) + Artifact Registry (≈$5/월) 발생.
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────── 3. 결정 이력 ─────────────────────────────────────── -->
+<section id="decisions" class="section-major">
+  <h2 class="section-title"><span class="num">03.</span>결정 이력 — D40~D44 (이번 세션 신규 5건)</h2>
+  <p class="section-desc">소셜시딩 v2의 <code>DECISIONS.md</code>는 단일 진실 공급원입니다. 이번 세션에 5개 신규 D-ID가 추가되어 총 <strong>44 active / 10 rounds</strong>가 되었습니다.</p>
+
+  <table>
+    <thead><tr><th style="width: 80px;">ID</th><th>결정</th><th>근거 / 위치</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>D40</code></td>
+        <td><strong>prompt_guard CJK regex가 particle-rich injection 처리</strong> — 한/일/중 조사 포함 문자 클래스로 정규식 강화. 6개 회귀 테스트 추가.</td>
+        <td>BN-9 트립와이어 해결 / W1 / <code>packages/agents-adk/src/ss_agents/tools/prompt_guard.py</code></td>
+      </tr>
+      <tr>
+        <td><code>D41</code></td>
+        <td><strong>Capability layer ADK FunctionTool 패턴</strong> — 각 도구가 <code>def fn(payload: PydanticIn) → PydanticOut</code> 시그니처; <code>CAPABILITY_LAYER_MODE=stub|live</code> 환경변수로 dev/prod 단일 시임; per-tool USD 비용 어트리뷰트로 cost_watch 인트로스펙트 가능.</td>
+        <td>W2 / 49개 도구가 모두 이 패턴 사용</td>
+      </tr>
+      <tr>
+        <td><code>D42</code></td>
+        <td><strong>Cloud Workflows YAML이 Terraform output으로 agent_url 주입</strong> — 워크플로 <code>call:</code> URL이 <code>${args.agent_url}</code> 변수 치환; 환경별로 Terraform <code>output</code>이 실제 값 주입; 하드코딩된 호스트네임 0개.</td>
+        <td>W3 / <code>terraform/modules/integration/WIRE-NOTES.md</code></td>
+      </tr>
+      <tr>
+        <td><code>D43</code></td>
+        <td><strong>End-to-end smoke test가 Phase-3 canary</strong> — <code>scripts/smoke-test/run-brand-campaign.sh</code>가 brand brief → 22-agent 함대 → Gmail 발송 (D10 테스트 계정만) → 워크플로 연속성 → 최종 리포트를 stub 모드로 실행; <code>expected-output.json</code> 골든 파일로 회귀 가드. W6/W7/W8 게이팅 조건.</td>
+        <td>W4 / 50/50 도구, exit 0, 0.18초</td>
+      </tr>
+      <tr>
+        <td><code>D44</code></td>
+        <td><strong>Terraform root 설정은 environments/&lt;env&gt;/</strong> — dev/prod 디렉토리에 각각 root 설정; module 디렉토리는 호출되기만; 환경별 backend state는 별도 GCS 버킷.</td>
+        <td>W6 prep / <code>terraform/environments/{dev,prod}/</code></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ─────────────────────────────────────── 4. 진행 계획 ─────────────────────────────────────── -->
+<section id="roadmap" class="section-major">
+  <h2 class="section-title"><span class="num">04.</span>진행 계획 — 6/5 데드라인까지의 운영자 마일스톤</h2>
+  <p class="section-desc">현재 main 브랜치는 정적 산출물 완성 상태입니다. 데드라인까지 14일 동안 운영자가 수행할 작업을 시간 순으로 정리합니다.</p>
+
+  <div class="timeline">
+
+    <div class="timeline-item done">
+      <h5>✅ 완료 — Day 0 (2026-05-19)</h5>
+      <div class="ts">PR #1 머지 / 모든 정적 산출물 main 진입</div>
+      <p>22-agent ADK 함대 + AP2 UI + Terraform 스택 + 데모 파이프라인 + Devpost 제출문 2건 + Track 3 OSS 위생 모두 완성. 3개 GCP 프로젝트 빌링 링크 완료. Codex 외부 리뷰 3건 모두 반영. CI 그린.</p>
+    </div>
+
+    <div class="timeline-item next">
+      <h5>🟡 Day 1-3 (5/20-5/22) — 최소 환경에서 1차 end-to-end 데모 리허설</h5>
+      <div class="ts">권장 시작 시점 / 비용 ~$30-50</div>
+      <ul style="font-size: 12.5px; margin: 6px 0 0 0;">
+        <li><code>cd gcp-research/scripts && BILLING_ACCOUNT=01B677-A6E5C9-B265AF ./day-1-setup.sh all ss-v2-prod</code> (KMS + Secrets + Artifact Registry + Pub/Sub + Budget)</li>
+        <li>동일 명령 <code>ss-mcp-prod</code>에도 실행</li>
+        <li><code>cd deploy && make build-web build-agents</code> (Cloud Build로 이미지 푸시)</li>
+        <li><code>make deploy-web deploy-agents PROJECT_ID=ss-v2-prod REGION=us-central1</code> (Cloud Run에 배포)</li>
+        <li><code>make smoke-test-prod</code> (배포된 /healthz 확인)</li>
+      </ul>
+    </div>
+
+    <div class="timeline-item next">
+      <h5>🟡 Day 4-5 (5/23-5/24) — Track 3 tiktok-mcp-server 배포 + Gemini Enterprise 등록</h5>
+      <div class="ts">비용 ~$10-20 (Cloud Run 단독)</div>
+      <ul style="font-size: 12.5px; margin: 6px 0 0 0;">
+        <li><code>cd gcp-research/refactor-mcp/code && docker build + gcloud run deploy</code></li>
+        <li>Identity Platform 테넌트 + OIDC provider 설정</li>
+        <li><strong>Gemini Enterprise에 agent.json 등록</strong> (Producer Portal 또는 A2A registry)</li>
+        <li>A2A invoke 샘플 curl로 동작 확인</li>
+      </ul>
+    </div>
+
+    <div class="timeline-item next">
+      <h5>🟡 Day 6-8 (5/25-5/27) — Track 2 데모 OBS 녹화 + ffmpeg 파이프라인</h5>
+      <div class="ts">강도 높은 1일 작업 / 비용 ~$10 (Vertex AI 호출만)</div>
+      <ul style="font-size: 12.5px; margin: 6px 0 0 0;">
+        <li><code>bash scripts/demo/record/pre-record-checklist.sh</code> (rig sanity)</li>
+        <li><code>RECORDING-CHECKLIST.md</code> 따라 OBS 준비 (브라우저 탭 4개, 시스템 사운드 OFF, Watchtower 일시 정지, <code>app.2weeks@gmail.com</code> 로그인)</li>
+        <li><strong>STORYBOARD-track2.md의 12개 씬을 24분 동안 마우스로 수행</strong> (D30 — 슬라이드 X, 내레이션 X)</li>
+        <li><code>bash scripts/demo/ffmpeg-8x.sh recording-track2-source.mov 2</code> (자동: 8× 압축 + lower-third + 4 자막 굽기 + PII OCR 게이트)</li>
+        <li>출력 확인: <code>track2-{ko,en,ja,zh-CN}.mp4</code> 4개, 각 3:00 ± 2초</li>
+      </ul>
+    </div>
+
+    <div class="timeline-item next">
+      <h5>🟡 Day 9 (5/28) — Track 3 데모 녹화 (동일 패턴)</h5>
+      <div class="ts">반나절 / 비용 ~$5</div>
+      <p>STORYBOARD-track3.md 12씬 녹화. KR-region-gap 리프레이밍 (D29 #2)을 헤드라인으로 강조. A2A invoke + Gemini Enterprise 통합 시연. 동일 ffmpeg 파이프라인.</p>
+    </div>
+
+    <div class="timeline-item next">
+      <h5>🟡 Day 10 (5/29) — YouTube 업로드 + Devpost 폼 작성</h5>
+      <div class="ts">반나절 / 비용 $0</div>
+      <ul style="font-size: 12.5px; margin: 6px 0 0 0;">
+        <li><code>bash scripts/demo/youtube-upload.sh 2 en</code> 등으로 8개 MP4 YouTube unlisted 업로드</li>
+        <li>Devpost 콘솔에 Track 2 폼 열기 → <code>scripts/demo/submission/devpost-track2.md</code> 붙여넣기</li>
+        <li>스크린샷 24장 업로드 (<code>SCREENSHOTS-MANIFEST.md</code> 참고)</li>
+        <li>YouTube URL 4개 입력</li>
+        <li>Track 3 폼에 동일 작업 반복</li>
+      </ul>
+    </div>
+
+    <div class="timeline-item next">
+      <h5>🟡 Day 11-13 (5/30-6/1) — O1 GAP 답변 + Devpost 폼 검수</h5>
+      <div class="ts">버퍼 / 비용 $0</div>
+      <p>Devpost 콘솔의 10개 GAP 질문 (팀 크기, 라이선스, 비디오 길이 캡, 저장소 공개 여부, 멀티-트랙 규칙, IP 양도 조항) 답변. <code>CHECKLIST.md</code>의 10-step pre-flight 게이트 통과 확인.</p>
+    </div>
+
+    <div class="timeline-item future">
+      <h5>⏳ Day 14 (6/2-6/4) — 안전 버퍼 + 최종 검토</h5>
+      <div class="ts">예비일 / 비용 $0</div>
+      <p>YouTube 영상 5회 시청하며 PII 누출 / 자막 동기화 / 시퀀스 오류 점검. 동료/공동저자 1명에게 cross-check 요청.</p>
+    </div>
+
+    <div class="timeline-item future">
+      <h5>🔴 Day 15 (6/5 23:59 PT) — 제출 마감</h5>
+      <div class="ts">최종 마감 (한국시간 6/6 15:59 KST)</div>
+      <p><strong>운영자가 Devpost 폼의 Submit 버튼을 실제로 클릭하는 시각.</strong> 마감 후 폼 수정 불가. <code>terraform destroy</code> 권장 (데모 비용 영구 차단).</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────── 5. 비용 시나리오 ─────────────────────────────────────── -->
+<section id="cost" class="section-major">
+  <h2 class="section-title"><span class="num">05.</span>비용 시나리오 — 3가지 옵션</h2>
+  <p class="section-desc">D39 $1,500 GCP 크레딧 캡 안에서 3가지 비용 전략을 비교합니다.</p>
+
+  <div class="card green">
+    <h4>🟢 옵션 A — Demo-only Minimal (권장)</h4>
+    <div class="progress-bar"><div class="fill" style="width: 7%"></div></div>
+    <p class="small" style="margin-top: 4px;"><strong>예상 총비용: $50-100 / D39 캡의 3-7%</strong></p>
+    <ul class="small">
+      <li>Cloud Run × 2 (web + agents) — <code>min=0</code> scale-to-zero, ~$10-30/월</li>
+      <li>Firestore Native (Spanner/AlloyDB 대체용 데모 데이터 5-20 엔티티) — ~$10/월</li>
+      <li>Vertex AI Gemini calls — 데모 녹화 시간만, ~$30/일 × 2일 = $60</li>
+      <li>Cloud Storage (Imagen/Veo 출력) — ~$5</li>
+      <li>Artifact Registry (이미지 저장) — ~$5</li>
+      <li><strong>Spanner / AlloyDB / GKE / Memorystore 모두 생략</strong> — 데모에는 과잉</li>
+      <li>데모 종료 직후 <code>terraform destroy</code> 필수</li>
+    </ul>
+  </div>
+
+  <div class="card amber">
+    <h4>🟡 옵션 B — Dev Environment Full Stack</h4>
+    <div class="progress-bar"><div class="fill amber" style="width: 13%"></div></div>
+    <p class="small" style="margin-top: 4px;"><strong>예상 총비용: $140-190 / D39 캡의 9-13%</strong></p>
+    <ul class="small">
+      <li>옵션 A의 모든 항목</li>
+      <li>+ <code>terraform/environments/dev/</code> 적용 (단일 리전, CMEK off, 최소 인스턴스)</li>
+      <li>+ KMS keys ~54 × $1.50/월 = ~$80/월 (30일 free tier 후)</li>
+      <li>+ Vertex AI Vector Search (작은 인덱스) ~$60/월</li>
+      <li>+ 모니터링 / 로깅 ~$5/월</li>
+      <li>실제 통합 테스트 + 부분적인 production-like 환경 검증 가능</li>
+    </ul>
+  </div>
+
+  <div class="card red">
+    <h4>🔴 옵션 C — Prod Multi-region Full Stack (비추천)</h4>
+    <div class="progress-bar"><div class="fill" style="width: 80%; background: var(--gcp-red);"></div></div>
+    <p class="small" style="margin-top: 4px;"><strong>예상 총비용: $2,000-2,400/월 / 데모 2주 = $1,000-1,200 / D39 캡 거의 소진</strong></p>
+    <ul class="small">
+      <li>옵션 B의 모든 항목</li>
+      <li>+ Spanner multi-region (nam-eur-asia1, 3 노드) ~$900/월</li>
+      <li>+ AlloyDB cluster ~$900/월</li>
+      <li>+ GKE Autopilot (Veo/Imagen GPU 워크로드 옵션) $50-200/월</li>
+      <li>+ Memorystore Valkey ~$50/월</li>
+      <li>+ Cloud Run 항상 켜져있음 (min=1+) ~$30/월</li>
+      <li>D31 99.99% SLO를 위해 명세된 구성이지만 <strong>데모 윈도우 2주 사용 시 D39 캡 80% 소진</strong> — 챌린지 발표 후 실제 고객 대응 시 다시 활성화 권장</li>
+    </ul>
+  </div>
+
+  <div class="callout">
+    <strong>권장 의사결정:</strong> 데모 녹화 + Devpost 제출까지는 <strong>옵션 A</strong>로 진행. 챌린지에서 수상하거나 첫 commercial customer가 사인하면 그때 옵션 B로 업그레이드 후 옵션 C 단계적 도입. <strong>현재 main 코드는 옵션 C까지 모두 지원하지만 운영자가 단계를 선택할 수 있도록 분리되어 있음.</strong>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────── 6. 최종 제출 데모 ─────────────────────────────────────── -->
+<section id="demo" class="section-major">
+  <h2 class="section-title"><span class="num">06.</span>최종 제출 데모 구성 — Track 2 + Track 3 × 4 로케일</h2>
+  <p class="section-desc">D30 "8× 속도 진짜 마우스 액션 + 슬라이드 X + 내레이션 X" 원칙. D29 3-angle 차별화를 씬별로 매핑. 모든 자료는 <code>scripts/demo/</code> 아래 준비됨.</p>
+
+  <!-- 6.1 Track 2 -->
+  <h3 class="subhead">6.1 Track 2 (Optimize) — social-seeding-v2 데모 (3분)</h3>
+  <p class="small">실제 마우스로 24분 동안 12개 씬을 수행 → ffmpeg <code>setpts=PTS/8 + atempo</code>로 정확히 3:00 ± 2초로 압축. D29의 3-angle (Agent-as-function / KR-region-gap / Multimodal+AP2+Multi-agent)을 씬별로 매핑.</p>
+
+  <div class="scene-grid">
+    <div class="head">씬</div>
+    <div class="head">실시간</div>
+    <div class="head">8× 압축</div>
+    <div class="head">내용 (D29 angle)</div>
+
+    <div class="row scene-num">S01</div>
+    <div class="row">90s</div>
+    <div class="row">11s</div>
+    <div class="row narrative">Mission Control 인테이크 페이지에서 한국어로 캠페인 브리프 작성 (Gemini 2.5 Flash conversational agent). <span class="angle">→ Angle A (Agent-as-function)</span></div>
+
+    <div class="row scene-num">S02</div>
+    <div class="row">120s</div>
+    <div class="row">15s</div>
+    <div class="row narrative">22-agent 함대 카드 보드 (coordinator → 16 Tier-1 + 3 Tier-2 + 3 Tier-3) 실시간 hover, 각 에이전트의 도구/모델/USD 캡 노출. <span class="angle">→ Angle C (Multi-agent)</span></div>
+
+    <div class="row scene-num">S03</div>
+    <div class="row">150s</div>
+    <div class="row">19s</div>
+    <div class="row narrative">sourcing 에이전트가 RapidAPI를 통해 TikTok 크리에이터 50명 검색 → vetting이 병렬 fan-out으로 점수 산정. <span class="angle">→ Angle A</span></div>
+
+    <div class="row scene-num">S04</div>
+    <div class="row">120s</div>
+    <div class="row">15s</div>
+    <div class="row narrative">outreach_writer가 5-각도 × 4-judge 토너먼트로 한국어 이메일 초안 생성. Gmail send_reply 게이트 (D10 allowlist <code>app.2weeks@gmail.com</code>만). <span class="angle">→ Angle A + C</span></div>
+
+    <div class="row scene-num">S05</div>
+    <div class="row">90s</div>
+    <div class="row">11s</div>
+    <div class="row narrative">creative 에이전트가 Imagen 4로 브랜드 이미지 4장, Veo 3로 6초 비디오 (SynthID 워터마크 visible) 생성. <span class="angle">→ Angle C (Multimodal)</span></div>
+
+    <div class="row scene-num">S06</div>
+    <div class="row">150s</div>
+    <div class="row">19s</div>
+    <div class="row narrative"><strong>AP2 Intent Mandate drill-in</strong> (Phase 6 신규). 의도 / 수령인 5명 테이블 / 위험 칩 / 파트너 뱃지 / 금액 KRW 2,340,000 표시. WebAuthn 단계 (Face ID). <span class="angle">→ Angle C (AP2)</span></div>
+
+    <div class="row scene-num">S07</div>
+    <div class="row">120s</div>
+    <div class="row">15s</div>
+    <div class="row narrative">bulk-approve 툴바로 5개 Mandate를 1개 WebAuthn 어센션으로 묶음 사인 (R4 atomic). <span class="angle">→ Angle C</span></div>
+
+    <div class="row scene-num">S08</div>
+    <div class="row">90s</div>
+    <div class="row">11s</div>
+    <div class="row narrative">Model Armor가 한국어 prompt injection (조사 포함, D40 신규 정규식) 실시간 차단 시연. Chronicle SIEM 로그 진입 확인. <span class="angle">→ Angle A (안전성)</span></div>
+
+    <div class="row scene-num">S09</div>
+    <div class="row">120s</div>
+    <div class="row">15s</div>
+    <div class="row narrative">conversation 에이전트가 8 카테고리로 회신 분류, conversation_responder가 한국어로 follow-up 작성. memory_bank_search가 14일 TTL 컨텍스트 가져옴. <span class="angle">→ Angle A</span></div>
+
+    <div class="row scene-num">S10</div>
+    <div class="row">90s</div>
+    <div class="row">11s</div>
+    <div class="row narrative">content_verify가 Vision API 브랜드 로고 감지 → analyst가 BigQuery로 캠페인 metrics 집계 → $0.01/view (D28) invariant 검증. <span class="angle">→ Angle C</span></div>
+
+    <div class="row scene-num">S11</div>
+    <div class="row">120s</div>
+    <div class="row">15s</div>
+    <div class="row narrative">Cloud Workflows 캔버스 시각화 (D18 native), Pub/Sub topics, Cloud Tasks queue 실시간 시연. <span class="angle">→ Angle A</span></div>
+
+    <div class="row scene-num">S12</div>
+    <div class="row">30s</div>
+    <div class="row">4s</div>
+    <div class="row narrative"><strong>시스템 헬스 체크</strong> — <code>bash scripts/smoke-test/run-brand-campaign.sh</code> 실행, 22/22 에이전트 / 50/50 도구 / 0.18초 / exit 0 / golden MATCH 출력. <span class="angle">→ 3 angle 종합</span></div>
+  </div>
+
+  <p class="small"><strong>총: 1,290s 실시간 (≈21:30) → 8× 압축 161s → 인트로/아웃트로/크로스페이드 19s → <strong>최종 3:00 ± 2초</strong></strong></p>
+
+  <!-- 6.2 Track 3 -->
+  <h3 class="subhead">6.2 Track 3 (Refactor) — tiktok-mcp-server 데모 (3분)</h3>
+  <p class="small">D29 Angle B (KR-region-gap을 혁신으로 리프레이밍)를 헤드라인으로 강조. A2A v0.3 + Gemini Enterprise 통합을 시연.</p>
+
+  <div class="scene-grid">
+    <div class="head">씬</div>
+    <div class="head">실시간</div>
+    <div class="head">8× 압축</div>
+    <div class="head">내용 (D29 angle)</div>
+
+    <div class="row scene-num">S01</div>
+    <div class="row">90s</div>
+    <div class="row">11s</div>
+    <div class="row narrative"><strong>문제 제기 화면</strong> — Cloud Marketplace KR 결제 region 제외 메시지 캡처 ("Listing not available in your region"). D2의 실제 한국 법인 한계 시연. <span class="angle">→ Angle B</span></div>
+
+    <div class="row scene-num">S02</div>
+    <div class="row">120s</div>
+    <div class="row">15s</div>
+    <div class="row narrative">기존 tiktok-mcp-server (SQLite OAuth)의 단일 노드 한계 → 컨테이너 한 개, 멀티 테넌트 불가. <span class="angle">→ Angle B (전환점)</span></div>
+
+    <div class="row scene-num">S03</div>
+    <div class="row">150s</div>
+    <div class="row">19s</div>
+    <div class="row narrative"><strong>리팩터 결과</strong> — Identity Platform OIDC 멀티 테넌트 (D19), Cloud Run 다중 컨테이너, 4개 분리된 워크로드 (orchestrator / scraper / verifier / metrics). <span class="angle">→ Angle B</span></div>
+
+    <div class="row scene-num">S04</div>
+    <div class="row">120s</div>
+    <div class="row">15s</div>
+    <div class="row narrative"><code>agent.json</code> 파일 보기 — A2A v0.3 capabilities 카드. 이게 Gemini Enterprise에 등록 가능한 표준 카드. <span class="angle">→ Angle A + B</span></div>
+
+    <div class="row scene-num">S05</div>
+    <div class="row">90s</div>
+    <div class="row">11s</div>
+    <div class="row narrative">Gemini Enterprise 콘솔에 agent.json 등록 → 등록부에 카드 출현. <span class="angle">→ Angle B</span></div>
+
+    <div class="row scene-num">S06</div>
+    <div class="row">120s</div>
+    <div class="row">15s</div>
+    <div class="row narrative">소셜시딩 v2 (Track 2)의 coordinator 에이전트가 a2a_invoke로 tiktok-mcp-server 호출 → cross-track 통합 동작 시연. <span class="angle">→ Angle C (Multi-agent)</span></div>
+
+    <div class="row scene-num">S07</div>
+    <div class="row">150s</div>
+    <div class="row">19s</div>
+    <div class="row narrative">실제 TikTok 크리에이터 프로필 5개 fetch → vector_search_creator로 의미적 유사도 검색 → vetting 점수 산정. <span class="angle">→ Angle A</span></div>
+
+    <div class="row scene-num">S08</div>
+    <div class="row">90s</div>
+    <div class="row">11s</div>
+    <div class="row narrative">Model Armor 정책 시연 — TikTok scraping 결과에 PII 감지 → 자동 redact. <span class="angle">→ Angle A</span></div>
+
+    <div class="row scene-num">S09</div>
+    <div class="row">120s</div>
+    <div class="row">15s</div>
+    <div class="row narrative">Apigee API monetization 미터링 → 호출당 $0.01 (D28) 자동 billing → Chronicle SIEM 감사 이벤트. <span class="angle">→ Angle A</span></div>
+
+    <div class="row scene-num">S10</div>
+    <div class="row">120s</div>
+    <div class="row">15s</div>
+    <div class="row narrative"><strong>오픈소스 컨트리뷰션 카드</strong> — github.com/SocialSeeding/a2a-only-pattern (Apache-2.0). KR 한계가 다른 국가의 비-Marketplace-region 스타트업에게도 유용한 패턴이 됨. <span class="angle">→ Angle B</span></div>
+
+    <div class="row scene-num">S11</div>
+    <div class="row">90s</div>
+    <div class="row">11s</div>
+    <div class="row narrative">Cloud Run 다중 컨테이너 동시 스케일링 데모 — 트래픽 분포에 따라 4개 컨테이너 독립 스케일. <span class="angle">→ Angle A</span></div>
+
+    <div class="row scene-num">S12</div>
+    <div class="row">30s</div>
+    <div class="row">4s</div>
+    <div class="row narrative">최종 카드 — "KR market gap → global A2A pattern, validated by Gemini Enterprise distribution." 데모 종료. <span class="angle">→ Angle B 종합</span></div>
+  </div>
+
+  <!-- 6.3 다국어 + 안전 -->
+  <h3 class="subhead">6.3 4 로케일 자막 + PII 안전 게이트</h3>
+  <ul>
+    <li><strong>각 트랙마다 4개 .srt 자막 생성</strong> — Track 2/3 × ko/en/ja/zh-CN = 8개 .srt. 15 cues each (인트로 1 + 12 씬 + 브릿지 1 + 아웃트로 1).</li>
+    <li><strong>ffmpeg 자막 굽기</strong> — 각 로케일별로 별도 MP4 생성. 최종 출력: <code>track{2,3}-{ko,en,ja,zh-CN}.mp4</code> 8개.</li>
+    <li><strong>PII OCR 게이트</strong> — Cloud Vision으로 모든 프레임 스캔 → 실제 이메일/전화/RRN 발견 시 자동 bbox-scoped boxblur 적용 → 게이트 통과 후에만 YouTube 업로드.</li>
+    <li><strong>D10 안전 정책</strong> — 실제 인플루언서 화면 redaction; 데모 데이터는 운영자 본인 계정 (<code>app.2weeks@gmail.com</code>) 발송본만 사용.</li>
+  </ul>
+
+  <!-- 6.4 Devpost 제출 차별화 -->
+  <h3 class="subhead">6.4 Devpost 제출문 차별화 — 3-angle 비즈니스 케이스</h3>
+  <p>각 트랙의 devpost-track{2,3}.md (3,000단어) 안에 다음 섹션 포함:</p>
+  <table>
+    <thead><tr><th>섹션</th><th>핵심 메시지</th></tr></thead>
+    <tbody>
+      <tr><td>Inspiration</td><td>D29 3-angle 차별화 — 한국 인플루언서 마케팅 시장 + GCP 네이티브 에이전트 플랫폼의 첫 풀스택 적용 사례</td></tr>
+      <tr><td>What it does</td><td>22-agent 함대 + AP2 Intent Mandate (D27) + 멀티모달 (Imagen/Veo/Lyria) + 4 로케일 + 5-layer 테스트</td></tr>
+      <tr><td>How we built it</td><td>ADK 2.0 Beta + Gemini 2.5 + Vertex AI Vector Search + Workflows + Pub/Sub + Spanner/AlloyDB/Firestore (D15 hybrid)</td></tr>
+      <tr><td>Challenges</td><td>D2 KR-region 한계 → D3 reframe; D4 Inngest → D18 Workflows 마이그레이션; BN-9 CJK injection 보안 구멍 → D40</td></tr>
+      <tr><td>Accomplishments</td><td>22-agent + 49 도구 + 2,668 테스트 + 4 로케일 + 5-layer 테스트 하네스</td></tr>
+      <tr><td>What we learned</td><td>Agent-as-function vs ReAct, capability layer stub/live 시임, AP2 Intent-only 안전성</td></tr>
+      <tr><td>Built with</td><td>전체 GCP 스택 (SERVICE-INVENTORY.md 121 서비스 중 95개 Used)</td></tr>
+      <tr><td>Business case</td><td>$0.01/view 가격 (D28) → 매출 ROI-연동; KR 인플루언서 마케팅 TAM $XX억 napkin math</td></tr>
+      <tr><td>Honest gaps</td><td>O1 Devpost GAP 답변, O7 Agent Gateway allowlist, O10 foreign sub-entity — 정직하게 명시</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 6.5 제출 체크리스트 -->
+  <h3 class="subhead">6.5 제출 체크리스트 (CHECKLIST.md 요약)</h3>
+  <p>10-step pre-flight 게이트:</p>
+  <ol class="small">
+    <li>main 브랜치 머지 확인 (<code>git log origin/main --oneline -5</code>) — ✅ 완료</li>
+    <li>pytest 0 failed / smoke test exit 0 — ✅ 완료</li>
+    <li>terraform validate dev + prod SUCCESS — ✅ 완료</li>
+    <li>3개 GCP 프로젝트 생성 + 빌링 링크 — ✅ 완료</li>
+    <li>Cloud Run 배포 + /healthz 200 — ⚠️ Day 1-3 운영자</li>
+    <li>tiktok-mcp-server Gemini Enterprise 등록 — ⚠️ Day 4-5 운영자</li>
+    <li>Track 2 + Track 3 OBS 녹화 완료 — ⚠️ Day 6-9 운영자</li>
+    <li>ffmpeg 8× 압축 + 4 로케일 자막 굽기 + PII OCR 게이트 통과 — ⚠️ Day 6-9 운영자</li>
+    <li>YouTube unlisted 업로드 8개 영상 (4 로케일 × 2 트랙) — ⚠️ Day 10 운영자</li>
+    <li>Devpost 폼 작성 + 스크린샷 24장 + YouTube URL 입력 + Submit 클릭 — ⚠️ Day 10-14 운영자</li>
+  </ol>
+</section>
+
+<!-- ─────────────────────────────────────── 7. 부록 ─────────────────────────────────────── -->
+<section id="appendix" class="section-major">
+  <h2 class="section-title"><span class="num">07.</span>부록</h2>
+
+  <h3 class="subhead">A. PR #1 커밋 로그 (5개)</h3>
+  <pre><code>905f469  Merge pull request #1 from Two-Weeks-Team/feature/gcp-research-baseline
+a2e5629  fix(ci): sync pnpm-lock.yaml with apps/web Phase 6 deps
+33185a3  fix(pr-review): Codex P1/P2 + CI pnpm conflict + ESLint hygiene
+e2b657e  feat(p1): submission packages complete + 3 GCP projects provisioned
+be9a19d  docs(goal-mode): P0 STATUS-REPORT.md + WORK-QUEUE status flips (W1-W4 ✅ DONE)
+9db559b  feat(p0): W1-W4 + Phase 6-8 baseline for Google AI Agents Challenge</code></pre>
+
+  <h3 class="subhead">B. 외부 리뷰 처리 이력</h3>
+  <table>
+    <thead><tr><th>리뷰어</th><th>코멘트 수</th><th>타당</th><th>수용</th><th>비고</th></tr></thead>
+    <tbody>
+      <tr><td>Codex (chatgpt-codex-connector)</td><td>3 inline P1/P2</td><td>3/3</td><td>3/3</td><td>payment_mandate enum, edit-retry, zero-decimal currency</td></tr>
+      <tr><td>Gemini Code Assist</td><td>1 review summary</td><td>부분</td><td>후속 PR</td><td>hardcoded docs paths — docs only, 보안 영향 한정적</td></tr>
+      <tr><td>CodeRabbit</td><td>review skipped</td><td>—</td><td>—</td><td>Free plan 한계 (234 files > 150 limit), status PASS</td></tr>
+      <tr><td>CI verify</td><td>3차 시도로 통과</td><td>—</td><td>—</td><td>pnpm version conflict + ESLint .venv ignore + lockfile sync</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="subhead">C. 테스트 결과 (최종)</h3>
+  <table>
+    <thead><tr><th>레이어</th><th>도구</th><th>결과</th></tr></thead>
+    <tbody>
+      <tr><td>Unit (capabilities)</td><td>Vitest</td><td>183 passed</td></tr>
+      <tr><td>Unit (agents-adk)</td><td>pytest</td><td><strong>2,668 passed / 0 failed</strong></td></tr>
+      <tr><td>End-to-end smoke</td><td>scripts/smoke-test/</td><td><strong>50/50 도구 / 22/22 에이전트 / 0.18초 / exit 0</strong></td></tr>
+      <tr><td>Evalsets (golden)</td><td>22 evalsets</td><td>Vertex AI Agent Evaluation 호환 (라이브 실행은 W6 후)</td></tr>
+      <tr><td>Simulation</td><td>104 시나리오</td><td>nightly.sh 준비 (라이브 실행은 W6 후)</td></tr>
+      <tr><td>Chaos</td><td>25 Litmus/Gremlin YAML</td><td>드라이런 통과 (실제 주입은 prod 환경 필요)</td></tr>
+      <tr><td>verify-build (TS)</td><td>turbo (lint + tsc + build)</td><td>7/7 successful, 4.06초</td></tr>
+      <tr><td>CI (GitHub Actions)</td><td>verify workflow</td><td>PASS (2m26s)</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="subhead">D. 알려진 한계 / 잔여 이슈</h3>
+  <ul class="small">
+    <li><strong>BN-11 잔여 deferral 4건</strong> — <code>google_vertex_ai_reasoning_engine</code> (D17 Agent Runtime) 등 pre-GA 리소스를 <code>null_resource + gcloud</code> 폴백으로 처리. Provider 7.x 출시 시 네이티브로 복원 필요.</li>
+    <li><strong>O3 Instagram 피드빌리티</strong> — RapidAPI 플랜 결정 필요; 도구는 NotImplementedError로 게이트.</li>
+    <li><strong>O7 Agent Gateway Private Preview allowlist</strong> — 1-2주 처리 시간 예상; W7 deploy 전 신청 권장.</li>
+    <li><strong>O10 외국 자회사 전략</strong> — Marketplace 직접 등록 시 필수; 챌린지 수상 후 결정.</li>
+    <li><strong>SOC 2 Type 2 증거 파이프라인</strong> — D22에 따라 deferred; 첫 commercial customer 후 Drata/Vanta 가동.</li>
+    <li><strong>Tier-3 watchdog 라이브 실행</strong> — Cloud Monitoring 메트릭이 실제로 흐르는 prod 환경 필요.</li>
+  </ul>
+
+  <h3 class="subhead">E. 참조 문서 / 산출물 위치</h3>
+  <table>
+    <thead><tr><th>경로</th><th>역할</th></tr></thead>
+    <tbody>
+      <tr><td><code>gcp-research/decisions/DECISIONS.md</code></td><td>44 active D-IDs, 단일 진실 공급원</td></tr>
+      <tr><td><code>gcp-research/decisions/ARCHITECTURE.md</code></td><td>7 Mermaid 다이어그램 + 22-agent 인벤토리 + 리전 매트릭스</td></tr>
+      <tr><td><code>gcp-research/decisions/SERVICE-INVENTORY.md</code></td><td>121 GCP 서비스, 95 Used (D-ID 앵커)</td></tr>
+      <tr><td><code>gcp-research/goal-mode/STATUS-REPORT.md</code></td><td>autonomous /goal 세션 터미널 아티팩트</td></tr>
+      <tr><td><code>gcp-research/scripts/day-1-setup.sh</code></td><td>GCP 부트스트랩 (3 프로젝트, 80+ API, 18 CMEK)</td></tr>
+      <tr><td><code>scripts/demo/STORYBOARD-track{2,3}.md</code></td><td>이번 보고서 §6 데모 시나리오 원본</td></tr>
+      <tr><td><code>scripts/demo/submission/devpost-track{2,3}.md</code></td><td>Devpost 제출문 (각 3,000단어)</td></tr>
+      <tr><td><code>scripts/demo/submission/CHECKLIST.md</code></td><td>10-step pre-flight 운영자 체크리스트</td></tr>
+      <tr><td><code>packages/agents-adk/BUILD-NOTES.md</code></td><td>BN-1 ~ BN-9 (BN-9 resolved 2026-05-19)</td></tr>
+      <tr><td><code>terraform/BUILD-NOTES.md</code></td><td>BN-11 (4 deferral 보존)</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ─────────────────────────────────────── FOOTER ─────────────────────────────────────── -->
+<footer class="report-footer">
+  <p>이 보고서는 2026-05-19 autonomous <code>/goal</code> 세션의 결과를 통합한 것입니다. PR <a href="https://github.com/Two-Weeks-Team/social-seeding-v2/pull/1">#1</a>로 머지된 5개 커밋의 audit trail이 main 브랜치에 보존되어 있습니다.</p>
+  <p>최종 커밋: <code>905f469</code> (Merge pull request) · 브랜치: <code>main</code> · 데드라인: 2026-06-05 23:59 PT (한국시간 2026-06-06 15:59 KST)</p>
+  <p>D-ID 인용 형식 (예: D27, D40)은 <code>gcp-research/decisions/DECISIONS.md</code> §2의 entry를 가리킵니다. 모든 결정 변경은 §8 change log에 기록됩니다.</p>
+  <p style="margin-top: 12px; color: var(--ink-400); font-size: 10.5px;">Generated by Claude Code (Opus 4.7) — <code>gcp-research/reports/social-seeding-status-2026-05-19.html</code></p>
+</footer>
+
+</div>
+</body>
+</html>

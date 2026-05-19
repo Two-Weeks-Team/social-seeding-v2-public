@@ -1,0 +1,2200 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280">
+<title>Social Seeding v2 — Web Demo (Track 2 + Track 3)</title>
+<!--
+  D-ID provenance (per gcp-research/decisions/DECISIONS.md):
+    D27 — AP2 Intent Mandate only (Cart/Payment Mandate deferred — read-only preview)
+    D29 — Three differentiation angles: D29-A Agent-as-function, D29-B KR-region-gap, D29-C Multimodal+AP2+Multi-agent
+    D30 — 8x-compressed real-mouse recording (this HTML demo is the no-FFmpeg replacement)
+    D34 — 4 locales: ko / en / ja / zh-CN
+  Track 2 storyboard: scripts/demo/STORYBOARD-track2.md (12 scenes, ~3:00 at 8x)
+  Track 3 storyboard: scripts/demo/STORYBOARD-track3.md (12 scenes, ~3:00 at 8x)
+  Subtitles: scripts/demo/subtitles/{track2,track3}-{ko,en,ja,zh-CN}.srt
+-->
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --slate-50: #f8fafc;
+    --slate-100: #f1f5f9;
+    --slate-200: #e2e8f0;
+    --slate-300: #cbd5e1;
+    --slate-400: #94a3b8;
+    --slate-500: #64748b;
+    --slate-600: #475569;
+    --slate-700: #334155;
+    --slate-800: #1e293b;
+    --slate-900: #0f172a;
+    --gcp-blue: #1a73e8;
+    --gcp-green: #34a853;
+    --gcp-red: #ea4335;
+    --gcp-yellow: #fbbc04;
+  }
+  html, body {
+    font-family: -apple-system, "Pretendard", "Noto Sans KR", "Noto Sans JP", "Noto Sans SC", system-ui, sans-serif;
+    background: #0b1220;
+    color: #e2e8f0;
+    margin: 0;
+    overflow-x: hidden;
+  }
+  /* ===== Stage = the simulated app viewport ===== */
+  #stage {
+    width: 1280px;
+    height: 720px;
+    margin: 0 auto;
+    position: relative;
+    background: #ffffff;
+    color: #0f172a;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  /* ===== Simulated cursor ===== */
+  #cursor {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    z-index: 9999;
+    pointer-events: none;
+    transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translate(640px, 360px);
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+  }
+  #cursor.click::after {
+    content: "";
+    position: absolute;
+    left: -8px; top: -8px;
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: rgba(26, 115, 232, 0.35);
+    animation: cursorRipple 0.5s ease-out;
+  }
+  @keyframes cursorRipple {
+    0% { transform: scale(0.3); opacity: 1; }
+    100% { transform: scale(1.8); opacity: 0; }
+  }
+  .typed-caret::after {
+    content: "│";
+    color: var(--gcp-blue);
+    animation: blink 1s steps(1, end) infinite;
+  }
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+  /* ===== Subtitle band ===== */
+  #subtitle-band {
+    position: absolute;
+    left: 0; right: 0; bottom: 28px;
+    text-align: center;
+    pointer-events: none;
+    z-index: 200;
+  }
+  #subtitle-band .sub {
+    display: inline-block;
+    max-width: 1100px;
+    padding: 12px 22px;
+    background: rgba(15, 23, 42, 0.86);
+    color: #f8fafc;
+    border-radius: 10px;
+    font-size: 17px;
+    line-height: 1.45;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  /* ===== Scene fade ===== */
+  .scene {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.45s ease;
+    pointer-events: none;
+  }
+  .scene.active { opacity: 1; }
+  /* ===== Sidebar mock ===== */
+  .ms-sidebar {
+    width: 220px;
+    background: #f8fafc;
+    border-right: 1px solid var(--slate-200);
+    padding: 16px 12px;
+    height: 100%;
+  }
+  .ms-nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    color: var(--slate-700);
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 2px;
+    cursor: default;
+  }
+  .ms-nav-item.active {
+    background: #e8f0fe;
+    color: var(--gcp-blue);
+  }
+  .ms-nav-item:hover { background: #eef2f7; }
+  /* ===== Header ===== */
+  .ms-header {
+    height: 52px;
+    border-bottom: 1px solid var(--slate-200);
+    background: #ffffff;
+    display: flex; align-items: center;
+    padding: 0 20px;
+    gap: 16px;
+  }
+  .ms-content {
+    height: calc(100% - 52px);
+    overflow-y: auto;
+    padding: 24px 32px;
+    background: #ffffff;
+  }
+  /* ===== Cards ===== */
+  .card {
+    background: #ffffff;
+    border: 1px solid var(--slate-200);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .chip {
+    display: inline-flex; align-items: center;
+    padding: 2px 10px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--slate-100);
+    color: var(--slate-700);
+    border: 1px solid var(--slate-200);
+  }
+  .chip-blue { background: #e8f0fe; color: var(--gcp-blue); border-color: #c5dafc; }
+  .chip-green { background: #e6f4ea; color: var(--gcp-green); border-color: #b6e0bf; }
+  .chip-yellow { background: #fef7e0; color: #b06000; border-color: #fde293; }
+  .chip-red { background: #fce8e6; color: var(--gcp-red); border-color: #f5c2bd; }
+  .chip-purple { background: #f3e8fd; color: #8430ce; border-color: #e2c5fd; }
+  .btn-primary {
+    background: var(--gcp-blue);
+    color: white;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    cursor: default;
+  }
+  .btn-secondary {
+    background: white;
+    color: var(--slate-700);
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid var(--slate-300);
+    cursor: default;
+  }
+  .btn-green {
+    background: var(--gcp-green);
+    color: white;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+  }
+  .btn-pulse {
+    box-shadow: 0 0 0 0 rgba(26,115,232,0.6);
+    animation: pulse 1.4s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(26,115,232,0.55); }
+    70% { box-shadow: 0 0 0 8px rgba(26,115,232,0); }
+    100% { box-shadow: 0 0 0 0 rgba(26,115,232,0); }
+  }
+  /* ===== Terminal ===== */
+  .term {
+    background: #0d1117;
+    color: #d4d4d8;
+    font-family: "SF Mono", "JetBrains Mono", Menlo, monospace;
+    font-size: 12px;
+    padding: 14px 16px;
+    border-radius: 6px;
+    line-height: 1.55;
+    height: 100%;
+    overflow: hidden;
+    white-space: pre-wrap;
+  }
+  .term .ok { color: #34d399; }
+  .term .err { color: #f87171; }
+  .term .info { color: #60a5fa; }
+  .term .warn { color: #fbbf24; }
+  .term .dim { color: #71717a; }
+  .term .prompt { color: #a78bfa; }
+  /* ===== Modal ===== */
+  .modal-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(15,23,42,0.45);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 50;
+  }
+  /* ===== Toast ===== */
+  .toast {
+    position: absolute; right: 20px; top: 70px;
+    background: #1e293b;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 80;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    max-width: 360px;
+  }
+  /* ===== Progress bar ===== */
+  .progress {
+    height: 6px;
+    background: var(--slate-200);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress > span {
+    display: block;
+    height: 100%;
+    background: var(--gcp-green);
+    transition: width 0.3s linear;
+  }
+  /* ===== Controls panel ===== */
+  #controls {
+    width: 1280px;
+    margin: 14px auto 30px;
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
+    padding: 14px 18px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 18px;
+    align-items: center;
+    color: #cbd5e1;
+  }
+  #controls button {
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  #controls button:hover { background: #334155; color: white; }
+  #controls button.active { background: var(--gcp-blue); color: white; border-color: var(--gcp-blue); }
+  .scene-info {
+    background: #0b1220;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #94a3b8;
+  }
+  .scene-info b { color: #e2e8f0; }
+  .timeline {
+    height: 6px;
+    background: #1e293b;
+    border-radius: 3px;
+    overflow: hidden;
+    grid-column: 1 / -1;
+  }
+  .timeline > span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #1a73e8 0%, #34a853 100%);
+    transition: width 0.2s linear;
+  }
+  select, input[type=range] {
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+  }
+  /* ===== Header banner ===== */
+  #header-banner {
+    width: 1280px;
+    margin: 24px auto 14px;
+    display: flex; justify-content: space-between; align-items: center;
+    color: #cbd5e1;
+  }
+  #header-banner h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: white;
+    letter-spacing: -0.02em;
+  }
+  #header-banner .meta { font-size: 12px; color: #94a3b8; }
+  /* ===== Angle badge top-right of stage ===== */
+  #angle-badge {
+    position: absolute;
+    top: 16px; right: 16px;
+    z-index: 90;
+    background: rgba(15, 23, 42, 0.92);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  /* ===== Tab strip ===== */
+  .tab-strip {
+    display: flex;
+    background: #f1f5f9;
+    border-bottom: 1px solid var(--slate-200);
+    padding: 6px 16px 0;
+    gap: 4px;
+  }
+  .tab-item {
+    padding: 6px 14px;
+    background: #e2e8f0;
+    border-radius: 6px 6px 0 0;
+    font-size: 11px;
+    color: var(--slate-600);
+    border: 1px solid var(--slate-200);
+    border-bottom: none;
+  }
+  .tab-item.active {
+    background: white;
+    color: var(--slate-900);
+    font-weight: 600;
+  }
+  /* ===== Helpers ===== */
+  .ring-focus {
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.35);
+    border-color: var(--gcp-blue) !important;
+  }
+  table.data-table {
+    width: 100%;
+    font-size: 12px;
+    border-collapse: collapse;
+  }
+  table.data-table th, table.data-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--slate-200);
+    text-align: left;
+  }
+  table.data-table th {
+    background: var(--slate-50);
+    font-weight: 600;
+    color: var(--slate-600);
+  }
+  .json-pre {
+    background: #0d1117;
+    color: #d4d4d8;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    padding: 12px 14px;
+    border-radius: 6px;
+    line-height: 1.55;
+    white-space: pre;
+    overflow: hidden;
+  }
+  .syn-key { color: #a5b4fc; }
+  .syn-str { color: #6ee7b7; }
+  .syn-num { color: #fcd34d; }
+  .syn-pun { color: #94a3b8; }
+  /* ===== Skip-link for a11y ===== */
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap; border: 0;
+  }
+  /* responsive scale-down to fit narrower windows */
+  @media (max-width: 1300px) {
+    #stage, #controls, #header-banner { transform-origin: top center; }
+  }
+</style>
+</head>
+<body>
+<div id="header-banner">
+  <div>
+    <h1>Social Seeding v2 — Interactive Web Demo</h1>
+    <div class="meta">Track 2 (Mission Control + AP2 + Multi-agent) · Track 3 (tiktok-mcp-server + A2A v0.3) · D27 · D29 · D30 · D34</div>
+  </div>
+  <div class="meta">github.com/ComBba/social-seeding-v2 · Apache-2.0 + BUSL-1.1</div>
+</div>
+
+<div id="stage" role="application" aria-label="Mission Control demo stage">
+  <div id="angle-badge" aria-live="polite">D29-A · Agent-as-function</div>
+  <!-- Cursor SVG -->
+  <svg id="cursor" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M3 2 L3 18 L7 14 L10 22 L13 21 L10 13 L16 13 Z"
+          fill="#1a73e8" stroke="white" stroke-width="1.3" stroke-linejoin="round"/>
+  </svg>
+
+  <!-- All scenes injected here -->
+  <div id="scene-host" style="position:absolute;inset:0;"></div>
+
+  <!-- Subtitle overlay -->
+  <div id="subtitle-band" aria-live="polite" aria-atomic="true">
+    <span class="sub" id="subtitle-text">Track 2 — social-seeding-v2: Mission Control + AP2 + 멀티 에이전트.</span>
+  </div>
+</div>
+
+<div id="controls" role="toolbar" aria-label="Demo playback controls">
+  <div style="display:flex; gap:8px; align-items:center;">
+    <button id="btn-play" aria-label="Play or pause">▶ Play</button>
+    <button id="btn-restart" aria-label="Restart current track">⟲ Restart</button>
+  </div>
+  <div class="scene-info" id="scene-info" aria-live="polite">
+    <b>Track 2 · Scene 1 / 12</b> — Brand brief intake · <span class="chip chip-blue" style="margin-left:6px;">D29-A</span>
+    <span style="margin-left:10px;">Real 90s · 8× 11s</span>
+  </div>
+  <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+    <span style="font-size:11px;">Track</span>
+    <button id="btn-track-2" class="active">Track 2</button>
+    <button id="btn-track-3">Track 3</button>
+    <span style="font-size:11px; margin-left:10px;">Speed</span>
+    <button class="speed-btn" data-speed="0.5">0.5×</button>
+    <button class="speed-btn active" data-speed="1">1×</button>
+    <button class="speed-btn" data-speed="2">2×</button>
+    <button class="speed-btn" data-speed="4">4×</button>
+    <button class="speed-btn" data-speed="8">8×</button>
+    <span style="font-size:11px; margin-left:10px;">Locale</span>
+    <button class="loc-btn active" data-loc="ko">한국어</button>
+    <button class="loc-btn" data-loc="en">EN</button>
+    <button class="loc-btn" data-loc="ja">日本語</button>
+    <button class="loc-btn" data-loc="zh-CN">中文</button>
+  </div>
+  <div class="timeline" aria-hidden="true"><span id="timeline-bar" style="width:0%"></span></div>
+  <div style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #94a3b8;">
+    <span>Jump to scene:
+      <select id="scene-jump"></select>
+    </span>
+    <span>Keyboard: <kbd>Space</kbd>=play/pause · <kbd>←/→</kbd>=prev/next scene · <kbd>1-4</kbd>=locale</span>
+    <span id="clock">00:00 / 03:00</span>
+  </div>
+</div>
+
+<script>
+/* ============================================================================
+   DEMO ENGINE
+   ============================================================================ */
+
+/* --- Subtitles (parsed from .srt files) -------------------------------------*/
+const SUBTITLES = {
+  /* Track 2 -- ko / en / ja / zh-CN */
+  "track2-ko": [
+    [0, 5000, "Track 2 — social-seeding-v2: Mission Control + AP2 + 멀티 에이전트."],
+    [5000, 16000, "씬 1 — 브랜드 브리프를 Mission Control에 붙여 넣습니다. 인테이크 에이전트는 챗봇이 아닌 타입드 함수입니다."],
+    [16000, 23500, "씬 2 — AP2 Intent Mandate를 앱 안에서 서명합니다. JSON 미리보기와 Ed25519 서명이 모두 노출됩니다. D27 — Intent 단계만 출시."],
+    [23500, 29100, "씬 3 — Approvals 페이지: 40개의 소싱 매치를 일괄 승인합니다. 각 행에 에이전트 이름·USD 비용·계약 버전."],
+    [29100, 44100, "씬 4 — 아웃리치 드래프트 12건이 자동 생성됩니다. 운영자가 한 문장을 손보고 D10 테스트 계정으로 Gmail 발송."],
+    [44100, 55400, "씬 5 — 리플라이 에이전트가 답신을 자동 분류. 한국에서는 Marketplace 등재가 불가하므로 A2A 단독 배포 경로."],
+    [55400, 70400, "씬 6 — 배송 팬아웃: ship · customs · tracking 세 에이전트가 병렬 실행. 세 함수, 하나의 워크플로우."],
+    [70400, 81600, "씬 7 — Verify 에이전트가 실배송과 실시간 조회수를 확인. D28 — 전달된 뷰당 $0.01 과금."],
+    [81600, 89100, "씬 8 — AP2 Cart Mandate는 읽기 전용. D27에 따라 결제 집행은 사람의 결재로 유지."],
+    [89100, 96600, "씬 9 — 승인 대기열이 비워집니다. 리포트 에이전트가 타입드 CampaignReport 산출물을 자동 생성."],
+    [96600, 107900, "씬 10 — Dialogflow CX 챗봇이 캠페인의 뷰당 비용 질문에 응답합니다."],
+    [107900, 117300, "씬 11 — 비용 원장 점검. 173회 에이전트 호출 · 총 $1.34 · $1,500 GCP 크레딧 한도(D39) 안."],
+    [117300, 121100, "씬 12 — 시스템 헬스 체크. brand_campaign_smoke.py: 22개 에이전트 · 실패 0건 · PASS."],
+    [121100, 175000, "세 가지 차별화 — 에이전트는 함수, 한국 갭은 혁신, 멀티모달 + AP2 + 멀티 에이전트 루프가 오늘 동작합니다."],
+    [175000, 180000, "github.com/ComBba/social-seeding-v2 — Apache-2.0 + BUSL-1.1."],
+  ],
+  "track2-en": [
+    [0, 5000, "Track 2 — social-seeding-v2: Mission Control + AP2 + Multi-agent."],
+    [5000, 16000, "Scene 1 — A brand brief drops into Mission Control. The intake agent is a typed function, not a chat-bot."],
+    [16000, 23500, "Scene 2 — AP2 Intent Mandate signed in-app. JSON preview visible, Ed25519 signature visible. Per D27, Intent only."],
+    [23500, 29100, "Scene 3 — Approvals page: 40 sourcing matches bulk-approved. Every row carries agent name, USD cost, contract version."],
+    [29100, 44100, "Scene 4 — Outreach drafts: 12 typed emails. Operator edits one sentence, sends via Gmail to the D10 test account."],
+    [44100, 55400, "Scene 5 — Reply-agent classifies the incoming reply. A2A-only distribution path — no Marketplace dependency."],
+    [55400, 70400, "Scene 6 — Shipping fan-out: ship-agent + customs-agent + tracking-agent run in parallel. Three functions, one workflow."],
+    [70400, 81600, "Scene 7 — Verify-agent confirms delivery and live views. Per-delivered-view pricing per D28."],
+    [81600, 89100, "Scene 8 — AP2 Cart Mandate is read-only. Per D27, payment release stays human-gated."],
+    [89100, 96600, "Scene 9 — Approval queue empties. Report-agent emits a typed CampaignReport artifact."],
+    [96600, 107900, "Scene 10 — Dialogflow CX chatbot answers a follow-up cost-per-view question."],
+    [107900, 117300, "Scene 11 — Cost ledger sweep. 173 agent calls, $1.34 total, well under the $1,500 GCP credit envelope per D39."],
+    [117300, 121100, "Scene 12 — System health check. brand_campaign_smoke.py: 22 agents, 0 failures — PASS."],
+    [121100, 175000, "Three angles, one product: agents are functions, the gap is reframed, the multi-agent loop runs today."],
+    [175000, 180000, "github.com/ComBba/social-seeding-v2 — Apache-2.0 + BUSL-1.1."],
+  ],
+  "track2-ja": [
+    [0, 5000, "Track 2 — social-seeding-v2: Mission Control + AP2 + マルチエージェント。"],
+    [5000, 16000, "シーン1 — ブランドブリーフを Mission Control に貼り付け。インテイクエージェントはチャットボットではなく型付き関数です。"],
+    [16000, 23500, "シーン2 — AP2 Intent Mandate を画面内で署名。JSON プレビューと Ed25519 署名が可視化。D27 に従い Intent のみ。"],
+    [23500, 29100, "シーン3 — 承認画面で 40 件のソーシング候補を一括承認。各行にエージェント名・USD コスト・契約バージョン。"],
+    [29100, 44100, "シーン4 — アウトリーチ下書きを 12 通生成。1 文だけ手直しし、D10 テスト宛に Gmail 送信。"],
+    [44100, 55400, "シーン5 — リプライエージェントが返信を分類。Marketplace に依存しない A2A 単独の配信経路。"],
+    [55400, 70400, "シーン6 — 配送ファンアウト: ship · customs · tracking が並列。3 関数、1 ワークフロー。"],
+    [70400, 81600, "シーン7 — Verify エージェントが配送完了とライブ視聴回数を確認。D28: 配信視聴 1 回 = $0.01。"],
+    [81600, 89100, "シーン8 — AP2 Cart Mandate は読み取り専用。D27 に従い、決済リリースは人手承認のまま。"],
+    [89100, 96600, "シーン9 — 承認キューが空に。レポートエージェントが型付き CampaignReport を自動生成。"],
+    [96600, 107900, "シーン10 — Dialogflow CX が視聴単価の質問に応答。"],
+    [107900, 117300, "シーン11 — コスト元帳。エージェント 173 呼び出し・合計 $1.34・D39 の $1,500 枠内。"],
+    [117300, 121100, "シーン12 — システムヘルスチェック。エージェント 22 個 · 失敗 0 · PASS。"],
+    [121100, 175000, "3 つの差別化軸: エージェントは関数、ギャップはイノベーション、マルチエージェントが今日エンドツーエンドで動作。"],
+    [175000, 180000, "github.com/ComBba/social-seeding-v2 — Apache-2.0 + BUSL-1.1。"],
+  ],
+  "track2-zh-CN": [
+    [0, 5000, "Track 2 — social-seeding-v2:Mission Control + AP2 + 多智能体。"],
+    [5000, 16000, "场景 1 — 品牌简报粘贴进 Mission Control。Intake 智能体不是聊天机器人,而是带类型契约的函数。"],
+    [16000, 23500, "场景 2 — AP2 Intent Mandate 在应用内签署。JSON 预览与 Ed25519 签名均可见。依据 D27,仅交付 Intent 阶段。"],
+    [23500, 29100, "场景 3 — Approvals 页面批量审批 40 个寻源结果。每一行都标注智能体名称、USD 成本与契约版本。"],
+    [29100, 44100, "场景 4 — 由 outreach 智能体生成 12 封触达草稿。运营者修改一句话后通过 Gmail 发往 D10 测试账户。"],
+    [44100, 55400, "场景 5 — Reply 智能体自动归类回复。无法上架 Marketplace,因此采用纯 A2A 分发通路。"],
+    [55400, 70400, "场景 6 — 物流并行扇出:ship、customs、tracking 三个智能体同时运行。三个函数,一条工作流。"],
+    [70400, 81600, "场景 7 — Verify 智能体确认实际送达与实时播放量。依据 D28,按每次有效播放 $0.01 计费。"],
+    [81600, 89100, "场景 8 — AP2 Cart Mandate 仅做只读预览。依据 D27,资金放款仍保留人工审批闸门。"],
+    [89100, 96600, "场景 9 — 审批队列清空。Report 智能体生成带类型契约的 CampaignReport。"],
+    [96600, 107900, "场景 10 — Dialogflow CX 聊天机器人回答“每次播放成本”的追问。"],
+    [107900, 117300, "场景 11 — 成本账本巡检。173 次智能体调用,合计 $1.34,远低于 D39 的 $1,500 信用额度。"],
+    [117300, 121100, "场景 12 — 系统健康检查。22 个智能体、0 个失败 — PASS。"],
+    [121100, 175000, "三个差异化角度同时落地: 智能体即函数、把韩国差距重塑为创新、多智能体端到端今日即可运行。"],
+    [175000, 180000, "github.com/ComBba/social-seeding-v2 — Apache-2.0 + BUSL-1.1。"],
+  ],
+  /* Track 3 -- ko / en / ja / zh-CN */
+  "track3-ko": [
+    [0, 5000, "Track 3 — tiktok-mcp-server: Gemini Enterprise + A2A v0.3 + 한국 리전 갭 재정의."],
+    [5000, 12500, "씬 1 — 문제를 화면으로 보여줍니다. Marketplace 셀러 마법사에 한국 결제 리전이 없습니다."],
+    [12500, 20000, "씬 2 — 오픈 표준 대안: /.well-known/agent.json. 3개 스킬, 3개 전송 채널, JWS 서명."],
+    [20000, 33100, "씬 3 — Gemini Enterprise에 A2A 엔드포인트 URL을 붙여넣어 임포트. 발견 → 등록."],
+    [33100, 44400, "씬 4 — 같은 스킬을 MCP의 tools/call로 호출. 타입드 입력·출력이 그대로 노출됩니다."],
+    [44400, 57500, "씬 5 — 같은 스킬을 A2A로 호출. 하나의 서버, 두 가지 프로토콜, 트레이스 상관."],
+    [57500, 66900, "씬 6 — Model Armor가 인젝션 시도를 실시간으로 차단. OIDC 주체가 감사 기록에 남습니다."],
+    [66900, 81900, "씬 7 — Gemini Enterprise 워크스페이스가 자연어 채팅으로 에이전트를 호출."],
+    [81900, 89400, "씬 8 — 스킬별 USD 원장. tiktok.lookup $0.094, tiktok.search $0.036, tiktok.profile $0.009."],
+    [89400, 96900, "씬 9 — Producer Portal에 등재 보류 상태가 노출. A2A 배포 재정의가 그 자체로 논지."],
+    [96900, 108200, "씬 10 — 멀티 리전 액티브-액티브: asia-northeast3, us-central1, europe-west1. 3 테넌트."],
+    [108200, 119500, "씬 11 — A2A 스트리밍 응답이 텍스트 + 이미지 + JSON을 한 번에 반환. 프로토콜 레이어 멀티모달."],
+    [119500, 123300, "씬 12 — curl /healthz: ok. pytest: 47 passed in 4.2s. 라이브 Cloud Run + 로컬 테스트 그린."],
+    [123300, 175000, "한국 리전 갭이 차별화 그 자체. Gemini Enterprise + A2A가 마켓플레이스 이후의 배포 채널."],
+    [175000, 180000, "github.com/ComBba/tiktok-mcp-server — Apache-2.0."],
+  ],
+  "track3-en": [
+    [0, 5000, "Track 3 — tiktok-mcp-server: Gemini Enterprise + A2A v0.3 + KR-region-gap reframe."],
+    [5000, 12500, "Scene 1 — The problem on screen. Marketplace seller wizard has no Korea billing region."],
+    [12500, 20000, "Scene 2 — Open-standard alternative: A2A v0.3 AgentCard at /.well-known/agent.json. Three skills, JWS-signed."],
+    [20000, 33100, "Scene 3 — Importing into Gemini Enterprise via the A2A endpoint URL. Paste, discover, register."],
+    [33100, 44400, "Scene 4 — Same skill invoked over MCP via tools/call. Typed input, typed output, JSON-RPC envelope visible."],
+    [44400, 57500, "Scene 5 — Same skill invoked over A2A. One server, two protocols, trace correlation across both."],
+    [57500, 66900, "Scene 6 — Model Armor blocks an injection attempt in real time. OIDC subject in the audit record."],
+    [66900, 81900, "Scene 7 — Gemini Enterprise workspace uses the agent in natural-language chat."],
+    [81900, 89400, "Scene 8 — Per-skill USD ledger. tiktok.lookup $0.094, tiktok.search $0.036, tiktok.profile $0.009."],
+    [89400, 96900, "Scene 9 — Producer Portal shows the listing pending. The A2A reframe turns the negative into the thesis."],
+    [96900, 108200, "Scene 10 — Multi-region active-active: asia-northeast3, us-central1, europe-west1. Three tenants."],
+    [108200, 119500, "Scene 11 — A2A streaming returns text + image + JSON in one response. Multimodal at the protocol layer."],
+    [119500, 123300, "Scene 12 — curl /healthz: ok. pytest: 47 passed in 4.2s. Live Cloud Run + green local tests."],
+    [123300, 175000, "The KR-region-gap is the differentiator. Gemini Enterprise + A2A is the post-Marketplace distribution channel."],
+    [175000, 180000, "github.com/ComBba/tiktok-mcp-server — Apache-2.0."],
+  ],
+  "track3-ja": [
+    [0, 5000, "Track 3 — tiktok-mcp-server: Gemini Enterprise + A2A v0.3 + 韓国リージョン・ギャップの再定義。"],
+    [5000, 12500, "シーン1 — 問題を画面で提示。Marketplace のセラーウィザードに韓国の課金リージョンが存在しません。"],
+    [12500, 20000, "シーン2 — オープン標準の代替: A2A v0.3 AgentCard。3 スキル、3 トランスポート、JWS 署名済み。"],
+    [20000, 33100, "シーン3 — Gemini Enterprise に A2A エンドポイント URL を貼り付けてインポート。"],
+    [33100, 44400, "シーン4 — 同じスキルを MCP の tools/call で呼び出し。型付き入出力が可視化。"],
+    [44400, 57500, "シーン5 — 同じスキルを A2A で呼び出し。1 サーバー、2 プロトコル、トレース相関。"],
+    [57500, 66900, "シーン6 — Model Armor がインジェクション試行をリアルタイムにブロック。"],
+    [66900, 81900, "シーン7 — Gemini Enterprise ワークスペースが自然言語チャットから呼び出し。"],
+    [81900, 89400, "シーン8 — スキル別 USD 元帳。tiktok.lookup $0.094 / search $0.036 / profile $0.009。"],
+    [89400, 96900, "シーン9 — Producer Portal の出品ステータスは保留中。A2A 配信の再定義がそのまま論旨。"],
+    [96900, 108200, "シーン10 — マルチリージョン・アクティブ-アクティブ。3 リージョン / 3 テナント。"],
+    [108200, 119500, "シーン11 — A2A ストリーミング: テキスト + 画像 + JSON を 1 レスポンスで返却。"],
+    [119500, 123300, "シーン12 — curl /healthz: ok。pytest: 47 passed in 4.2s。グリーン。"],
+    [123300, 175000, "韓国リージョン・ギャップそのものが差別化。Gemini Enterprise + A2A が Marketplace 後の配信チャネル。"],
+    [175000, 180000, "github.com/ComBba/tiktok-mcp-server — Apache-2.0。"],
+  ],
+  "track3-zh-CN": [
+    [0, 5000, "Track 3 — tiktok-mcp-server:Gemini Enterprise + A2A v0.3 + 韩国区域差距重塑。"],
+    [5000, 12500, "场景 1 — 把问题摆在屏幕上。Marketplace 卖家向导没有韩国计费区域。"],
+    [12500, 20000, "场景 2 — 开放标准的替代方案:/.well-known/agent.json 上的 A2A v0.3 AgentCard。"],
+    [20000, 33100, "场景 3 — 将 A2A 端点 URL 粘贴进 Gemini Enterprise 完成导入。"],
+    [33100, 44400, "场景 4 — 同一技能通过 MCP 的 tools/call 调用。带类型契约的输入输出。"],
+    [44400, 57500, "场景 5 — 同一技能通过 A2A 调用。一台服务器、两种协议,trace 关联完整保留。"],
+    [57500, 66900, "场景 6 — Model Armor 实时拦截一次注入攻击。OIDC 主体保留在审计日志里。"],
+    [66900, 81900, "场景 7 — Gemini Enterprise 工作区用自然语言对话调用智能体。"],
+    [81900, 89400, "场景 8 — 按技能拆分的 USD 账本。tiktok.lookup $0.094,search $0.036,profile $0.009。"],
+    [89400, 96900, "场景 9 — Producer Portal 显示上架仍在挂起。A2A 分发的重塑把负面证据转为论点本身。"],
+    [96900, 108200, "场景 10 — 多区域 active-active。三个区域、三个 Identity Platform 租户。"],
+    [108200, 119500, "场景 11 — A2A 流式响应在一次往返中返回文本 + 图像 + JSON。"],
+    [119500, 123300, "场景 12 — curl /healthz: ok。pytest: 47 passed in 4.2s。线上 + 本地全绿。"],
+    [123300, 175000, "韩国区域差距本身就是差异化。Gemini Enterprise + A2A 即 Marketplace 之后的分发通道。"],
+    [175000, 180000, "github.com/ComBba/tiktok-mcp-server — Apache-2.0。"],
+  ],
+};
+
+/* --- Timeline (per-scene durations in real seconds; 8× compresses to /8) ----*/
+/* For demo playability the engine uses "scene seconds" = real seconds / 8.
+   So 1× speed shows the same compressed feel as the final 3:00 video. */
+const TIMELINE = {
+  track2: [
+    { i: 1,  title: "Brand brief intake",                 angle: "D29-A", real: 90,  comp: 11.0 },
+    { i: 2,  title: "AP2 Intent Mandate signing",         angle: "D29-C", real: 60,  comp:  7.5 },
+    { i: 3,  title: "Bulk-approve 40 sourcing matches",   angle: "D29-A", real: 45,  comp:  5.6 },
+    { i: 4,  title: "Outreach drafts + human edit",       angle: "D29-A+C", real: 120, comp: 15.0 },
+    { i: 5,  title: "Reply-agent classification",         angle: "D29-A+B", real: 90,  comp: 11.3 },
+    { i: 6,  title: "Shipping fan-out (3 sub-agents)",    angle: "D29-C", real: 120, comp: 15.0 },
+    { i: 7,  title: "Verify-agent + view-count graph",    angle: "D29-B", real: 90,  comp: 11.2 },
+    { i: 8,  title: "AP2 Cart Mandate (read-only)",       angle: "D29-C", real: 60,  comp:  7.5 },
+    { i: 9,  title: "Empty queue + auto-report",          angle: "D29-A", real: 60,  comp:  7.5 },
+    { i: 10, title: "Dialogflow CX follow-up Q&A",        angle: "D29-C", real: 90,  comp: 11.3 },
+    { i: 11, title: "Cost ledger sweep",                  angle: "D29-A", real: 75,  comp:  9.4 },
+    { i: 12, title: "System health check (smoke)",        angle: "ALL",  real: 30,  comp:  3.8 },
+  ],
+  track3: [
+    { i: 1,  title: "Problem framing — Cloud Console",     angle: "D29-B", real: 60,  comp:  7.5 },
+    { i: 2,  title: "A2A v0.3 AgentCard manifest",         angle: "D29-B+C", real: 60, comp: 7.5 },
+    { i: 3,  title: "Import into Gemini Enterprise",       angle: "D29-B", real: 105, comp: 13.0 },
+    { i: 4,  title: "MCP tools/call in dev REPL",          angle: "D29-A", real: 90,  comp: 11.3 },
+    { i: 5,  title: "A2A client → Cloud Run",              angle: "D29-C", real: 105, comp: 13.0 },
+    { i: 6,  title: "Model Armor blocks injection",        angle: "D29-B+C", real: 75, comp: 9.4 },
+    { i: 7,  title: "Gemini Enterprise NL chat",           angle: "D29-B", real: 120, comp: 15.0 },
+    { i: 8,  title: "Per-skill USD ledger",                angle: "D29-A", real: 60,  comp:  7.5 },
+    { i: 9,  title: "Producer Portal pending listing",     angle: "D29-B", real: 60,  comp:  7.5 },
+    { i: 10, title: "Multi-region active-active",          angle: "D29-C", real: 90,  comp: 11.3 },
+    { i: 11, title: "A2A streaming multimodal response",   angle: "D29-C", real: 90,  comp: 11.3 },
+    { i: 12, title: "Health check + pytest smoke",         angle: "ALL",  real: 30,  comp:  3.8 },
+  ],
+};
+
+/* Subtitle indexing per track --> array indices align with cues 2..13 = scene 1..12,
+   cue 1 = intro, cue 14 = closing message, cue 15 = repo url. We use cumulative
+   "comp" timings to drive everything below. */
+
+/* Cumulative scene start times (in compressed seconds, matching the .srt subtitle timeline) */
+function cumStarts(track) {
+  let acc = 5; // 5s intro card
+  const starts = [];
+  for (const sc of TIMELINE[track]) {
+    starts.push(acc);
+    acc += sc.comp;
+  }
+  return { starts, endOfScenes: acc };
+}
+
+/* --- State -----------------------------------------------------------------*/
+const state = {
+  track: "track2",
+  locale: "ko",
+  speed: 1,
+  playing: false,
+  elapsedMs: 0,     // ms in compressed-time
+  totalMs: 180000,  // 3:00
+  lastTs: null,
+  sceneIdx: -1,     // 0..11
+  hostEl: null,
+  cursor: null,
+  cursorAnimId: 0,
+};
+
+/* --- Cursor controller -----------------------------------------------------*/
+function moveCursor(x, y, opts = {}) {
+  const c = state.cursor;
+  c.style.transform = `translate(${x}px, ${y}px)`;
+}
+function clickCursor() {
+  state.cursor.classList.remove("click");
+  void state.cursor.offsetWidth;
+  state.cursor.classList.add("click");
+  setTimeout(() => state.cursor.classList.remove("click"), 500);
+}
+
+/* ============================================================================
+   SCENE BUILDERS — generate the static HTML for each of the 24 scenes.
+   Each scene element gets `data-track` + `data-scene` so the engine can show
+   one at a time. The cursor coordinates are baked into a `keyframes` array
+   that the engine walks through in proportion to elapsed scene time.
+   ============================================================================ */
+
+/* --- Common UI building blocks --------------------------------------------*/
+function navItem(label, icon, active) {
+  return `
+    <div class="ms-nav-item ${active ? 'active' : ''}">
+      <span style="font-size:14px;">${icon}</span>
+      <span>${label}</span>
+    </div>`;
+}
+function sidebar(activeKey) {
+  const items = [
+    ["Campaigns",  "🎯", "campaigns"],
+    ["Approvals",  "✓",  "approvals"],
+    ["Leads",      "👥", "leads"],
+    ["Policies",   "🛡", "policies"],
+    ["Usage",      "$",  "usage"],
+    ["Settings",   "⚙",  "settings"],
+  ];
+  return `
+    <aside class="ms-sidebar">
+      <div style="font-size:14px; font-weight:700; padding:8px 10px 16px;">
+        <span style="color:#1a73e8;">●</span> Social Seeding v2
+      </div>
+      ${items.map(([l,i,k]) => navItem(l, i, k === activeKey)).join("")}
+      <div style="margin-top:24px; padding:10px; font-size:11px; color:#94a3b8; border-top: 1px solid #e2e8f0;">
+        ws_42 · ComBba<br>
+        <span class="chip chip-blue" style="margin-top:6px;">AP2 active</span>
+      </div>
+    </aside>`;
+}
+function header(crumbs) {
+  return `
+    <div class="ms-header">
+      <div style="font-size: 13px; color: var(--slate-500); display: flex; gap: 6px; align-items: center;">
+        ${crumbs.map((c,i) => `<span ${i===crumbs.length-1?'style="color:#0f172a; font-weight:600;"':''}>${c}</span>${i<crumbs.length-1?'<span>›</span>':''}`).join("")}
+      </div>
+      <div style="margin-left:auto; display: flex; gap: 10px; align-items: center; font-size: 12px;">
+        <span class="chip">brand-workspace-42</span>
+        <span style="width:28px; height:28px; border-radius:50%; background:#1a73e8; color:white; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:600;">CB</span>
+      </div>
+    </div>`;
+}
+function tabStrip(active) {
+  const tabs = [
+    ["/campaigns/new", "📋 Intake"],
+    ["/approvals", "✓ Approvals"],
+    ["/campaigns", "🎯 Campaigns"],
+    ["/usage", "$ Usage"],
+  ];
+  return `<div class="tab-strip">${tabs.map((t,i)=>`<div class="tab-item ${i===active?'active':''}">${t[1]}</div>`).join("")}</div>`;
+}
+function appShell(activeKey, crumbs, body, tabIdx = 0) {
+  return `
+    <div style="display:flex; height:100%;">
+      ${sidebar(activeKey)}
+      <div style="flex:1; display:flex; flex-direction:column;">
+        ${tabStrip(tabIdx)}
+        ${header(crumbs)}
+        <div class="ms-content">${body}</div>
+      </div>
+    </div>`;
+}
+
+/* =========================== TRACK 2 SCENES =================================*/
+function track2Scene1() {
+  // Brand brief intake — typed text injected at runtime via setText helper
+  const body = `
+    <div style="max-width: 780px;">
+      <h2 style="font-size:22px; font-weight:700; letter-spacing:-0.02em;">새 캠페인 만들기</h2>
+      <p style="font-size:13px; color:var(--slate-500); margin-top:4px;">브리프를 붙여넣으면 intake-agent가 타입드 CampaignDraft를 생성합니다.</p>
+
+      <div class="card" style="margin-top:18px;">
+        <label style="display:block; font-size:12px; font-weight:600; color:var(--slate-700); margin-bottom:6px;">브랜드 브리프</label>
+        <div id="t2s1-textarea" class="typed-caret" style="min-height: 130px; border:1px solid var(--slate-300); border-radius:6px; padding:12px; font-size:13px; color:#0f172a; background:#fafbfc; line-height:1.55; white-space:pre-wrap;"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+          <div style="font-size:11px; color:var(--slate-500);">BrandBriefSchema (Zod) · v1.4.0</div>
+          <button id="t2s1-submit" class="btn-primary">Submit brief</button>
+        </div>
+      </div>
+
+      <div id="t2s1-result" class="card" style="margin-top:18px; display:none;">
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom: 12px;">
+          <span class="chip chip-green">CampaignDraft ready</span>
+          <span class="chip chip-blue" id="t2s1-chip-cost">💰 Cost cap: $400</span>
+          <span class="chip" id="t2s1-chip-agent">⚙ Agent function: intake-v3</span>
+        </div>
+        <table class="data-table">
+          <tr><th>Niche</th><td>beauty / lifestyle</td></tr>
+          <tr><th>Region</th><td>MX</td></tr>
+          <tr><th>Window</th><td>60 days</td></tr>
+          <tr><th>Creators</th><td>40 target</td></tr>
+          <tr><th>Price model</th><td>$0.01 / delivered view (D28)</td></tr>
+          <tr><th>Output schema</th><td><code>CampaignDraft@2.1.0</code></td></tr>
+        </table>
+      </div>
+    </div>
+    <div style="position:absolute; right:32px; top:120px; width:380px;">
+      <div class="card" style="background:#0d1117; color:#d4d4d8; padding:12px;">
+        <div style="font-size:10px; color:#71717a; margin-bottom:8px;">terminal · run-demo.ts --type=brand</div>
+        <pre id="t2s1-term" class="term" style="height:240px; font-size:11px; padding:0;">$ pnpm exec tsx scripts/run-demo.ts --type=brand
+<span class="dim">[2026-05-19 22:51:01]</span> <span class="info">[bootstrap]</span> Inngest dev server reachable :8288
+<span class="dim">[2026-05-19 22:51:01]</span> <span class="info">[bootstrap]</span> 23 v2_* indexes verified
+<span class="dim">[2026-05-19 22:51:02]</span> <span class="ok">[ready]</span> 10 functions registered
+<span class="dim">[2026-05-19 22:51:02]</span> waiting for intake event...</pre>
+      </div>
+    </div>`;
+  return appShell("campaigns", ["Campaigns", "New"], body, 0);
+}
+
+function track2Scene2() {
+  const body = `
+    <div style="display:grid; grid-template-columns: 1fr 380px; gap: 24px;">
+      <div>
+        <h2 style="font-size:22px; font-weight:700;">Campaign #cmpgn_42</h2>
+        <p style="font-size:13px; color:var(--slate-500); margin-top:4px;">beauty/lifestyle · MX · 40 creators · 60-day window</p>
+
+        <div style="margin-top:14px; display:flex; gap:8px;">
+          <span class="chip chip-blue">draft</span>
+          <span class="chip" id="t2s2-ap2-chip" style="background:#f1f5f9; color:#475569;">AP2: pending</span>
+          <span class="chip chip-yellow">$0.00 / $400</span>
+        </div>
+
+        <div class="card" id="t2s2-mandate-card" style="margin-top:20px; border-color:#1a73e8;">
+          <div style="display:flex; gap:10px; align-items:flex-start;">
+            <div style="width:40px; height:40px; border-radius:8px; background:#e8f0fe; color:#1a73e8; display:flex; align-items:center; justify-content:center; font-size:18px;">🔐</div>
+            <div style="flex:1;">
+              <div style="font-weight:600; font-size:14px;">Authorize AP2 Intent Mandate</div>
+              <div style="font-size:12px; color:var(--slate-500); margin-top:2px;">Per D27 — Intent Mandate only. Cart/Payment Mandate stays human-gated.</div>
+            </div>
+            <button id="t2s2-review-btn" class="btn-primary">Review mandate</button>
+          </div>
+        </div>
+      </div>
+
+      <aside>
+        <div class="card" style="background:#f8fafc;">
+          <div style="font-size:11px; color:var(--slate-500); font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">AP2 surface</div>
+          <div style="margin-top:8px; font-size:12px; color:var(--slate-600); line-height:1.55;">
+            Two-stage mandate per D27:<br>
+            <b>1. Intent Mandate</b> (this scene) — shipped<br>
+            <b>2. Cart Mandate</b> — read-only preview<br>
+            <b>3. Payment Mandate</b> — deferred
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Modal -->
+    <div id="t2s2-modal" class="modal-backdrop" style="display:none;">
+      <div class="card" style="width: 620px; max-width: 90%; box-shadow: 0 24px 60px rgba(0,0,0,0.4);">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:12px; border-bottom:1px solid var(--slate-200);">
+          <div style="font-weight:700; font-size:16px;">AP2 Intent Mandate — Review</div>
+          <span class="chip chip-purple">PartnerBadge: brand_workspace_42</span>
+        </div>
+        <div style="margin-top:14px; display:grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size:12px;">
+          <div><span style="color:var(--slate-500);">actor</span><br><b>marketer</b></div>
+          <div><span style="color:var(--slate-500);">principal</span><br><b>brand_workspace_42</b></div>
+          <div id="t2s2-scope-row" style="padding: 4px 6px; border-radius:4px;"><span style="color:var(--slate-500);">scope</span><br><b>outreach + payment</b></div>
+          <div><span style="color:var(--slate-500);">cap</span><br><b>$400.00 USD</b></div>
+          <div><span style="color:var(--slate-500);">expiry</span><br><b>72h</b></div>
+          <div><span style="color:var(--slate-500);">nonce (UUIDv7)</span><br><b style="font-family: monospace; font-size:11px;">01913a4f-...</b></div>
+        </div>
+        <details open style="margin-top:14px;">
+          <summary style="cursor:default; font-size:12px; color:var(--slate-600); font-weight:600;">JSON preview</summary>
+          <pre class="json-pre" style="margin-top:6px;"><span class="syn-pun">{</span>
+  <span class="syn-key">"version"</span><span class="syn-pun">:</span> <span class="syn-str">"ap2/0.4"</span><span class="syn-pun">,</span>
+  <span class="syn-key">"kind"</span><span class="syn-pun">:</span> <span class="syn-str">"IntentMandate"</span><span class="syn-pun">,</span>
+  <span class="syn-key">"actor"</span><span class="syn-pun">:</span> <span class="syn-str">"marketer"</span><span class="syn-pun">,</span>
+  <span class="syn-key">"scope"</span><span class="syn-pun">:</span> <span class="syn-pun">[</span><span class="syn-str">"outreach"</span><span class="syn-pun">,</span> <span class="syn-str">"payment"</span><span class="syn-pun">]</span><span class="syn-pun">,</span>
+  <span class="syn-key">"cap_usd"</span><span class="syn-pun">:</span> <span class="syn-num">400</span><span class="syn-pun">,</span>
+  <span class="syn-key">"expiry_hours"</span><span class="syn-pun">:</span> <span class="syn-num">72</span>
+<span class="syn-pun">}</span></pre>
+        </details>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:18px;">
+          <div style="font-size:11px; color:var(--slate-500);">Signs with workspace key · Ed25519 · WebAuthn step-up</div>
+          <button id="t2s2-sign-btn" class="btn-primary">Sign with workspace key</button>
+        </div>
+      </div>
+    </div>
+    <div id="t2s2-toast" class="toast" style="display:none;">
+      ✅ <b>Mandate AP2-Int-001 active</b><br>
+      <span style="font-size:11px; color:#a3e635;">Ed25519 sig: 0x9a3f4e21c8...</span>
+    </div>`;
+  return appShell("campaigns", ["Campaigns", "cmpgn_42", "Mandate"], body, 2);
+}
+
+function track2Scene3() {
+  const rows = [];
+  for (let i = 1; i <= 12; i++) {
+    rows.push(`
+      <tr class="t2s3-row" data-i="${i}">
+        <td><input type="checkbox" class="t2s3-cb" /></td>
+        <td>@creator_${String(i).padStart(2,'0')}</td>
+        <td>${(120000 + i*45000).toLocaleString()}</td>
+        <td>${(0.78 + (i % 5) * 0.04).toFixed(2)}</td>
+        <td>$${(0.012).toFixed(3)}</td>
+        <td><span class="chip" style="background:#f1f5f9;">sourcing-v2 · CreatorMatch@1.4.0</span></td>
+        <td><span class="chip chip-yellow t2s3-status">pending</span></td>
+      </tr>`);
+  }
+  const body = `
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <h2 style="font-size:22px; font-weight:700;">Approvals</h2>
+        <p style="font-size:13px; color:var(--slate-500);">에이전트 결과를 사람이 결재합니다. 모든 행은 USD + 계약 버전을 명시합니다.</p>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <span class="chip" id="t2s3-filter">⚙ Filter: Pending sourcing · 40</span>
+        <span class="chip chip-blue" id="t2s3-count">⚙ 0 selected</span>
+      </div>
+    </div>
+
+    <div id="t2s3-toolbar" class="card" style="margin-top:14px; display:none; background:#e8f0fe; border-color:#c5dafc;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-size:13px; font-weight:600; color:#1a73e8;">
+          <span id="t2s3-tool-count">40</span> selected · ready to release to outreach-agent
+        </div>
+        <button id="t2s3-approve-btn" class="btn-green">Approve 40 → outreach</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px; padding: 0; overflow:hidden;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="t2s3-master" /></th>
+            <th>Handle</th><th>Followers</th><th>Niche conf.</th><th>USD</th><th>Agent · contract</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>${rows.join("")}</tbody>
+      </table>
+    </div>
+
+    <div id="t2s3-progress" class="card" style="margin-top:14px; display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div style="font-weight:600; font-size:13px;">Workflow brand-campaign-v3 running...</div>
+        <div id="t2s3-prog-text" style="font-size:12px;">0 / 40</div>
+      </div>
+      <div class="progress"><span id="t2s3-prog-bar" style="width:0%"></span></div>
+    </div>`;
+  return appShell("approvals", ["Approvals", "Pending sourcing"], body, 1);
+}
+
+function track2Scene4() {
+  const cards = [];
+  for (let i = 1; i <= 6; i++) {
+    cards.push(`
+      <div class="card" id="t2s4-card-${i}" style="${i===3?'border-color:#1a73e8;':''} cursor:default;">
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+          <span class="chip chip-blue">@creator_${String(i).padStart(2,'0')}</span>
+          <span class="chip chip-green t2s4-status" data-i="${i}">${i<=2?'sent':'draft'}</span>
+        </div>
+        <div style="font-size:12px; font-weight:600; margin-bottom:4px;">Re: Berlin haul collab — 60 day window</div>
+        <div style="font-size:11px; color:var(--slate-500); line-height:1.5; height: 42px; overflow:hidden;">
+          Hi @creator_${String(i).padStart(2,'0')}, we'd love to send you our new lineup...
+        </div>
+        <div style="margin-top:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+          <span class="chip">📷 inspiration img</span>
+          <span style="color:var(--slate-500);">reply ${(34 + i*3)}%</span>
+        </div>
+      </div>`);
+  }
+  const body = `
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h2 style="font-size:22px; font-weight:700;">Outreach drafts</h2>
+      <span class="chip chip-green" id="t2s4-sent-chip">📨 0 / 12 sent</span>
+    </div>
+    <p style="font-size:13px; color:var(--slate-500); margin-top:4px;">outreach-agent (OutreachDraft@1.2) · multimodal (Gemini Vision attached image per draft)</p>
+
+    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top:16px;">
+      ${cards.join("")}
+    </div>
+
+    <div id="t2s4-detail" class="card" style="margin-top:18px; display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div>
+          <div style="font-weight:600; font-size:14px;">@creator_03 · Draft #3</div>
+          <div style="font-size:11px; color:var(--slate-500);">Predicted reply rate 43% · OutreachDraft@1.2</div>
+        </div>
+        <button id="t2s4-send-btn" class="btn-green">📨 Send via Gmail</button>
+      </div>
+      <div id="t2s4-body" class="typed-caret" style="margin-top:12px; min-height: 120px; padding: 10px; border:1px solid var(--slate-300); border-radius:6px; font-size:12px; line-height:1.6; background:#fafbfc;">Hi @creator_03,\nWe've been following your Berlin haul series and would love to send you our new lineup for a 60-day collab.\nReply if interested — we'll send shipping details + AP2 mandate.\n— Brand Workspace 42</div>
+    </div>`;
+  return appShell("campaigns", ["Campaigns", "cmpgn_42", "Outreach"], body, 2);
+}
+
+function track2Scene5() {
+  const body = `
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 22px;">
+      <div>
+        <h2 style="font-size:22px; font-weight:700;">Usage</h2>
+        <div class="card" style="margin-top:14px; background: linear-gradient(135deg, #e8f0fe 0%, #f1f5f9 100%);">
+          <div style="font-size:11px; color:var(--slate-500); font-weight:600;">SPEND SO FAR</div>
+          <div id="t2s5-spend" style="font-size:42px; font-weight:800; letter-spacing:-0.03em; color:#1a73e8; margin-top:4px;">$1.34</div>
+          <div style="font-size:12px; color:var(--slate-500); margin-top:4px;">of $400 cap · D39 envelope $1,498.66 remaining</div>
+        </div>
+        <div style="margin-top:14px; padding: 10px 14px; background:#f8fafc; border-left: 3px solid #94a3b8; font-size:12px; color:var(--slate-600);">
+          <b>📍 D29-B subtext:</b> Distributing via A2A — no Marketplace listing required.
+        </div>
+      </div>
+      <div>
+        <h2 style="font-size:22px; font-weight:700;">Inbox · cmpgn_42</h2>
+        <div id="t2s5-toast" class="card" style="margin-top:14px; display:none; background:#fef7e0; border-color:#fde293;">
+          <div style="font-weight:600; font-size:13px;">📩 1 unread reply</div>
+          <div style="font-size:11px; color:var(--slate-600);">reply-agent classified · interest=high</div>
+        </div>
+        <div class="card" id="t2s5-row" style="margin-top:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:600; font-size:13px;">@creator_03 → brand@socialseed.ing</div>
+              <div style="font-size:11px; color:var(--slate-500); margin-top:2px;">"Yes! Interested. Send NDA + Net-30 terms."</div>
+            </div>
+            <div style="display:flex; gap:4px;">
+              <span class="chip chip-green">interest=high</span>
+              <span class="chip chip-blue">terms_requested=true</span>
+            </div>
+          </div>
+        </div>
+        <div id="t2s5-detail" class="card" style="margin-top:10px; display:none;">
+          <div style="font-size:12px; color:var(--slate-600); margin-bottom:8px;">reply-agent structured extraction (typed):</div>
+          <pre class="json-pre" style="font-size:10px;"><span class="syn-pun">{</span> <span class="syn-key">"InterestLevel"</span>: <span class="syn-str">"high"</span>, <span class="syn-key">"RequestedTerms"</span>: <span class="syn-pun">[</span><span class="syn-str">"NDA"</span>, <span class="syn-str">"Net-30"</span><span class="syn-pun">]</span> <span class="syn-pun">}</span></pre>
+          <button id="t2s5-queue-btn" class="btn-primary" style="margin-top:10px;">Queue: Cart Mandate + contract PDF</button>
+        </div>
+      </div>
+    </div>`;
+  return appShell("campaigns", ["Campaigns", "cmpgn_42", "Inbox"], body, 2);
+}
+
+function track2Scene6() {
+  const cards = [];
+  for (let i = 1; i <= 6; i++) {
+    cards.push(`
+      <div class="card" id="t2s6-card-${i}" style="${i===3?'border-color:#1a73e8;':''}">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-weight:600; font-size:13px;">@creator_${String(i).padStart(2,'0')}</div>
+          <span class="chip chip-blue">3 sub-agents · parallel</span>
+        </div>
+        <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px; font-size:11px;">
+          <div style="padding:6px; background:#f1f5f9; border-radius:4px;">
+            <div style="color:#94a3b8; font-size:9px;">SHIP</div>
+            <div>DHL · 420g</div>
+          </div>
+          <div style="padding:6px; background:#f1f5f9; border-radius:4px;">
+            <div style="color:#94a3b8; font-size:9px;">CUSTOMS</div>
+            <div>HS-3304.99 · $80</div>
+          </div>
+          <div style="padding:6px; background:#f1f5f9; border-radius:4px;">
+            <div style="color:#94a3b8; font-size:9px;">TRACKING</div>
+            <div>ETA 05-23 · SG hub</div>
+          </div>
+        </div>
+      </div>`);
+  }
+  const body = `
+    <h2 style="font-size:22px; font-weight:700;">Shipping</h2>
+    <p style="font-size:13px; color:var(--slate-500);">3 named agent functions per card · Inngest workflow fan-out=3</p>
+    <div style="margin-top:14px; display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+      ${cards.join("")}
+    </div>
+    <div style="margin-top:16px; background:#0d1117; border-radius:8px; padding:14px;">
+      <div style="font-size:10px; color:#71717a; margin-bottom:6px;">terminal · multi-agent fan-out log</div>
+      <pre id="t2s6-term" class="term" style="padding:0; font-size:11px;"><span class="dim">[22:53:11]</span> <span class="info">[workflow]</span> fanout.parallel=3 start
+<span class="dim">[22:53:11]</span> <span class="ok">[ship-agent]</span> HS-3304.99 ok · weight=420g
+<span class="dim">[22:53:11]</span> <span class="ok">[customs-agent]</span> declared USD 80 · MX import
+<span class="dim">[22:53:12]</span> <span class="ok">[tracking-agent]</span> AWB 7234-1029 issued
+<span class="dim">[22:53:12]</span> <span class="info">[workflow]</span> fanout.parallel=3 completed in 412ms</pre>
+    </div>`;
+  return appShell("campaigns", ["Campaigns", "cmpgn_42", "Shipping"], body, 2);
+}
+
+function track2Scene7() {
+  const body = `
+    <h2 style="font-size:22px; font-weight:700;">Verify</h2>
+    <p style="font-size:13px; color:var(--slate-500);">verify-agent owns the proof-of-delivery — no Marketplace analytics dependency (D29-B).</p>
+
+    <div style="margin-top:14px; display:grid; grid-template-columns: 2fr 1fr; gap: 16px;">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-weight:600; font-size:14px;">Live view-count · cumulative</div>
+          <span class="chip chip-blue" id="t2s7-ticker">$0.01 × <span id="t2s7-views">12,400</span> = $0.124</span>
+        </div>
+        <svg id="t2s7-chart" viewBox="0 0 580 240" width="100%" height="240" style="margin-top:10px;">
+          <defs>
+            <linearGradient id="g7" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stop-color="#1a73e8" stop-opacity="0.4"/>
+              <stop offset="100%" stop-color="#1a73e8" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <g stroke="#e2e8f0" stroke-width="1">
+            <line x1="40" y1="40" x2="560" y2="40"/>
+            <line x1="40" y1="100" x2="560" y2="100"/>
+            <line x1="40" y1="160" x2="560" y2="160"/>
+            <line x1="40" y1="200" x2="560" y2="200"/>
+          </g>
+          <path id="t2s7-line" d="M 40 200 L 100 180 L 160 165 L 220 130 L 280 100 L 340 75 L 400 55 L 460 40 L 520 35" stroke="#1a73e8" stroke-width="2.5" fill="none"/>
+          <path id="t2s7-area" d="M 40 200 L 100 180 L 160 165 L 220 130 L 280 100 L 340 75 L 400 55 L 460 40 L 520 35 L 520 220 L 40 220 Z" fill="url(#g7)"/>
+          <g font-size="9" fill="#94a3b8">
+            <text x="40" y="232">0h</text><text x="200" y="232">+12h</text><text x="360" y="232">+24h</text><text x="520" y="232">+48h</text>
+          </g>
+        </svg>
+      </div>
+      <div>
+        <div class="card" style="background:#e6f4ea; border-color:#b6e0bf;">
+          <div style="font-size:11px; font-weight:600; color:#1e8e3e;">9 / 12 CONFIRMED POSTED</div>
+          <div style="font-size:24px; font-weight:800; margin-top:4px; color:#1e8e3e;">+$90</div>
+          <div style="font-size:11px; color:var(--slate-500);">first-tranche payment released</div>
+        </div>
+        <div class="card" style="margin-top:10px;">
+          <div style="font-size:11px; color:var(--slate-500); font-weight:600;">D28 · PER-DELIVERED-VIEW</div>
+          <div style="font-size:14px; margin-top:6px;">$0.01 × N views — ROI-linked</div>
+        </div>
+      </div>
+    </div>
+    <table class="data-table" style="margin-top: 14px;">
+      <thead><tr><th>Creator</th><th>Delivered</th><th>Posted</th><th>Views</th><th>Payment</th></tr></thead>
+      <tbody>
+        <tr><td>@creator_01</td><td>✅</td><td>✅</td><td>3,420</td><td><span class="chip chip-green">paid</span></td></tr>
+        <tr><td>@creator_02</td><td>✅</td><td>✅</td><td>2,180</td><td><span class="chip chip-green">paid</span></td></tr>
+        <tr><td>@creator_03</td><td>✅</td><td>✅</td><td>4,210</td><td><span class="chip chip-green">paid</span></td></tr>
+        <tr><td>@creator_10</td><td>✅</td><td>⌛</td><td>—</td><td><span class="chip chip-yellow">pending post</span></td></tr>
+      </tbody>
+    </table>`;
+  return appShell("campaigns", ["Campaigns", "cmpgn_42", "Verify"], body, 2);
+}
+
+function track2Scene8() {
+  const items = [];
+  for (let i = 1; i <= 9; i++) {
+    items.push(`<tr><td>@creator_${String(i).padStart(2,'0')}</td><td>shipping kit</td><td style="text-align:right;">$10.00</td></tr>`);
+  }
+  const body = `
+    <h2 style="font-size:22px; font-weight:700;">AP2 Mandate · Cart preview</h2>
+
+    <div style="margin-top:8px; padding:14px; background:#fef7e0; border-radius:8px; border-left: 4px solid #fbbc04; font-size:13px;">
+      <b>⚠ AP2 Cart Mandate preview</b> — per D27, this stage is human-approval only. Cart auto-execution deferred until D27 is relaxed.
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <div style="font-weight:600; margin-bottom:8px;">Line items (9 × confirmed posts)</div>
+      <table class="data-table">
+        <thead><tr><th>Creator</th><th>Item</th><th style="text-align:right;">Amount</th></tr></thead>
+        <tbody>${items.join("")}</tbody>
+        <tfoot><tr><th colspan="2" style="text-align:right;">Total</th><th style="text-align:right;">$90.00</th></tr></tfoot>
+      </table>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px;">
+        <div style="font-size:12px; color:var(--slate-500);">Stripe payout stub · D10 test account · webhook target</div>
+        <button id="t2s8-release-btn" class="btn-green">Approve release ($90) as human</button>
+      </div>
+    </div>
+
+    <div id="t2s8-success" class="card" style="margin-top:14px; display:none; background:#e6f4ea; border-color:#b6e0bf;">
+      <div style="font-weight:600; color:#1e8e3e;">✅ Payout webhook fired (stub: app.2weeks@gmail.com)</div>
+      <div style="font-size:11px; color:var(--slate-600); margin-top:4px;">Stripe payout ID stub_pi_4f29a8c1 · 9 × creators × $10</div>
+    </div>`;
+  return appShell("campaigns", ["Campaigns", "cmpgn_42", "Mandate · Cart"], body, 2);
+}
+
+function track2Scene9() {
+  const thumbs = [];
+  for (let i = 1; i <= 4; i++) {
+    thumbs.push(`<div style="aspect-ratio: 9/16; background: linear-gradient(135deg, hsl(${i*60},70%,80%), hsl(${i*60+30},70%,60%)); border-radius:6px; display:flex; align-items:flex-end; padding:6px; color:white; font-size:10px; font-weight:600;">@creator_0${i} · ${(3000+i*1100)} views</div>`);
+  }
+  const body = `
+    <h2 style="font-size:22px; font-weight:700;">Approvals</h2>
+    <div id="t2s9-empty" class="card" style="margin-top:14px; text-align:center; padding:40px;">
+      <div style="font-size:48px;">🎉</div>
+      <div style="font-weight:700; font-size:18px; margin-top:8px;">All caught up</div>
+      <div style="font-size:12px; color:var(--slate-500); margin-top:4px;">0 pending · queue empty · the loop has closed</div>
+      <button id="t2s9-open-btn" class="btn-secondary" style="margin-top:14px;">Open recently-completed campaign</button>
+    </div>
+
+    <div id="t2s9-report" class="card" style="margin-top:14px; display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div>
+          <div style="font-weight:700; font-size:18px;">CampaignReport · cmpgn_42</div>
+          <div style="font-size:11px; color:var(--slate-500);">report-agent · v2 · CampaignReport@1.1 · 12 ¢ spent</div>
+        </div>
+        <button class="btn-secondary">📄 Export PDF</button>
+      </div>
+      <div style="margin-top:14px; display:grid; grid-template-columns: repeat(4, 1fr); gap:10px;">
+        <div style="text-align:center; padding:12px; background:#f8fafc; border-radius:6px;">
+          <div style="font-size:11px; color:var(--slate-500);">Spend</div>
+          <div style="font-size:18px; font-weight:700;">$1.34</div>
+        </div>
+        <div style="text-align:center; padding:12px; background:#f8fafc; border-radius:6px;">
+          <div style="font-size:11px; color:var(--slate-500);">Shipped</div>
+          <div style="font-size:18px; font-weight:700;">12 / 12</div>
+        </div>
+        <div style="text-align:center; padding:12px; background:#f8fafc; border-radius:6px;">
+          <div style="font-size:11px; color:var(--slate-500);">Posts live</div>
+          <div style="font-size:18px; font-weight:700;">9</div>
+        </div>
+        <div style="text-align:center; padding:12px; background:#f8fafc; border-radius:6px;">
+          <div style="font-size:11px; color:var(--slate-500);">Views</div>
+          <div style="font-size:18px; font-weight:700;">38.4K</div>
+        </div>
+      </div>
+      <div style="margin-top:14px;">
+        <div style="font-size:11px; color:var(--slate-500); margin-bottom:6px;">Top-performing thumbnails (Gemini Vision captions)</div>
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px;">${thumbs.join("")}</div>
+      </div>
+    </div>`;
+  return appShell("approvals", ["Approvals"], body, 1);
+}
+
+function track2Scene10() {
+  const body = `
+    <h2 style="font-size:22px; font-weight:700;">Usage</h2>
+    <div class="card" style="margin-top:14px;">Cost ledger view — see Scene 11 for details</div>
+
+    <!-- Dialogflow CX widget mocked -->
+    <div id="t2s10-fab" style="position:absolute; right:60px; bottom:90px; width:56px; height:56px; border-radius:50%; background:#1a73e8; color:white; display:flex; align-items:center; justify-content:center; font-size:24px; box-shadow: 0 8px 24px rgba(26,115,232,0.4); cursor:default;">💬</div>
+
+    <div id="t2s10-chat" style="position:absolute; right:60px; bottom:160px; width:380px; height:460px; background:white; border-radius:12px; box-shadow: 0 20px 50px rgba(0,0,0,0.25); display:none; flex-direction:column; border:1px solid var(--slate-200); overflow:hidden;">
+      <div style="background:#1a73e8; color:white; padding:12px 16px; font-weight:600; font-size:13px; display:flex; justify-content:space-between;">
+        Dialogflow CX · Campaign assistant
+        <span style="font-size:18px;">×</span>
+      </div>
+      <div id="t2s10-msgs" style="flex:1; padding:12px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; font-size:12px;">
+        <div style="background:#f1f5f9; padding:8px 12px; border-radius:12px; max-width:80%;">안녕하세요! 캠페인에 대해 무엇이든 물어보세요. ✨</div>
+      </div>
+      <div style="border-top:1px solid var(--slate-200); padding:8px 12px; display:flex; gap:6px; align-items:center;">
+        <div id="t2s10-input" class="typed-caret" style="flex:1; border:1px solid var(--slate-300); border-radius:18px; padding:6px 12px; font-size:12px; min-height: 22px;"></div>
+        <button id="t2s10-send" style="background:#1a73e8; color:white; border:none; border-radius:50%; width:32px; height:32px;">↑</button>
+      </div>
+    </div>`;
+  return appShell("usage", ["Usage"], body, 3);
+}
+
+function track2Scene11() {
+  const rows = [
+    ["intake",   "intake-v3",       4,  0.040, 0.010, 1840],
+    ["sourcing", "sourcing-v2",    40,  0.480, 0.012, 2100],
+    ["outreach", "outreach-v2",    12,  0.360, 0.030, 4200],
+    ["reply",    "reply-v1",        6,  0.120, 0.020, 1100],
+    ["ship",     "ship-v1",        12,  0.180, 0.015,  720],
+    ["customs",  "customs-v1",     12,  0.060, 0.005,  410],
+    ["tracking", "tracking-v1",    12,  0.040, 0.003,  340],
+    ["verify",   "verify-v1",      12,  0.040, 0.003,  890],
+    ["report",   "report-v2",       1,  0.020, 0.020, 3100],
+  ];
+  const tr = rows.map(r => `
+    <tr>
+      <td><span class="chip">${r[0]}</span></td>
+      <td>${r[1]}</td>
+      <td style="text-align:right;">${r[2]}</td>
+      <td style="text-align:right;">$${r[3].toFixed(3)}</td>
+      <td style="text-align:right;">$${r[4].toFixed(3)}</td>
+      <td style="text-align:right;">${r[5]} ms</td>
+    </tr>`).join("");
+  const body = `
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <h2 style="font-size:22px; font-weight:700;">Usage · Cost ledger</h2>
+        <p style="font-size:13px; color:var(--slate-500);">173 agent calls · 9 agent functions · all typed</p>
+      </div>
+      <div class="card" style="background:#e8f0fe; border-color:#c5dafc; padding:10px 14px; min-width:280px;">
+        <div style="font-size:11px; color:#1a73e8; font-weight:600;">D39 · GCP CREDIT ENVELOPE</div>
+        <div style="font-size:20px; font-weight:800; margin-top:2px;">$1,498.66 <span style="font-size:11px; color:var(--slate-500); font-weight:500;">/ $1,500</span></div>
+        <div class="progress" style="margin-top:6px;"><span style="width:0.09%; background:#1a73e8;"></span></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px; padding:0; overflow:hidden;">
+      <table class="data-table">
+        <thead>
+          <tr><th>Agent</th><th>Fn name</th><th style="text-align:right;">Calls</th><th style="text-align:right;">USD total</th><th style="text-align:right;">USD/call</th><th style="text-align:right;">p50 latency</th></tr>
+        </thead>
+        <tbody>${tr}</tbody>
+        <tfoot><tr><th colspan="3" style="text-align:right;">Σ</th><th style="text-align:right;">$1.340</th><th></th><th></th></tr></tfoot>
+      </table>
+    </div>
+    <div style="margin-top:14px; display:flex; gap:8px;">
+      <button id="t2s11-export" class="btn-secondary">📥 Export CSV</button>
+      <span id="t2s11-toast" class="chip chip-green" style="display:none;">✅ usage-cmpgn_42.csv downloaded · Open in Sheets ↗</span>
+    </div>`;
+  return appShell("usage", ["Usage"], body, 3);
+}
+
+function track2Scene12() {
+  const body = `
+    <div style="position:absolute; inset:0; padding:0;">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0; height: 100%;">
+        <div style="padding:20px; border-right:1px solid #1e293b; background:#0d1117;">
+          <div style="font-size:11px; color:#71717a;">Pane L · run-demo (live driver)</div>
+          <pre class="term" style="padding:0; margin-top:8px; height: calc(100% - 30px); font-size:11px;">$ pnpm exec tsx scripts/run-demo.ts --type=brand
+<span class="dim">[boot]</span> demo driver ready (idle)</pre>
+        </div>
+        <div style="padding:20px; background:#0d1117;">
+          <div style="font-size:11px; color:#71717a;">Pane R · brand_campaign_smoke.py</div>
+          <pre id="t2s12-term" class="term" style="padding:0; margin-top:8px; height: calc(100% - 30px); font-size:11px;"><span class="prompt">$</span> python scripts/smoke-test/brand_campaign_smoke.py</pre>
+        </div>
+      </div>
+    </div>`;
+  return `<div style="background:#0b1220; height:100%; padding:0;">${body}</div>`;
+}
+
+/* =========================== TRACK 3 SCENES =================================*/
+/* Cloud Console-flavored UI (different chrome from Mission Control) ----------*/
+function gcpShell(title, breadcrumbs, body) {
+  return `
+    <div style="display:flex; height:100%;">
+      <aside style="width: 220px; background:#202124; color:#e8eaed; padding: 16px 12px;">
+        <div style="font-size:14px; font-weight:700; padding:8px 10px 16px; display:flex; align-items:center; gap:8px;">
+          <span style="background:#1a73e8; color:white; padding:2px 6px; border-radius:3px; font-size:10px;">GCP</span>
+          Cloud Console
+        </div>
+        ${["Cloud Run","Marketplace","Producer Portal","Identity Platform","Cloud Monitoring","BigQuery","Logs"].map((l,i)=>`<div style="padding:8px 10px; border-radius:4px; font-size:12px; ${i===0?'background:#3c4043; color:white;':'color:#9aa0a6;'}">${l}</div>`).join("")}
+      </aside>
+      <div style="flex:1; display:flex; flex-direction:column; background:#f8f9fa;">
+        <div style="height:48px; background:white; border-bottom:1px solid #dadce0; display:flex; align-items:center; padding: 0 20px; font-size:13px; color:#3c4043;">
+          ${breadcrumbs.map((c,i)=>`<span ${i===breadcrumbs.length-1?'style="color:#202124; font-weight:600;"':''}>${c}</span>${i<breadcrumbs.length-1?'<span style="margin: 0 8px; color:#9aa0a6;">›</span>':''}`).join("")}
+          <span style="margin-left:auto; font-size:12px; color:#5f6368;">project: <b>ss-v2-prod</b></span>
+        </div>
+        <div style="flex:1; padding:24px 32px; overflow-y:auto;">${body}</div>
+      </div>
+    </div>`;
+}
+
+function track3Scene1() {
+  const countries = ["Australia","Brazil","Canada","France","Germany","India","Italy","Japan","Mexico","Netherlands","Singapore","Spain","Sweden","United Kingdom","United States"];
+  const body = `
+    <h2 style="font-size:22px; font-weight:600;">Marketplace · List a SaaS product</h2>
+    <p style="font-size:13px; color:#5f6368;">Step 2 of 6 — billing locality</p>
+
+    <div class="card" style="margin-top:14px;">
+      <label style="display:block; font-size:12px; font-weight:600; color:#3c4043; margin-bottom:6px;">Country / Billing region</label>
+      <div id="t3s1-dropdown-trigger" style="border:1px solid #dadce0; border-radius:4px; padding:10px 12px; font-size:13px; cursor:default; background:white; display:flex; justify-content:space-between;">
+        <span style="color:#9aa0a6;">Select billing country</span>
+        <span>▾</span>
+      </div>
+      <div id="t3s1-dropdown" style="display:none; margin-top:4px; border:1px solid #dadce0; border-radius:4px; background:white; max-height: 240px; overflow-y:auto;">
+        ${countries.map(c => `<div style="padding: 8px 12px; font-size:12px; border-bottom:1px solid #f1f3f4;">${c}</div>`).join("")}
+        <div style="padding: 8px 12px; font-size:12px; background:#fce8e6; color:#ea4335; font-weight:600;">⚠ Korea: not available as a billing locality</div>
+      </div>
+      <div style="margin-top:8px; font-size:11px; color:#1a73e8;">Help: supported billing regions ↗</div>
+    </div>
+
+    <div class="card" id="t3s1-cloudrun" style="margin-top:18px; display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-weight:600; font-size:14px;">Cloud Run · tiktok-mcp-server</div>
+          <div style="font-size:11px; color:#5f6368;">URL: https://tiktok-mcp-server-abc-uc.a.run.app</div>
+        </div>
+        <span class="chip chip-green">● healthy · 99.97% uptime</span>
+      </div>
+      <div style="margin-top:12px; display:grid; grid-template-columns: repeat(4, 1fr); gap:10px;">
+        <div style="padding:10px; background:#f8f9fa; border-radius:4px;">
+          <div style="font-size:10px; color:#5f6368;">REGION</div>
+          <div style="font-size:13px; font-weight:600;">asia-northeast3</div>
+          <div style="font-size:10px; color:#5f6368;">Seoul</div>
+        </div>
+        <div style="padding:10px; background:#f8f9fa; border-radius:4px;">
+          <div style="font-size:10px; color:#5f6368;">REVISIONS</div>
+          <div style="font-size:13px; font-weight:600;">0.4.1 (live)</div>
+        </div>
+        <div style="padding:10px; background:#f8f9fa; border-radius:4px;">
+          <div style="font-size:10px; color:#5f6368;">SPEND / DAY</div>
+          <div style="font-size:13px; font-weight:600;">$0.32</div>
+        </div>
+        <div style="padding:10px; background:#f8f9fa; border-radius:4px;">
+          <div style="font-size:10px; color:#5f6368;">p50 LATENCY</div>
+          <div style="font-size:13px; font-weight:600;">342 ms</div>
+        </div>
+      </div>
+    </div>`;
+  return gcpShell("Cloud Run", ["Cloud Console", "Marketplace", "Seller wizard"], body);
+}
+
+function track3Scene2() {
+  const body = `
+    <div style="display:flex; gap:10px; align-items:center; padding:6px 12px; background: white; border:1px solid #dadce0; border-radius:6px; font-size:12px; color:#5f6368;">
+      🔒 tiktok-mcp-server-abc-uc.a.run.app/.well-known/agent.json
+    </div>
+    <pre class="json-pre" style="margin-top:14px; font-size:11px;"><span class="syn-pun">{</span>
+  <span class="syn-key">"name"</span>: <span class="syn-str">"tiktok-mcp-server"</span><span class="syn-pun">,</span>
+  <span class="syn-key">"description"</span>: <span class="syn-str">"TikTok creator lookup / search / profile via A2A v0.3 + MCP."</span><span class="syn-pun">,</span>
+  <span class="syn-key">"protocol_version"</span>: <span class="syn-str">"0.3"</span><span class="syn-pun">,</span>
+  <span class="syn-key">"endpoints"</span>: <span class="syn-pun">{</span>
+    <span class="syn-key">"a2a"</span>: <span class="syn-str">"https://tiktok-mcp-server-abc-uc.a.run.app/a2a"</span><span class="syn-pun">,</span>
+    <span class="syn-key">"mcp"</span>: <span class="syn-str">"https://tiktok-mcp-server-abc-uc.a.run.app/mcp"</span><span class="syn-pun">,</span>
+    <span class="syn-key">"http"</span>: <span class="syn-str">"https://tiktok-mcp-server-abc-uc.a.run.app"</span>
+  <span class="syn-pun">}</span><span class="syn-pun">,</span>
+  <span class="syn-key">"authentication"</span>: <span class="syn-str">"OIDC"</span><span class="syn-pun">,</span>
+  <span class="syn-key">"skills"</span>: <span class="syn-pun">[</span>
+    <span class="syn-pun">{</span> <span class="syn-key">"id"</span>: <span class="syn-str">"tiktok.lookup"</span>, <span class="syn-key">"input_schema"</span>: <span class="syn-str">"$ref:TiktokLookupInput"</span> <span class="syn-pun">}</span><span class="syn-pun">,</span>
+    <span class="syn-pun">{</span> <span class="syn-key">"id"</span>: <span class="syn-str">"tiktok.search"</span>, <span class="syn-key">"input_schema"</span>: <span class="syn-str">"$ref:TiktokSearchInput"</span> <span class="syn-pun">}</span><span class="syn-pun">,</span>
+    <span class="syn-pun">{</span> <span class="syn-key">"id"</span>: <span class="syn-str">"tiktok.profile"</span>, <span class="syn-key">"input_schema"</span>: <span class="syn-str">"$ref:TiktokProfileInput"</span> <span class="syn-pun">}</span>
+  <span class="syn-pun">]</span><span class="syn-pun">,</span>
+  <span class="syn-key">"signed_by"</span>: <span class="syn-str">"gcp-mcp-deployer@ss-v2-prod.iam.gserviceaccount.com"</span><span class="syn-pun">,</span>
+  <span class="syn-key">"jws"</span>: <span class="syn-str">"eyJhbGciOiJSUzI1NiIs..."</span>
+<span class="syn-pun">}</span></pre>
+    <div style="margin-top:12px; display:flex; gap:8px;">
+      <span class="chip chip-blue">protocol_version 0.3</span>
+      <span class="chip chip-green">JWS signed</span>
+      <span class="chip">3 skills · 3 transports</span>
+    </div>`;
+  return gcpShell("agent.json", ["browser", "/.well-known/agent.json"], body);
+}
+
+function track3Scene3() {
+  const body = `
+    <h2 style="font-size:22px; font-weight:600;">Gemini Enterprise · Agent builder</h2>
+    <p style="font-size:13px; color:#5f6368;">Workspace ws_42 · Add agent</p>
+
+    <div class="card" style="margin-top:14px;">
+      <label style="display:block; font-size:12px; font-weight:600; margin-bottom:6px;">A2A endpoint URL</label>
+      <div id="t3s3-url" class="typed-caret" style="border:1px solid #dadce0; border-radius:4px; padding:10px 12px; font-size:12px; font-family: monospace; min-height:38px; background:#fff;"></div>
+      <button id="t3s3-discover" class="btn-primary" style="margin-top:10px;">🔍 Discover</button>
+    </div>
+
+    <div id="t3s3-skills" class="card" style="margin-top:14px; display:none;">
+      <div style="font-weight:600; margin-bottom:10px;">3 skills discovered from AgentCard</div>
+      <table class="data-table">
+        <tbody>
+          <tr><td><code>tiktok.lookup</code></td><td>look up a creator by handle</td><td><span class="chip chip-green">schema valid</span></td></tr>
+          <tr><td><code>tiktok.search</code></td><td>search creators by query</td><td><span class="chip chip-green">schema valid</span></td></tr>
+          <tr><td><code>tiktok.profile</code></td><td>get profile w/ thumbnails</td><td><span class="chip chip-green">schema valid</span></td></tr>
+        </tbody>
+      </table>
+      <button id="t3s3-register" class="btn-primary" style="margin-top:12px;">Register all 3 skills</button>
+    </div>
+
+    <div id="t3s3-toast" class="toast" style="display:none;">✅ <b>3 skills registered</b><br><span style="font-size:11px;">agent live in workspace ws_42 · no Marketplace listing required</span></div>`;
+  return gcpShell("Gemini Enterprise", ["Gemini Enterprise", "Workspace ws_42", "Add agent"], body);
+}
+
+function track3Scene4() {
+  const body = `
+    <div style="background:#0d1117; height:100%; padding:20px;">
+      <div style="font-size:11px; color:#71717a;">Pane A · uv run mcp dev tiktok_orchestrator</div>
+      <pre id="t3s4-term" class="term" style="padding:0; margin-top:8px; height: calc(100% - 30px); font-size:12px;"><span class="prompt">mcp&gt;</span> <span id="t3s4-input1"></span></pre>
+    </div>`;
+  return `<div style="background:#0b1220; height:100%;">${body}</div>`;
+}
+
+function track3Scene5() {
+  const body = `
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 0; height: 100%;">
+      <div style="background:#0d1117; padding:18px; border-right: 1px solid #1e293b;">
+        <div style="font-size:11px; color:#71717a;">Pane C · a2a-client</div>
+        <pre id="t3s5-termC" class="term" style="padding:0; margin-top:8px; height: calc(100% - 30px); font-size:11px;"><span class="prompt">$</span> <span id="t3s5-cmd"></span></pre>
+      </div>
+      <div style="background:#0d1117; padding:18px;">
+        <div style="font-size:11px; color:#71717a;">Pane B · gcloud run services logs tail</div>
+        <pre id="t3s5-termB" class="term" style="padding:0; margin-top:8px; height: calc(100% - 30px); font-size:11px;"><span class="dim">[live tail · waiting...]</span></pre>
+      </div>
+    </div>`;
+  return `<div style="background:#0b1220; height:100%;">${body}</div>`;
+}
+
+function track3Scene6() {
+  const body = `
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 0; height: 100%;">
+      <div style="background:#0d1117; padding:18px; border-right: 1px solid #1e293b;">
+        <div style="font-size:11px; color:#71717a;">Pane C · a2a-client (malicious payload test)</div>
+        <pre id="t3s6-termC" class="term" style="padding:0; margin-top:8px; height: calc(100% - 30px); font-size:11px;"><span class="prompt">$</span> <span id="t3s6-cmd"></span></pre>
+      </div>
+      <div style="background:#0d1117; padding:18px;">
+        <div style="font-size:11px; color:#71717a;">Pane B · Cloud Run logs (Model Armor + Identity Platform)</div>
+        <pre id="t3s6-termB" class="term" style="padding:0; margin-top:8px; height: calc(100% - 30px); font-size:11px;"><span class="dim">[live tail · D21 Model Armor · D19 Identity Platform]</span></pre>
+      </div>
+    </div>`;
+  return `<div style="background:#0b1220; height:100%;">${body}</div>`;
+}
+
+function track3Scene7() {
+  const body = `
+    <h2 style="font-size:22px; font-weight:600;">Gemini Enterprise · Chat</h2>
+    <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+      <span class="chip chip-blue">workspace ws_42</span>
+      <span class="chip">agent: tiktok-mcp-server</span>
+    </div>
+
+    <div class="card" style="margin-top:14px; min-height: 320px;">
+      <div id="t3s7-msgs" style="display:flex; flex-direction:column; gap:10px; font-size:13px;">
+        <!-- populated at runtime -->
+      </div>
+      <div style="margin-top:14px; border-top:1px solid #dadce0; padding-top:12px;">
+        <div id="t3s7-input" class="typed-caret" style="border:1px solid #dadce0; border-radius:6px; padding:10px 12px; font-size:13px; min-height: 38px;"></div>
+      </div>
+    </div>`;
+  return gcpShell("Chat", ["Gemini Enterprise", "Workspace ws_42", "Chat · tiktok-mcp-server"], body);
+}
+
+function track3Scene8() {
+  const body = `
+    <h2 style="font-size:22px; font-weight:600;">Cloud Monitoring · tiktok-mcp-server USD by skill</h2>
+    <p style="font-size:13px; color:#5f6368;">Time range: last 1 hour · BigQuery-backed</p>
+
+    <div class="card" style="margin-top:14px;">
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        ${[["tiktok.lookup",  47, 0.094, "#1a73e8", 100],
+           ["tiktok.search",  12, 0.036, "#34a853", 38],
+           ["tiktok.profile",  3, 0.009, "#fbbc04", 10]].map(([n,c,u,col,w])=>`
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+              <span><b>${n}</b> · ${c} calls</span>
+              <span>$${u.toFixed(3)}</span>
+            </div>
+            <div style="height: 28px; background:#f1f3f4; border-radius:4px; overflow:hidden;">
+              <div style="height:100%; width:${w}%; background:${col};"></div>
+            </div>
+          </div>`).join("")}
+      </div>
+      <div style="margin-top: 18px; padding-top: 12px; border-top:1px solid #dadce0; display:flex; justify-content:space-between; font-size:12px;">
+        <span>Total · 62 calls</span>
+        <span style="font-weight:700;">$0.139</span>
+      </div>
+    </div>`;
+  return gcpShell("Metrics", ["Cloud Console", "Cloud Run", "tiktok-mcp-server", "Metrics"], body);
+}
+
+function track3Scene9() {
+  const body = `
+    <h2 style="font-size:22px; font-weight:600;">Producer Portal · Submitted listings</h2>
+    <p style="font-size:13px; color:#5f6368;">Cloud Marketplace seller onboarding</p>
+
+    <table class="data-table" style="margin-top:14px;">
+      <thead>
+        <tr><th>Listing</th><th>Submitted</th><th>Status</th><th>Reason</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>tiktok-mcp-server</b></td>
+          <td>2026-04-22</td>
+          <td><span class="chip chip-yellow">pending_legal_entity</span></td>
+          <td style="font-size:11px; color:#5f6368;">No eligible payment-region billing entity for the seller account (KR).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="card" style="margin-top:18px; background:#fef7e0; border-color:#fbbc04;">
+      <div style="display:flex; gap:12px;">
+        <div style="font-size:22px;">📌</div>
+        <div>
+          <div style="font-weight:600;">Operator note</div>
+          <div style="font-size:12px; color:#5f6368; margin-top:4px; line-height:1.55;">
+            We turned this gap into the Innovation thesis — see Devpost §3 (A2A-only distribution path).
+            The agent is fully callable via Gemini Enterprise without a Marketplace listing.
+          </div>
+        </div>
+      </div>
+    </div>`;
+  return gcpShell("Producer Portal", ["Producer Portal", "Submitted listings"], body);
+}
+
+function track3Scene10() {
+  const body = `
+    <h2 style="font-size:22px; font-weight:600;">Cloud Run · Revisions (multi-region)</h2>
+    <p style="font-size:13px; color:#5f6368;">Active-active across 3 regions · D13 evidence</p>
+
+    <table class="data-table" style="margin-top:14px;">
+      <thead><tr><th>Region</th><th>Revision</th><th>Traffic %</th><th>p50</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>asia-northeast3 (Seoul)</td><td>0.4.1-abc</td><td>30%</td><td>342 ms</td><td><span class="chip chip-green">healthy</span></td></tr>
+        <tr><td>us-central1 (Iowa)</td><td>0.4.1-def</td><td>50%</td><td>118 ms</td><td><span class="chip chip-green">healthy</span></td></tr>
+        <tr><td>europe-west1 (Belgium)</td><td>0.4.1-ghi</td><td>20%</td><td>210 ms</td><td><span class="chip chip-green">healthy</span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="card" style="margin-top:18px;">
+      <div style="font-weight:600; margin-bottom:10px;">Geo-routing · Global LB by latency</div>
+      <svg viewBox="0 0 600 220" width="100%" height="220">
+        <g>
+          <rect x="40"  y="60"  width="120" height="120" fill="#1a73e8" opacity="0.85"/>
+          <rect x="200" y="20"  width="120" height="160" fill="#34a853" opacity="0.85"/>
+          <rect x="360" y="100" width="120" height="80"  fill="#fbbc04" opacity="0.85"/>
+        </g>
+        <g font-size="11" fill="#3c4043" font-weight="600">
+          <text x="100" y="200" text-anchor="middle">30% · KR3</text>
+          <text x="260" y="200" text-anchor="middle">50% · US</text>
+          <text x="420" y="200" text-anchor="middle">20% · EU</text>
+        </g>
+      </svg>
+    </div>
+
+    <div style="margin-top:14px; font-size:12px; color:#5f6368;">
+      Identity Platform tenants: <span class="chip chip-blue">demo-kr</span> <span class="chip chip-green">demo-us</span> <span class="chip chip-yellow">demo-eu</span>
+    </div>`;
+  return gcpShell("Cloud Run", ["Cloud Console", "Cloud Run", "tiktok-mcp-server", "Revisions"], body);
+}
+
+function track3Scene11() {
+  const body = `
+    <div style="background:#0d1117; height:100%; padding:18px;">
+      <div style="font-size:11px; color:#71717a;">Pane C · a2a-client (multimodal streaming)</div>
+      <pre id="t3s11-term" class="term" style="padding:0; margin-top:8px; height: calc(100% - 30px); font-size:11px;"><span class="prompt">$</span> <span id="t3s11-cmd"></span></pre>
+    </div>`;
+  return `<div style="background:#0b1220; height:100%;">${body}</div>`;
+}
+
+function track3Scene12() {
+  const body = `
+    <div style="background:#0d1117; height:100%; padding:18px;">
+      <div style="font-size:11px; color:#71717a;">Pane B · health check + pytest smoke</div>
+      <pre id="t3s12-term" class="term" style="padding:0; margin-top:8px; height: calc(100% - 30px); font-size:12px;"><span class="prompt">$</span> </pre>
+    </div>`;
+  return `<div style="background:#0b1220; height:100%;">${body}</div>`;
+}
+
+/* ============================================================================
+   PLAYBACK ENGINE
+   ============================================================================ */
+
+const SCENE_BUILDERS = {
+  track2: [track2Scene1, track2Scene2, track2Scene3, track2Scene4, track2Scene5, track2Scene6,
+           track2Scene7, track2Scene8, track2Scene9, track2Scene10, track2Scene11, track2Scene12],
+  track3: [track3Scene1, track3Scene2, track3Scene3, track3Scene4, track3Scene5, track3Scene6,
+           track3Scene7, track3Scene8, track3Scene9, track3Scene10, track3Scene11, track3Scene12],
+};
+
+/* For each scene, a function that returns an array of "actions" — keyframes the
+   engine triggers at t/duration ratios in [0,1]. Each action has:
+     at: 0..1 ratio
+     fn(ratio01, sceneEl): runs at that ratio
+   The engine plays them in order; idempotency is the action's responsibility.   */
+
+function findEl(scene, sel) { return scene.querySelector(sel); }
+function setCursorToEl(scene, sel, opts={}) {
+  const el = findEl(scene, sel);
+  if (!el) return;
+  const stageR = document.getElementById("stage").getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  const x = r.left - stageR.left + (opts.dx ?? r.width/2);
+  const y = r.top - stageR.top + (opts.dy ?? r.height/2);
+  moveCursor(x, y);
+}
+
+const KEYFRAMES = {
+  track2: [
+    /* SCENE 1 — Brand brief intake */
+    (sc) => [
+      { at: 0.02, fn: () => setCursorToEl(sc, "#t2s1-textarea") },
+      { at: 0.06, fn: () => { clickCursor(); findEl(sc, "#t2s1-textarea").classList.add("ring-focus"); } },
+      { at: 0.10, fn: () => typeInto(sc, "#t2s1-textarea",
+        "40명의 TikTok 크리에이터를 60일 동안 — 멕시코, 뷰티/라이프스타일, 젠Z, 뷰당 $0.01.", 0.10, 0.55) },
+      { at: 0.58, fn: () => setCursorToEl(sc, "#t2s1-submit") },
+      { at: 0.62, fn: () => { clickCursor(); appendTerm(sc, "#t2s1-term",
+        '\n<span class="dim">[22:51:08]</span> <span class="info">[intake-agent]</span> exec() start\n' +
+        '<span class="dim">[22:51:09]</span> <span class="info">[intake-agent]</span> BrandBriefSchema.parse() ok\n' +
+        '<span class="dim">[22:51:09]</span> <span class="ok">[intake-agent]</span> CampaignDraft@2.1.0 emitted (USD $0.010 · 1840ms)'); } },
+      { at: 0.68, fn: () => { findEl(sc, "#t2s1-result").style.display = "block"; } },
+      { at: 0.80, fn: () => setCursorToEl(sc, "#t2s1-chip-cost") },
+      { at: 0.90, fn: () => setCursorToEl(sc, "#t2s1-chip-agent") },
+    ],
+    /* SCENE 2 — AP2 Intent Mandate */
+    (sc) => [
+      { at: 0.05, fn: () => setCursorToEl(sc, "#t2s2-mandate-card") },
+      { at: 0.15, fn: () => setCursorToEl(sc, "#t2s2-review-btn") },
+      { at: 0.20, fn: () => { clickCursor(); findEl(sc, "#t2s2-modal").style.display = "flex"; } },
+      { at: 0.35, fn: () => { setCursorToEl(sc, "#t2s2-scope-row"); findEl(sc, "#t2s2-scope-row").style.background = "#fef7e0"; } },
+      { at: 0.55, fn: () => setCursorToEl(sc, "#t2s2-sign-btn") },
+      { at: 0.62, fn: () => clickCursor() },
+      { at: 0.72, fn: () => {
+        findEl(sc, "#t2s2-modal").style.display = "none";
+        findEl(sc, "#t2s2-ap2-chip").className = "chip chip-green";
+        findEl(sc, "#t2s2-ap2-chip").textContent = "✓ AP2 signed · Ed25519";
+        findEl(sc, "#t2s2-toast").style.display = "block";
+      } },
+      { at: 0.92, fn: () => setCursorToEl(sc, "#t2s2-ap2-chip") },
+    ],
+    /* SCENE 3 — Bulk approve */
+    (sc) => [
+      { at: 0.05, fn: () => setCursorToEl(sc, "#t2s3-filter") },
+      { at: 0.15, fn: () => setCursorToEl(sc, "#t2s3-master") },
+      { at: 0.20, fn: () => {
+        clickCursor();
+        sc.querySelectorAll(".t2s3-cb").forEach(cb => cb.checked = true);
+        findEl(sc, "#t2s3-master").checked = true;
+        findEl(sc, "#t2s3-count").textContent = "⚙ 40 selected";
+        findEl(sc, "#t2s3-toolbar").style.display = "block";
+      } },
+      { at: 0.36, fn: () => setCursorToEl(sc, "#t2s3-approve-btn") },
+      { at: 0.42, fn: () => {
+        clickCursor();
+        findEl(sc, "#t2s3-progress").style.display = "block";
+      } },
+      { at: 0.55, fn: () => fillProgress(sc, "#t2s3-prog-bar", "#t2s3-prog-text", 25) },
+      { at: 0.70, fn: () => fillProgress(sc, "#t2s3-prog-bar", "#t2s3-prog-text", 60) },
+      { at: 0.86, fn: () => {
+        fillProgress(sc, "#t2s3-prog-bar", "#t2s3-prog-text", 100);
+        sc.querySelectorAll(".t2s3-status").forEach(el => { el.textContent = "approved"; el.className = "chip chip-green t2s3-status"; });
+      } },
+    ],
+    /* SCENE 4 — Outreach drafts */
+    (sc) => [
+      { at: 0.05, fn: () => setCursorToEl(sc, "#t2s4-card-3") },
+      { at: 0.12, fn: () => { clickCursor(); findEl(sc, "#t2s4-detail").style.display = "block"; } },
+      { at: 0.20, fn: () => setCursorToEl(sc, "#t2s4-body") },
+      { at: 0.28, fn: () => typeInto(sc, "#t2s4-body",
+        "Hi @creator_03,\nQuick note: we love your Berlin haul series.\nWe've been following you and would love to send our new lineup for a 60-day collab.\nReply if interested — we'll send shipping + AP2 mandate.\n— Brand Workspace 42",
+        0.28, 0.55) },
+      { at: 0.58, fn: () => setCursorToEl(sc, "#t2s4-send-btn") },
+      { at: 0.64, fn: () => {
+        clickCursor();
+        const c3 = findEl(sc, ".t2s4-status[data-i='3']");
+        if (c3) { c3.textContent = "sent ✓"; c3.className = "chip chip-green t2s4-status"; }
+        findEl(sc, "#t2s4-sent-chip").textContent = "📨 3 / 12 sent";
+      } },
+      { at: 0.80, fn: () => setCursorToEl(sc, "#t2s4-card-1") },
+    ],
+    /* SCENE 5 — Reply agent */
+    (sc) => [
+      { at: 0.08, fn: () => setCursorToEl(sc, "#t2s5-spend") },
+      { at: 0.30, fn: () => { findEl(sc, "#t2s5-toast").style.display = "block"; } },
+      { at: 0.45, fn: () => setCursorToEl(sc, "#t2s5-row") },
+      { at: 0.50, fn: () => { clickCursor(); findEl(sc, "#t2s5-detail").style.display = "block"; } },
+      { at: 0.75, fn: () => setCursorToEl(sc, "#t2s5-queue-btn") },
+      { at: 0.82, fn: () => clickCursor() },
+    ],
+    /* SCENE 6 — Shipping fan-out */
+    (sc) => [
+      { at: 0.05, fn: () => setCursorToEl(sc, "#t2s6-card-1") },
+      { at: 0.30, fn: () => setCursorToEl(sc, "#t2s6-card-3") },
+      { at: 0.55, fn: () => setCursorToEl(sc, "#t2s6-term") },
+    ],
+    /* SCENE 7 — Verify */
+    (sc) => [
+      { at: 0.20, fn: () => setCursorToEl(sc, "#t2s7-ticker") },
+      { at: 0.55, fn: () => { animateViewCount(sc, "#t2s7-views", 12400, 38400); } },
+    ],
+    /* SCENE 8 — Cart Mandate preview */
+    (sc) => [
+      { at: 0.40, fn: () => setCursorToEl(sc, "#t2s8-release-btn") },
+      { at: 0.55, fn: () => { clickCursor(); findEl(sc, "#t2s8-success").style.display = "block"; } },
+    ],
+    /* SCENE 9 — Report */
+    (sc) => [
+      { at: 0.20, fn: () => setCursorToEl(sc, "#t2s9-open-btn") },
+      { at: 0.32, fn: () => {
+        clickCursor();
+        findEl(sc, "#t2s9-empty").style.display = "none";
+        findEl(sc, "#t2s9-report").style.display = "block";
+      } },
+    ],
+    /* SCENE 10 — Dialogflow */
+    (sc) => [
+      { at: 0.05, fn: () => setCursorToEl(sc, "#t2s10-fab") },
+      { at: 0.12, fn: () => { clickCursor(); findEl(sc, "#t2s10-chat").style.display = "flex"; } },
+      { at: 0.25, fn: () => setCursorToEl(sc, "#t2s10-input") },
+      { at: 0.30, fn: () => typeInto(sc, "#t2s10-input", "What was the cost-per-view for campaign cmpgn_42?", 0.30, 0.50) },
+      { at: 0.52, fn: () => {
+        appendChat(sc, "#t2s10-msgs", "user", "What was the cost-per-view for campaign cmpgn_42?");
+        findEl(sc, "#t2s10-input").textContent = "";
+      } },
+      { at: 0.62, fn: () => {
+        appendChat(sc, "#t2s10-msgs", "bot", "$0.0098 per delivered view — see /usage#cmpgn_42 row. (D28 metering)");
+      } },
+      { at: 0.72, fn: () => typeInto(sc, "#t2s10-input", "Which creator had highest engagement?", 0.72, 0.85) },
+      { at: 0.87, fn: () => {
+        appendChat(sc, "#t2s10-msgs", "user", "Which creator had highest engagement?");
+        findEl(sc, "#t2s10-input").textContent = "";
+        appendChat(sc, "#t2s10-msgs", "bot", "@creator_03 — 4,210 views, 8.2% engagement. <i>(thumbnail attached)</i>");
+      } },
+    ],
+    /* SCENE 11 — Cost ledger */
+    (sc) => [
+      { at: 0.40, fn: () => setCursorToEl(sc, "#t2s11-export") },
+      { at: 0.50, fn: () => { clickCursor(); findEl(sc, "#t2s11-toast").style.display = "inline-flex"; } },
+    ],
+    /* SCENE 12 — Smoke test */
+    (sc) => [
+      { at: 0.10, fn: () => {
+        appendTerm(sc, "#t2s12-term",
+          '\n<span class="info">[smoke]</span> connecting to test runtime...\n' +
+          '<span class="ok">[ok]</span> agent=intake     latency= 1840ms  usd=$0.010\n' +
+          '<span class="ok">[ok]</span> agent=sourcing   latency= 2100ms  usd=$0.012\n' +
+          '<span class="ok">[ok]</span> agent=outreach   latency= 4200ms  usd=$0.030\n' +
+          '<span class="ok">[ok]</span> agent=reply      latency= 1100ms  usd=$0.020');
+      } },
+      { at: 0.55, fn: () => appendTerm(sc, "#t2s12-term",
+        '\n<span class="ok">[ok]</span> agent=ship       latency=  720ms  usd=$0.015\n' +
+        '<span class="ok">[ok]</span> agent=customs    latency=  410ms  usd=$0.005\n' +
+        '<span class="ok">[ok]</span> agent=tracking   latency=  340ms  usd=$0.003\n' +
+        '<span class="ok">[ok]</span> agent=verify     latency=  890ms  usd=$0.003\n' +
+        '<span class="ok">[ok]</span> agent=report     latency= 3100ms  usd=$0.020') },
+      { at: 0.90, fn: () => appendTerm(sc, "#t2s12-term",
+        '\n\n<span class="ok">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>\n' +
+        '<span class="ok">PASS — 22/22 agents · 0 failures · total $1.34 · runtime 18.4s</span>') },
+    ],
+  ],
+
+  track3: [
+    /* SCENE 1 — Marketplace KR gap + Cloud Run live */
+    (sc) => [
+      { at: 0.05, fn: () => setCursorToEl(sc, "#t3s1-dropdown-trigger") },
+      { at: 0.10, fn: () => { clickCursor(); findEl(sc, "#t3s1-dropdown").style.display = "block"; } },
+      { at: 0.50, fn: () => { findEl(sc, "#t3s1-dropdown").style.display = "none"; } },
+      { at: 0.55, fn: () => { findEl(sc, "#t3s1-cloudrun").style.display = "block"; } },
+      { at: 0.85, fn: () => setCursorToEl(sc, "#t3s1-cloudrun") },
+    ],
+    /* SCENE 2 — agent.json */
+    (sc) => [
+      { at: 0.30, fn: () => {} },
+    ],
+    /* SCENE 3 — Import into Gemini Enterprise */
+    (sc) => [
+      { at: 0.05, fn: () => setCursorToEl(sc, "#t3s3-url") },
+      { at: 0.10, fn: () => typeInto(sc, "#t3s3-url", "https://tiktok-mcp-server-abc-uc.a.run.app", 0.10, 0.30) },
+      { at: 0.35, fn: () => setCursorToEl(sc, "#t3s3-discover") },
+      { at: 0.40, fn: () => { clickCursor(); findEl(sc, "#t3s3-skills").style.display = "block"; } },
+      { at: 0.70, fn: () => setCursorToEl(sc, "#t3s3-register") },
+      { at: 0.75, fn: () => { clickCursor(); findEl(sc, "#t3s3-toast").style.display = "block"; } },
+    ],
+    /* SCENE 4 — MCP tools/call */
+    (sc) => [
+      { at: 0.05, fn: () => typeInto(sc, "#t3s4-input1", "tools/list", 0.05, 0.15) },
+      { at: 0.18, fn: () => appendTerm(sc, "#t3s4-term",
+        '\n<span class="dim">→ list of 3 tools:</span>\n' +
+        '  <span class="info">tiktok.lookup</span>   <span class="dim">in: { username }                out: { follower_count, recent_posts[] }</span>\n' +
+        '  <span class="info">tiktok.search</span>   <span class="dim">in: { query, limit? }            out: { results[] }</span>\n' +
+        '  <span class="info">tiktok.profile</span>  <span class="dim">in: { username, include_thumb }  out: { profile, thumbnails[] }</span>\n' +
+        '<span class="prompt">mcp&gt;</span> <span id="t3s4-input2"></span>') },
+      { at: 0.34, fn: () => typeInto(sc, "#t3s4-input2", "tools/call tiktok.lookup '{\"username\":\"khaby.lame\"}'", 0.34, 0.62) },
+      { at: 0.65, fn: () => appendTerm(sc, "#t3s4-term",
+        '\n<span class="dim">[response]</span> <span class="ok">200 OK</span> <span class="dim">(jsonrpc 2.0, latency 612ms, usd $0.002)</span>\n' +
+        '{\n' +
+        '  <span class="info">"follower_count"</span>: <span class="warn">162400000</span>,\n' +
+        '  <span class="info">"recent_posts"</span>: [\n' +
+        '    { "id":"v_99811", "views": 84_000_000 },\n' +
+        '    { "id":"v_99799", "views": 51_200_000 },\n' +
+        '    { "id":"v_99721", "views": 33_900_000 }\n' +
+        '  ]\n' +
+        '}') },
+    ],
+    /* SCENE 5 — A2A client */
+    (sc) => [
+      { at: 0.05, fn: () => typeInto(sc, "#t3s5-cmd",
+        "a2a-client --target https://tiktok-mcp-server-abc-uc.a.run.app/a2a --skill tiktok.lookup --input '{\"username\":\"khaby.lame\"}'",
+        0.05, 0.45) },
+      { at: 0.48, fn: () => appendTerm(sc, "#t3s5-termC",
+        '\n<span class="dim">→</span> <span class="info">message.send</span> <span class="dim">a2a/0.3</span>\n' +
+        '<span class="dim">→</span> <span class="info">task.created</span> <span class="dim">task_19f3a1b2 actor=oidc:sub_42</span>\n' +
+        '<span class="dim">→</span> <span class="ok">task.completed</span> <span class="dim">latency=342ms</span>\n' +
+        '<span class="dim">{ "follower_count": 162400000, "recent_posts": [...] }</span>') },
+      { at: 0.60, fn: () => appendTerm(sc, "#t3s5-termB",
+        '\n<span class="dim">[2026-05-19T22:55:08Z]</span> <span class="info">[a2a]</span> task_created task_id=task_19f3a1b2 actor=oidc:sub_42\n' +
+        '<span class="dim">[2026-05-19T22:55:08Z]</span> <span class="info">[scraper]</span> tiktok.lookup khaby.lame (cached, ttl=300s)\n' +
+        '<span class="dim">[2026-05-19T22:55:08Z]</span> <span class="ok">[a2a]</span> task_completed latency_ms=342 trace=<u>open in Cloud Trace</u>') },
+    ],
+    /* SCENE 6 — Model Armor blocks injection */
+    (sc) => [
+      { at: 0.05, fn: () => typeInto(sc, "#t3s6-cmd",
+        "a2a-client --target ... --skill tiktok.lookup --input '{\"username\":\"; DROP TABLE users; --\"}'",
+        0.05, 0.40) },
+      { at: 0.45, fn: () => appendTerm(sc, "#t3s6-termC",
+        '\n<span class="dim">→</span> <span class="info">message.send</span> <span class="dim">a2a/0.3</span>\n' +
+        '<span class="dim">→</span> <span class="err">task.failed</span> <span class="dim">latency=24ms</span>\n' +
+        '{\n' +
+        '  <span class="info">"error"</span>: <span class="err">"model_armor_block"</span>,\n' +
+        '  <span class="info">"category"</span>: "injection",\n' +
+        '  <span class="info">"layer"</span>: "pre-tool-call"\n' +
+        '}') },
+      { at: 0.65, fn: () => appendTerm(sc, "#t3s6-termB",
+        '\n<span class="dim">[22:55:42Z]</span> <span class="err">[model-armor]</span> BLOCK category=injection_attempt actor=oidc:sub_42\n' +
+        '<span class="dim">[22:55:42Z]</span> <span class="info">[audit]</span> input_redacted="; DROP TABLE users; --" layer=pre-tool-call\n' +
+        '<span class="dim">[22:55:42Z]</span> <span class="info">[identity]</span> oidc.sub=sub_42 verified ✓ tenant=demo-kr') },
+    ],
+    /* SCENE 7 — Gemini Enterprise chat */
+    (sc) => [
+      { at: 0.05, fn: () => setCursorToEl(sc, "#t3s7-input") },
+      { at: 0.10, fn: () => typeInto(sc, "#t3s7-input",
+        "Look up the TikTok profile of @khaby.lame and tell me their top 3 recent posts.", 0.10, 0.42) },
+      { at: 0.45, fn: () => {
+        appendChat(sc, "#t3s7-msgs", "user", "Look up the TikTok profile of @khaby.lame and tell me their top 3 recent posts.");
+        findEl(sc, "#t3s7-input").textContent = "";
+      } },
+      { at: 0.55, fn: () => appendChat(sc, "#t3s7-msgs", "tool", "<i>calling tool: tiktok.lookup (via A2A · task_19f3...)</i>") },
+      { at: 0.72, fn: () => appendChat(sc, "#t3s7-msgs", "bot",
+        "@khaby.lame · 162.4M followers · top 3 recent posts:<br>" +
+        "1. tiktok.com/@khaby.lame/video/v_99811 — 84M views<br>" +
+        "2. tiktok.com/@khaby.lame/video/v_99799 — 51M views<br>" +
+        "3. tiktok.com/@khaby.lame/video/v_99721 — 34M views<br><small>view trace ↗ a2a_task_id=task_19f3a1b2 · latency 342ms</small>") },
+    ],
+    /* SCENE 8 — USD ledger */
+    (sc) => [
+      { at: 0.50, fn: () => {} },
+    ],
+    /* SCENE 9 — Producer Portal pending */
+    (sc) => [
+      { at: 0.50, fn: () => {} },
+    ],
+    /* SCENE 10 — Multi-region */
+    (sc) => [
+      { at: 0.50, fn: () => {} },
+    ],
+    /* SCENE 11 — A2A streaming multimodal */
+    (sc) => [
+      { at: 0.05, fn: () => typeInto(sc, "#t3s11-cmd",
+        "a2a-client --target ... --skill tiktok.profile --input '{\"username\":\"khaby.lame\",\"include_thumbnails\":true}'",
+        0.05, 0.40) },
+      { at: 0.45, fn: () => appendTerm(sc, "#t3s11-term",
+        '\n<span class="dim">[chunk 1/4]</span> <span class="info">content-type: application/json</span>\n' +
+        '{ "profile": { "username": "khaby.lame", "followers": 162400000 } }\n\n' +
+        '<span class="dim">[chunk 2/4]</span> <span class="info">content-type: image/png;base64</span>\n' +
+        '<span class="warn">▓▓▓▓▓▓▓▓▓▓ thumb_v_99811.png (84M views)</span>\n\n' +
+        '<span class="dim">[chunk 3/4]</span> <span class="info">content-type: image/png;base64</span>\n' +
+        '<span class="warn">▓▓▓▓▓▓▓▓▓▓ thumb_v_99799.png (51M views)</span>\n\n' +
+        '<span class="dim">[chunk 4/4]</span> <span class="info">content-type: text/markdown</span>\n' +
+        '## Top creator @khaby.lame — wordless humor pioneer\n' +
+        '- Niche fit: lifestyle / comedy\n' +
+        '- Engagement rate: 9.4% (last 30d)\n' +
+        '- A2A stream complete · 4 chunks · 612ms total') },
+    ],
+    /* SCENE 12 — health check + pytest */
+    (sc) => [
+      { at: 0.05, fn: () => appendTerm(sc, "#t3s12-term",
+        'curl -sS https://tiktok-mcp-server-abc-uc.a.run.app/healthz | jq\n' +
+        '<span class="ok">{</span>\n' +
+        '  <span class="info">"status"</span>: <span class="ok">"ok"</span>,\n' +
+        '  <span class="info">"skills"</span>: 3,\n' +
+        '  <span class="info">"deps"</span>: {\n' +
+        '    "identity_platform": <span class="ok">"ok"</span>,\n' +
+        '    "model_armor": <span class="ok">"ok"</span>,\n' +
+        '    "scraper_pool": <span class="ok">"ok"</span>\n' +
+        '  },\n' +
+        '  <span class="info">"version"</span>: <span class="info">"0.4.1"</span>\n' +
+        '}\n' +
+        '<span class="prompt">$</span> pytest gcp-research/refactor-mcp/code/agent/tests/ -q') },
+      { at: 0.65, fn: () => appendTerm(sc, "#t3s12-term",
+        '\n................................................\n' +
+        '<span class="ok">47 passed in 4.2s</span>\n\n' +
+        '<span class="ok">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>\n' +
+        '<span class="ok">PASS — live Cloud Run + 47 local tests green · deploy-ready</span>') },
+    ],
+  ],
+};
+
+/* --- Action helpers --------------------------------------------------------*/
+function typeInto(sceneEl, sel, text, startR, endR) {
+  // immediate one-shot: write the text incrementally over the next animation
+  // frames. We schedule it independently of the keyframe loop.
+  const el = sceneEl.querySelector(sel);
+  if (!el) return;
+  el.textContent = "";
+  const totalSceneMs = state.currentSceneMs;
+  const startMs = totalSceneMs * startR;
+  const endMs = totalSceneMs * endR;
+  const dur = Math.max(200, endMs - startMs);
+  const startedAt = performance.now();
+  const startElapsed = state.sceneElapsedMs;
+  function step() {
+    if (state.activeSceneEl !== sceneEl || !el.isConnected) return;
+    const sinceStart = state.sceneElapsedMs - startElapsed;
+    if (sinceStart < 0) { requestAnimationFrame(step); return; }
+    const t = Math.min(1, sinceStart / dur);
+    const n = Math.floor(text.length * t);
+    el.textContent = text.slice(0, n);
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+function appendTerm(sceneEl, sel, html) {
+  const el = sceneEl.querySelector(sel);
+  if (el) {
+    el.insertAdjacentHTML("beforeend", html);
+    el.scrollTop = el.scrollHeight;
+  }
+}
+function fillProgress(sceneEl, barSel, textSel, pct) {
+  const b = sceneEl.querySelector(barSel);
+  const t = sceneEl.querySelector(textSel);
+  if (b) b.style.width = pct + "%";
+  if (t) t.textContent = Math.round(pct/100*40) + " / 40";
+}
+function animateViewCount(sceneEl, sel, from, to) {
+  const el = sceneEl.querySelector(sel);
+  if (!el) return;
+  const start = performance.now();
+  function step(ts) {
+    const t = Math.min(1, (ts - start) / 2500);
+    const v = Math.floor(from + (to - from) * t);
+    el.textContent = v.toLocaleString();
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+function appendChat(sceneEl, sel, role, text) {
+  const el = sceneEl.querySelector(sel);
+  if (!el) return;
+  const isUser = role === "user";
+  const isTool = role === "tool";
+  const bg = isUser ? "#1a73e8" : (isTool ? "#fef7e0" : "#f1f5f9");
+  const col = isUser ? "white" : "#0f172a";
+  const align = isUser ? "flex-end" : "flex-start";
+  el.insertAdjacentHTML("beforeend",
+    `<div style="align-self:${align}; background:${bg}; color:${col}; padding:8px 12px; border-radius:12px; max-width:85%;">${text}</div>`);
+  el.scrollTop = el.scrollHeight;
+}
+
+/* --- Scene + locale switching ---------------------------------------------*/
+function buildScenes() {
+  const host = document.getElementById("scene-host");
+  host.innerHTML = "";
+  const tracks = ["track2", "track3"];
+  for (const t of tracks) {
+    const builders = SCENE_BUILDERS[t];
+    for (let i = 0; i < builders.length; i++) {
+      const wrap = document.createElement("div");
+      wrap.className = "scene";
+      wrap.dataset.track = t;
+      wrap.dataset.scene = String(i);
+      wrap.innerHTML = builders[i]();
+      host.appendChild(wrap);
+    }
+  }
+}
+
+function setActiveScene(track, idx) {
+  const scenes = document.querySelectorAll(".scene");
+  scenes.forEach(s => s.classList.remove("active"));
+  const target = document.querySelector(`.scene[data-track="${track}"][data-scene="${idx}"]`);
+  if (target) target.classList.add("active");
+  state.activeSceneEl = target;
+  state.firedActions = new Set();
+  // reset cursor to neutral spot
+  moveCursor(640, 400);
+  // angle badge + scene info
+  const info = TIMELINE[track][idx];
+  document.getElementById("angle-badge").textContent = info.angle + " · " + info.title;
+  document.getElementById("scene-info").innerHTML =
+    `<b>${track === 'track2' ? 'Track 2' : 'Track 3'} · Scene ${idx+1} / 12</b> — ${info.title} ` +
+    `<span class="chip chip-blue" style="margin-left:6px;">${info.angle}</span>` +
+    `<span style="margin-left:10px;">Real ${info.real}s · 8× ${info.comp.toFixed(1)}s</span>`;
+}
+
+/* --- Subtitle pump ---------------------------------------------------------*/
+function pumpSubtitle() {
+  const key = state.track + "-" + state.locale;
+  const cues = SUBTITLES[key] || [];
+  const t = state.elapsedMs;
+  let text = "";
+  for (const [start, end, str] of cues) {
+    if (t >= start && t < end) { text = str; break; }
+  }
+  document.getElementById("subtitle-text").textContent = text;
+}
+
+/* --- Main loop -------------------------------------------------------------*/
+function step(ts) {
+  if (!state.lastTs) state.lastTs = ts;
+  const dt = (ts - state.lastTs) * state.speed;
+  state.lastTs = ts;
+  if (state.playing) {
+    state.elapsedMs = Math.min(state.totalMs, state.elapsedMs + dt);
+
+    // figure out current scene from cumulative starts
+    const { starts, endOfScenes } = cumStarts(state.track);
+    const tSec = state.elapsedMs / 1000;
+    let idx = 0;
+    for (let i = 0; i < starts.length; i++) {
+      if (tSec >= starts[i]) idx = i; else break;
+    }
+    if (idx !== state.sceneIdx) {
+      state.sceneIdx = idx;
+      setActiveScene(state.track, idx);
+    }
+    const sceneStartSec = starts[idx];
+    const sceneDurSec = TIMELINE[state.track][idx].comp;
+    state.currentSceneMs = sceneDurSec * 1000;
+    state.sceneElapsedMs = (tSec - sceneStartSec) * 1000;
+    const ratio = Math.max(0, Math.min(1, (tSec - sceneStartSec) / sceneDurSec));
+
+    // run keyframe actions whose `at` is <= ratio and haven't fired
+    if (state.activeSceneEl) {
+      const kfBuilder = KEYFRAMES[state.track][idx];
+      const kfs = kfBuilder ? kfBuilder(state.activeSceneEl) : [];
+      for (let i = 0; i < kfs.length; i++) {
+        const k = kfs[i];
+        if (ratio >= k.at && !state.firedActions.has(i)) {
+          state.firedActions.add(i);
+          try { k.fn(); } catch (e) { console.error("kf err:", e); }
+        }
+      }
+    }
+
+    pumpSubtitle();
+
+    // controls UI
+    document.getElementById("timeline-bar").style.width = (state.elapsedMs / state.totalMs * 100) + "%";
+    document.getElementById("clock").textContent = fmtMs(state.elapsedMs) + " / " + fmtMs(state.totalMs);
+
+    if (state.elapsedMs >= state.totalMs) {
+      state.playing = false;
+      document.getElementById("btn-play").textContent = "▶ Play";
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+function fmtMs(ms) {
+  const total = Math.floor(ms / 1000);
+  return String(Math.floor(total/60)).padStart(2,'0') + ':' + String(total % 60).padStart(2,'0');
+}
+
+/* --- Controls --------------------------------------------------------------*/
+function setupControls() {
+  const btnPlay = document.getElementById("btn-play");
+  btnPlay.addEventListener("click", () => {
+    state.playing = !state.playing;
+    btnPlay.textContent = state.playing ? "⏸ Pause" : "▶ Play";
+    state.lastTs = null;
+  });
+  document.getElementById("btn-restart").addEventListener("click", () => {
+    state.elapsedMs = 0;
+    state.sceneIdx = -1;
+    state.firedActions = new Set();
+    buildScenes();
+    setActiveScene(state.track, 0);
+    state.lastTs = null;
+  });
+  document.querySelectorAll(".speed-btn").forEach(b => {
+    b.addEventListener("click", () => {
+      document.querySelectorAll(".speed-btn").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      state.speed = parseFloat(b.dataset.speed);
+    });
+  });
+  document.querySelectorAll(".loc-btn").forEach(b => {
+    b.addEventListener("click", () => {
+      document.querySelectorAll(".loc-btn").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      state.locale = b.dataset.loc;
+      pumpSubtitle();
+    });
+  });
+  document.getElementById("btn-track-2").addEventListener("click", () => switchTrack("track2"));
+  document.getElementById("btn-track-3").addEventListener("click", () => switchTrack("track3"));
+
+  // populate scene jump
+  const jump = document.getElementById("scene-jump");
+  for (let i = 0; i < 12; i++) {
+    const opt = document.createElement("option");
+    opt.value = String(i);
+    opt.textContent = `Scene ${i+1}`;
+    jump.appendChild(opt);
+  }
+  jump.addEventListener("change", () => {
+    const idx = parseInt(jump.value, 10);
+    const { starts } = cumStarts(state.track);
+    state.elapsedMs = starts[idx] * 1000;
+    state.sceneIdx = -1;
+    state.firedActions = new Set();
+    buildScenes();
+    setActiveScene(state.track, idx);
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+    if (e.code === "Space") { e.preventDefault(); btnPlay.click(); }
+    else if (e.code === "ArrowRight") {
+      const next = Math.min(11, state.sceneIdx + 1);
+      jump.value = String(next);
+      jump.dispatchEvent(new Event("change"));
+    } else if (e.code === "ArrowLeft") {
+      const prev = Math.max(0, state.sceneIdx - 1);
+      jump.value = String(prev);
+      jump.dispatchEvent(new Event("change"));
+    } else if (e.key === "1") { document.querySelector('.loc-btn[data-loc="ko"]').click(); }
+    else if (e.key === "2") { document.querySelector('.loc-btn[data-loc="en"]').click(); }
+    else if (e.key === "3") { document.querySelector('.loc-btn[data-loc="ja"]').click(); }
+    else if (e.key === "4") { document.querySelector('.loc-btn[data-loc="zh-CN"]').click(); }
+  });
+}
+
+function switchTrack(track) {
+  state.track = track;
+  state.elapsedMs = 0;
+  state.sceneIdx = -1;
+  state.firedActions = new Set();
+  document.getElementById("btn-track-2").classList.toggle("active", track === "track2");
+  document.getElementById("btn-track-3").classList.toggle("active", track === "track3");
+  buildScenes();
+  setActiveScene(track, 0);
+  state.lastTs = null;
+  pumpSubtitle();
+}
+
+/* --- Boot ------------------------------------------------------------------*/
+window.addEventListener("DOMContentLoaded", () => {
+  state.cursor = document.getElementById("cursor");
+  buildScenes();
+  setActiveScene("track2", 0);
+  setupControls();
+  state.playing = true;
+  document.getElementById("btn-play").textContent = "⏸ Pause";
+  requestAnimationFrame(step);
+});
+</script>
+</body>
+</html>

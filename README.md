@@ -1,11 +1,34 @@
 # Social Seeding v2 — agent-orchestrated TikTok influencer campaign operator
 
+<p align="center">
+  <a href="https://two-weeks-team.github.io/social-seeding-v2/"><img src="https://img.shields.io/badge/LIVE%20DEMO-two--weeks--team.github.io%2Fsocial--seeding--v2-1A73E8?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Live Demo"/></a>
+  <a href="https://github.com/Two-Weeks-Team/social-seeding-v2/pull/1"><img src="https://img.shields.io/badge/PR%20%231-MERGED-34A853?style=for-the-badge&logo=github&logoColor=white" alt="PR #1 MERGED"/></a>
+  <a href="./gcp-research/reports/social-seeding-status-2026-05-19.html"><img src="https://img.shields.io/badge/PROGRESS%20REPORT-2026--05--19-7C3AED?style=for-the-badge&logo=googledocs&logoColor=white" alt="Progress Report"/></a>
+</p>
+
+<p align="center">
+  <em>Google for Startups AI Agents Challenge 2026 — Track 2 (Optimize) + Track 3 (Refactor) dual submission.<br/>
+  Deadline 2026-06-05 23:59 PT.</em>
+</p>
+
 > Rewrite of [`Two-Weeks-Team/social-seeding`](https://github.com/Two-Weeks-Team/social-seeding) (v1, frozen 2026-05-13 — see that repo's `FREEZE.md`).
 >
 > **The shift:** v1 was a *tool dashboard* — the human was the operator, clicking through a 6-step workflow board, hand-writing emails, manually advancing stages, with an AI chat bolted on as a read-only "ask my data" sidebar. v2 makes **the agent the operator**: you give it a campaign brief, a team of specialized agents runs the loop (source → vet → outreach → reply-handling → ship → verify content → report), and you only step in at the decision gates you choose to keep on. The dashboard becomes **Mission Control** — a timeline of what the agents did + an approval inbox — not a manual-labor surface.
 
 > **For LLMs picking this up**: jump to [§ For agents picking up the codebase](#for-agents-picking-up-the-codebase). State: `docs/STATUS.md` → `HANDOFF.md` → `CLAUDE.md` → `docs/ARCHITECTURE.md`.
 > **For team members**: jump to [§ TL;DR — what's running, what works](#tldr--whats-running-what-works) then [§ An end-to-end run actually looks like this](#an-end-to-end-run-actually-looks-like-this).
+
+---
+
+## Live demo (no install)
+
+Click here to view a 6-minute interactive walkthrough — no signup, no GCP setup, runs entirely in your browser:
+
+👉 **[https://two-weeks-team.github.io/social-seeding-v2/](https://two-weeks-team.github.io/social-seeding-v2/)**
+
+The demo simulates a real mouse session over Mission Control: brand brief intake → 22-agent fleet → AP2 mandate signing → multimodal creative → reply classification → cost ledger. Toggle 4 locales (ko / en / ja / zh-CN), adjust playback `0.5×` ~ `8×`, jump to any of 24 scenes (Track 2 + Track 3).
+
+> Source: `site/` directory (committed). Auto-published via `.github/workflows/pages.yml` on every `main` push that touches `site/`, `scripts/demo/web-demo/`, or the progress report. The workflow re-syncs `site/demo/` and `site/report/` from their canonical sources at build time.
 
 ---
 
