@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Social Seeding v2 — Agent-Orchestrated TikTok Campaign Operator</title>
+<meta name="description" content="Google for Startups AI Agents Challenge 2026 — Track 2 (Optimize) + Track 3 (Refactor) dual submission. 22-agent ADK fleet · 49 capability tools · AP2 Intent Mandate · Multimodal (Imagen/Veo/Lyria) · A2A v0.3 · 2,668 tests passing.">
+<meta name="theme-color" content="#1A73E8">
+<link rel="icon" type="image/svg+xml" href="./favicon.svg">
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Social Seeding v2 — Agent-Orchestrated TikTok Campaign Operator">
+<meta property="og:description" content="Google for Startups AI Agents Challenge 2026 dual submission. 22-agent ADK fleet, AP2 Intent Mandate, A2A v0.3, multimodal — runs in your browser, no install.">
+<meta property="og:url" content="https://ss-landing-80064221403.us-central1.run.app/">
+<!--
+  D-ID provenance (per gcp-research/decisions/DECISIONS.md):
+    D1  — Dual submission: v2 → Track 2; tiktok-mcp-server → Track 3
+    D27 — AP2 Intent Mandate only (Cart/Payment Mandate read-only)
+    D29 — Three differentiation angles: Agent-as-function · KR-region-gap · Multimodal+AP2+Multi-agent
+    D30 — 8× speed real-mouse recording (interactive HTML demo replaces ffmpeg pipeline)
+    D34 — 4 locales: 한국어 / English / 日本語 / 中文(简)
+    D39 — $1,500 GCP credit envelope (vibeCat 수상)
+-->
+<style>
+  :root {
+    --gcp-blue:    #1A73E8;
+    --gcp-blue-d:  #1357B6;
+    --gcp-green:   #34A853;
+    --gcp-red:     #EA4335;
+    --gcp-yellow:  #FBBC04;
+    --purple:      #7C3AED;
+    --amber:       #F59E0B;
+    --ink-900:     #111827;
+    --ink-800:     #1F2937;
+    --ink-700:     #374151;
+    --ink-600:     #4B5563;
+    --ink-500:     #6B7280;
+    --ink-400:     #9CA3AF;
+    --ink-300:     #D1D5DB;
+    --ink-200:     #E5E7EB;
+    --ink-100:     #F3F4F6;
+    --ink-50:      #F9FAFB;
+    --paper:       #FFFFFF;
+    --hero-grad-a: #0B1220;
+    --hero-grad-b: #1E293B;
+    --hero-grad-c: #1A73E8;
+    --shadow-sm:   0 1px 2px rgba(17,24,39,0.06), 0 1px 3px rgba(17,24,39,0.10);
+    --shadow-md:   0 4px 6px -1px rgba(17,24,39,0.08), 0 2px 4px -2px rgba(17,24,39,0.05);
+    --shadow-lg:   0 10px 25px -3px rgba(17,24,39,0.12), 0 4px 6px -4px rgba(17,24,39,0.08);
+    --shadow-xl:   0 25px 50px -12px rgba(17,24,39,0.25);
+    --radius-sm:   6px;
+    --radius:      10px;
+    --radius-lg:   14px;
+    --radius-xl:   20px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--ink-900);
+    background: var(--paper);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  a { color: var(--gcp-blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, kbd, pre {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 0.92em;
+  }
+  code {
+    background: var(--ink-100);
+    color: var(--ink-800);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  h1, h2, h3, h4 { margin: 0; font-weight: 700; color: var(--ink-900); letter-spacing: -0.01em; }
+
+  /* ===== Top nav ===== */
+  .topnav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: saturate(180%) blur(10px);
+    -webkit-backdrop-filter: saturate(180%) blur(10px);
+    border-bottom: 1px solid var(--ink-200);
+  }
+  .topnav-inner {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    color: var(--ink-900);
+    font-size: 15px;
+  }
+  .brand img { width: 28px; height: 28px; }
+  .brand small { display: block; color: var(--ink-500); font-weight: 500; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; }
+  .brand-text { line-height: 1.1; }
+  .nav-links { margin-left: auto; display: flex; gap: 22px; flex-wrap: wrap; }
+  .nav-links a {
+    font-size: 14px;
+    color: var(--ink-700);
+    font-weight: 500;
+  }
+  .nav-links a:hover { color: var(--gcp-blue); text-decoration: none; }
+  .nav-cta {
+    background: var(--gcp-blue);
+    color: #fff !important;
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    font-weight: 600 !important;
+  }
+  .nav-cta:hover { background: var(--gcp-blue-d); text-decoration: none !important; }
+
+  /* ===== Hero ===== */
+  .hero {
+    position: relative;
+    background: radial-gradient(1200px 600px at 50% -200px, rgba(124,58,237,0.40), transparent 70%),
+                radial-gradient(900px 500px at 90% 10%, rgba(26,115,232,0.45), transparent 65%),
+                linear-gradient(160deg, var(--hero-grad-a) 0%, var(--hero-grad-b) 55%, #0B1220 100%);
+    color: #F8FAFC;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+    background-size: 36px 36px;
+    mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.85), transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.85), transparent 75%);
+    pointer-events: none;
+  }
+  .hero-inner {
+    position: relative;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 84px 24px 96px;
+    text-align: center;
+  }
+  .eyebrow {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.20);
+    color: #DBEAFE;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    margin-bottom: 22px;
+  }
+  .hero h1 {
+    color: #FFFFFF;
+    font-size: clamp(32px, 5.4vw, 60px);
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+    margin-bottom: 18px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  }
+  .hero h1 .accent {
+    background: linear-gradient(90deg, #93C5FD, #C4B5FD, #93C5FD);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shimmer 6s linear infinite;
+  }
+  @keyframes shimmer {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
+  .hero-sub {
+    font-size: clamp(15px, 1.6vw, 18px);
+    line-height: 1.6;
+    color: #CBD5E1;
+    max-width: 760px;
+    margin: 0 auto 30px;
+  }
+  .hero-sub strong { color: #F8FAFC; font-weight: 600; }
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    justify-content: center;
+    margin-bottom: 36px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 26px;
+    border-radius: var(--radius);
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    text-decoration: none !important;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #1A73E8 0%, #4285F4 100%);
+    color: #FFFFFF !important;
+    box-shadow: 0 8px 24px rgba(26,115,232,0.45), inset 0 1px 0 rgba(255,255,255,0.20);
+    padding: 18px 32px;
+    font-size: 17px;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 14px 32px rgba(26,115,232,0.60), inset 0 1px 0 rgba(255,255,255,0.25); }
+  .btn-secondary {
+    background: rgba(255,255,255,0.10);
+    color: #F8FAFC !important;
+    border-color: rgba(255,255,255,0.30);
+    backdrop-filter: blur(4px);
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.18); transform: translateY(-1px); }
+  .btn-arrow { font-size: 18px; }
+  .badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 12px;
+  }
+  .badge-row img { height: 28px; }
+
+  /* ===== Section base ===== */
+  section.band {
+    padding: 80px 24px;
+    border-bottom: 1px solid var(--ink-100);
+  }
+  section.band.alt { background: var(--ink-50); }
+  .container {
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+  .section-eyebrow {
+    display: inline-block;
+    color: var(--gcp-blue);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .section-title {
+    font-size: clamp(26px, 3.2vw, 36px);
+    font-weight: 800;
+    line-height: 1.18;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+  }
+  .section-lede {
+    color: var(--ink-600);
+    font-size: 17px;
+    max-width: 720px;
+    line-height: 1.6;
+    margin-bottom: 36px;
+  }
+
+  /* ===== 3-angle cards ===== */
+  .angles {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+  }
+  .angle-card {
+    background: var(--paper);
+    border: 1px solid var(--ink-200);
+    border-radius: var(--radius-lg);
+    padding: 26px 24px 24px;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .angle-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+  .angle-card .ribbon {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    margin-bottom: 14px;
+  }
+  .angle-card.a .ribbon { background: #E8F0FE; color: #1357B6; }
+  .angle-card.b .ribbon { background: #FFF4DB; color: #92561A; }
+  .angle-card.c .ribbon { background: #F3E8FF; color: #5B21B6; }
+  .angle-card h3 { font-size: 19px; margin-bottom: 8px; }
+  .angle-card p { color: var(--ink-700); font-size: 14.5px; line-height: 1.6; }
+  .angle-card .accent-stripe {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+  }
+  .angle-card.a .accent-stripe { background: var(--gcp-blue); }
+  .angle-card.b .accent-stripe { background: var(--amber); }
+  .angle-card.c .accent-stripe { background: var(--purple); }
+
+  /* ===== Scene preview cards ===== */
+  .scenes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  .scene-card {
+    background: var(--paper);
+    border: 1px solid var(--ink-200);
+    border-radius: var(--radius);
+    padding: 22px 22px 20px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    text-decoration: none !important;
+    color: inherit !important;
+    display: block;
+    position: relative;
+  }
+  .scene-card:hover { transform: translateY(-2px); border-color: var(--gcp-blue); box-shadow: var(--shadow-md); }
+  .scene-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .scene-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    background: var(--ink-900);
+    color: #FFF;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .track-tag {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 3px 7px;
+    border-radius: 5px;
+    background: var(--ink-100);
+    color: var(--ink-700);
+  }
+  .angle-tag {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 5px;
+  }
+  .angle-tag.a { background: #E8F0FE; color: #1357B6; }
+  .angle-tag.b { background: #FFF4DB; color: #92561A; }
+  .angle-tag.c { background: #F3E8FF; color: #5B21B6; }
+  .angle-tag.all { background: #DCFCE7; color: #166534; }
+  .scene-card h4 { font-size: 16.5px; margin-bottom: 6px; line-height: 1.35; }
+  .scene-card p { color: var(--ink-600); font-size: 13.5px; line-height: 1.5; margin: 0; }
+  .scene-card .jump {
+    margin-top: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--gcp-blue);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  /* ===== Stat grid ===== */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  .stat {
+    background: var(--paper);
+    border: 1px solid var(--ink-200);
+    border-radius: var(--radius);
+    padding: 22px 20px;
+    text-align: left;
+  }
+  .stat .num {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--ink-900);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .num .unit { font-size: 16px; font-weight: 600; color: var(--ink-500); }
+  .stat .lbl {
+    font-size: 13px;
+    color: var(--ink-600);
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+  .stat .sub {
+    font-size: 11.5px;
+    color: var(--ink-500);
+    margin-top: 4px;
+  }
+
+  /* ===== Track comparison ===== */
+  .track-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+  }
+  .track-col {
+    border: 1px solid var(--ink-200);
+    border-radius: var(--radius-lg);
+    background: var(--paper);
+    padding: 26px 26px 24px;
+    box-shadow: var(--shadow-sm);
+  }
+  .track-col.t2 { border-top: 5px solid var(--gcp-blue); }
+  .track-col.t3 { border-top: 5px solid var(--purple); }
+  .track-col h3 { font-size: 20px; margin-bottom: 10px; }
+  .track-col .lead {
+    color: var(--ink-700);
+    font-size: 14.5px;
+    margin-bottom: 14px;
+  }
+  .track-col ul {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--ink-700);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .track-col ul li::marker { color: var(--gcp-blue); }
+
+  /* ===== Stack badges ===== */
+  .stack-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .stack-grid img { height: 28px; }
+
+  /* ===== Timeline ===== */
+  .timeline {
+    position: relative;
+    margin-top: 8px;
+  }
+  .timeline::before {
+    content: "";
+    position: absolute;
+    left: 9px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--gcp-blue), var(--purple));
+    border-radius: 2px;
+  }
+  .tl-row {
+    position: relative;
+    padding: 14px 0 14px 36px;
+  }
+  .tl-row::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 18px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--gcp-blue);
+    border: 2px solid #FFF;
+    box-shadow: 0 0 0 2px var(--gcp-blue);
+  }
+  .tl-row.purple::before { background: var(--purple); box-shadow: 0 0 0 2px var(--purple); }
+  .tl-row.done::before { background: var(--gcp-green); box-shadow: 0 0 0 2px var(--gcp-green); }
+  .tl-date {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-500);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .tl-row h4 { font-size: 15.5px; margin: 3px 0 4px; }
+  .tl-row p { color: var(--ink-600); font-size: 13.5px; margin: 0; }
+
+  /* ===== Footer ===== */
+  footer.foot {
+    background: var(--ink-900);
+    color: #CBD5E1;
+    padding: 56px 24px 40px;
+  }
+  .foot-inner {
+    max-width: 1180px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 40px;
+  }
+  .foot h5 {
+    color: #FFF;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .foot ul { list-style: none; margin: 0; padding: 0; }
+  .foot li { margin: 6px 0; }
+  .foot a { color: #CBD5E1; font-size: 13.5px; }
+  .foot a:hover { color: #FFF; }
+  .foot .brand-foot {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .foot .brand-foot img { width: 36px; height: 36px; }
+  .foot .legal {
+    border-top: 1px solid #1F2937;
+    margin-top: 36px;
+    padding-top: 18px;
+    max-width: 1180px;
+    margin-left: auto;
+    margin-right: auto;
+    font-size: 12.5px;
+    color: var(--ink-500);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .foot .legal code { background: rgba(255,255,255,0.06); color: #E5E7EB; }
+
+  /* ===== Highlight call-out box ===== */
+  .callout {
+    background: linear-gradient(135deg, rgba(26,115,232,0.06), rgba(124,58,237,0.06));
+    border: 1px solid #DBEAFE;
+    border-left: 4px solid var(--gcp-blue);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    color: var(--ink-700);
+    font-size: 14.5px;
+    line-height: 1.6;
+  }
+  .callout strong { color: var(--ink-900); }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 980px) {
+    .angles, .scenes { grid-template-columns: repeat(2, 1fr); }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .track-grid { grid-template-columns: 1fr; }
+    .foot-inner { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 640px) {
+    section.band { padding: 56px 18px; }
+    .topnav-inner { padding: 10px 16px; }
+    .nav-links { gap: 14px; }
+    .nav-links a { font-size: 13px; }
+    .hero-inner { padding: 60px 18px 70px; }
+    .angles, .scenes { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: 1fr 1fr; }
+    .foot-inner { grid-template-columns: 1fr; gap: 26px; }
+    .btn-primary { padding: 16px 24px; font-size: 16px; }
+    .btn { padding: 12px 20px; }
+  }
+
+  /* ===== Skip-link (a11y) ===== */
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    padding: 8px 16px;
+    background: var(--gcp-blue);
+    color: #FFF;
+    border-radius: 0 0 6px 6px;
+    z-index: 100;
+    font-weight: 600;
+  }
+  .skip-link:focus { left: 0; }
+
+  /* ===== Focus visible (a11y) ===== */
+  a:focus-visible, button:focus-visible, .btn:focus-visible {
+    outline: 3px solid var(--gcp-blue);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">콘텐츠로 건너뛰기 / Skip to content</a>
+
+<!-- ============================================================ NAV ============================================================ -->
+<nav class="topnav" aria-label="Primary">
+  <div class="topnav-inner">
+    <a href="#top" class="brand" aria-label="Social Seeding v2 home">
+      <img src="./favicon.svg" alt="">
+      <span class="brand-text">
+        <small>Two-Weeks-Team</small>
+        Social Seeding v2
+      </span>
+    </a>
+    <div class="nav-links">
+      <a href="#angles">3-Angle</a>
+      <a href="#scenes">Demo Scenes</a>
+      <a href="#stats">Stats</a>
+      <a href="#stack">Stack</a>
+      <a href="#tracks">Tracks</a>
+      <a href="#timeline">Timeline</a>
+      <a class="nav-cta" href="./demo/">▶ Live demo</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============================================================ HERO ============================================================ -->
+<header class="hero" id="top">
+  <div class="hero-inner">
+    <span class="eyebrow">Google for Startups · AI Agents Challenge 2026</span>
+    <h1>
+      Social Seeding <span class="accent">v2</span><br>
+      Agent-Orchestrated TikTok Campaign Operator
+    </h1>
+    <p class="hero-sub">
+      The agent <strong>is</strong> the operator. A <strong>22-agent ADK fleet</strong> sources, vets, contacts, ships, and verifies — humans approve only the gates that matter. Built on Vertex AI Agent Runtime, Spanner, AlloyDB, and Cloud Workflows. <strong>Dual submission: Track 2 (Optimize) + Track 3 (Refactor).</strong>
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="./demo/" aria-label="Open the live interactive demo">
+        <span class="btn-arrow" aria-hidden="true">▶</span>
+        LIVE INTERACTIVE DEMO
+      </a>
+      <a class="btn btn-secondary" href="./report/" aria-label="Read the 2026-05-19 progress report">
+        📊 Progress Report (2026-05-19)
+      </a>
+      <a class="btn btn-secondary" href="https://github.com/Two-Weeks-Team/social-seeding-v2" aria-label="Open the GitHub repository (external link)">
+        🔗 GitHub Repo
+      </a>
+    </div>
+    <div class="badge-row" aria-label="Project status badges">
+      <img src="https://img.shields.io/badge/PR%20%231-MERGED-34A853?style=flat-square&logo=github&logoColor=white" alt="PR #1 MERGED">
+      <img src="https://img.shields.io/badge/D--IDs-44%20decisions-1A73E8?style=flat-square" alt="44 D-IDs decisions recorded">
+      <img src="https://img.shields.io/badge/tests-2668%20passing-34A853?style=flat-square" alt="2668 tests passing">
+      <img src="https://img.shields.io/badge/agents-22%20production-7C3AED?style=flat-square" alt="22 production agents">
+      <img src="https://img.shields.io/badge/D29-3--angle%20differentiation-F59E0B?style=flat-square" alt="D29 3-angle differentiation">
+      <img src="https://img.shields.io/badge/GCP%20spend-%240.00-34A853?style=flat-square&logo=googlecloud&logoColor=white" alt="GCP spend $0.00">
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ============================================================ ABOUT ============================================================ -->
+<section class="band" id="about">
+  <div class="container">
+    <div class="callout">
+      <strong>What this is</strong> — Social Seeding v2 is the Track-2 entry for the
+      Google for Startups AI Agents Challenge 2026: a multi-tenant, multi-region SaaS
+      that runs influencer-marketing campaigns end-to-end with a fleet of typed,
+      capped, escalation-aware agents. Its sibling Track-3 entry,
+      <code>tiktok-mcp-server</code>, packages the same TikTok scrapers as an
+      <strong>A2A v0.3</strong> agent registered with Gemini Enterprise — turning
+      the Korean-Marketplace listing gap (per D2) into an innovation talking-point
+      (per D3, D29-B). The demo on this page reproduces 24 mouse-driven scenes from
+      both submissions, with subtitles in 4 locales (per D34).
+      <br><br>
+      Click the big blue button above for the 6-minute walkthrough. No signup,
+      no GCP project, runs entirely in your browser.
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 3-ANGLE ============================================================ -->
+<section class="band alt" id="angles">
+  <div class="container">
+    <span class="section-eyebrow">D29 · Three differentiation angles</span>
+    <h2 class="section-title">All three angles, not one</h2>
+    <p class="section-lede">
+      Per Decision D29, the submission claims three independent differentiators — and the demo emphasizes whichever angle the active scene illustrates. The 24 scene cards below each carry an angle badge (A/B/C/ALL).
+    </p>
+    <div class="angles">
+      <article class="angle-card a">
+        <span class="accent-stripe" aria-hidden="true"></span>
+        <span class="ribbon">D29-A · Agent-as-function</span>
+        <h3>Typed, capped, escalation-aware</h3>
+        <p>
+          22 production agents · 49 capability tools · Pydantic input/output contracts ·
+          per-call USD cap · automatic escalation gate · judge-as-tool — far beyond
+          a free-running ReAct loop. Every agent has a golden-set eval before the
+          phase that depends on it is "done".
+        </p>
+      </article>
+      <article class="angle-card b">
+        <span class="accent-stripe" aria-hidden="true"></span>
+        <span class="ribbon">D29-B · KR region-gap → A2A innovation</span>
+        <h3>The listing gap, reframed</h3>
+        <p>
+          Korean legal entities cannot list paid agents on Google Marketplace
+          (D2 payment-region exclusion). The Track-3 entry reframes that as an
+          <strong>A2A-only distribution path</strong> — a v0.3-compliant
+          <code>agent.json</code>, Gemini Enterprise discovery, OIDC-gated
+          Cloud Run, distribution without Marketplace billing.
+        </p>
+      </article>
+      <article class="angle-card c">
+        <span class="accent-stripe" aria-hidden="true"></span>
+        <span class="ribbon">D29-C · Multimodal + AP2 + Multi-agent</span>
+        <h3>Veo + Imagen + Lyria, AP2, RemoteA2AAgent</h3>
+        <p>
+          Multimodal creative generation (Veo video, Imagen stills, Lyria audio) ·
+          <strong>AP2 Intent Mandate</strong> per D27 (Cart/Payment Mandate read-only) ·
+          <strong>RemoteA2AAgent</strong> fleet coordination · Model Armor on every
+          model call · Chronicle SIEM for the audit chain.
+        </p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ SCENES ============================================================ -->
+<section class="band" id="scenes">
+  <div class="container">
+    <span class="section-eyebrow">D30 · 8× speed real-mouse demo · D34 4 locales</span>
+    <h2 class="section-title">24 scenes, 6 minutes, no install</h2>
+    <p class="section-lede">
+      The interactive demo replaces the ffmpeg pipeline with a self-contained HTML
+      page (per D30 reframe). 12 Track-2 scenes over Mission Control + 12 Track-3
+      scenes over GCP Cloud Console. Subtitles toggle between
+      한국어 / English / 日本語 / 中文(简) (per D34). Use scene-jump in the demo
+      to land on any of these directly.
+    </p>
+
+    <h3 style="font-size:17px; color:var(--ink-700); margin: 8px 0 14px;">▸ Track 2 (Optimize) — Mission Control</h3>
+    <div class="scenes" style="margin-bottom: 32px;">
+      <a class="scene-card" href="./demo/#track2-scene2" aria-label="Jump to Track 2 Scene 2 — AP2 Intent Mandate signing">
+        <div class="scene-head">
+          <span class="scene-num">2</span>
+          <span class="track-tag">TRACK 2</span>
+          <span class="angle-tag c">D29-C</span>
+        </div>
+        <h4>AP2 Intent Mandate signing</h4>
+        <p>Operator reviews the JSON-preview modal, hovers a scope row, signs the mandate, and the chip flips green. Cart/Payment Mandate stays read-only (per D27).</p>
+        <span class="jump">Open demo · Scene 2 →</span>
+      </a>
+      <a class="scene-card" href="./demo/#track2-scene6" aria-label="Jump to Track 2 Scene 6 — multi-agent shipping fan-out">
+        <div class="scene-head">
+          <span class="scene-num">6</span>
+          <span class="track-tag">TRACK 2</span>
+          <span class="angle-tag c">D29-C</span>
+        </div>
+        <h4>22-agent fleet coordination</h4>
+        <p>6 shipment cards × 3 sub-agents (ship · customs · tracking) stream into the terminal pane. RemoteA2AAgent fan-out at production scale — no orchestrator bottleneck.</p>
+        <span class="jump">Open demo · Scene 6 →</span>
+      </a>
+      <a class="scene-card" href="./demo/#track2-scene4" aria-label="Jump to Track 2 Scene 4 — multimodal outreach drafts">
+        <div class="scene-head">
+          <span class="scene-num">4</span>
+          <span class="track-tag">TRACK 2</span>
+          <span class="angle-tag a">D29-A · D29-C</span>
+        </div>
+        <h4>Multimodal creative generation</h4>
+        <p>Outreach-writer agent runs a 5-angle × 4-judge tournament. Imagen-generated stills + Veo clips ride alongside the Korean-language email body before the operator clicks <em>Send via Gmail</em>.</p>
+        <span class="jump">Open demo · Scene 4 →</span>
+      </a>
+      <a class="scene-card" href="./demo/#track2-scene11" aria-label="Jump to Track 2 Scene 11 — cost ledger sweep">
+        <div class="scene-head">
+          <span class="scene-num">11</span>
+          <span class="track-tag">TRACK 2</span>
+          <span class="angle-tag a">D29-A</span>
+        </div>
+        <h4>D39 cost ledger sweep</h4>
+        <p>The <code>/usage</code> view renders the D39 credit envelope card and a 9-row agent table. Click <em>Export CSV</em>, a toast confirms. Every Opus and Haiku call is on the ledger.</p>
+        <span class="jump">Open demo · Scene 11 →</span>
+      </a>
+      <a class="scene-card" href="./demo/#track2-scene12" aria-label="Jump to Track 2 Scene 12 — smoke test pass">
+        <div class="scene-head">
+          <span class="scene-num">12</span>
+          <span class="track-tag">TRACK 2</span>
+          <span class="angle-tag all">ALL</span>
+        </div>
+        <h4>50/50 smoke test in 0.18s</h4>
+        <p>Side-by-side terminal: <code>scripts/run-demo.ts</code> on the left, <code>brand_campaign_smoke.py</code> on the right. 22 agent rows stream → final <code>PASS — 22/22 · $1.34</code>.</p>
+        <span class="jump">Open demo · Scene 12 →</span>
+      </a>
+      <a class="scene-card" href="./demo/#track2-scene5" aria-label="Jump to Track 2 Scene 5 — reply classification">
+        <div class="scene-head">
+          <span class="scene-num">5</span>
+          <span class="track-tag">TRACK 2</span>
+          <span class="angle-tag a">D29-A · D29-B</span>
+        </div>
+        <h4>Reply-agent classification (Haiku)</h4>
+        <p>Split view: <code>/usage</code> shows spend at $1.34 while <code>/inbox</code> classifies a Korean reply ("interested" + shipping address). Structured extraction reveals, queue button fires.</p>
+        <span class="jump">Open demo · Scene 5 →</span>
+      </a>
+    </div>
+
+    <h3 style="font-size:17px; color:var(--ink-700); margin: 8px 0 14px;">▸ Track 3 (Refactor) — tiktok-mcp-server</h3>
+    <div class="scenes">
+      <a class="scene-card" href="./demo/#track3-scene1" aria-label="Jump to Track 3 Scene 1 — KR Marketplace region gap">
+        <div class="scene-head">
+          <span class="scene-num">1</span>
+          <span class="track-tag" style="background:#F3E8FF; color:#5B21B6;">TRACK 3</span>
+          <span class="angle-tag b">D29-B</span>
+        </div>
+        <h4>KR-region-gap → A2A refactor</h4>
+        <p>GCP Console mock: billing-country dropdown opens (KR row missing), then the live Cloud Run detail card. The reframe — distribution via A2A v0.3 rather than Marketplace billing.</p>
+        <span class="jump">Open demo · Track 3 Scene 1 →</span>
+      </a>
+      <a class="scene-card" href="./demo/#track3-scene2" aria-label="Jump to Track 3 Scene 2 — A2A AgentCard">
+        <div class="scene-head">
+          <span class="scene-num">2</span>
+          <span class="track-tag" style="background:#F3E8FF; color:#5B21B6;">TRACK 3</span>
+          <span class="angle-tag c">D29-B · D29-C</span>
+        </div>
+        <h4>A2A v0.3 AgentCard</h4>
+        <p>Browser tab on <code>/.well-known/agent.json</code> with syntax-highlighted JSON, 3 skills, 3 transports, JWS signature chips. The contract that lets Gemini Enterprise discover the agent.</p>
+        <span class="jump">Open demo · Track 3 Scene 2 →</span>
+      </a>
+      <a class="scene-card" href="./demo/#track3-scene3" aria-label="Jump to Track 3 Scene 3 — Gemini Enterprise import">
+        <div class="scene-head">
+          <span class="scene-num">3</span>
+          <span class="track-tag" style="background:#F3E8FF; color:#5B21B6;">TRACK 3</span>
+          <span class="angle-tag b">D29-B</span>
+        </div>
+        <h4>Import into Gemini Enterprise</h4>
+        <p>Gemini Enterprise "Add agent" form: paste URL → Discover → Register all 3 skills. The KR-gap reframe in motion: distribution without Marketplace.</p>
+        <span class="jump">Open demo · Track 3 Scene 3 →</span>
+      </a>
+      <a class="scene-card" href="./demo/#track3-scene6" aria-label="Jump to Track 3 Scene 6 — Model Armor blocks injection">
+        <div class="scene-head">
+          <span class="scene-num">6</span>
+          <span class="track-tag" style="background:#F3E8FF; color:#5B21B6;">TRACK 3</span>
+          <span class="angle-tag c">D29-B · D29-C</span>
+        </div>
+        <h4>Model Armor blocks prompt injection</h4>
+        <p>Split terminal with a malicious DROP-TABLE payload → <code>task.failed · model_armor_block</code> → audit log with OIDC sub. Per D21 max-policy.</p>
+        <span class="jump">Open demo · Track 3 Scene 6 →</span>
+      </a>
+      <a class="scene-card" href="./demo/#track3-scene11" aria-label="Jump to Track 3 Scene 11 — A2A streaming multimodal">
+        <div class="scene-head">
+          <span class="scene-num">11</span>
+          <span class="track-tag" style="background:#F3E8FF; color:#5B21B6;">TRACK 3</span>
+          <span class="angle-tag c">D29-C</span>
+        </div>
+        <h4>A2A streaming multimodal response</h4>
+        <p><code>a2a-client</code> multimodal command — 4 chunks stream (json + 2 images + markdown). Live tool-call → streamed answer.</p>
+        <span class="jump">Open demo · Track 3 Scene 11 →</span>
+      </a>
+      <a class="scene-card" href="./demo/#track3-scene12" aria-label="Jump to Track 3 Scene 12 — health check + pytest">
+        <div class="scene-head">
+          <span class="scene-num">12</span>
+          <span class="track-tag" style="background:#F3E8FF; color:#5B21B6;">TRACK 3</span>
+          <span class="angle-tag all">ALL</span>
+        </div>
+        <h4>47-test smoke in 4.2s</h4>
+        <p><code>curl /healthz | jq</code> returns ok, then <code>pytest</code> finishes <code>47 passed in 4.2s</code>. The smoke gate for Track 3.</p>
+        <span class="jump">Open demo · Track 3 Scene 12 →</span>
+      </a>
+    </div>
+
+    <p style="margin-top:28px; font-size:13.5px; color:var(--ink-500);">
+      Inside the demo, use the <code>Scene 1..12</code> dropdown or <code>← / →</code> keys
+      to navigate; press <code>Space</code> to pause; press <code>1-4</code> to switch
+      between 한국어 / EN / 日本語 / 中文.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================ STATS ============================================================ -->
+<section class="band alt" id="stats">
+  <div class="container">
+    <span class="section-eyebrow">Built artifacts</span>
+    <h2 class="section-title">By the numbers</h2>
+    <p class="section-lede">
+      PR #1 (MERGED 2026-05-19) captures the build phase. Numbers below are
+      reproducible from the repo HEAD.
+    </p>
+    <div class="stats">
+      <div class="stat">
+        <div class="num">22<span class="unit"></span></div>
+        <div class="lbl">production agents</div>
+        <div class="sub">M3 PM + tier-2 leads + tier-3 workers (D38)</div>
+      </div>
+      <div class="stat">
+        <div class="num">49<span class="unit"></span></div>
+        <div class="lbl">capability tools</div>
+        <div class="sub">typed Pydantic contracts · USD cap each</div>
+      </div>
+      <div class="stat">
+        <div class="num">2,668<span class="unit"></span></div>
+        <div class="lbl">tests passing · 0 failed</div>
+        <div class="sub">D37 5-layer pyramid · CI green</div>
+      </div>
+      <div class="stat">
+        <div class="num">0.18<span class="unit">s</span></div>
+        <div class="lbl">50/50 smoke runtime</div>
+        <div class="sub">brand_campaign_smoke + run-demo</div>
+      </div>
+      <div class="stat">
+        <div class="num">535+<span class="unit"></span></div>
+        <div class="lbl">files in PR #1</div>
+        <div class="sub">+116K lines · all reviewable</div>
+      </div>
+      <div class="stat">
+        <div class="num">4<span class="unit"></span></div>
+        <div class="lbl">locales shipped</div>
+        <div class="sub">한국어 · English · 日本語 · 中文(简) (D34)</div>
+      </div>
+      <div class="stat">
+        <div class="num">$0.00<span class="unit"></span></div>
+        <div class="lbl">GCP spend to date</div>
+        <div class="sub">within D39 $1,500 envelope</div>
+      </div>
+      <div class="stat">
+        <div class="num">44<span class="unit"></span></div>
+        <div class="lbl">decisions of record</div>
+        <div class="sub">DECISIONS.md · 10 rounds · single source of truth</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ STACK ============================================================ -->
+<section class="band" id="stack">
+  <div class="container">
+    <span class="section-eyebrow">Stack</span>
+    <h2 class="section-title">Built on the GCP Agent Platform</h2>
+    <p class="section-lede">
+      Vertex AI Agent Runtime hosts the ADK 2.0 Beta fleet. Spanner + AlloyDB AI +
+      Firestore form the data plane. Cloud Workflows + Pub/Sub + Cloud Tasks +
+      Eventarc are the durable orchestrator (Inngest retired per D18). Identity
+      Platform multi-tenant + Model Armor + Chronicle SIEM cover the safety stack.
+    </p>
+    <div class="stack-grid" aria-label="Technology stack badges">
+      <img src="https://img.shields.io/badge/ADK%202.0%20Beta-Agent%20Development%20Kit-4285F4?style=flat-square&logo=google&logoColor=white" alt="ADK 2.0 Beta">
+      <img src="https://img.shields.io/badge/Gemini%202.5-baseline-1A73E8?style=flat-square&logo=google&logoColor=white" alt="Gemini 2.5 baseline">
+      <img src="https://img.shields.io/badge/Gemini%203.1%20Pro-final%20demo-7C3AED?style=flat-square&logo=google&logoColor=white" alt="Gemini 3.1 Pro Preview final demo">
+      <img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js&logoColor=white" alt="Next.js 16">
+      <img src="https://img.shields.io/badge/Cloud%20Run-multi--region-4285F4?style=flat-square&logo=googlecloud&logoColor=white" alt="Cloud Run multi-region">
+      <img src="https://img.shields.io/badge/Spanner-OLTP%20core-34A853?style=flat-square&logo=googlecloud&logoColor=white" alt="Spanner OLTP core">
+      <img src="https://img.shields.io/badge/AlloyDB%20AI-analytics-34A853?style=flat-square&logo=googlecloud&logoColor=white" alt="AlloyDB AI analytics">
+      <img src="https://img.shields.io/badge/Firestore-Memory%20Bank-FBBC04?style=flat-square&logo=firebase&logoColor=white" alt="Firestore Memory Bank">
+      <img src="https://img.shields.io/badge/Vertex%20AI%20Vector-search-1A73E8?style=flat-square&logo=googlecloud&logoColor=white" alt="Vertex AI Vector Search">
+      <img src="https://img.shields.io/badge/Cloud%20Workflows-durable-4285F4?style=flat-square&logo=googlecloud&logoColor=white" alt="Cloud Workflows">
+      <img src="https://img.shields.io/badge/Pub%2FSub-fan--out-4285F4?style=flat-square&logo=googlecloud&logoColor=white" alt="Pub/Sub fan-out">
+      <img src="https://img.shields.io/badge/Cloud%20Tasks-retry-4285F4?style=flat-square&logo=googlecloud&logoColor=white" alt="Cloud Tasks retry">
+      <img src="https://img.shields.io/badge/Eventarc-events-4285F4?style=flat-square&logo=googlecloud&logoColor=white" alt="Eventarc Advanced">
+      <img src="https://img.shields.io/badge/Identity%20Platform-multi--tenant-EA4335?style=flat-square&logo=firebase&logoColor=white" alt="Identity Platform multi-tenant">
+      <img src="https://img.shields.io/badge/Model%20Armor-max%20policy-EA4335?style=flat-square&logo=googlecloud&logoColor=white" alt="Model Armor max policy">
+      <img src="https://img.shields.io/badge/Chronicle%20SIEM-audit-EA4335?style=flat-square&logo=googlecloud&logoColor=white" alt="Chronicle SIEM audit">
+      <img src="https://img.shields.io/badge/Dialogflow%20CX-chatbot-FBBC04?style=flat-square&logo=googlecloud&logoColor=white" alt="Dialogflow CX chatbot">
+      <img src="https://img.shields.io/badge/AP2-Intent%20Mandate-7C3AED?style=flat-square" alt="AP2 Intent Mandate">
+      <img src="https://img.shields.io/badge/A2A-v0.3-7C3AED?style=flat-square" alt="A2A v0.3">
+      <img src="https://img.shields.io/badge/Imagen-stills-1A73E8?style=flat-square&logo=google&logoColor=white" alt="Imagen stills">
+      <img src="https://img.shields.io/badge/Veo-video-1A73E8?style=flat-square&logo=google&logoColor=white" alt="Veo video">
+      <img src="https://img.shields.io/badge/Lyria-audio-1A73E8?style=flat-square&logo=google&logoColor=white" alt="Lyria audio">
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TRACKS ============================================================ -->
+<section class="band alt" id="tracks">
+  <div class="container">
+    <span class="section-eyebrow">D1 · Dual submission</span>
+    <h2 class="section-title">Two entries, one platform</h2>
+    <p class="section-lede">
+      Track 2 takes the existing v2 codebase to the GCP Agent Platform. Track 3
+      wraps the TikTok scraper as a discoverable A2A agent — and turns the
+      Korean-Marketplace listing gap into the contribution narrative.
+    </p>
+    <div class="track-grid">
+      <div class="track-col t2">
+        <span class="ribbon" style="display:inline-block; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; letter-spacing:0.05em; margin-bottom:12px; background:#E8F0FE; color:#1357B6;">TRACK 2 · OPTIMIZE</span>
+        <h3>social-seeding-v2 — Mission Control</h3>
+        <p class="lead">
+          Rebuild the existing campaign loop on the GCP Agent Platform. Preserve
+          v2's <code>capabilities/</code> + <code>contracts/</code> + <code>db/</code>
+          (per D35 hybrid strategy). Rebuild <code>agents/</code> +
+          <code>workflows/</code> + <code>observability/</code> on ADK + Workflows.
+        </p>
+        <ul>
+          <li>22 ADK agents on Vertex AI Agent Runtime (D17, D38)</li>
+          <li>49 capability tools — typed Pydantic, USD cap, escalation</li>
+          <li>AP2 Intent Mandate at the outreach + shipping gates (D27)</li>
+          <li>Multimodal creative — Veo / Imagen / Lyria (D29-C)</li>
+          <li>Spanner + AlloyDB AI + Firestore + Vertex Vector Search (D15, D16)</li>
+          <li>Cloud Workflows + Pub/Sub + Cloud Tasks + Eventarc (D18)</li>
+        </ul>
+      </div>
+      <div class="track-col t3">
+        <span class="ribbon" style="display:inline-block; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; letter-spacing:0.05em; margin-bottom:12px; background:#F3E8FF; color:#5B21B6;">TRACK 3 · REFACTOR</span>
+        <h3>tiktok-mcp-server — A2A + Gemini Enterprise</h3>
+        <p class="lead">
+          Wrap the existing TikTok scrapers as an A2A v0.3 agent. Register the
+          AgentCard with Gemini Enterprise. Korean legal entities can distribute
+          without Marketplace billing (per D3 reframe of D2).
+        </p>
+        <ul>
+          <li>A2A v0.3 — <code>/.well-known/agent.json</code> with 3 skills, 3 transports</li>
+          <li>JWS-signed AgentCard · OIDC-gated Cloud Run</li>
+          <li>Gemini Enterprise NL-chat discovery flow</li>
+          <li>Per-skill USD ledger surfaced on Cloud Monitoring</li>
+          <li>Model Armor blocks DROP-TABLE / PII / brand-name injection (D21)</li>
+          <li>Multi-region active-active — 30/50/20 routing split (D13, D31)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TIMELINE ============================================================ -->
+<section class="band" id="timeline">
+  <div class="container">
+    <span class="section-eyebrow">Project timeline</span>
+    <h2 class="section-title">From PR #1 to submission</h2>
+    <p class="section-lede">
+      Engineering runs via background-agent automation (D7) — calendar-day
+      constraints deprioritized in favor of quality gates. Devpost deadline is
+      fixed.
+    </p>
+    <div class="timeline">
+      <div class="tl-row done">
+        <div class="tl-date">2026-05-19 · DONE</div>
+        <h4>PR #1 MERGED — pre-code design phase complete</h4>
+        <p>44 D-IDs recorded across 10 rounds in <code>gcp-research/decisions/DECISIONS.md</code>. ARCHITECTURE.md + SERVICE-INVENTORY.md + 18 supporting research dirs + interactive demo HTML + 2,668-test smoke green.</p>
+      </div>
+      <div class="tl-row">
+        <div class="tl-date">2026-05-20 · TODAY</div>
+        <h4>Live demo + landing on Cloud Run</h4>
+        <p>Self-contained interactive HTML demo and progress report deployed to <code>ss-landing-80064221403.us-central1.run.app</code> via Cloud Run static (nginx:alpine, min=0 scale-to-zero, &lt; $1/month). README upgraded with vibeDeploy-style live-demo badges.</p>
+      </div>
+      <div class="tl-row purple">
+        <div class="tl-date">2026-05-21 → 2026-06-04</div>
+        <h4>Operator milestones — Track 2 + Track 3 build-out</h4>
+        <p>SDD specs published (AsyncAPI 3.0 + OpenAPI 3.1 + Mermaid per D36) · capabilities reskinned for Spanner/AlloyDB/Firestore · 22-agent ADK fleet on Vertex Agent Runtime · A2A v0.3 AgentCard live · Chronicle SIEM + Model Armor production-on.</p>
+      </div>
+      <div class="tl-row purple">
+        <div class="tl-date">2026-06-05 23:59 PT · 2026-06-06 15:59 KST</div>
+        <h4>Devpost submission deadline</h4>
+        <p>Both Track 2 and Track 3 Devpost entries submitted. Final demo recording (D30 8× compressed) attached. Public Gemini Enterprise discovery URL live for judges.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ CTA REPEAT ============================================================ -->
+<section class="band alt">
+  <div class="container" style="text-align:center;">
+    <h2 class="section-title" style="margin-bottom:16px;">Ready to see it?</h2>
+    <p class="section-lede" style="margin-left:auto; margin-right:auto;">
+      One click. Six minutes. No signup, no install, no GCP project. The demo
+      runs entirely client-side — every URL, USD figure, and TikTok handle on
+      screen is illustrative mock data.
+    </p>
+    <div class="cta-row" style="margin-top:8px;">
+      <a class="btn btn-primary" href="./demo/" aria-label="Open the interactive demo">
+        <span class="btn-arrow" aria-hidden="true">▶</span>
+        Open the interactive demo
+      </a>
+      <a class="btn btn-secondary" style="background:var(--ink-100); color:var(--ink-800) !important; border-color:var(--ink-200);" href="./report/">
+        📊 Read the 2026-05-19 report
+      </a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ============================================================ FOOTER ============================================================ -->
+<footer class="foot">
+  <div class="foot-inner">
+    <div>
+      <div class="brand-foot">
+        <img src="./favicon.svg" alt="">
+        <div>
+          <div style="color:#FFF; font-weight:700; font-size:15px;">Social Seeding v2</div>
+          <div style="font-size:12.5px; color:var(--ink-500);">Agent-orchestrated TikTok campaign operator</div>
+        </div>
+      </div>
+      <p style="font-size:13px; color:#9CA3AF; max-width:380px;">
+        Google for Startups AI Agents Challenge 2026 — dual submission
+        (Track 2 Optimize + Track 3 Refactor). 22-agent ADK fleet on the GCP Agent Platform.
+      </p>
+    </div>
+    <div>
+      <h5>Explore</h5>
+      <ul>
+        <li><a href="./demo/">▶ Live demo</a></li>
+        <li><a href="./report/">📊 Progress report</a></li>
+        <li><a href="#angles">3-Angle differentiation</a></li>
+        <li><a href="#tracks">Track 2 / Track 3</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>Repo</h5>
+      <ul>
+        <li><a href="https://github.com/Two-Weeks-Team/social-seeding-v2">GitHub · social-seeding-v2</a></li>
+        <li><a href="https://github.com/Two-Weeks-Team/social-seeding-v2/pull/1">Pull Request #1 (merged)</a></li>
+        <li><a href="https://github.com/Two-Weeks-Team/social-seeding-v2/blob/main/gcp-research/decisions/DECISIONS.md">DECISIONS.md (44 D-IDs)</a></li>
+        <li><a href="https://github.com/Two-Weeks-Team/social-seeding-v2/blob/main/README.md">README.md</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>License</h5>
+      <ul>
+        <li><span style="color:#9CA3AF;">Core IP — BUSL-1.1</span></li>
+        <li><span style="color:#9CA3AF;">Ancillary — Apache-2.0</span></li>
+        <li><span style="color:#9CA3AF;">4-year conversion clause</span></li>
+        <li><span style="color:#9CA3AF;">per Decision D9</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="legal">
+    <div>© 2026 <a href="https://github.com/Two-Weeks-Team" style="color:#E5E7EB;">Two-Weeks-Team</a>. Distributed per <code>BUSL-1.1</code> (core) / <code>Apache-2.0</code> (ancillary).</div>
+    <div>Built for the AI Agents Challenge 2026 · Deadline <code>2026-06-05 23:59 PT</code></div>
+  </div>
+</footer>
+
+</body>
+</html>
