@@ -1,0 +1,96 @@
+# nightly-chaos.workflow.yaml — Cloud Workflows definition for nightly chaos run.
+# Cites: D32 (auto-runbook IR), D37 (5-layer TDD).
+# Deploy via: gcloud workflows deploy ss-v2-chaos-nightly --source=nightly-chaos.workflow.yaml
+# Trigger:    Cloud Scheduler at 02:00 UTC (chaos/SCENARIOS.md §5.2).
+#
+# This workflow drives the full 24-scenario suite in 4 parallel tier-bucket waves
+# (edge, identity+compute, data+event, model+vendor) to minimize wall-clock.
+
+main:
+  params: [event]
+  steps:
+    - init:
+        assign:
+          - run_id: ${string(int(sys.now()))}
+          - project: ${sys.get_env("GOOGLE_CLOUD_PROJECT")}
+          - results_bucket: gs://ss-v2-chaos-results
+    - pre_state_snapshot:
+        # Per chaos/SCENARIOS.md §4.4 — record SLO baselines before injection.
+        call: googleapis.monitoring.v3.projects.timeSeries.list
+        args:
+          name: ${"projects/" + project}
+          filter: 'metric.type = "slo.hot_path.availability"'
+        result: pre_state
+    - parallel_tier_buckets:
+        parallel:
+          shared: [run_id, project, results_bucket]
+          branches:
+            - edge_branch:
+                steps:
+                  - run_edge:
+                      call: http.post
+                      args:
+                        url: ${"https://chaos-orchestrator-" + project + ".a.run.app/run"}
+                        body:
+                          tier: edge
+                          subset: nightly
+                          run_id: ${run_id}
+            - id_comp_branch:
+                steps:
+                  - run_id_comp:
+                      call: http.post
+                      args:
+                        url: ${"https://chaos-orchestrator-" + project + ".a.run.app/run"}
+                        body:
+                          tier: [identity, compute]
+                          subset: nightly
+                          run_id: ${run_id}
+            - data_event_branch:
+                steps:
+                  - run_data_event:
+                      call: http.post
+                      args:
+                        url: ${"https://chaos-orchestrator-" + project + ".a.run.app/run"}
+                        body:
+                          tier: [data, event]
+                          subset: nightly
+                          run_id: ${run_id}
+            - model_vendor_branch:
+                steps:
+                  - run_model_vendor:
+                      call: http.post
+                      args:
+                        url: ${"https://chaos-orchestrator-" + project + ".a.run.app/run"}
+                        body:
+                          tier: [model, vendor]
+                          subset: nightly
+                          run_id: ${run_id}
+    - aggregate_results:
+        # Pull every chaos_results row written this run_id and compute pass-rate
+        # per tier; persist back to BigQuery.
+        call: googleapis.bigquery.v2.jobs.query
+        args:
+          projectId: ${project}
+          body:
+            query: |
+              SELECT tier, COUNT(*) AS total,
+                     SUM(IF(pass, 1, 0)) AS passed,
+                     SUM(IF(auto_runbook_succeeded, 1, 0)) AS runbooks_succeeded
+              FROM `ss-v2-prod.chaos.results`
+              WHERE run_id = @run_id
+              GROUP BY tier
+            parameterMode: NAMED
+            queryParameters:
+              - name: run_id
+                parameterType: { type: STRING }
+                parameterValue: { value: "${run_id}" }
+        result: nightly_summary
+    - notify:
+        call: googleapis.pubsub.v1.projects.topics.publish
+        args:
+          topic: ${"projects/" + project + "/topics/chaos.nightly.completed"}
+          body:
+            messages:
+              - data: ${base64.encode(json.encode(nightly_summary))}
+    - emit_return:
+        return: ${nightly_summary}

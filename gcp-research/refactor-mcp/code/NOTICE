@@ -1,0 +1,24 @@
+tiktok-mcp-server refactor — A2A-compliant Influencer Research Agent
+Copyright 2026 Social Seeding Inc.
+
+This product includes software developed at Social Seeding Inc.
+(https://socialseed.ing/).
+
+Portions of this work are derived from:
+
+  - The Anthropic Model Context Protocol (MCP) specification
+    (Apache-2.0; https://modelcontextprotocol.io/).
+  - The Agent2Agent (A2A) protocol v0.3 specification
+    (Apache-2.0; https://a2a-protocol.org/).
+
+The `agent/` Python orchestration layer is licensed under Apache-2.0
+(see LICENSE).
+
+The Node MCP sidecar at `microservices/tiktok-mcp-server/` in the
+`social-seeding-platform` repository is also Apache-2.0.
+
+The core Social Seeding business logic in `social-seeding-v2/packages/`
+is licensed under the Business Source License 1.1 (BUSL-1.1) with a
+four-year conversion clause to Apache-2.0. See
+`gcp-research/decisions/DECISIONS.md` decision **D9** for the dual-
+licensing rationale.

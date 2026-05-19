@@ -1,0 +1,36 @@
+# CHAOS-VEND-02 — Invalidate one tenant's Gmail refresh token; re-auth prompt surfaces in Mission Control
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: nightly
+
+id: CHAOS-VEND-02
+name: oauth-reconnect
+tier: vendor
+executor: native_gcp
+tags: [nightly]
+
+description: |
+  Invalidate one tenant's Gmail refresh token; re-auth prompt surfaces in Mission Control.
+
+expected_rto_s: 300
+expected_rpo_s: 0
+observed_sli_breach: gmail.send.errors.401
+
+auto_runbook: runbook-oauth-reconnect
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-VEND-02"
+
+pass_criteria:
+  - "observed_rto_s <= 300"
+  - "observed_rpo_s <= 0"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references:
+  - "https://developers.google.com/identity/protocols/oauth2#expiration"

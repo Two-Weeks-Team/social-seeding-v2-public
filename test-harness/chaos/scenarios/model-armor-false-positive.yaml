@@ -1,0 +1,36 @@
+# CHAOS-MODEL-02 — 100 drafts, 50 regex-matching; M2 critic second-opinion must clear non-PII matches
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: nightly
+
+id: CHAOS-MODEL-02
+name: armor-escalate
+tier: model
+executor: native_gcp
+tags: [nightly]
+
+description: |
+  100 drafts, 50 regex-matching; M2 critic second-opinion must clear non-PII matches.
+
+expected_rto_s: 300
+expected_rpo_s: 0
+observed_sli_breach: model_armor.block_rate.regression
+
+auto_runbook: runbook-armor-escalate
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-MODEL-02"
+
+pass_criteria:
+  - "observed_rto_s <= 300"
+  - "observed_rpo_s <= 0"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references:
+  - "https://cloud.google.com/security-command-center/docs/model-armor-overview"

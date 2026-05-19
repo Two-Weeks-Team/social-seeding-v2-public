@@ -1,0 +1,36 @@
+# CHAOS-COMP-01 — Ramp 10→500 RPS in 30s; min-instance pre-warm runbook must restore p99 <1s in 5 min
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: per_pr, nightly, canary
+
+id: CHAOS-COMP-01
+name: agent-runtime-prewarm
+tier: compute
+executor: native_gcp
+tags: [per_pr, nightly, canary]
+
+description: |
+  Ramp 10→500 RPS in 30s; min-instance pre-warm runbook must restore p99 <1s in 5 min.
+
+expected_rto_s: 300
+expected_rpo_s: 0
+observed_sli_breach: slo.hot_path.latency.p99
+
+auto_runbook: runbook-agent-runtime-prewarm
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-COMP-01"
+
+pass_criteria:
+  - "observed_rto_s <= 300"
+  - "observed_rpo_s <= 0"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references:
+  - "https://cloud.google.com/vertex-ai/generative-ai/docs/agent-engine/overview"

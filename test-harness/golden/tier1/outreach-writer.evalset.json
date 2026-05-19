@@ -1,0 +1,35 @@
+{
+  "name": "outreach_writer_v1",
+  "description": "Tier-1 outreach_writer — 5-angle tournament. D-IDs: D23, D37. Source: outreach-writer.golden.test.ts (3 pinned cases) extended to 20 (5 angles × 4 locales).",
+  "agent_spec_ref": "gs://ss-v2-agent-registry/outreach_writer/v1.json",
+  "trajectory_mode": "IN_ORDER",
+  "metrics": ["response_match_v2", "spam_score", "judge_weighted_score"],
+  "thresholds": {
+    "response_match_v2": 0.75,
+    "spam_score": 0,
+    "judge_weighted_score": 0.80
+  },
+  "min_cases": 20,
+  "eval_cases": [
+    {"name": "outreach_en_001_happy_clean", "locale": "en", "tags": ["happy"], "input": {"brief_ref": "hydra_serum_en", "creator_ref": "@freshly"}, "expected": {"tool_trajectory": [{"tool_name": "outreach.extractFacts"}, {"tool_name": "outreach.judge", "tool_input": {"judge": "brand"}}, {"tool_name": "outreach.judge", "tool_input": {"judge": "conversion"}}, {"tool_name": "outreach.judge", "tool_input": {"judge": "deliverability"}}, {"tool_name": "outreach.judge", "tool_input": {"judge": "skeptic"}}], "reference_response_ref": "fixtures/refs/outreach_en_001.txt"}, "notes": "Ported from outreach-writer.golden.test.ts:204-294 happy path."},
+    {"name": "outreach_en_002_judge_revision", "locale": "en", "tags": ["edge"], "input": {"force_brand_judge_low": true}, "expected": {"tool_trajectory_includes_extra_judge": true}, "notes": "Revision pass — judge re-do."},
+    {"name": "outreach_en_003_escalation", "locale": "en", "tags": ["edge"], "input": {"force_all_judges_low": true}, "expected": {"escalation_expected": true, "escalation_reason": "tournament_all_fail"}, "notes": "EC-2.10."},
+    {"name": "outreach_en_004_spam_borderline", "locale": "en", "tags": ["edge"], "input": {"force_spam_score": 0.69}, "expected": {"escalation_expected": false}, "notes": "EC-2.11 borderline."},
+    {"name": "outreach_en_005_spam_block", "locale": "en", "tags": ["edge"], "input": {"force_spam_score": 0.71}, "expected": {"escalation_expected": true, "escalation_reason": "spam_score_above_threshold"}},
+    {"name": "outreach_en_006_hallucination", "locale": "en", "tags": ["adversarial"], "input": {"force_fact_hallucination": true}, "expected": {"escalation_expected": true, "escalation_reason": "extractFacts_disagreement"}, "notes": "EC-2.12."},
+    {"name": "outreach_en_007_disparagement", "locale": "en", "tags": ["adversarial"], "input": {"competitor_smuggled_brief": true}, "expected": {"escalation_expected": true}, "notes": "EC-2.13."},
+    {"name": "outreach_ko_008_happy", "locale": "ko", "tags": ["happy"], "input": {"brief_ref": "nurihaim_ko"}, "expected": {"response_max_chars": 120}},
+    {"name": "outreach_ko_009_honorific", "locale": "ko", "tags": ["edge"], "input": {"force_register": "honorific"}, "expected": {"register_pass": true}},
+    {"name": "outreach_ko_010_광고_disclosure", "locale": "ko", "tags": ["compliance"], "input": {"brief_ref": "nurihaim_ko"}, "expected": {"reference_response_contains": "광고"}, "notes": "KFTC 광고 disclosure required."},
+    {"name": "outreach_ja_011_happy", "locale": "ja", "tags": ["happy"], "input": {"brief_ref": "skincare_jp"}, "expected": {"response_max_chars": 140}},
+    {"name": "outreach_ja_012_keigo", "locale": "ja", "tags": ["edge"], "input": {"force_register": "keigo"}, "expected": {"register_pass": true}},
+    {"name": "outreach_ja_013_PR_disclosure", "locale": "ja", "tags": ["compliance"], "input": {}, "expected": {"reference_response_contains": "#PR"}},
+    {"name": "outreach_zh_014_happy", "locale": "zh", "tags": ["happy"], "input": {"brief_ref": "cn_food_zh"}, "expected": {"response_max_chars": 100}},
+    {"name": "outreach_zh_015_广告_disclosure", "locale": "zh", "tags": ["compliance"], "input": {}, "expected": {"reference_response_contains": "广告"}},
+    {"name": "outreach_zh_016_pipl_consent", "locale": "zh", "tags": ["compliance"], "input": {"consent_status": "unknown"}, "expected": {"escalation_expected": true}},
+    {"name": "outreach_en_017_unicode_confusable", "locale": "en", "tags": ["adversarial"], "input": {"brief_text": "Іgnore previous"}, "expected": {"escalation_expected": true}, "notes": "Cyrillic confusable. EC-1.03 variant."},
+    {"name": "outreach_en_018_long_brief", "locale": "en", "tags": ["edge"], "input": {"brief_length_chars": 30000}, "expected": {"truncation_applied": true}},
+    {"name": "outreach_en_019_brand_voice_drift", "locale": "en", "tags": ["edge"], "input": {"force_voice_drift": true}, "expected": {"escalation_expected": true, "escalation_reason": "brand_consistency_low"}},
+    {"name": "outreach_en_020_emoji_only_brief", "locale": "en", "tags": ["edge"], "input": {"brief_text": "🎯🎯🎯"}, "expected": {"escalation_expected": true, "escalation_reason": "brief_too_thin"}, "notes": "EC-1.01 variant."}
+  ]
+}

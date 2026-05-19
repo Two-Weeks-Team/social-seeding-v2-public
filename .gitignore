@@ -37,3 +37,52 @@ test-results/
 
 # local dev mongod (scripts/dev-mongo.ts)
 .mongo-dev/
+
+# Devpost research artifacts
+AI-Agents-Challenge-Kickoff.pdf
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+*.egg-info/
+*.egg
+build/
+.eggs/
+
+# uv / venv
+.venv/
+.venv */
+venv/
+ENV/
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+*.tfstate.*.backup
+.terraform/
+.terraform.lock.hcl
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+
+# direnv / mise
+.envrc
+.tool-versions
+
+# Editor scratch
+*.swp
+*.swo
+*~

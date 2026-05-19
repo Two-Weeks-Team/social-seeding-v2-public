@@ -1,0 +1,36 @@
+# CHAOS-VEND-03 — Drop 10% Stripe webhooks; reconciliation must zero out discrepancy in 1 hr
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: nightly
+
+id: CHAOS-VEND-03
+name: stripe-reconcile
+tier: vendor
+executor: pubsub_harness
+tags: [nightly]
+
+description: |
+  Drop 10% Stripe webhooks; reconciliation must zero out discrepancy in 1 hr.
+
+expected_rto_s: 3600
+expected_rpo_s: 0
+observed_sli_breach: billing.reconciliation.discrepancy
+
+auto_runbook: runbook-stripe-reconcile
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-VEND-03"
+
+pass_criteria:
+  - "observed_rto_s <= 3600"
+  - "observed_rpo_s <= 0"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references:
+  - "https://stripe.com/docs/webhooks/best-practices"

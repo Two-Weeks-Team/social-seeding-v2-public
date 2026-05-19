@@ -13,6 +13,16 @@ export default tseslint.config(
       "**/node_modules/**",
       "**/.mongo-dev/**", // scratch dir for scripts/dev-mongo + ad-hoc verify scripts
       "**/*.d.ts",
+      // Python toolchain artifacts (Phase 3 ADK uses uv-managed .venv per package)
+      "**/.venv/**",
+      "**/.venv */**", // duplicated venvs created by some uv operations
+      "**/__pycache__/**",
+      "**/.pytest_cache/**",
+      "**/.mypy_cache/**",
+      "**/.ruff_cache/**",
+      "**/.hypothesis/**",
+      // Terraform local state + cache
+      "**/.terraform/**",
     ],
   },
   js.configs.recommended,

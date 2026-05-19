@@ -1,0 +1,36 @@
+# CHAOS-EDGE-04 — Mutate api
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: nightly
+
+id: CHAOS-EDGE-04
+name: dns-bad-record
+tier: edge
+executor: native_gcp
+tags: [nightly]
+
+description: |
+  Mutate api.socialseeding.app A record on chaos zone; TTL 30s ⇒ revert <60s.
+
+expected_rto_s: 60
+expected_rpo_s: 0
+observed_sli_breach: external_synthetic_probe.fail
+
+auto_runbook: runbook-dns-revert
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-EDGE-04"
+
+pass_criteria:
+  - "observed_rto_s <= 60"
+  - "observed_rpo_s <= 0"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references:
+  - "https://cloud.google.com/dns/docs/best-practices"

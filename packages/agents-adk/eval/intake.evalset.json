@@ -1,0 +1,255 @@
+{
+  "eval_set_id": "ss_intake_v0_1",
+  "name": "Intake agent — 8-case golden set (D34 locale spread)",
+  "description": "Phase 2 skeleton golden set per intake.spec.md §7. The full 40-case set (per locale) lands in tests/golden/intake/{ko,en,ja,zh-CN}.json during Phase 3.",
+  "criteria_overrides": {
+    "tool_trajectory_avg_score": 0.0,
+    "final_response_match_v2": 0.7
+  },
+  "metadata": {
+    "agent_id": "intake",
+    "spec": "gcp-research/specs/tier1/intake.spec.md",
+    "decisions": ["D5", "D23", "D34"],
+    "locales_covered": ["en", "en", "en", "ko", "ko", "ja", "ja", "zh-CN"]
+  },
+  "eval_cases": [
+    {
+      "eval_id": "intake_en_01_minimal_brief",
+      "metadata": {
+        "locale": "en",
+        "expected_status": "asking",
+        "should_escalate": false,
+        "field_focus": "brandProduct"
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "Run a Korean skincare campaign with 20 creators."
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"asking\",\"question\":\"What's the product name and category?\",\"fieldFocus\":\"brandProduct\"}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "intake_en_02_one_shot_done",
+      "metadata": {
+        "locale": "en",
+        "expected_status": "done",
+        "should_escalate": false,
+        "note": "User provides everything in turn 1 — agent goes straight to done (intake.spec.md §8 edge case 1)."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "Product: Freshly Vitamin C Serum (skincare/serum). Description: 10% vitamin C with HA. 20 creators, KR, min ER 3%, ships samples, target 15 live posts by 2026-06-30. workspace ws_test_intake_001, op@example.com."
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"done\",\"brief\":{\"workspaceId\":\"ws_test_intake_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"10% vitamin C with HA.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"ko\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\"}}}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "intake_en_03_contradiction_confirms",
+      "metadata": {
+        "locale": "en",
+        "expected_status": "asking",
+        "should_escalate": false,
+        "note": "User contradicts mid-flow (20 → 200 creators); agent confirms before done (intake.spec.md §8 edge case 2)."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "I said 20 creators earlier, but actually let's do 200."
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"asking\",\"question\":\"Just to confirm — you'd like 200 creators (not 20)?\",\"fieldFocus\":\"clarification\"}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "intake_ko_01_korean_pure",
+      "metadata": {
+        "locale": "ko",
+        "expected_status": "asking",
+        "should_escalate": false,
+        "field_focus": "brandProduct"
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "한국 스킨케어 캠페인을 20명의 크리에이터와 함께 진행하고 싶어요."
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"asking\",\"question\":\"제품명과 카테고리를 알려주세요.\",\"fieldFocus\":\"brandProduct\"}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "intake_ko_02_evasive_answer",
+      "metadata": {
+        "locale": "ko",
+        "expected_status": "asking",
+        "should_escalate": false,
+        "note": "Evasive deadline answer ('당분간') — agent re-asks (intake.spec.md §8 edge case 5)."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "마감일은 당분간이요."
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"asking\",\"question\":\"구체적인 마감일을 알려주실 수 있나요? 예: 2026-06-30\",\"fieldFocus\":\"goals\"}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "intake_ja_01_japanese_pure",
+      "metadata": {
+        "locale": "ja",
+        "expected_status": "asking",
+        "should_escalate": false
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "韓国向けスキンケアキャンペーンを20名のクリエイターで実施したいです。"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"asking\",\"question\":\"製品名とカテゴリを教えてください。\",\"fieldFocus\":\"brandProduct\"}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "intake_ja_02_locale_switch",
+      "metadata": {
+        "locale": "ja",
+        "expected_status": "asking",
+        "should_escalate": false,
+        "note": "User starts in JA, switches to EN mid-conversation — agent adapts (intake.spec.md §8 edge case 3)."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "Actually let me switch to English. 20 creators, skincare brand."
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"asking\",\"question\":\"了解しました。製品名は何ですか?\",\"fieldFocus\":\"brandProduct\"}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "intake_zh_01_simplified_chinese",
+      "metadata": {
+        "locale": "zh-CN",
+        "expected_status": "asking",
+        "should_escalate": false
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "想做一个韩国护肤品的TikTok营销活动,大约20个创作者。"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"asking\",\"question\":\"请告诉我产品名称和品类。\",\"fieldFocus\":\"brandProduct\"}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    }
+  ]
+}

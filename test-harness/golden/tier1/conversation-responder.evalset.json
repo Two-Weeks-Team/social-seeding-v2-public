@@ -1,0 +1,26 @@
+{
+  "name": "conversation_responder_v1",
+  "description": "Tier-1 conversation_responder — D-IDs: D23, D37. PII-redacted via DLP (D20).",
+  "agent_spec_ref": "gs://ss-v2-agent-registry/conversation_responder/v1.json",
+  "trajectory_mode": "ANY_ORDER",
+  "metrics": ["response_match_v2", "tone_consistency"],
+  "thresholds": {"response_match_v2": 0.75, "tone_consistency": 0.80},
+  "min_cases": 15,
+  "eval_cases": [
+    {"name": "resp_en_001_interested_ack", "locale": "en", "tags": ["happy"], "input": {"prior_label": "interested"}, "expected": {"tool_trajectory": [{"tool_name": "templates.list"}, {"tool_name": "outreach.render"}], "must_include_unsubscribe_link": true}},
+    {"name": "resp_en_002_negotiating",    "locale": "en", "tags": ["edge"],  "input": {"prior_label": "negotiating"}, "expected": {"escalation_expected": true, "escalation_reason": "negotiation_human_in_loop"}},
+    {"name": "resp_en_003_rejecting",      "locale": "en", "tags": ["happy"], "input": {"prior_label": "rejecting"}, "expected": {"polite_close": true}},
+    {"name": "resp_en_004_unsubscribe",    "locale": "en", "tags": ["compliance"], "input": {"prior_label": "unsubscribe"}, "expected": {"suppression_list_updated": true, "no_further_send": true}, "notes": "EC-5.02."},
+    {"name": "resp_en_005_complaint",      "locale": "en", "tags": ["edge"],  "input": {"prior_label": "complaint"}, "expected": {"escalation_expected": true, "escalation_reason": "human_review_complaint"}},
+    {"name": "resp_ko_006_interested",     "locale": "ko", "tags": ["happy"], "input": {"prior_label": "interested"}, "expected": {"honorific_used": true}},
+    {"name": "resp_ko_007_rejecting",      "locale": "ko", "tags": ["happy"], "input": {"prior_label": "rejecting"}, "expected": {"polite_close": true}},
+    {"name": "resp_ko_008_negotiate",      "locale": "ko", "tags": ["edge"],  "input": {"prior_label": "negotiating"}, "expected": {"escalation_expected": true}},
+    {"name": "resp_ja_009_keigo_interested","locale": "ja", "tags": ["happy"], "input": {"prior_label": "interested"}, "expected": {"keigo_register": true}},
+    {"name": "resp_ja_010_rejecting",      "locale": "ja", "tags": ["happy"], "input": {"prior_label": "rejecting"}, "expected": {"polite_close": true}},
+    {"name": "resp_zh_011_interested",     "locale": "zh", "tags": ["happy"], "input": {"prior_label": "interested"}, "expected": {"reference_response_contains": "广告"}},
+    {"name": "resp_zh_012_unsubscribe",    "locale": "zh", "tags": ["compliance"], "input": {"prior_label": "unsubscribe"}, "expected": {"suppression_list_updated": true}},
+    {"name": "resp_en_013_pii_redaction",  "locale": "en", "tags": ["compliance"], "input": {"prior_label": "interested", "creator_address_pii": true}, "expected": {"dlp_applied": true}},
+    {"name": "resp_en_014_tone_drift",     "locale": "en", "tags": ["edge"],  "input": {"force_tone_drift": true}, "expected": {"escalation_expected": true}},
+    {"name": "resp_en_015_ambiguous",      "locale": "en", "tags": ["edge"],  "input": {"prior_label": "ambiguous"}, "expected": {"clarifying_question_emitted": true}}
+  ]
+}

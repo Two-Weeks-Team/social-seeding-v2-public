@@ -1,0 +1,36 @@
+# CHAOS-EVT-03 — awaitEvent timeout = PT30M with no event; runbook re-issues from saved state
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: nightly
+
+id: CHAOS-EVT-03
+name: workflow-resume-canary
+tier: event
+executor: native_gcp
+tags: [nightly]
+
+description: |
+  awaitEvent timeout = PT30M with no event; runbook re-issues from saved state.
+
+expected_rto_s: 1800
+expected_rpo_s: 0
+observed_sli_breach: workflows.execution.error_rate
+
+auto_runbook: runbook-workflow-resume-canary
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-EVT-03"
+
+pass_criteria:
+  - "observed_rto_s <= 1800"
+  - "observed_rpo_s <= 0"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references:
+  - "https://cloud.google.com/workflows/quotas"

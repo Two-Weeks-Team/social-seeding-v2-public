@@ -1,0 +1,268 @@
+{
+  "eval_set_id": "ss_conversation_v0_1",
+  "name": "Conversation agent — 8-case golden set (D34 locale spread)",
+  "description": "Phase 3 skeleton golden set per conversation.spec.md §7. Covers the 8-class classifier plus 3 extracted signals (shippingAddress / proposedRateUsd / question) across 4 locales. The full 250-case-per-locale set lands in tests/golden/conversation/{ko,en,ja,zh-CN}.json during Phase 3 calibration.",
+  "criteria_overrides": {
+    "tool_trajectory_avg_score": 0.0,
+    "final_response_match_v2": 0.7,
+    "classification_f1_macro": 0.85
+  },
+  "metadata": {
+    "agent_id": "conversation",
+    "spec": "gcp-research/specs/tier1/conversation.spec.md",
+    "decisions": ["D5", "D17", "D23", "D34"],
+    "model": "gemini-2.5-flash-lite",
+    "locales_covered": ["en", "en", "en", "ko", "ko", "ja", "ja", "zh-CN"],
+    "classes_covered": ["interested", "needs_info", "negotiating", "not_now", "declined", "out_of_office", "unsubscribe", "unrelated"]
+  },
+  "eval_cases": [
+    {
+      "eval_id": "conversation_en_01_interested_with_address",
+      "metadata": {
+        "locale": "en",
+        "expected_classification": "interested",
+        "expected_extracted": ["shippingAddress"],
+        "should_escalate": false,
+        "note": "Happy path — creator agrees and shares a US shipping address. Workflow proceeds to responder + shipment.create."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"threadId\":\"thread_en_01\",\"creatorId\":\"creator_en_01\",\"incomingMessage\":{\"messageId\":\"msg_en_01\",\"fromEmail\":\"jane.doe@example.com\",\"subject\":\"Re: Hydra Serum collab\",\"bodyText\":\"Sounds great! I'd love to try it. Please ship to: 123 Main St, Suite 4B, Brooklyn, NY 11201, USA. Looking forward to it!\"},\"creatorHandle\":\"jane_d\",\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"threadId\":\"thread_en_01\",\"creatorId\":\"creator_en_01\",\"incomingMessageId\":\"msg_en_01\",\"classification\":\"interested\",\"confidence\":0.95,\"extracted\":{\"shippingAddress\":\"123 Main St, Suite 4B, Brooklyn, NY 11201, USA\",\"proposedRateUsd\":null,\"question\":null},\"needsHumanReason\":null}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "conversation_en_02_needs_info_question",
+      "metadata": {
+        "locale": "en",
+        "expected_classification": "needs_info",
+        "expected_extracted": ["question"],
+        "should_escalate": false,
+        "note": "Creator asks a concrete question — the literal question must be extracted verbatim for the responder agent."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"threadId\":\"thread_en_02\",\"creatorId\":\"creator_en_02\",\"incomingMessage\":{\"messageId\":\"msg_en_02\",\"fromEmail\":\"taylor@example.com\",\"subject\":\"Re: Hydra Serum collab\",\"bodyText\":\"Interesting! Quick question — is the serum cruelty-free and vegan? Also, what's the expected posting timeline?\"},\"creatorHandle\":\"taylor_v\",\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"threadId\":\"thread_en_02\",\"creatorId\":\"creator_en_02\",\"incomingMessageId\":\"msg_en_02\",\"classification\":\"needs_info\",\"confidence\":0.92,\"extracted\":{\"shippingAddress\":null,\"proposedRateUsd\":null,\"question\":\"is the serum cruelty-free and vegan? Also, what's the expected posting timeline?\"},\"needsHumanReason\":null}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "conversation_en_03_unsubscribe_escalates",
+      "metadata": {
+        "locale": "en",
+        "expected_classification": "unsubscribe",
+        "expected_extracted": [],
+        "should_escalate": true,
+        "note": "Unsubscribe ALWAYS escalates per conversation.spec.md §6. needsHumanReason is non-null and the workflow surfaces a HITL gate."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"threadId\":\"thread_en_03\",\"creatorId\":\"creator_en_03\",\"incomingMessage\":{\"messageId\":\"msg_en_03\",\"fromEmail\":\"alex@example.com\",\"subject\":\"Re: Hydra Serum collab\",\"bodyText\":\"Please remove me from your list and do not contact me again. Thanks.\"},\"creatorHandle\":\"alex_p\",\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"threadId\":\"thread_en_03\",\"creatorId\":\"creator_en_03\",\"incomingMessageId\":\"msg_en_03\",\"classification\":\"unsubscribe\",\"confidence\":0.98,\"extracted\":{\"shippingAddress\":null,\"proposedRateUsd\":null,\"question\":null},\"needsHumanReason\":\"unsubscribe — suppression list + HITL acknowledgement\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "conversation_ko_01_negotiating_krw_to_usd",
+      "metadata": {
+        "locale": "ko",
+        "expected_classification": "negotiating",
+        "expected_extracted": ["proposedRateUsd"],
+        "should_escalate": true,
+        "note": "Korean creator counter-offers in KRW. Agent converts at ~1300:1 (200,000원 → ~$154) and flags negotiating — workflow surfaces approveReplyResponse gate."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"threadId\":\"thread_ko_01\",\"creatorId\":\"creator_ko_01\",\"incomingMessage\":{\"messageId\":\"msg_ko_01\",\"fromEmail\":\"minji@naver.com\",\"subject\":\"Re: 협업 제안\",\"bodyText\":\"관심 있어요. 다만 단가는 200,000원으로 부탁드립니다. 최소 3개 영상 보장 가능하신가요?\"},\"creatorHandle\":\"minji_kr\",\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"threadId\":\"thread_ko_01\",\"creatorId\":\"creator_ko_01\",\"incomingMessageId\":\"msg_ko_01\",\"classification\":\"negotiating\",\"confidence\":0.88,\"extracted\":{\"shippingAddress\":null,\"proposedRateUsd\":154,\"question\":null},\"needsHumanReason\":\"negotiating — counter-rate 200,000원 (~$154 USD); creator also requested 3-video minimum\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "conversation_ko_02_interested_with_korean_address",
+      "metadata": {
+        "locale": "ko",
+        "expected_classification": "interested",
+        "expected_extracted": ["shippingAddress"],
+        "should_escalate": false,
+        "note": "Korean address (시/구/동 format) extracted cleanly. The locale hint helps the model pick the right address boundaries."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"threadId\":\"thread_ko_02\",\"creatorId\":\"creator_ko_02\",\"incomingMessage\":{\"messageId\":\"msg_ko_02\",\"fromEmail\":\"seoyoon@daum.net\",\"subject\":\"Re: 협업 제안\",\"bodyText\":\"좋아요! 진행할게요. 배송 주소는 서울특별시 강남구 테헤란로 123, 12층 (06234)입니다. 잘 부탁드려요.\"},\"creatorHandle\":\"seoyoon\",\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"threadId\":\"thread_ko_02\",\"creatorId\":\"creator_ko_02\",\"incomingMessageId\":\"msg_ko_02\",\"classification\":\"interested\",\"confidence\":0.94,\"extracted\":{\"shippingAddress\":\"서울특별시 강남구 테헤란로 123, 12층 (06234)\",\"proposedRateUsd\":null,\"question\":null},\"needsHumanReason\":null}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "conversation_ja_01_out_of_office",
+      "metadata": {
+        "locale": "ja",
+        "expected_classification": "out_of_office",
+        "expected_extracted": [],
+        "should_escalate": false,
+        "note": "Japanese auto-reply OOO bounce. Classification confidence is high (clear automated tone) — no human gate."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"threadId\":\"thread_ja_01\",\"creatorId\":\"creator_ja_01\",\"incomingMessage\":{\"messageId\":\"msg_ja_01\",\"fromEmail\":\"yuki@example.jp\",\"subject\":\"自動応答: 不在のお知らせ\",\"bodyText\":\"お問い合わせありがとうございます。現在、2026年5月25日まで休暇中のため、メールの確認ができません。お急ぎの場合は、ご返信をお待ちください。\"},\"creatorHandle\":\"yuki_jp\",\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"threadId\":\"thread_ja_01\",\"creatorId\":\"creator_ja_01\",\"incomingMessageId\":\"msg_ja_01\",\"classification\":\"out_of_office\",\"confidence\":0.96,\"extracted\":{\"shippingAddress\":null,\"proposedRateUsd\":null,\"question\":null},\"needsHumanReason\":null}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "conversation_ja_02_declined",
+      "metadata": {
+        "locale": "ja",
+        "expected_classification": "declined",
+        "expected_extracted": [],
+        "should_escalate": true,
+        "note": "Japanese hard decline. ALWAYS escalates per conversation.spec.md §6 — workflow marks track terminal + records the reason."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"threadId\":\"thread_ja_02\",\"creatorId\":\"creator_ja_02\",\"incomingMessage\":{\"messageId\":\"msg_ja_02\",\"fromEmail\":\"hiro@example.jp\",\"subject\":\"Re: コラボのご提案\",\"bodyText\":\"ご提案ありがとうございます。今回は見送らせていただきます。今後の連絡もご遠慮ください。\"},\"creatorHandle\":\"hiro_jp\",\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"threadId\":\"thread_ja_02\",\"creatorId\":\"creator_ja_02\",\"incomingMessageId\":\"msg_ja_02\",\"classification\":\"declined\",\"confidence\":0.93,\"extracted\":{\"shippingAddress\":null,\"proposedRateUsd\":null,\"question\":null},\"needsHumanReason\":\"declined — creator asked to not be contacted again; respect for future suppression\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "conversation_zh_01_not_now",
+      "metadata": {
+        "locale": "zh-CN",
+        "expected_classification": "not_now",
+        "expected_extracted": [],
+        "should_escalate": false,
+        "note": "Simplified Chinese soft no — busy this month, maybe later. Not a hard decline, no human gate."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"threadId\":\"thread_zh_01\",\"creatorId\":\"creator_zh_01\",\"incomingMessage\":{\"messageId\":\"msg_zh_01\",\"fromEmail\":\"meihua@example.cn\",\"subject\":\"Re: 合作邀请\",\"bodyText\":\"谢谢邀请!不过这个月档期比较满,下个季度再联系我可以吗?\"},\"creatorHandle\":\"meihua\",\"locale\":\"zh-CN\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"threadId\":\"thread_zh_01\",\"creatorId\":\"creator_zh_01\",\"incomingMessageId\":\"msg_zh_01\",\"classification\":\"not_now\",\"confidence\":0.9,\"extracted\":{\"shippingAddress\":null,\"proposedRateUsd\":null,\"question\":null},\"needsHumanReason\":null}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    }
+  ]
+}

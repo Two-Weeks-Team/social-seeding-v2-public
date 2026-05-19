@@ -1,0 +1,31 @@
+{
+  "name": "a11y_v1",
+  "description": "Tier-1 a11y — WCAG 2.2 AA + 4-locale parity. D-IDs: D23, D34, D37.",
+  "agent_spec_ref": "gs://ss-v2-agent-registry/a11y/v1.json",
+  "trajectory_mode": "ANY_ORDER",
+  "metrics": ["a11y_compliance_score"],
+  "thresholds": {"a11y_compliance_score": 0.90},
+  "min_cases": 20,
+  "eval_cases": [
+    {"name": "a_en_001_image_alt","locale": "en", "tags": ["happy"], "input": {"asset_type": "image"}, "expected": {"tool_trajectory_includes": ["vision.describe"], "alt_text_present": true}},
+    {"name": "a_en_002_video_captions","locale": "en", "tags": ["happy"], "input": {"asset_type": "video"}, "expected": {"tool_trajectory_includes": ["stt.transcribe"], "captions_present": true}},
+    {"name": "a_en_003_audio_transcript","locale": "en", "tags": ["happy"], "input": {"asset_type": "audio"}, "expected": {"transcript_present": true}},
+    {"name": "a_en_004_contrast_low","locale": "en", "tags": ["edge"], "input": {"contrast_ratio": 3.0}, "expected": {"verdict": "fail", "reason": "contrast_below_4_5"}},
+    {"name": "a_en_005_missing_audio_src","locale": "en", "tags": ["edge"], "input": {"audio_source_missing": true}, "expected": {"escalation_expected": true}, "notes": "EC-2.35."},
+    {"name": "a_ko_006_image_alt","locale": "ko", "tags": ["happy"], "input": {"asset_type": "image", "lang": "ko"}, "expected": {"alt_text_lang": "ko"}},
+    {"name": "a_ko_007_video_captions","locale": "ko", "tags": ["happy"], "input": {"asset_type": "video"}, "expected": {"captions_lang": "ko"}},
+    {"name": "a_ko_008_audio","locale": "ko", "tags": ["happy"], "input": {"asset_type": "audio"}, "expected": {"transcript_lang": "ko"}},
+    {"name": "a_ko_009_keyboard_nav","locale": "ko", "tags": ["happy"], "input": {"ui_check": "keyboard_only"}, "expected": {"tabindex_chain_complete": true}},
+    {"name": "a_ko_010_screen_reader","locale": "ko", "tags": ["happy"], "input": {"ui_check": "screen_reader_pass"}, "expected": {"aria_labels_present": true}},
+    {"name": "a_ja_011_image_alt","locale": "ja", "tags": ["happy"], "input": {"asset_type": "image"}, "expected": {"alt_text_lang": "ja"}},
+    {"name": "a_ja_012_video_captions","locale": "ja", "tags": ["happy"], "input": {"asset_type": "video"}, "expected": {"captions_lang": "ja"}},
+    {"name": "a_ja_013_audio","locale": "ja", "tags": ["happy"], "input": {"asset_type": "audio"}, "expected": {"transcript_lang": "ja"}},
+    {"name": "a_ja_014_keigo_register","locale": "ja", "tags": ["happy"], "input": {"register": "keigo"}, "expected": {"register_consistent": true}},
+    {"name": "a_ja_015_screen_reader","locale": "ja", "tags": ["happy"], "input": {"ui_check": "screen_reader_pass"}, "expected": {"aria_labels_present": true}},
+    {"name": "a_zh_016_image_alt","locale": "zh", "tags": ["happy"], "input": {"asset_type": "image"}, "expected": {"alt_text_lang": "zh"}},
+    {"name": "a_zh_017_video_captions","locale": "zh", "tags": ["happy"], "input": {"asset_type": "video"}, "expected": {"captions_lang": "zh"}},
+    {"name": "a_zh_018_audio","locale": "zh", "tags": ["happy"], "input": {"asset_type": "audio"}, "expected": {"transcript_lang": "zh"}},
+    {"name": "a_zh_019_keyboard_nav","locale": "zh", "tags": ["happy"], "input": {"ui_check": "keyboard_only"}, "expected": {"tabindex_chain_complete": true}},
+    {"name": "a_zh_020_screen_reader","locale": "zh", "tags": ["happy"], "input": {"ui_check": "screen_reader_pass"}, "expected": {"aria_labels_present": true}}
+  ]
+}

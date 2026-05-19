@@ -1,0 +1,29 @@
+{
+  "name": "vetting_v1",
+  "description": "Tier-1 vetting agent — D-IDs: D23, D37. Source: packages/agents/src/vetting.golden.test.ts + i18n extension.",
+  "agent_spec_ref": "gs://ss-v2-agent-registry/vetting/v1.json",
+  "trajectory_mode": "IN_ORDER",
+  "metrics": ["tool_trajectory_avg_score", "fit_score_mae"],
+  "thresholds": {
+    "tool_trajectory_avg_score": 0.90,
+    "fit_score_mae": 0.08
+  },
+  "min_cases": 15,
+  "eval_cases": [
+    {"name": "vetting_en_001_high_fit",      "locale": "en", "tags": ["happy"], "input": {"creator_ref": "@freshly", "brief_ref": "hydra_serum_en"}, "expected": {"tool_trajectory": [{"tool_name": "tiktok.get_user_info"}, {"tool_name": "ranking.score"}, {"tool_name": "vector_search.brand_fit"}], "pinned_score_min": 0.80}},
+    {"name": "vetting_en_002_borderline",    "locale": "en", "tags": ["edge"],  "input": {"creator_ref": "@borderline_42k"}, "expected": {"pinned_score_range": [0.55, 0.70]}},
+    {"name": "vetting_en_003_low_fit",       "locale": "en", "tags": ["happy"], "input": {"creator_ref": "@gaming_creator_off_brief"}, "expected": {"pinned_score_max": 0.35}},
+    {"name": "vetting_en_004_bot_farm",      "locale": "en", "tags": ["adversarial"], "input": {"creator_ref": "@bot_farm_inflated"}, "expected": {"escalation_expected": true, "escalation_reason": "suspicious_engagement"}, "notes": "EC-2.09 — zero engagement signal."},
+    {"name": "vetting_en_005_hijacked",      "locale": "en", "tags": ["adversarial"], "input": {"creator_ref": "@recently_hijacked"}, "expected": {"escalation_expected": true, "escalation_reason": "ownership_anomaly"}, "notes": "EC-2.08 — hijacked account."},
+    {"name": "vetting_ko_006_kbeauty_fit",   "locale": "ko", "tags": ["happy"], "input": {"creator_ref": "@kbeauty_a"}, "expected": {"pinned_score_min": 0.75}},
+    {"name": "vetting_ko_007_oversize_pool", "locale": "ko", "tags": ["edge"],  "input": {"creator_count": 1000}, "expected": {"escalation_expected": true, "escalation_reason": "budget_blowout"}, "notes": "EC-2.07 — 1000-candidate fan-out must escalate to cost_watch."},
+    {"name": "vetting_ko_008_micro_only",    "locale": "ko", "tags": ["edge"],  "input": {"follower_min": 1000, "follower_max": 5000}, "expected": {"min_returned": 0}},
+    {"name": "vetting_ja_009_keigo",         "locale": "ja", "tags": ["happy"], "input": {"creator_ref": "@jp_skincare_b"}, "expected": {"pinned_score_min": 0.70}},
+    {"name": "vetting_ja_010_stealthmkt",    "locale": "ja", "tags": ["compliance"], "input": {"creator_ref": "@jp_disclosed_pr"}, "expected": {"disclosure_history_ok": true}, "notes": "Japan stealth-marketing law 2023."},
+    {"name": "vetting_zh_011_pipl",          "locale": "zh", "tags": ["compliance"], "input": {"creator_ref": "@cn_creator_x"}, "expected": {"pipl_consent_verified": true}},
+    {"name": "vetting_zh_012_simplified",    "locale": "zh", "tags": ["happy"], "input": {"creator_ref": "@cn_food_y"}, "expected": {"pinned_score_min": 0.65}},
+    {"name": "vetting_en_013_singleton",     "locale": "en", "tags": ["edge"],  "input": {"candidate_count": 1}, "expected": {"pinned_score_returned": true}, "notes": "EC-2.06 singleton fan-out."},
+    {"name": "vetting_en_014_pii_in_bio",    "locale": "en", "tags": ["compliance"], "input": {"creator_ref": "@pii_in_bio"}, "expected": {"dlp_redaction_applied": true}, "notes": "EC-5.04 — DLP sees PII in agent reasoning chain."},
+    {"name": "vetting_en_015_disagree_scores", "locale": "en", "tags": ["edge"], "input": {"force_score_disagreement": true}, "expected": {"escalation_expected": true, "escalation_reason": "score_inconsistent"}}
+  ]
+}

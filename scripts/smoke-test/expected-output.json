@@ -1,0 +1,1262 @@
+{
+  "agents_with_zero_tools": [],
+  "outputs": {
+    "a2a_invoke": {
+      "output": {
+        "error": null,
+        "latency_ms": 50,
+        "response_payload": {
+          "agent_id": "peer",
+          "correlation_id": "corr_smoke_001",
+          "echo": {}
+        },
+        "succeeded": true
+      },
+      "output_type": "A2AInvokeOutput"
+    },
+    "address_normalize": {
+      "output": {
+        "address_line1": "1 Stub St, Seoul, KR 04524",
+        "address_line2": "",
+        "city": "",
+        "country_iso2": "KR",
+        "fetched_via": "stub",
+        "normalized_confidence_0_1": 0.3,
+        "phone": null,
+        "postal_code": "",
+        "recipient_name": "",
+        "state_or_province": ""
+      },
+      "output_type": "AddressNormalizeOutput"
+    },
+    "agent_optimizer_tune": {
+      "output": {
+        "eta_minutes": 30,
+        "status": "queued"
+      },
+      "output_type": "AgentOptimizerTuneOutput"
+    },
+    "agent_registry_list": {
+      "output": {
+        "agents": [
+          {
+            "agent_id": "sourcing",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:45Z",
+            "model": "gemini-2.5-pro",
+            "tier": 1
+          },
+          {
+            "agent_id": "vetting",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:42Z",
+            "model": "gemini-2.5-pro",
+            "tier": 1
+          },
+          {
+            "agent_id": "outreach_writer",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:38Z",
+            "model": "gemini-2.5-pro",
+            "tier": 1
+          },
+          {
+            "agent_id": "conversation",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:49Z",
+            "model": "gemini-2.5-flash-lite",
+            "tier": 1
+          },
+          {
+            "agent_id": "conversation_responder",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:35Z",
+            "model": "gemini-2.5-pro",
+            "tier": 1
+          },
+          {
+            "agent_id": "logistics",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:47Z",
+            "model": "gemini-2.5-flash",
+            "tier": 1
+          },
+          {
+            "agent_id": "content_verify",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:43Z",
+            "model": "gemini-2.5-flash",
+            "tier": 1
+          },
+          {
+            "agent_id": "analyst",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:29Z",
+            "model": "gemini-2.5-pro",
+            "tier": 1
+          },
+          {
+            "agent_id": "research",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:36Z",
+            "model": "gemini-2.5-pro",
+            "tier": 1
+          },
+          {
+            "agent_id": "intake",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:51Z",
+            "model": "gemini-2.5-flash",
+            "tier": 1
+          },
+          {
+            "agent_id": "lead_outreach_writer",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:32Z",
+            "model": "gemini-2.5-pro",
+            "tier": 1
+          },
+          {
+            "agent_id": "payment_mandate",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:40Z",
+            "model": "gemini-2.5-flash",
+            "tier": 1
+          },
+          {
+            "agent_id": "compliance",
+            "current_status": "degraded",
+            "last_heartbeat": "2026-05-19T11:58:25Z",
+            "model": "gemini-2.5-pro",
+            "tier": 1
+          },
+          {
+            "agent_id": "creative",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:26Z",
+            "model": "gemini-2.5-pro",
+            "tier": 1
+          },
+          {
+            "agent_id": "a11y",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:48Z",
+            "model": "gemini-2.5-flash",
+            "tier": 1
+          },
+          {
+            "agent_id": "customer_success",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:20Z",
+            "model": "gemini-2.5-pro",
+            "tier": 1
+          },
+          {
+            "agent_id": "coordinator",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:53Z",
+            "model": "gemini-2.5-flash",
+            "tier": 2
+          },
+          {
+            "agent_id": "critic",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:41Z",
+            "model": "gemini-2.5-pro",
+            "tier": 2
+          },
+          {
+            "agent_id": "optimizer",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:15Z",
+            "model": "gemini-2.5-pro",
+            "tier": 2
+          },
+          {
+            "agent_id": "anomaly_watch",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:50Z",
+            "model": "gemini-2.5-flash",
+            "tier": 3
+          },
+          {
+            "agent_id": "cost_watch",
+            "current_status": "healthy",
+            "last_heartbeat": "2026-05-19T11:59:52Z",
+            "model": "gemini-2.5-flash",
+            "tier": 3
+          },
+          {
+            "agent_id": "security_watch",
+            "current_status": "down",
+            "last_heartbeat": "2026-05-19T11:53:20Z",
+            "model": "gemini-2.5-flash",
+            "tier": 3
+          }
+        ],
+        "total": 22
+      },
+      "output_type": "AgentRegistryListOutput"
+    },
+    "analytics_funnel": {
+      "output": {
+        "biggest_drop_stage": "outreach->reply",
+        "drop_off_rates": {
+          "intake->vetting": 0.18,
+          "outreach->reply": 0.5625,
+          "vetting->outreach": 0.2195
+        },
+        "fetched_via": "stub",
+        "healthy_baseline": false,
+        "stage_counts": {
+          "intake": 100,
+          "outreach": 64,
+          "reply": 28,
+          "vetting": 82
+        }
+      },
+      "output_type": "AnalyticsFunnelOutput"
+    },
+    "ap2_compose_intent_mandate": {
+      "output": {
+        "action_type": "outreach.send",
+        "agent_id": "payment_mandate",
+        "amount_usd_cap": 0.5,
+        "beneficiary": "creator@example.com",
+        "replay_token": "rt_smoke_001",
+        "schema_version": "0.2.0",
+        "scope": [
+          "external_send"
+        ],
+        "signature_placeholder": "stub-sig://dc29962f-200c-7854-b7ee-62899fd33079"
+      },
+      "output_type": "Ap2ComposeIntentMandateOutput"
+    },
+    "assets_upload": {
+      "output": {
+        "cdn_url": "https://stub.cdn.local/ws_smoke_brand_001/5449d3fea1c13b252f197cc34df3dea2a1dead09602f1650c2a37a5ec3343383.png",
+        "final_gcs_uri": "gs://ss-creative-stub/ws_smoke_brand_001/5449d3fea1c13b252f197cc34df3dea2a1dead09602f1650c2a37a5ec3343383.png",
+        "sha256": "5449d3fea1c13b252f197cc34df3dea2a1dead09602f1650c2a37a5ec3343383",
+        "size_bytes": 1024
+      },
+      "output_type": "AssetsUploadOutput"
+    },
+    "bigquery_query": {
+      "output": {
+        "bytes_processed": 192000,
+        "dry_run": false,
+        "fetched_via": "stub",
+        "rows": [
+          {
+            "campaign_id": "cmp_demo001",
+            "spent_usd": 210.5,
+            "total_views": 124000,
+            "verified_posts": 7
+          },
+          {
+            "campaign_id": "cmp_demo002",
+            "spent_usd": 312.0,
+            "total_views": 286400,
+            "verified_posts": 12
+          },
+          {
+            "campaign_id": "cmp_demo003",
+            "spent_usd": 88.75,
+            "total_views": 51900,
+            "verified_posts": 4
+          }
+        ],
+        "schema_": [
+          {
+            "mode": "NULLABLE",
+            "name": "campaign_id",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "verified_posts",
+            "type": "INT64"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "total_views",
+            "type": "INT64"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "spent_usd",
+            "type": "FLOAT64"
+          }
+        ],
+        "slot_ms": 420,
+        "total_rows": 3
+      },
+      "output_type": "BigQueryQueryOutput"
+    },
+    "billing_query": {
+      "output": {
+        "breakdown_rows": [
+          {
+            "key": "total",
+            "usd": 160.0
+          }
+        ],
+        "threshold_breached": false,
+        "threshold_pct_consumed": 0.10666666666666667,
+        "total_usd": 160.0
+      },
+      "output_type": "BillingQueryOutput"
+    },
+    "blacklist_check": {
+      "output": {
+        "checked_count": 2,
+        "hits": []
+      },
+      "output_type": "BlacklistCheckOutput"
+    },
+    "canspam_check_unsubscribe": {
+      "output": {
+        "compliant": true,
+        "deceptive_subject_score_0_1": 0.0,
+        "missing_requirements": [],
+        "physical_address_present": true,
+        "unsubscribe_link_present": true
+      },
+      "output_type": "CanspamCheckUnsubscribeOutput"
+    },
+    "carrier_create": {
+      "output": {
+        "carrier": "cj-logistics-stub",
+        "cost_usd": 8.5,
+        "estimated_delivery": "2026-05-23",
+        "fetched_via": "stub",
+        "label_pdf_url": "https://stub.local/label/KR123.pdf",
+        "tracking_number": "KR1234567890"
+      },
+      "output_type": "CarrierCreateOutput"
+    },
+    "chronicle_query": {
+      "output": {
+        "events": [
+          {
+            "actor_id": "actor_000",
+            "event_id": "stub_evt_316bc6f2_000",
+            "rule": "ss.recent_pi_alerts.v1",
+            "severity": "high",
+            "template": "recent_pi_alerts",
+            "timestamp": "2026-05-18T23:12:00+00:00"
+          },
+          {
+            "actor_id": "actor_001",
+            "event_id": "stub_evt_316bc6f2_001",
+            "rule": "ss.recent_pi_alerts.v1",
+            "severity": "medium",
+            "template": "recent_pi_alerts",
+            "timestamp": "2026-05-18T23:24:00+00:00"
+          },
+          {
+            "actor_id": "actor_002",
+            "event_id": "stub_evt_316bc6f2_002",
+            "rule": "ss.recent_pi_alerts.v1",
+            "severity": "high",
+            "template": "recent_pi_alerts",
+            "timestamp": "2026-05-18T23:36:00+00:00"
+          },
+          {
+            "actor_id": "actor_000",
+            "event_id": "stub_evt_316bc6f2_003",
+            "rule": "ss.recent_pi_alerts.v1",
+            "severity": "medium",
+            "template": "recent_pi_alerts",
+            "timestamp": "2026-05-18T23:48:00+00:00"
+          },
+          {
+            "actor_id": "actor_001",
+            "event_id": "stub_evt_316bc6f2_004",
+            "rule": "ss.recent_pi_alerts.v1",
+            "severity": "high",
+            "template": "recent_pi_alerts",
+            "timestamp": "2026-05-19T00:00:00+00:00"
+          }
+        ],
+        "total": 5,
+        "total_unique_actors": 3
+      },
+      "output_type": "ChronicleQueryOutput"
+    },
+    "crm_enrich": {
+      "output": {
+        "annual_revenue_usd_range": "10M-50M",
+        "company_name": "Example",
+        "decision_maker_titles": [
+          "Marketing Lead",
+          "Head of Growth"
+        ],
+        "employee_range": "501-1000",
+        "enrichment_confidence_0_1": 0.89,
+        "industry": "Software",
+        "intent_signals": [
+          "recent_blog_activity"
+        ],
+        "tech_stack": [
+          "Salesforce",
+          "HubSpot",
+          "Slack"
+        ]
+      },
+      "output_type": "CrmEnrichOutput"
+    },
+    "dlp_inspect": {
+      "output": {
+        "findings": [],
+        "total_findings": 0
+      },
+      "output_type": "DlpInspectOutput"
+    },
+    "evaluation_score": {
+      "output": {
+        "escalation_recommended": false,
+        "reasoning": "agent='outreach-writer' scored 0.85 against the published rubric. Primary criterion 'relevance' met; remaining criteria balanced per D25 LLM-as-judge template.",
+        "score_0_1": 0.85,
+        "sub_scores": {
+          "deliverability": 0.2,
+          "relevance": 0.25,
+          "tone": 0.25
+        }
+      },
+      "output_type": "EvaluationScoreOutput"
+    },
+    "forms_upsert": {
+      "output": {
+        "brief_id": "brief_demo_001",
+        "created": true,
+        "version": 1
+      },
+      "output_type": "FormsUpsertOutput"
+    },
+    "gate_approveOutreachSend": {
+      "output": {
+        "approval_url": "https://stub.local/approve/mandate_smoke_001",
+        "gate_status": "pending",
+        "reason": "\uc0ac\ub78c \uc2b9\uc778 \ub300\uae30 \uc911 \u2014 Mission Control \uc2b9\uc778 \ud654\uba74\uc5d0\uc11c WebAuthn \uc778\uc99d\uc744 \uc644\ub8cc\ud574 \uc8fc\uc138\uc694."
+      },
+      "output_type": "GateApproveOutreachSendOutput"
+    },
+    "gate_escalate": {
+      "output": {
+        "escalation_id": "esc_outreach-writer_001",
+        "escalation_url": "https://dashboard.stub.local/escalations/esc_outreach-writer_001"
+      },
+      "output_type": "GateEscalateOutput"
+    },
+    "gmail_send_reply": {
+      "output": {
+        "dry_run_applied": true,
+        "sent_to": "app.2weeks@gmail.com"
+      },
+      "output_type": "GmailSendReplyOutput"
+    },
+    "gmail_thread_classify": {
+      "output": {
+        "category": "interested",
+        "confidence_0_1": 0.7,
+        "requires_human": false,
+        "signal_keywords": [
+          "interested"
+        ]
+      },
+      "output_type": "GmailThreadClassifyOutput"
+    },
+    "imagen_generate": {
+      "output": {
+        "generated_images": [
+          {
+            "gcs_uri": "gs://ss-creative-stub/img_1.png",
+            "height_px": 1024,
+            "safety_attributes": [
+              "safe"
+            ],
+            "sha256": "4f6fceb9cfb04399f0ba84d5172267e046e8b9918f652c5d71efcacc560b97a0",
+            "width_px": 1024
+          }
+        ],
+        "total_generated": 1
+      },
+      "output_type": "ImagenGenerateOutput"
+    },
+    "intervention_propose": {
+      "output": {
+        "dry_run_required": true,
+        "escalation_path": "cs-runbook://onboarding/csm-call",
+        "fetched_via": "stub",
+        "intervention_kind": "call",
+        "scripted_message": "Hi {{first_name}}, I noticed your first campaign hit a snag at the {{stage}} stage. Could we hop on a 15-min call this week so I can walk you through the next steps?"
+      },
+      "output_type": "InterventionProposeOutput"
+    },
+    "lyria_generate": {
+      "output": {
+        "duration_s": 10.0,
+        "gcs_uri": "gs://ss-creative-stub/audio_10.mp3",
+        "sample_rate_hz": 44100,
+        "sha256": "e2719c709051185865c5dadbda43dc1fc18ccce301e883c6a4e73d8b7f5b4fa6"
+      },
+      "output_type": "LyriaGenerateOutput"
+    },
+    "memory_bank_search": {
+      "output": {
+        "memories": [
+          {
+            "content_summary": "Memory Bank record from day -5: operator confirmed sample shipping ETA is 3-5 business days for KR/JP, 7-10 for EN/CN.",
+            "memory_id": "mem_ws_smoke_brand_001_001",
+            "similarity_0_1": 0.95
+          },
+          {
+            "content_summary": "Operator previously asked the creator to share their shipping address; they replied with a Seoul-Gangnam street address on day -3.",
+            "memory_id": "mem_ws_smoke_brand_001_002",
+            "similarity_0_1": 0.8
+          },
+          {
+            "content_summary": "Compliance flagged a similar inbound 4 days ago \u2014 high spam_score on ALL-CAPS subject; operator approved the reply manually.",
+            "memory_id": "mem_ws_smoke_brand_001_003",
+            "similarity_0_1": 0.65
+          }
+        ],
+        "total_found": 3
+      },
+      "output_type": "MemoryBankSearchOutput"
+    },
+    "metrics_query": {
+      "output": {
+        "aggregation_used": "p95",
+        "anomaly_score_0_1": 0.15,
+        "points": [
+          {
+            "timestamp": "2026-05-18T23:00:00Z",
+            "value": 73.28999999999999
+          },
+          {
+            "timestamp": "2026-05-18T23:06:40Z",
+            "value": 73.78999999999999
+          },
+          {
+            "timestamp": "2026-05-18T23:13:20Z",
+            "value": 74.28999999999999
+          },
+          {
+            "timestamp": "2026-05-18T23:20:00Z",
+            "value": 74.78999999999999
+          },
+          {
+            "timestamp": "2026-05-18T23:26:40Z",
+            "value": 75.28999999999999
+          },
+          {
+            "timestamp": "2026-05-18T23:33:20Z",
+            "value": 75.78999999999999
+          },
+          {
+            "timestamp": "2026-05-18T23:40:00Z",
+            "value": 76.28999999999999
+          },
+          {
+            "timestamp": "2026-05-18T23:46:40Z",
+            "value": 76.78999999999999
+          },
+          {
+            "timestamp": "2026-05-18T23:53:20Z",
+            "value": 77.28999999999999
+          },
+          {
+            "timestamp": "2026-05-19T00:00:00Z",
+            "value": 77.78999999999999
+          }
+        ],
+        "total_points": 10
+      },
+      "output_type": "MetricsQueryOutput"
+    },
+    "model_armor_query_blocks": {
+      "output": {
+        "blocks": [
+          {
+            "block_id": "stub_blk_pi_001",
+            "kind": "PI",
+            "redacted_snippet": "ignore prev[**REDACTED**]",
+            "severity": "warn",
+            "tenant_id": "t_demo000000000000",
+            "timestamp": "2026-05-18T23:25:00Z"
+          },
+          {
+            "block_id": "stub_blk_pii_001",
+            "kind": "PII",
+            "redacted_snippet": "contact: [**REDACTED-PII**]",
+            "severity": "warn",
+            "tenant_id": "t_demo000000000000",
+            "timestamp": "2026-05-18T23:32:00Z"
+          }
+        ],
+        "total": 2
+      },
+      "output_type": "ModelArmorQueryBlocksOutput"
+    },
+    "outreach_extract_facts": {
+      "output": {
+        "contact_pref": "dm",
+        "engagement_pattern": "high_consistency",
+        "fetched_via": "stub",
+        "niche": "k-beauty/skincare",
+        "recent_collabs": [
+          {
+            "brand_name": "Innisfree",
+            "confidence": 0.92,
+            "detected_in": "recent_post_caption"
+          },
+          {
+            "brand_name": "Laneige",
+            "confidence": 0.78,
+            "detected_in": "bio"
+          }
+        ]
+      },
+      "output_type": "OutreachExtractFactsOutput"
+    },
+    "outreach_render": {
+      "output": {
+        "body": "<p>\uc548\ub155\ud558\uc138\uc694 [\ub204\ub77d\ub41c \ubcc0\uc218: creator.nickname]\ub2d8,</p><p>[\ub204\ub77d\ub41c \ubcc0\uc218: brand.name]\uc758 \ud611\uc5c5\uc744 \uc81c\uc548\ub4dc\ub9bd\ub2c8\ub2e4.</p>",
+        "fetched_via": "stub",
+        "follow_up_eta_days": 3,
+        "sender_signature": "\uac10\uc0ac\ud569\ub2c8\ub2e4,\nSocial Seeding \ud300",
+        "subject": "[\ub204\ub77d\ub41c \ubcc0\uc218: creator.nickname]\ub2d8\uaed8 \ud611\uc5c5 \uc81c\uc548"
+      },
+      "output_type": "OutreachRenderOutput"
+    },
+    "pipa_check_consent": {
+      "output": {
+        "consent_date": null,
+        "consent_granted": false,
+        "consent_source": null,
+        "opt_out_url": "https://app.2weeks.com/u/consent/manage",
+        "requires_re_consent": true
+      },
+      "output_type": "PipaCheckConsentOutput"
+    },
+    "prompt_registry_update": {
+      "output": {
+        "previous_version_id": null,
+        "rollback_url": "https://dashboard.stub.local/prompts/outreach-writer/v1?confirm=initial",
+        "version_id": "v1"
+      },
+      "output_type": "PromptRegistryUpdateOutput"
+    },
+    "pubsub_alert": {
+      "output": {
+        "ack_deadline_s": 60,
+        "topic": "watchdog.cost.threshold_crossed"
+      },
+      "output_type": "PubsubAlertOutput"
+    },
+    "ranking_score": {
+      "output": {
+        "computed_via": "stub",
+        "score": 0.925,
+        "sub_scores": {
+          "audience": 0.7,
+          "brand_safety": 1.0,
+          "content": 1.0,
+          "engagement": 1.0
+        },
+        "weights": {
+          "audience": 0.25,
+          "brand_safety": 0.15,
+          "content": 0.3,
+          "engagement": 0.3
+        }
+      },
+      "output_type": "RankingScoreOutput"
+    },
+    "rapidapi_get_user_info": {
+      "output": {
+        "creator_id": "tt_001",
+        "engagement_rate": 0.045,
+        "fetched_via": "stub",
+        "followers": 100000,
+        "following": 500,
+        "nickname": "@tt_001",
+        "platform": "tiktok",
+        "public_email": null,
+        "recent_posts": [
+          {
+            "comments": 20,
+            "likes": 400,
+            "post_id": "p_000",
+            "shares": 10,
+            "views": 10000
+          },
+          {
+            "comments": 21,
+            "likes": 406,
+            "post_id": "p_001",
+            "shares": 11,
+            "views": 10137
+          },
+          {
+            "comments": 22,
+            "likes": 412,
+            "post_id": "p_002",
+            "shares": 12,
+            "views": 10274
+          },
+          {
+            "comments": 23,
+            "likes": 418,
+            "post_id": "p_003",
+            "shares": 13,
+            "views": 10411
+          },
+          {
+            "comments": 24,
+            "likes": 424,
+            "post_id": "p_004",
+            "shares": 14,
+            "views": 10548
+          },
+          {
+            "comments": 25,
+            "likes": 430,
+            "post_id": "p_005",
+            "shares": 15,
+            "views": 10685
+          },
+          {
+            "comments": 26,
+            "likes": 436,
+            "post_id": "p_006",
+            "shares": 16,
+            "views": 10822
+          },
+          {
+            "comments": 27,
+            "likes": 442,
+            "post_id": "p_007",
+            "shares": 17,
+            "views": 10959
+          },
+          {
+            "comments": 28,
+            "likes": 448,
+            "post_id": "p_008",
+            "shares": 18,
+            "views": 11096
+          },
+          {
+            "comments": 29,
+            "likes": 454,
+            "post_id": "p_009",
+            "shares": 19,
+            "views": 11233
+          }
+        ],
+        "video_count": 40
+      },
+      "output_type": "RapidApiUserInfoOutput"
+    },
+    "rapidapi_instagram_search": {
+      "output": {
+        "creators": [
+          {
+            "follower_count": 20000,
+            "full_name": "Stub IG Creator 1",
+            "hashtags": [
+              "skincare serum"
+            ],
+            "id": "ig_001",
+            "media_count": 120,
+            "username": "ig_creator_001"
+          },
+          {
+            "follower_count": 40000,
+            "full_name": "Stub IG Creator 2",
+            "hashtags": [
+              "skincare serum"
+            ],
+            "id": "ig_002",
+            "media_count": 240,
+            "username": "ig_creator_002"
+          },
+          {
+            "follower_count": 60000,
+            "full_name": "Stub IG Creator 3",
+            "hashtags": [
+              "skincare serum"
+            ],
+            "id": "ig_003",
+            "media_count": 360,
+            "username": "ig_creator_003"
+          },
+          {
+            "follower_count": 80000,
+            "full_name": "Stub IG Creator 4",
+            "hashtags": [
+              "skincare serum"
+            ],
+            "id": "ig_004",
+            "media_count": 480,
+            "username": "ig_creator_004"
+          },
+          {
+            "follower_count": 100000,
+            "full_name": "Stub IG Creator 5",
+            "hashtags": [
+              "skincare serum"
+            ],
+            "id": "ig_005",
+            "media_count": 600,
+            "username": "ig_creator_005"
+          }
+        ],
+        "next_cursor": null,
+        "query_echo": "skincare serum"
+      },
+      "output_type": "RapidApiInstagramSearchOutput"
+    },
+    "rapidapi_tiktok_search": {
+      "output": {
+        "creators": [
+          {
+            "follower_count": 10000,
+            "hashtags": [
+              "skincare serum"
+            ],
+            "id": "tt_001",
+            "nickname": "Stub Creator 1",
+            "unique_id": "creator_001",
+            "video_count": 50
+          },
+          {
+            "follower_count": 20000,
+            "hashtags": [
+              "skincare serum"
+            ],
+            "id": "tt_002",
+            "nickname": "Stub Creator 2",
+            "unique_id": "creator_002",
+            "video_count": 100
+          },
+          {
+            "follower_count": 30000,
+            "hashtags": [
+              "skincare serum"
+            ],
+            "id": "tt_003",
+            "nickname": "Stub Creator 3",
+            "unique_id": "creator_003",
+            "video_count": 150
+          },
+          {
+            "follower_count": 40000,
+            "hashtags": [
+              "skincare serum"
+            ],
+            "id": "tt_004",
+            "nickname": "Stub Creator 4",
+            "unique_id": "creator_004",
+            "video_count": 200
+          },
+          {
+            "follower_count": 50000,
+            "hashtags": [
+              "skincare serum"
+            ],
+            "id": "tt_005",
+            "nickname": "Stub Creator 5",
+            "unique_id": "creator_005",
+            "video_count": 250
+          }
+        ],
+        "next_cursor": null,
+        "query_echo": "skincare serum"
+      },
+      "output_type": "RapidApiTiktokSearchOutput"
+    },
+    "runbook_execute": {
+      "output": {
+        "dry_run_applied": true,
+        "execution_id": "stub_exec_scale_up_633e985c",
+        "runbook_kind": "scale_up",
+        "status": "queued"
+      },
+      "output_type": "RunbookExecuteOutput"
+    },
+    "stt_transcribe": {
+      "output": {
+        "detected_locale": "ko",
+        "duration_s": 1.2,
+        "transcript": "\uc548\ub155\ud558\uc138\uc694 \uc138\uc0c1 \uc9c0\uae08",
+        "words": [
+          {
+            "end_s": 0.4,
+            "speaker": null,
+            "start_s": 0.0,
+            "text": "\uc548\ub155\ud558\uc138\uc694"
+          },
+          {
+            "end_s": 0.8,
+            "speaker": null,
+            "start_s": 0.4,
+            "text": "\uc138\uc0c1"
+          },
+          {
+            "end_s": 1.2,
+            "speaker": null,
+            "start_s": 0.8,
+            "text": "\uc9c0\uae08"
+          }
+        ]
+      },
+      "output_type": "SttTranscribeOutput"
+    },
+    "templates_list": {
+      "output": {
+        "fetched_via": "stub",
+        "locale": "ko",
+        "templates": [
+          {
+            "body": "<p>\uc548\ub155\ud558\uc138\uc694 {{creator.nickname}}\ub2d8,</p><p>\ucd5c\uadfc \ucf58\ud150\uce20\uc5d0\uc11c {{creator.recentPostThemes.0}} \uc8fc\uc81c\ub97c \ub2e4\ub8e8\uc2e0 \uc810\uc774 \uc778\uc0c1\uae4a\uc5c8\uc2b5\ub2c8\ub2e4. {{brand.name}}\uc758 {{brand.keyClaims.0}} \uc81c\ud488\uc744 \ud568\uaed8 \uc18c\uac1c\ud574\ubcf4\uc2dc\ub294 \uac74 \uc5b4\ub5a0\uc2e4\uae4c\uc694?</p><p>\uc0d8\ud50c \ubc1c\uc1a1 \uac00\ub2a5\ud569\ub2c8\ub2e4. \ud68c\uc2e0 \ubd80\ud0c1\ub4dc\ub9bd\ub2c8\ub2e4.</p>",
+            "locale": "ko",
+            "subject": "{{creator.nickname}}\ub2d8, {{brand.name}} \ud611\uc5c5 \uc81c\uc548\ub4dc\ub9bd\ub2c8\ub2e4",
+            "template_id": "tmpl_brand_ko_001",
+            "variables": [
+              "creator.nickname",
+              "creator.recentPostThemes.0",
+              "creator.topHashtags.0",
+              "brand.name",
+              "brand.category",
+              "brand.keyClaims.0",
+              "brand.keyClaims.1"
+            ]
+          },
+          {
+            "body": "<p>{{creator.nickname}}\ub2d8 \uc548\ub155\ud558\uc138\uc694. {{brand.name}}\uc785\ub2c8\ub2e4.</p><p>{{creator.topHashtags.0}} \uad00\ub828 \ucf58\ud150\uce20\ub97c \uc990\uaca8 \ubcf4\uace0 \uc788\uc2b5\ub2c8\ub2e4. {{brand.keyClaims.1}} \ud2b9\uc9d5\uc744 \uac00\uc9c4 \uc2e0\uc81c\ud488 \ud611\uc5c5\uc744 \uc81c\uc548\ub4dc\ub9bd\ub2c8\ub2e4.</p><p>\uad00\uc2ec \uc788\uc73c\uc2dc\uba74 \ub2f5\uc7a5 \ubd80\ud0c1\ub4dc\ub9bd\ub2c8\ub2e4.</p>",
+            "locale": "ko",
+            "subject": "{{brand.name}} \u00d7 {{creator.nickname}} \ud611\uc5c5 \ubb38\uc758",
+            "template_id": "tmpl_brand_ko_002",
+            "variables": [
+              "creator.nickname",
+              "creator.recentPostThemes.0",
+              "creator.topHashtags.0",
+              "brand.name",
+              "brand.category",
+              "brand.keyClaims.0",
+              "brand.keyClaims.1"
+            ]
+          },
+          {
+            "body": "<p>{{creator.nickname}}\ub2d8, {{brand.category}} \uce74\ud14c\uace0\ub9ac\uc5d0\uc11c \ud65c\ubc1c\ud558\uac8c \ud65c\ub3d9\ud558\uc2dc\ub294 \ubaa8\uc2b5\uc774 \uc778\uc0c1\uc801\uc785\ub2c8\ub2e4.</p><p>{{brand.name}} ({{brand.keyClaims.0}}) \uccb4\ud5d8 \ud611\uc5c5\uc5d0 \uad00\uc2ec \uc788\uc73c\uc2e0\uac00\uc694?</p>",
+            "locale": "ko",
+            "subject": "\uc2e0\uc81c\ud488 {{brand.name}} \uccb4\ud5d8 \ud611\uc5c5 \uc548\ub0b4",
+            "template_id": "tmpl_brand_ko_003",
+            "variables": [
+              "creator.nickname",
+              "creator.recentPostThemes.0",
+              "creator.topHashtags.0",
+              "brand.name",
+              "brand.category",
+              "brand.keyClaims.0",
+              "brand.keyClaims.1"
+            ]
+          }
+        ]
+      },
+      "output_type": "TemplatesListOutput"
+    },
+    "tenant_quarantine": {
+      "output": {
+        "quarantine_id": "stub_qtn_soft_98f76e4e",
+        "restrictions": [
+          "block_new_agent_invocations",
+          "block_outbound_email_send"
+        ]
+      },
+      "output_type": "TenantQuarantineOutput"
+    },
+    "translation_translate": {
+      "output": {
+        "confidence_0_1": 0.98,
+        "detected_source_locale": "en",
+        "translated_text": "\uc548\ub155\ud558\uc138\uc694, \uc138\uc0c1. \uc9c0\uae08."
+      },
+      "output_type": "TranslationTranslateOutput"
+    },
+    "tts_synthesize": {
+      "output": {
+        "audio_gcs_uri": "gs://ss-a11y-stub/tts_ko.mp3",
+        "duration_s": 4.2,
+        "sample_rate_hz": 24000,
+        "sha256": "5f1e0e6b7c8a2d4e9f0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f"
+      },
+      "output_type": "TtsSynthesizeOutput"
+    },
+    "vector_search_competitor": {
+      "output": {
+        "matches": [
+          {
+            "post_id": "post_stubbrand_01",
+            "score": 0.91,
+            "snippet": "Deterministic stub competitor snippet #1 mentioning StubBrand. Top_k=5.",
+            "source": "corpus://competitor/stubbrand/1"
+          },
+          {
+            "post_id": "post_stubbrand_02",
+            "score": 0.88,
+            "snippet": "Deterministic stub competitor snippet #2 mentioning StubBrand. Top_k=5.",
+            "source": "corpus://competitor/stubbrand/2"
+          },
+          {
+            "post_id": "post_stubbrand_03",
+            "score": 0.85,
+            "snippet": "Deterministic stub competitor snippet #3 mentioning StubBrand. Top_k=5.",
+            "source": "corpus://competitor/stubbrand/3"
+          },
+          {
+            "post_id": "post_stubbrand_04",
+            "score": 0.82,
+            "snippet": "Deterministic stub competitor snippet #4 mentioning StubBrand. Top_k=5.",
+            "source": "corpus://competitor/stubbrand/4"
+          },
+          {
+            "post_id": "post_stubbrand_05",
+            "score": 0.79,
+            "snippet": "Deterministic stub competitor snippet #5 mentioning StubBrand. Top_k=5.",
+            "source": "corpus://competitor/stubbrand/5"
+          }
+        ]
+      },
+      "output_type": "VectorSearchOutput"
+    },
+    "vector_search_creator": {
+      "output": {
+        "hits": [
+          {
+            "creator_id": "vs_001",
+            "score": 0.99
+          },
+          {
+            "creator_id": "vs_002",
+            "score": 0.98
+          },
+          {
+            "creator_id": "vs_003",
+            "score": 0.97
+          },
+          {
+            "creator_id": "vs_004",
+            "score": 0.96
+          },
+          {
+            "creator_id": "vs_005",
+            "score": 0.95
+          }
+        ]
+      },
+      "output_type": "VectorSearchCreatorOutput"
+    },
+    "veo_generate": {
+      "output": {
+        "duration_s": 6.0,
+        "fps": 24,
+        "gcs_uri": "gs://ss-creative-stub/vid_6.mp4",
+        "resolution": "720x1280",
+        "sha256": "fbf31f16f5e669980821f6f0f1813c72ae8790140d3acb11ffacf7700978656a",
+        "watermark_present": true
+      },
+      "output_type": "VeoGenerateOutput"
+    },
+    "view_metrics_aggregate": {
+      "output": {
+        "completion_rate": 0.62,
+        "cost_usd": 10.0,
+        "ctr_to_landing": 0.045,
+        "daily_breakdown": [
+          {
+            "cost_usd": 10.0,
+            "date": "2026-05-18",
+            "unique_viewers": 850,
+            "views": 1000
+          }
+        ],
+        "fetched_via": "stub",
+        "total_views": 1000,
+        "unique_viewers": 850
+      },
+      "output_type": "ViewMetricsAggregateOutput"
+    },
+    "vision_brand_logo_detect": {
+      "output": {
+        "brand_match": true,
+        "confidence_0_1": 0.87,
+        "detected_logos": [
+          "StubBrand"
+        ],
+        "logo_bounding_boxes": [
+          {
+            "h": 200,
+            "w": 200,
+            "x": 100,
+            "y": 100
+          }
+        ],
+        "logo_detected": true
+      },
+      "output_type": "VisionBrandLogoDetectOutput"
+    },
+    "vision_describe": {
+      "output": {
+        "alt_text": "\ube44\ud0c0\ubbfcC \uc138\ub7fc 30ml \ubcf4\ud2c0\uc774 \uc695\uc2e4 \uc120\ubc18 \uc704\uc5d0 \ub193\uc5ec \uc788\ub294 \uc815\ubb3c \uc0ac\uc9c4.",
+        "confidence_0_1": 0.92,
+        "detected_objects": [
+          "bottle",
+          "shelf",
+          "plant",
+          "tile"
+        ],
+        "scene_description": "\ubc1d\uc740 \uc790\uc5f0\uad11\uc774 \ube44\uce58\ub294 \uc695\uc2e4 \uc120\ubc18\uc5d0 \ube44\ud0c0\ubbfcC \uc138\ub7fc 30ml \ubcf4\ud2c0\uc774 \uc815\uc911\uc559\uc5d0 \ub193\uc5ec \uc788\uc73c\uba70, \ubc30\uacbd\uc5d0\ub294 \ud770\uc0c9 \ud0c0\uc77c\uacfc \uc791\uc740 \uc2dd\ubb3c\uc774 \ubcf4\uc785\ub2c8\ub2e4."
+      },
+      "output_type": "VisionDescribeOutput"
+    },
+    "web_search": {
+      "output": {
+        "results": [
+          {
+            "published_date": null,
+            "snippet": "Deterministic stub snippet 1 for query 'Korean skincare serum 2026 trends' (locale=ko).",
+            "title": "Synthetic stub result 1 for 'Korean skincare serum 2026 trends'",
+            "url": "https://stub.invalid/korean-skincare-serum-2026-trends/1"
+          },
+          {
+            "published_date": null,
+            "snippet": "Deterministic stub snippet 2 for query 'Korean skincare serum 2026 trends' (locale=ko).",
+            "title": "Synthetic stub result 2 for 'Korean skincare serum 2026 trends'",
+            "url": "https://stub.invalid/korean-skincare-serum-2026-trends/2"
+          },
+          {
+            "published_date": null,
+            "snippet": "Deterministic stub snippet 3 for query 'Korean skincare serum 2026 trends' (locale=ko).",
+            "title": "Synthetic stub result 3 for 'Korean skincare serum 2026 trends'",
+            "url": "https://stub.invalid/korean-skincare-serum-2026-trends/3"
+          },
+          {
+            "published_date": null,
+            "snippet": "Deterministic stub snippet 4 for query 'Korean skincare serum 2026 trends' (locale=ko).",
+            "title": "Synthetic stub result 4 for 'Korean skincare serum 2026 trends'",
+            "url": "https://stub.invalid/korean-skincare-serum-2026-trends/4"
+          },
+          {
+            "published_date": null,
+            "snippet": "Deterministic stub snippet 5 for query 'Korean skincare serum 2026 trends' (locale=ko).",
+            "title": "Synthetic stub result 5 for 'Korean skincare serum 2026 trends'",
+            "url": "https://stub.invalid/korean-skincare-serum-2026-trends/5"
+          }
+        ]
+      },
+      "output_type": "WebSearchOutput"
+    }
+  },
+  "total_unique_tools_invoked": 49,
+  "wiring": {
+    "a11y": [
+      "stt_transcribe",
+      "translation_translate",
+      "tts_synthesize",
+      "vision_describe"
+    ],
+    "analyst": [
+      "bigquery_query",
+      "view_metrics_aggregate"
+    ],
+    "anomaly-watch": [
+      "metrics_query",
+      "runbook_execute"
+    ],
+    "compliance": [
+      "canspam_check_unsubscribe",
+      "dlp_inspect",
+      "pipa_check_consent"
+    ],
+    "content-verify": [
+      "vision_brand_logo_detect"
+    ],
+    "conversation": [
+      "gmail_thread_classify",
+      "memory_bank_search"
+    ],
+    "conversation-responder": [
+      "gmail_send_reply",
+      "memory_bank_search"
+    ],
+    "coordinator": [
+      "a2a_invoke",
+      "agent_registry_list"
+    ],
+    "cost-watch": [
+      "billing_query",
+      "pubsub_alert"
+    ],
+    "creative": [
+      "assets_upload",
+      "imagen_generate",
+      "lyria_generate",
+      "veo_generate"
+    ],
+    "critic": [
+      "evaluation_score",
+      "gate_escalate"
+    ],
+    "customer_success": [
+      "analytics_funnel",
+      "intervention_propose"
+    ],
+    "intake": [
+      "forms_upsert"
+    ],
+    "lead-outreach-writer": [
+      "crm_enrich"
+    ],
+    "logistics": [
+      "address_normalize",
+      "carrier_create"
+    ],
+    "optimizer": [
+      "agent_optimizer_tune",
+      "prompt_registry_update"
+    ],
+    "outreach-writer": [
+      "outreach_extract_facts",
+      "outreach_render",
+      "templates_list"
+    ],
+    "payment_mandate": [
+      "ap2_compose_intent_mandate",
+      "gate_approveOutreachSend"
+    ],
+    "research": [
+      "vector_search_competitor",
+      "web_search"
+    ],
+    "security_watch": [
+      "chronicle_query",
+      "model_armor_query_blocks",
+      "tenant_quarantine"
+    ],
+    "sourcing": [
+      "blacklist_check",
+      "rapidapi_instagram_search",
+      "rapidapi_tiktok_search",
+      "vector_search_creator"
+    ],
+    "vetting": [
+      "ranking_score",
+      "rapidapi_get_user_info"
+    ]
+  }
+}

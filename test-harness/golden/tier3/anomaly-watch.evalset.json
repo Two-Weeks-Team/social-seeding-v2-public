@@ -1,0 +1,17 @@
+{
+  "name": "anomaly_watch_v1",
+  "description": "Tier-3 anomaly_watch (W1) — evaluated via L5 Chaos (MATRIX §2.5). This smoke set validates rule logic only. D-IDs: D23, D32, D37.",
+  "agent_spec_ref": "gs://ss-v2-agent-registry/anomaly_watch/v1.json",
+  "trajectory_mode": "NONE",
+  "metrics": ["true_positive_rate", "false_positive_rate"],
+  "thresholds": {"true_positive_rate": 0.85, "false_positive_rate": 0.05},
+  "min_cases": 6,
+  "eval_cases": [
+    {"name": "aw_en_001_p99_breach","locale": "en", "tags": ["infra-fail"], "input": {"signal": "p99_ms=1500"}, "expected": {"alert_fired": true}},
+    {"name": "aw_en_002_p99_normal","locale": "en", "tags": ["happy"], "input": {"signal": "p99_ms=400"}, "expected": {"alert_fired": false}},
+    {"name": "aw_en_003_error_rate_spike","locale": "en", "tags": ["infra-fail"], "input": {"signal": "error_rate=0.10"}, "expected": {"alert_fired": true}},
+    {"name": "aw_en_004_seasonal_normal","locale": "en", "tags": ["happy"], "input": {"signal": "morning_rush_pattern"}, "expected": {"alert_fired": false}},
+    {"name": "aw_en_005_pubsub_backlog","locale": "en", "tags": ["infra-fail"], "input": {"signal": "pubsub.undelivered>1000"}, "expected": {"alert_fired": true}},
+    {"name": "aw_en_006_workflow_stall","locale": "en", "tags": ["infra-fail"], "input": {"signal": "workflow.last_step_age_min=30"}, "expected": {"alert_fired": true}}
+  ]
+}

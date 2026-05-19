@@ -1,0 +1,114 @@
+{
+  "_meta": {
+    "purpose": "OBS Studio recording profile for the Phase-8 demo recordings (Track 2 v2 + Track 3 MCP).",
+    "authority": "implements gcp-research/decisions/DECISIONS.md D30 (8x speed real-mouse-action recording) and gcp-research/demo/SCRIPT.md §2.1.",
+    "rationale": "1920x1080 @ 60 fps source becomes 480 fps effective after 8x speed warp, which keeps motion smooth. CRF 18 + x264 veryfast preset gives a lossless-quality intermediate at a recordable bitrate. MKV container is recoverable if OBS crashes mid-record; final MP4 container is produced by the post-process chain, not the recorder.",
+    "version": "1.0",
+    "owner": "scripts/demo/ pipeline",
+    "tested_obs_version": "OBS Studio 30.x (macOS Apple Silicon and Linux x86_64)"
+  },
+
+  "general": {
+    "Name": "social-seeding-v2-demo",
+    "WarnBeforeStartingStream": false,
+    "WarnBeforeStoppingStream": true,
+    "RecordWhenStreaming": false,
+    "ConfirmOnExit": true
+  },
+
+  "video": {
+    "BaseCX": 1920,
+    "BaseCY": 1080,
+    "OutputCX": 1920,
+    "OutputCY": 1080,
+    "FPSType": 1,
+    "FPSCommon": "60",
+    "FPSInt": 60,
+    "FPSNum": 60,
+    "FPSDen": 1,
+    "ScaleType": "bicubic",
+    "ColorFormat": "NV12",
+    "ColorSpace": "709",
+    "ColorRange": "Partial"
+  },
+
+  "audio": {
+    "SampleRate": 48000,
+    "ChannelSetup": "Stereo",
+    "MonitoringDeviceName": "Default",
+    "Desktop1": {
+      "name": "Desktop Audio",
+      "balance": 0.5,
+      "volume": 1.0,
+      "muted": false
+    },
+    "Mic1": {
+      "name": "Microphone",
+      "balance": 0.5,
+      "volume": 0.8,
+      "monitoring_type": 0,
+      "muted": false,
+      "_target_peak_dbfs": -12,
+      "_note": "operator must verify -12 dBFS peak via the obs audio mixer before pressing record"
+    }
+  },
+
+  "output": {
+    "Mode": "Advanced",
+    "RecType": "Standard",
+    "RecFilePath": "${DEMO_RAW_DIR}",
+    "RecFormat": "mkv",
+    "RecUseRescale": false,
+    "RecTracks": 1,
+    "RecEncoder": "obs_x264",
+    "FLVTrack": 1,
+    "RecRB": false,
+    "RecRBTime": 20,
+    "RecRBSize": 512
+  },
+
+  "advanced_recording": {
+    "video_encoder": "obs_x264",
+    "video_settings": {
+      "rate_control": "CRF",
+      "crf": 18,
+      "preset": "veryfast",
+      "profile": "high",
+      "tune": "zerolatency",
+      "keyint_sec": 2,
+      "x264opts": "scenecut=0:open_gop=0:min-keyint=60:keyint=120"
+    },
+    "audio_encoder": "ffmpeg_aac",
+    "audio_bitrate_kbps": 192,
+    "audio_sample_rate_hz": 48000
+  },
+
+  "hotkeys": {
+    "OBSBasic.StartRecording": [{"key": "OBS_KEY_F9", "modifiers": "CMD"}],
+    "OBSBasic.StopRecording": [{"key": "OBS_KEY_F10", "modifiers": "CMD"}],
+    "OBSBasic.PauseRecording": [{"key": "OBS_KEY_F11", "modifiers": "CMD"}],
+    "OBSBasic.SelectScene.Mission_Control_full": [{"key": "OBS_KEY_NUM1", "modifiers": "CMD"}],
+    "OBSBasic.SelectScene.Mission_Control_zoom": [{"key": "OBS_KEY_NUM2", "modifiers": "CMD"}],
+    "OBSBasic.SelectScene.Terminal_browser_split": [{"key": "OBS_KEY_NUM3", "modifiers": "CMD"}]
+  },
+
+  "websocket": {
+    "ServerEnabled": true,
+    "ServerPort": 4455,
+    "AuthRequired": true,
+    "_password_note": "stored in macOS Keychain under service=obs-studio account=websocket; scripts read OBS_WEBSOCKET_PASSWORD from env"
+  },
+
+  "_install_note": "Copy this file to ~/Library/Application Support/obs-studio/basic/profiles/social-seeding-v2-demo/basic.ini (macOS) or ~/.config/obs-studio/basic/profiles/social-seeding-v2-demo/basic.ini (Linux), then in OBS Studio choose Profile > social-seeding-v2-demo from the Profile menu. obs-studio reads ini, not json, so the host adapter scripts/demo/obs/profile.json -> basic.ini converter in start-recording.sh handles the translation.",
+
+  "_validation_checklist": [
+    "Output > Recording > Recording Format = mkv (NOT mp4 — MKV is recoverable on crash)",
+    "Output > Recording > Encoder = x264 (NOT hardware NVENC/QuickSync — quality > speed for the intermediate)",
+    "Output > Recording > Rate Control = CRF, CRF = 18",
+    "Video > Base (Canvas) Resolution = 1920x1080",
+    "Video > Output (Scaled) Resolution = 1920x1080 (no downscale)",
+    "Video > Common FPS Values = 60",
+    "Audio > Sample Rate = 48 kHz",
+    "Audio > Mic peaks at -12 dBFS during a 30 s narration test"
+  ]
+}

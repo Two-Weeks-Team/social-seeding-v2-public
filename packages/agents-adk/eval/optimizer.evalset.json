@@ -1,0 +1,279 @@
+{
+  "eval_set_id": "ss_optimizer_v0_1",
+  "name": "Optimizer (M3) agent — 8-case golden set (target-metric + locale spread)",
+  "description": "Phase 4 skeleton golden set per optimizer.spec.md §7 + the task brief. The optimizer is a Tier-2 meta agent (D23 M3) that proposes prompt rewrites for one Tier-1 agent at a time. Coverage axes: (a) target metric — task_completion / response_match_v2 / grounding_score / hallucinations_v1 / cost_efficiency / activation_lift; (b) confidence band — high (≥ 0.7) / medium (0.6-0.7) / low (< 0.6 ⇒ caller escalates); (c) simulation_recommended boolean — flips to true when expected lift < +0.05 on any target metric OR diff > 30% of original prompt size; (d) D34 locales — 3 EN + 2 KO + 2 JA + 1 ZH for the `reasoning` field language. Full 30-case set lands in tests/golden/optimizer/*.json during Phase 5 per MATRIX.md §10. The offline_eval_lift threshold per the task brief is ≥ +0.02 on the named target metric — every healthy case in this set satisfies it.",
+  "criteria_overrides": {
+    "tool_trajectory_avg_score": 0.0,
+    "final_response_match_v2": 0.65,
+    "diff_validity": 0.95,
+    "lift_calibration": 0.7
+  },
+  "metadata": {
+    "agent_id": "optimizer",
+    "spec": "gcp-research/specs/tier2/optimizer.spec.md",
+    "decisions": ["D5", "D23", "D25", "D27", "D34", "D38"],
+    "architecture_ref": "ARCHITECTURE.md §3 row 19 — optimizer (M3) | Gemini 2.5 Pro | agent_optimizer.tune, prompt_registry.update | None | offline_eval_lift",
+    "matrix_ref": "MATRIX.md §10 — closes the D25 eval-score → prompt-diff → eval-rerun loop",
+    "v2_reference": "(no v2 predecessor — v2 prompts are hand-tuned per agent file)",
+    "locales_covered": ["en", "en", "en", "ko", "ko", "ja", "ja", "zh-CN"],
+    "target_metric_coverage": {
+      "task_completion": 2,
+      "response_match_v2": 2,
+      "grounding_score": 1,
+      "hallucinations_v1": 1,
+      "cost_efficiency": 1,
+      "activation_lift": 1
+    },
+    "confidence_band": {
+      "high": 5,
+      "medium": 2,
+      "low": 1
+    },
+    "simulation_recommended_split": {
+      "true": 3,
+      "false": 5
+    }
+  },
+  "eval_cases": [
+    {
+      "eval_id": "optimizer_en_01_intake_high_confidence_two_clusters",
+      "metadata": {
+        "locale": "en",
+        "target_agent": "intake",
+        "confidence_band": "high",
+        "expected_simulation_recommended": false,
+        "should_escalate": false,
+        "note": "Two clear failure clusters (re-asking + unsolicited budget). The optimizer proposes one diff entry per cluster and projects +0.06 / +0.04 lift on the two target metrics. Confidence ≥ 0.7 so simulation_recommended stays false."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"targetAgentId\":\"intake\",\"currentPrompt\":\"You are the campaign intake agent for Social Seeding. Assemble a CampaignBrief from a short conversation. Ask one focused question per turn until you can ship a valid brief. Respond in the user's language. Keep questions <= 2 sentences. Do not ask about budget unless the user volunteers it. Do not re-ask creatorCount once answered.\",\"recentEvalResults\":[{\"runId\":\"r1\",\"evalCaseId\":\"intake_en_03_contradiction_confirms\",\"metric\":\"task_completion\",\"score\":0.55,\"passed\":false,\"failureReason\":\"agent asked the same question twice\"},{\"runId\":\"r2\",\"evalCaseId\":\"intake_en_04_one_shot\",\"metric\":\"task_completion\",\"score\":0.58,\"passed\":false,\"failureReason\":\"agent asked the same question twice\"},{\"runId\":\"r3\",\"evalCaseId\":\"intake_ko_05_minimal\",\"metric\":\"response_match_v2\",\"score\":0.62,\"passed\":false,\"failureReason\":\"agent volunteered budget question\"},{\"runId\":\"r4\",\"evalCaseId\":\"intake_ko_06_one_shot\",\"metric\":\"response_match_v2\",\"score\":0.65,\"passed\":false,\"failureReason\":\"agent volunteered budget question\"}],\"targetMetrics\":[\"task_completion\",\"response_match_v2\"],\"locale\":\"en\",\"observedFailurePatterns\":[\"agent re-asks creatorCount after it was answered\",\"agent volunteers budget questions despite the brief saying not to\"]}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"proposedPromptDiff\":{\"added\":[\"Never re-ask a field once the user has answered it; the growing message history is your memory.\"],\"removed\":[],\"rewritten\":[\"Do not ask about budget unless the user volunteers it. => Do not ask about budget unless the user volunteers it, and never volunteer the topic yourself.\"]},\"expectedLiftPerMetric\":{\"task_completion\":0.06,\"response_match_v2\":0.04},\"confidence\":0.72,\"reasoning\":\"Two failure clusters surfaced: repeat-asking on already-answered fields, and unsolicited budget questions. The added line addresses the first by making memory of the history explicit; the rewritten line tightens the second by closing the loophole where the agent treats the don't-ask rule as a soft default.\",\"simulationRecommended\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "optimizer_en_02_research_grounding_lift",
+      "metadata": {
+        "locale": "en",
+        "target_agent": "research",
+        "confidence_band": "high",
+        "expected_simulation_recommended": false,
+        "should_escalate": false,
+        "note": "Research agent hallucinating citations when grounding off. Optimizer adds an explicit 'cite parametric knowledge only when grounding is OFF' clause."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"targetAgentId\":\"research\",\"currentPrompt\":\"You are the research agent for Social Seeding. Return brand overview, top competitors, market position, and recent news for the named brand. When grounding is enabled, attach citations to sources[]. Respond in the user's locale. Be concise and factual.\",\"recentEvalResults\":[{\"runId\":\"r1\",\"evalCaseId\":\"research_en_07_kbeauty_offline\",\"metric\":\"hallucinations_v1\",\"score\":0.18,\"passed\":false,\"failureReason\":\"invented funding round citation when grounding was off\"},{\"runId\":\"r2\",\"evalCaseId\":\"research_en_08_kbeauty_offline\",\"metric\":\"hallucinations_v1\",\"score\":0.22,\"passed\":false,\"failureReason\":\"invented founder name with grounding off\"},{\"runId\":\"r3\",\"evalCaseId\":\"research_en_09_kbeauty_grounded\",\"metric\":\"grounding_score\",\"score\":0.78,\"passed\":false,\"failureReason\":\"citation 3 unreachable URL\"}],\"targetMetrics\":[\"hallucinations_v1\",\"grounding_score\"],\"locale\":\"en\",\"observedFailurePatterns\":[\"agent fabricates funding round details when grounding is off\",\"agent claims source URLs that 404\"]}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"proposedPromptDiff\":{\"added\":[\"When grounding is OFF, recent_news must be an empty array. Do NOT invent dates, funding rounds, or founder names. Cite ONLY what your parametric knowledge supports verbatim.\",\"When grounding is ON, every recent_news entry MUST point to a sources[] index. Never cite a URL you did not see in the tool response.\"],\"removed\":[],\"rewritten\":[]},\"expectedLiftPerMetric\":{\"hallucinations_v1\":-0.12,\"grounding_score\":0.08},\"confidence\":0.78,\"reasoning\":\"Hallucination cluster is driven by the agent treating grounding-off as a license to imagine specifics. Two added clauses make the OFF and ON contracts explicit. Note: hallucinations_v1 expected DELTA is negative because lower is better on this metric — the magnitude (-0.12) matches the observed +0.20 score band of failed runs.\",\"simulationRecommended\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "optimizer_en_03_outreach_writer_low_lift_recommend_simulation",
+      "metadata": {
+        "locale": "en",
+        "target_agent": "outreach-writer",
+        "confidence_band": "medium",
+        "expected_simulation_recommended": true,
+        "should_escalate": false,
+        "note": "Lift is small (+0.03 on response_match_v2) — by the brief's rule, simulation_recommended flips true when any target-metric lift is < +0.05. The optimizer's reasoning explicitly cites this rule."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"targetAgentId\":\"outreach-writer\",\"currentPrompt\":\"You are the outreach-writer agent for Social Seeding. Compose a personalized cold-outreach email to a TikTok creator. Use the 5-angle tournament: brand fit, conversion, deliverability, skeptic, voice. Pick the winner via the 4-judge panel. Output: subject, opener, ask, signoff, spam_score. Keep total length under 800 chars. Respond in the campaign's locale.\",\"recentEvalResults\":[{\"runId\":\"r1\",\"evalCaseId\":\"outreach_en_11_clean\",\"metric\":\"response_match_v2\",\"score\":0.71,\"passed\":false,\"failureReason\":\"signoff omitted creator handle\"},{\"runId\":\"r2\",\"evalCaseId\":\"outreach_en_12_revision\",\"metric\":\"response_match_v2\",\"score\":0.74,\"passed\":false,\"failureReason\":\"signoff omitted creator handle\"}],\"targetMetrics\":[\"response_match_v2\"],\"locale\":\"en\",\"observedFailurePatterns\":[\"agent drops the creator handle in the signoff under 800-char pressure\"]}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"proposedPromptDiff\":{\"added\":[\"The signoff MUST include the creator's @handle. If the 800-char budget is tight, shorten the opener — never drop the handle.\"],\"removed\":[],\"rewritten\":[]},\"expectedLiftPerMetric\":{\"response_match_v2\":0.03},\"confidence\":0.62,\"reasoning\":\"Small sample (2 failed runs) on a single metric; lift estimate is conservative at +0.03 which is below the +0.05 noise threshold the workflow uses to gate the simulation recommendation. Recommending Agent Simulation against 100 outreach scenarios before opening the PR.\",\"simulationRecommended\":true}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "optimizer_ko_04_logistics_grounding_high_confidence",
+      "metadata": {
+        "locale": "ko",
+        "target_agent": "logistics",
+        "confidence_band": "high",
+        "expected_simulation_recommended": false,
+        "should_escalate": false,
+        "note": "Logistics agent dropping postal code in KR addresses. Tight rewrite + clear lift. `reasoning` is in Korean per the locale; diff stays English."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"targetAgentId\":\"logistics\",\"currentPrompt\":\"You are the logistics agent for Social Seeding. Parse the operator's free-text shipping address into the structured Address schema (name, phone, postal_code, street, city, country). Return only fields you can extract verbatim; omit unknown fields. Respond in the user's locale.\",\"recentEvalResults\":[{\"runId\":\"r1\",\"evalCaseId\":\"logistics_ko_03_postal\",\"metric\":\"response_match_v2\",\"score\":0.61,\"passed\":false,\"failureReason\":\"omitted postal_code when address text included it\"},{\"runId\":\"r2\",\"evalCaseId\":\"logistics_ko_04_postal\",\"metric\":\"response_match_v2\",\"score\":0.64,\"passed\":false,\"failureReason\":\"omitted postal_code when address text included it\"},{\"runId\":\"r3\",\"evalCaseId\":\"logistics_ko_05_postal\",\"metric\":\"response_match_v2\",\"score\":0.66,\"passed\":false,\"failureReason\":\"omitted postal_code when address text included it\"}],\"targetMetrics\":[\"response_match_v2\"],\"locale\":\"ko\",\"observedFailurePatterns\":[\"KR 우편번호가 명시되어 있어도 postal_code 필드가 비어있음\"]}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"proposedPromptDiff\":{\"added\":[],\"removed\":[\"Return only fields you can extract verbatim; omit unknown fields.\"],\"rewritten\":[\"Return only fields you can extract verbatim; omit unknown fields. => Return every field you can extract verbatim. For postal_code, recognize 5-digit (US ZIP), 7-digit (KR 우편번호), and 6/7-character (UK postcode) formats. Omit only when the address text truly lacks the value.\"]},\"expectedLiftPerMetric\":{\"response_match_v2\":0.09},\"confidence\":0.82,\"reasoning\":\"세 건의 실패가 모두 KR 우편번호 누락에 집중되어 있습니다. 기존 'omit unknown fields' 지침이 모델에게 5자리 ZIP 패턴 외의 우편번호를 'unknown'으로 분류하도록 유도했습니다. 다국가 우편번호 포맷을 명시적으로 추가해 패턴 인식을 보강합니다.\",\"simulationRecommended\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "optimizer_ko_05_vetting_cost_efficiency_low_confidence",
+      "metadata": {
+        "locale": "ko",
+        "target_agent": "vetting",
+        "confidence_band": "low",
+        "expected_simulation_recommended": true,
+        "should_escalate": true,
+        "note": "Single failed run on cost_efficiency — too sparse to draw a high-confidence conclusion. Optimizer drops confidence below 0.6 and recommends simulation; caller will escalate this proposal back to human review per the brief's <0.6 rule."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"targetAgentId\":\"vetting\",\"currentPrompt\":\"You are the vetting agent for Social Seeding. Score each candidate creator for brand fit on a 0-100 scale. Use get_user_info + ranking.score + (optional) vector_search.brand_fit. Return {creator_id, fit_score, reasoning}. Be parsimonious with tool calls.\",\"recentEvalResults\":[{\"runId\":\"r1\",\"evalCaseId\":\"vetting_ko_07_kbeauty\",\"metric\":\"cost_efficiency\",\"score\":0.42,\"passed\":false,\"failureReason\":\"agent called vector_search 4 times per candidate\"}],\"targetMetrics\":[\"cost_efficiency\"],\"locale\":\"ko\",\"observedFailurePatterns\":[\"vector_search.brand_fit 호출이 후보당 평균 4회로 과도함\"]}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"proposedPromptDiff\":{\"added\":[\"vector_search.brand_fit는 후보당 최대 1회만 호출하세요. 결과 캐시는 같은 캠페인 안에서 재사용됩니다.\"],\"removed\":[],\"rewritten\":[]},\"expectedLiftPerMetric\":{\"cost_efficiency\":0.02},\"confidence\":0.45,\"reasoning\":\"실패 클러스터가 단 하나의 실행에서 관측되었기 때문에 충분한 신호가 아닙니다. 보수적으로 +0.02 향상을 추정하며, 신뢰도는 0.6 미만으로 보고하여 호출자가 사람 검토로 에스컬레이션하도록 합니다. 시뮬레이션을 권장합니다.\",\"simulationRecommended\":true}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "optimizer_ja_06_conversation_activation_lift",
+      "metadata": {
+        "locale": "ja",
+        "target_agent": "conversation",
+        "confidence_band": "high",
+        "expected_simulation_recommended": false,
+        "should_escalate": false,
+        "note": "Conversation classifier mis-routing 'partial_yes' as 'maybe'. Optimizer adds a category disambiguator with concrete examples. JA locale for `reasoning`."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"targetAgentId\":\"conversation\",\"currentPrompt\":\"You are the conversation classifier for Social Seeding. Classify each creator reply into one of 8 categories: yes, no, maybe, partial_yes, question, unsubscribe, off_topic, escalate. Return {category, confidence}. Be precise.\",\"recentEvalResults\":[{\"runId\":\"r1\",\"evalCaseId\":\"conv_ja_11_partial_yes\",\"metric\":\"activation_lift\",\"score\":0.48,\"passed\":false,\"failureReason\":\"partial_yes mis-labeled as maybe\"},{\"runId\":\"r2\",\"evalCaseId\":\"conv_ja_12_partial_yes\",\"metric\":\"activation_lift\",\"score\":0.51,\"passed\":false,\"failureReason\":\"partial_yes mis-labeled as maybe\"},{\"runId\":\"r3\",\"evalCaseId\":\"conv_ja_13_partial_yes\",\"metric\":\"activation_lift\",\"score\":0.55,\"passed\":false,\"failureReason\":\"partial_yes mis-labeled as maybe\"}],\"targetMetrics\":[\"activation_lift\"],\"locale\":\"ja\",\"observedFailurePatterns\":[\"クリエイターが条件付きYESを表明したのに『maybe』として分類\"]}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"proposedPromptDiff\":{\"added\":[\"partial_yes vs maybe disambiguator: classify as `partial_yes` when the reply ACCEPTS the offer with a specific condition (price, timing, sample size). Use `maybe` only when the reply expresses uncertainty WITHOUT a condition. Examples: 'いいですよ、サンプルを2つもらえれば' => partial_yes. 'うーん、考えてみます' => maybe.\"],\"removed\":[],\"rewritten\":[]},\"expectedLiftPerMetric\":{\"activation_lift\":0.08},\"confidence\":0.76,\"reasoning\":\"3件のJP failures がすべて conditional-yes を maybe として誤分類しています。日本語の条件付き同意（『〜なら』『〜であれば』）が現行プロンプトでは partial_yes ではなく maybe にマッピングされていました。明示的な例を含む disambiguator を追加してパターン認識を補強します。\",\"simulationRecommended\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "optimizer_ja_07_analyst_grounding_score_tight",
+      "metadata": {
+        "locale": "ja",
+        "target_agent": "analyst",
+        "confidence_band": "high",
+        "expected_simulation_recommended": false,
+        "should_escalate": false,
+        "note": "Analyst recomputing numbers when it should quote verbatim. Rewrite emphasizes 'do not recompute' discipline."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"targetAgentId\":\"analyst\",\"currentPrompt\":\"You are the analyst agent for Social Seeding. Compose a human-readable campaign report from the AnalyticsReport + brief. Output summary, highlights, concerns, recommendations, markdown. Cite numbers from the data.\",\"recentEvalResults\":[{\"runId\":\"r1\",\"evalCaseId\":\"analyst_ja_03_winning\",\"metric\":\"grounding_score\",\"score\":0.87,\"passed\":false,\"failureReason\":\"summary cited 16% engagement when source said 7.5%\"},{\"runId\":\"r2\",\"evalCaseId\":\"analyst_ja_04_behind\",\"metric\":\"grounding_score\",\"score\":0.84,\"passed\":false,\"failureReason\":\"recommendations cited 30 verified posts when source said 7\"}],\"targetMetrics\":[\"grounding_score\"],\"locale\":\"ja\",\"observedFailurePatterns\":[\"アナリストが engagement rate を再計算して原データと矛盾\"]}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"proposedPromptDiff\":{\"added\":[\"NEVER recompute numbers from the funnel or reach blocks. Every number in your output MUST appear verbatim in report.* — if you cannot point to the exact field, drop the number from the report.\"],\"removed\":[],\"rewritten\":[\"Cite numbers from the data. => Cite numbers from the data VERBATIM. The eval grounding_score ≥ 0.95 traces every number back to a report.* field — recomputed or rounded numbers fail the trace.\"]},\"expectedLiftPerMetric\":{\"grounding_score\":0.08},\"confidence\":0.81,\"reasoning\":\"2件のJP failures が両方とも 'agent が独自に再計算した数値' でgrounding traceを失敗させています。現行の 'Cite numbers from the data' は柔らかすぎ、verbatimの強い制約がないため、モデルが engagement rate やverifiedCountを自分で再計算してしまいます。明示的にverbatim制約を追加し、既存の弱い文を強化します。\",\"simulationRecommended\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "optimizer_zh_08_content_verify_task_completion_high_confidence",
+      "metadata": {
+        "locale": "zh-CN",
+        "target_agent": "content-verify",
+        "confidence_band": "high",
+        "expected_simulation_recommended": false,
+        "should_escalate": false,
+        "note": "Content-verify agent escalating too aggressively on uncertain matches. Optimizer raises the threshold + adds a 'soft-uncertainty' bucket so task_completion lifts."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"targetAgentId\":\"content-verify\",\"currentPrompt\":\"You are the content-verify agent for Social Seeding. Given a TikTok post, decide whether the brand was meaningfully mentioned. Use post_detail + vision.brand_logo_detect. Return {match: bool, confidence, reasoning}. When uncertain, escalate.\",\"recentEvalResults\":[{\"runId\":\"r1\",\"evalCaseId\":\"verify_zh_07_logo\",\"metric\":\"task_completion\",\"score\":0.60,\"passed\":false,\"failureReason\":\"escalated despite logo confidence 0.78\"},{\"runId\":\"r2\",\"evalCaseId\":\"verify_zh_08_logo\",\"metric\":\"task_completion\",\"score\":0.62,\"passed\":false,\"failureReason\":\"escalated despite logo confidence 0.81\"},{\"runId\":\"r3\",\"evalCaseId\":\"verify_zh_09_logo\",\"metric\":\"task_completion\",\"score\":0.58,\"passed\":false,\"failureReason\":\"escalated when caption mentioned brand verbatim\"}],\"targetMetrics\":[\"task_completion\"],\"locale\":\"zh-CN\",\"observedFailurePatterns\":[\"logo置信度0.75以上时agent仍然escalate而不是返回match=true\"]}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"proposedPromptDiff\":{\"added\":[\"Escalate ONLY when (logo confidence < 0.50 AND caption does not contain the brand name verbatim) OR (the vision tool returned an error). For logo confidence in [0.50, 0.75], emit match=true with confidence=0.65 — do NOT escalate.\"],\"removed\":[\"When uncertain, escalate.\"],\"rewritten\":[]},\"expectedLiftPerMetric\":{\"task_completion\":0.10},\"confidence\":0.79,\"reasoning\":\"三个失败案例都显示 agent 在 logo 置信度高于 0.75 时仍选择 escalate。原 prompt 中 'when uncertain, escalate' 没有定量门槛，模型把所有非 1.0 confidence 都视为 uncertain。新增明确的数值门槛使 task_completion 提升。\",\"simulationRecommended\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    }
+  ]
+}

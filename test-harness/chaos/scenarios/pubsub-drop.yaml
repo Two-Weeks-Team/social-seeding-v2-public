@@ -1,0 +1,48 @@
+# CHAOS-EVT-01 — Pub/Sub message drop
+# Cites: D18 (Cloud Workflows correlation), D31, D32, D37
+# Source: chaos/SCENARIOS.md §3.5 CHAOS-EVT-01
+# Tags: per_pr (fast 10), nightly
+
+id: CHAOS-EVT-01
+name: pubsub-message-drop
+tier: event
+executor: pubsub_harness
+tags: [per_pr, nightly]
+
+description: |
+  A subscriber acks 5% of messages without processing them. Validates that
+  the at-least-once + idempotency-key contract holds; the brand-campaign
+  workflow correlation must re-emit the dropped event within timeout.
+
+trigger:
+  type: subscriber
+  config:
+    chaos_subscriber: ss-v2-chaos-drop-sub
+    drop_probability: 0.05
+    duration_min: 10
+
+expected_rto_s: 300  # cold-path; ≤ 5 minutes for replay
+expected_rpo_s: 0    # workflow correlation must lose zero canaries
+observed_sli_breach: workflow.correlation.timeout
+
+auto_runbook: runbook-workflow-replay
+auto_runbook_timeout_s: 300
+
+recovery_validation:
+  type: probe
+  steps:
+    - "publish 100 canary events tagged chaos_run_id=$RUN_ID"
+    - "wait 5 minutes"
+    - "query BigQuery downstream sink for all 100 canary ids"
+    - "expect: 100/100 observed"
+
+pass_criteria:
+  - "canaries_observed == canaries_published (zero loss)"
+  - "auto_runbook fired and completed within 300s"
+
+stub_override:
+  pass: true
+
+references:
+  - "https://cloud.google.com/pubsub/docs/exactly-once-delivery"
+  - "https://cloud.google.com/pubsub/docs/dead-letter-topics"

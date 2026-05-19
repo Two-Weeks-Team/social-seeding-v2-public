@@ -1,0 +1,279 @@
+{
+  "eval_set_id": "ss_cost_watch_v0_1",
+  "name": "Cost-Watch agent (W2) — 8-case rule-eval golden set",
+  "description": "Phase 4 skeleton golden set per cost_watch.spec.md §7. Covers the threshold ladder (50/75/90/95/100/110), the kill-switch invariant (never fire below 100%), the $0-budget free-tier edge case (spec §8 #3), the no-budget-row fallback (spec §6 'default to $50/day'), the previous_crossings dedupe semantics, the BQ-stale `blind` propagation, and the >3× baseline anomaly hint. Rule-based agent (no LLM) — final_response is the canonical evaluate_cost_watch() output for each user_content input. The harness asserts byte-for-byte equality of crossings + action + percent + blind. Eval criteria per spec §7: false_negative_rate = 0 (any T ≤ percent must appear), kill_switch_accuracy = 1.00 (no over_limit_block below 100%), time_to_alert ≤ 5s (single-function call, measured upstream).",
+  "criteria_overrides": {
+    "tool_trajectory_avg_score": 0.0,
+    "final_response_match_v2": 1.0,
+    "false_negative_rate_max": 0.0,
+    "kill_switch_accuracy": 1.0,
+    "false_clear_rate": 0.0
+  },
+  "metadata": {
+    "agent_id": "cost-watch",
+    "tier": 3,
+    "watchdog_id": "W2",
+    "spec": "gcp-research/specs/tier3/cost_watch.spec.md",
+    "decisions": ["D23", "D28", "D31", "D33", "D39"],
+    "architecture_ref": "ARCHITECTURE.md §3 row 21 — cost_watch (W2) | 3 | rule-based (no LLM, but agent-shaped for D23 consistency) | billing.query, pubsub.alert | None | latency to alert",
+    "model": "none-rule-based",
+    "runtime_path": "evaluate_cost_watch() — pure function, no LLM, no async",
+    "max_usd_per_run": 0.0,
+    "safety_critical": true,
+    "case_distribution": {
+      "no_crossing": 1,
+      "single_crossing_first_fire": 1,
+      "dedupe_via_previous_crossings": 1,
+      "throttle_band": 1,
+      "kill_switch_fires_at_100": 1,
+      "free_tier_zero_budget": 1,
+      "no_budget_row_fallback": 1,
+      "bq_stale_blind_flag": 1
+    }
+  },
+  "eval_cases": [
+    {
+      "eval_id": "cost_watch_01_below_50pct_no_crossing",
+      "metadata": {
+        "scenario": "no_crossing",
+        "percent": 20.0,
+        "expected_crossings_count": 0,
+        "expected_throttle": null,
+        "expected_blind": false,
+        "note": "Healthy tenant at 20% of daily budget. Tick fires, nothing crosses, no Pub/Sub events emitted. Most common production case (~95% of ticks)."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_tenant_healthy01\",\"workspaceId\":\"ws_acme_demo\",\"window\":\"per_day\",\"tickTime\":\"2026-05-19T12:00:00+00:00\",\"forceRecheck\":false,\"billingSnapshot\":{\"spentUsd\":20.0,\"budgetUsd\":100.0,\"baselineBurnRateUsdPerHour\":null,\"snapshotStale\":false},\"previousCrossings\":[]}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_tenant_healthy01\",\"workspaceId\":\"ws_acme_demo\",\"window\":\"per_day\",\"spentUsd\":20.0,\"budgetUsd\":100.0,\"percent\":20.0,\"crossings\":[],\"throttle\":null,\"newPreviousCrossings\":[],\"blind\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "cost_watch_02_first_50pct_crossing_notify",
+      "metadata": {
+        "scenario": "single_crossing_first_fire",
+        "percent": 52.0,
+        "expected_crossings_count": 1,
+        "expected_action": "notified",
+        "expected_throttle": null,
+        "expected_blind": false,
+        "note": "Tenant just crossed 50% — first banner. Workflow publishes to watchdog.cost.threshold_crossed → Mission Control surfaces a Slack info."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_tenant_warming1\",\"workspaceId\":\"ws_acme_demo\",\"window\":\"per_day\",\"tickTime\":\"2026-05-19T12:00:00+00:00\",\"forceRecheck\":false,\"billingSnapshot\":{\"spentUsd\":52.0,\"budgetUsd\":100.0,\"baselineBurnRateUsdPerHour\":null,\"snapshotStale\":false},\"previousCrossings\":[]}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_tenant_warming1\",\"workspaceId\":\"ws_acme_demo\",\"window\":\"per_day\",\"spentUsd\":52.0,\"budgetUsd\":100.0,\"percent\":52.0,\"crossings\":[{\"threshold\":50,\"crossedAt\":\"2026-05-19T12:00:00+00:00\",\"action\":\"notified\"}],\"throttle\":null,\"newPreviousCrossings\":[50],\"blind\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "cost_watch_03_dedupe_already_crossed",
+      "metadata": {
+        "scenario": "dedupe_via_previous_crossings",
+        "percent": 62.0,
+        "expected_crossings_count": 0,
+        "expected_throttle": null,
+        "expected_blind": false,
+        "note": "Tenant moved 52% → 62% within window. 50% already-fired in previousCrossings; 75% not yet reached. No new events emitted (idempotency guarantee — workflow does NOT re-publish to Slack)."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_tenant_warming1\",\"workspaceId\":\"ws_acme_demo\",\"window\":\"per_day\",\"tickTime\":\"2026-05-19T12:01:00+00:00\",\"forceRecheck\":false,\"billingSnapshot\":{\"spentUsd\":62.0,\"budgetUsd\":100.0,\"baselineBurnRateUsdPerHour\":null,\"snapshotStale\":false},\"previousCrossings\":[50]}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_tenant_warming1\",\"workspaceId\":\"ws_acme_demo\",\"window\":\"per_day\",\"spentUsd\":62.0,\"budgetUsd\":100.0,\"percent\":62.0,\"crossings\":[],\"throttle\":null,\"newPreviousCrossings\":[50],\"blind\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "cost_watch_04_90pct_throttle_band",
+      "metadata": {
+        "scenario": "throttle_band",
+        "percent": 92.0,
+        "expected_crossings_count": 1,
+        "expected_action": "throttled",
+        "expected_throttle_tps": 5.0,
+        "expected_blind": false,
+        "note": "Tenant in the throttle band — 50/75 already fired, 90% newly fired. Workflow forwards Throttle hint to Agent Runtime (tps=5, until=tick+15min). At this band the campaign keeps going but slower."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_tenant_hot01\",\"workspaceId\":\"ws_acme_demo\",\"window\":\"per_day\",\"tickTime\":\"2026-05-19T12:00:00+00:00\",\"forceRecheck\":false,\"billingSnapshot\":{\"spentUsd\":92.0,\"budgetUsd\":100.0,\"baselineBurnRateUsdPerHour\":null,\"snapshotStale\":false},\"previousCrossings\":[50,75]}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_tenant_hot01\",\"workspaceId\":\"ws_acme_demo\",\"window\":\"per_day\",\"spentUsd\":92.0,\"budgetUsd\":100.0,\"percent\":92.0,\"crossings\":[{\"threshold\":90,\"crossedAt\":\"2026-05-19T12:00:00+00:00\",\"action\":\"throttled\"}],\"throttle\":{\"tps\":5.0,\"until\":\"2026-05-19T12:15:00+00:00\"},\"newPreviousCrossings\":[50,75,90],\"blind\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "cost_watch_05_kill_switch_at_100",
+      "metadata": {
+        "scenario": "kill_switch_fires_at_100",
+        "percent": 105.0,
+        "expected_crossings_count": 1,
+        "expected_actions": ["over_limit_block"],
+        "expected_throttle": null,
+        "expected_blind": false,
+        "note": "Tenant exceeded budget. 50/75/90/95 already fired; 100 newly fires (110 doesn't yet — percent=105). over_limit_block triggers kill_switch.enforce, halting new agent invocations for this tenant. Throttle is null at this band — kill-switch takes over."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_tenant_runaway1\",\"workspaceId\":\"ws_acme_demo\",\"window\":\"per_day\",\"tickTime\":\"2026-05-19T12:00:00+00:00\",\"forceRecheck\":false,\"billingSnapshot\":{\"spentUsd\":105.0,\"budgetUsd\":100.0,\"baselineBurnRateUsdPerHour\":null,\"snapshotStale\":false},\"previousCrossings\":[50,75,90,95]}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_tenant_runaway1\",\"workspaceId\":\"ws_acme_demo\",\"window\":\"per_day\",\"spentUsd\":105.0,\"budgetUsd\":100.0,\"percent\":105.0,\"crossings\":[{\"threshold\":100,\"crossedAt\":\"2026-05-19T12:00:00+00:00\",\"action\":\"over_limit_block\"}],\"throttle\":null,\"newPreviousCrossings\":[50,75,90,95,100],\"blind\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "cost_watch_06_free_tier_zero_budget",
+      "metadata": {
+        "scenario": "free_tier_zero_budget",
+        "percent": 999999.0,
+        "expected_crossings_count": 6,
+        "expected_blind": false,
+        "note": "Spec §8 edge case 3: free-tier tenant (budgetUsd=0) with any spend → percent saturates to 999_999 sentinel, every threshold fires in a single tick. Workflow distinguishes 'free tier exceeded' from a 'generic over-budget' alert based on the budget_usd == 0 signal."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_tenant_free001\",\"workspaceId\":null,\"window\":\"per_day\",\"tickTime\":\"2026-05-19T12:00:00+00:00\",\"forceRecheck\":false,\"billingSnapshot\":{\"spentUsd\":0.05,\"budgetUsd\":0.0,\"baselineBurnRateUsdPerHour\":null,\"snapshotStale\":false},\"previousCrossings\":[]}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_tenant_free001\",\"workspaceId\":null,\"window\":\"per_day\",\"spentUsd\":0.05,\"budgetUsd\":0.0,\"percent\":999999.0,\"crossings\":[{\"threshold\":50,\"crossedAt\":\"2026-05-19T12:00:00+00:00\",\"action\":\"notified\"},{\"threshold\":75,\"crossedAt\":\"2026-05-19T12:00:00+00:00\",\"action\":\"warned\"},{\"threshold\":90,\"crossedAt\":\"2026-05-19T12:00:00+00:00\",\"action\":\"throttled\"},{\"threshold\":95,\"crossedAt\":\"2026-05-19T12:00:00+00:00\",\"action\":\"halted\"},{\"threshold\":100,\"crossedAt\":\"2026-05-19T12:00:00+00:00\",\"action\":\"over_limit_block\"},{\"threshold\":110,\"crossedAt\":\"2026-05-19T12:00:00+00:00\",\"action\":\"over_limit_block\"}],\"throttle\":null,\"newPreviousCrossings\":[50,75,90,95,100,110],\"blind\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "cost_watch_07_no_budget_row_fallback_50usd",
+      "metadata": {
+        "scenario": "no_budget_row_fallback",
+        "percent": 50.0,
+        "expected_resolved_budget_usd": 50.0,
+        "expected_crossings_count": 1,
+        "expected_action": "notified",
+        "expected_blind": false,
+        "note": "Spec §6 escalation: tenant has no Spanner row (budgetUsd=null) → DEFAULT_FALLBACK_BUDGET_USD=$50/day kicks in. Spend of $25 against the $50 fallback = exactly 50%, firing the notify threshold."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_tenant_new0001\",\"workspaceId\":\"ws_new_signup\",\"window\":\"per_day\",\"tickTime\":\"2026-05-19T12:00:00+00:00\",\"forceRecheck\":false,\"billingSnapshot\":{\"spentUsd\":25.0,\"budgetUsd\":null,\"baselineBurnRateUsdPerHour\":null,\"snapshotStale\":false},\"previousCrossings\":[]}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_tenant_new0001\",\"workspaceId\":\"ws_new_signup\",\"window\":\"per_day\",\"spentUsd\":25.0,\"budgetUsd\":50.0,\"percent\":50.0,\"crossings\":[{\"threshold\":50,\"crossedAt\":\"2026-05-19T12:00:00+00:00\",\"action\":\"notified\"}],\"throttle\":null,\"newPreviousCrossings\":[50],\"blind\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "cost_watch_08_bq_stale_blind_flag",
+      "metadata": {
+        "scenario": "bq_stale_blind_flag",
+        "percent": 76.0,
+        "expected_crossings_count": 1,
+        "expected_action": "warned",
+        "expected_blind": true,
+        "note": "Spec §6/§8 edge case 4: BigQuery returned a stale replica result (>30s old). Workflow STILL emits the crossing because the snapshot is best-effort canonical, but tags blind=true so anomaly_watch (W1) picks up the staleness signal. The 75% threshold newly fires (previousCrossings=[50])."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_tenant_failover\",\"workspaceId\":\"ws_acme_demo\",\"window\":\"per_hour\",\"tickTime\":\"2026-05-19T12:00:00+00:00\",\"forceRecheck\":false,\"billingSnapshot\":{\"spentUsd\":7.6,\"budgetUsd\":10.0,\"baselineBurnRateUsdPerHour\":2.0,\"snapshotStale\":true},\"previousCrossings\":[50]}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_tenant_failover\",\"workspaceId\":\"ws_acme_demo\",\"window\":\"per_hour\",\"spentUsd\":7.6,\"budgetUsd\":10.0,\"percent\":76.0,\"crossings\":[{\"threshold\":75,\"crossedAt\":\"2026-05-19T12:00:00+00:00\",\"action\":\"warned\"}],\"throttle\":null,\"newPreviousCrossings\":[50,75],\"blind\":true}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    }
+  ]
+}

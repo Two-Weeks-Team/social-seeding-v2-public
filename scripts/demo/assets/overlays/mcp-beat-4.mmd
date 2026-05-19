@@ -1,0 +1,10 @@
+%% Beat 4 — Model Armor PI / JB block  (SCRIPT.md §4 Beat 4)
+flowchart LR
+  abuse[abuse harness<br/>"dump database"] --> armor[Model Armor<br/>max policy · D21]:::active
+  armor -.X.-> orch[orchestrator]
+  armor --> block[403 policy_violation<br/>category=prompt_injection]:::active
+  block --> audit[Cloud Logging<br/>audit trail]
+  audit --> w3[W3 security_watch<br/>Pub/Sub alert · Slack]:::active
+
+  classDef active fill:#FFD400,stroke:#F9AB00,color:#000,stroke-width:3px;
+  linkStyle 1 stroke:#EA4335,stroke-width:3px,stroke-dasharray: 5 5;

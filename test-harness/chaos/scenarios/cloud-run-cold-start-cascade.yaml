@@ -1,0 +1,36 @@
+# CHAOS-COMP-03 — min-instances=0 + 500-msg burst on outreach worker; queue must drain ≤5 min
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: per_pr, nightly
+
+id: CHAOS-COMP-03
+name: cloud-run-floor-raise
+tier: compute
+executor: native_gcp
+tags: [per_pr, nightly]
+
+description: |
+  min-instances=0 + 500-msg burst on outreach worker; queue must drain ≤5 min.
+
+expected_rto_s: 300
+expected_rpo_s: 0
+observed_sli_breach: pubsub.subscription.num_undelivered_messages
+
+auto_runbook: runbook-worker-floor-raise
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-COMP-03"
+
+pass_criteria:
+  - "observed_rto_s <= 300"
+  - "observed_rpo_s <= 0"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references:
+  - "https://cloud.google.com/run/docs/configuring/min-instances"

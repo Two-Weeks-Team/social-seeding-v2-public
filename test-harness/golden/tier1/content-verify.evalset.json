@@ -1,0 +1,31 @@
+{
+  "name": "content_verify_v1",
+  "description": "Tier-1 content_verify — post_detail + vision.brand_logo_detect. D-IDs: D23, D37.",
+  "agent_spec_ref": "gs://ss-v2-agent-registry/content_verify/v1.json",
+  "trajectory_mode": "IN_ORDER",
+  "metrics": ["precision", "recall"],
+  "thresholds": {"precision": 0.95, "recall": 0.85},
+  "min_cases": 20,
+  "eval_cases": [
+    {"name": "cv_en_001_logo_present","locale": "en", "tags": ["happy"], "input": {"post_id": "post_logo_visible_001"}, "expected": {"tool_trajectory": [{"tool_name": "post_detail"}, {"tool_name": "vision.brand_logo_detect"}], "verdict": "brand_visible"}},
+    {"name": "cv_en_002_logo_absent", "locale": "en", "tags": ["happy"], "input": {"post_id": "post_no_logo_002"}, "expected": {"verdict": "brand_missing"}},
+    {"name": "cv_en_003_partial_logo","locale": "en", "tags": ["edge"], "input": {"post_id": "post_logo_clipped_003"}, "expected": {"verdict": "ambiguous"}},
+    {"name": "cv_en_004_wrong_brand", "locale": "en", "tags": ["adversarial"], "input": {"post_id": "post_competitor_logo_004"}, "expected": {"verdict": "wrong_brand"}, "notes": "EC-2.24 disparagement risk."},
+    {"name": "cv_en_005_deepfake",    "locale": "en", "tags": ["adversarial"], "input": {"post_id": "post_deepfake_005"}, "expected": {"verdict": "suspect_deepfake", "escalation_expected": true}, "notes": "EC-2.22."},
+    {"name": "cv_en_006_watermark_removed","locale": "en", "tags": ["adversarial"], "input": {"post_id": "post_watermark_stripped_006"}, "expected": {"verdict": "watermark_missing"}, "notes": "EC-2.23."},
+    {"name": "cv_en_007_ip_infringement","locale": "en", "tags": ["compliance"], "input": {"post_id": "post_copyright_music_007"}, "expected": {"verdict": "ip_violation"}, "notes": "EC-2.25."},
+    {"name": "cv_en_008_disclosure_present","locale": "en", "tags": ["compliance"], "input": {"post_id": "post_with_ad_disclosure_008"}, "expected": {"verdict": "compliant"}},
+    {"name": "cv_en_009_disclosure_missing","locale": "en", "tags": ["compliance"], "input": {"post_id": "post_no_disclosure_009"}, "expected": {"verdict": "missing_disclosure", "escalation_expected": true}},
+    {"name": "cv_en_010_age_inappropriate","locale": "en", "tags": ["compliance"], "input": {"post_id": "post_age_issue_010"}, "expected": {"escalation_expected": true}},
+    {"name": "cv_ko_011_광고_disclosed","locale": "ko", "tags": ["compliance"], "input": {"post_id": "ko_post_광고_011"}, "expected": {"verdict": "compliant"}},
+    {"name": "cv_ko_012_no_disclosure","locale": "ko", "tags": ["compliance"], "input": {"post_id": "ko_post_no_disclosure_012"}, "expected": {"verdict": "missing_disclosure"}},
+    {"name": "cv_ja_013_PR_disclosed","locale": "ja", "tags": ["compliance"], "input": {"post_id": "ja_post_PR_013"}, "expected": {"verdict": "compliant"}},
+    {"name": "cv_ja_014_stealth_mkt","locale": "ja", "tags": ["adversarial"], "input": {"post_id": "ja_post_stealth_014"}, "expected": {"escalation_expected": true}},
+    {"name": "cv_zh_015_广告_disclosed","locale": "zh", "tags": ["compliance"], "input": {"post_id": "zh_post_广告_015"}, "expected": {"verdict": "compliant"}},
+    {"name": "cv_zh_016_no_disclosure","locale": "zh", "tags": ["compliance"], "input": {"post_id": "zh_post_no_disclosure_016"}, "expected": {"verdict": "missing_disclosure"}},
+    {"name": "cv_en_017_low_resolution","locale": "en", "tags": ["edge"], "input": {"post_id": "post_low_res_017"}, "expected": {"verdict": "low_confidence"}},
+    {"name": "cv_en_018_deleted_post","locale": "en", "tags": ["edge"], "input": {"post_id": "post_deleted_018"}, "expected": {"escalation_expected": true, "escalation_reason": "post_unavailable"}},
+    {"name": "cv_en_019_private_post","locale": "en", "tags": ["edge"], "input": {"post_id": "post_private_019"}, "expected": {"escalation_expected": true}},
+    {"name": "cv_en_020_adversarial_logo_overlay","locale": "en", "tags": ["adversarial"], "input": {"post_id": "post_logo_overlay_020"}, "expected": {"verdict": "adversarial_overlay_detected"}, "notes": "EC-6.09."}
+  ]
+}

@@ -1,0 +1,26 @@
+# Litmus CR — memory pressure (OOM) for Agent Runtime replicas.
+# Backs the "agent_runtime_oom" scenario in MATRIX §6.3.
+---
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: agent-runtime-oom
+  namespace: chaos-system
+spec:
+  engineState: active
+  appinfo:
+    appns: agent-runtime
+    applabel: app=agent-replica
+    appkind: deployment
+  chaosServiceAccount: litmus-chaos-runner
+  experiments:
+    - name: pod-memory-hog
+      spec:
+        components:
+          env:
+            - name: TOTAL_CHAOS_DURATION
+              value: "60"
+            - name: MEMORY_CONSUMPTION
+              value: "1024"  # MB
+            - name: PODS_AFFECTED_PERC
+              value: "33"

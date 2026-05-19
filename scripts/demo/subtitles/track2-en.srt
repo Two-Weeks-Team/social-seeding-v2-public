@@ -1,0 +1,59 @@
+1
+00:00:00,000 --> 00:00:05,000
+Track 2 — social-seeding-v2: Mission Control + AP2 + Multi-agent.
+
+2
+00:00:05,000 --> 00:00:16,000
+Scene 1 — A brand brief drops into Mission Control. The intake agent is a typed function, not a chat-bot. One paste, structured CampaignDraft.
+
+3
+00:00:16,000 --> 00:00:23,500
+Scene 2 — AP2 Intent Mandate signed in-app. JSON preview visible, Ed25519 signature visible. Per D27, Intent only.
+
+4
+00:00:23,500 --> 00:00:29,100
+Scene 3 — Approvals page: 40 sourcing matches bulk-approved. Every row carries the agent name, USD cost, and contract version.
+
+5
+00:00:29,100 --> 00:00:44,100
+Scene 4 — Outreach drafts: 12 typed emails from the outreach-agent. Operator edits one sentence, sends via Gmail to the D10 test account.
+
+6
+00:00:44,100 --> 00:00:55,400
+Scene 5 — Reply-agent classifies the incoming reply. A2A-only distribution path — no Marketplace dependency.
+
+7
+00:00:55,400 --> 00:01:10,400
+Scene 6 — Shipping fan-out: ship-agent + customs-agent + tracking-agent run in parallel. Three named functions, one workflow.
+
+8
+00:01:10,400 --> 00:01:21,600
+Scene 7 — Verify-agent confirms delivery and live views. Per-delivered-view pricing per D28.
+
+9
+00:01:21,600 --> 00:01:29,100
+Scene 8 — AP2 Cart Mandate is read-only. Per D27, payment release stays human-gated.
+
+10
+00:01:29,100 --> 00:01:36,600
+Scene 9 — Approval queue empties. Report-agent emits a typed CampaignReport artifact with auto-generated thumbnails.
+
+11
+00:01:36,600 --> 00:01:47,900
+Scene 10 — Dialogflow CX chatbot answers a follow-up cost-per-view question, citing the per-view metering table.
+
+12
+00:01:47,900 --> 00:01:57,300
+Scene 11 — Cost ledger sweep. 173 agent calls, $1.34 total, well under the $1,500 GCP credit envelope per D39.
+
+13
+00:01:57,300 --> 00:02:01,100
+Scene 12 — System health check. brand_campaign_smoke.py: 22 agents, 0 failures, $1.34 — PASS.
+
+14
+00:02:01,100 --> 00:02:55,000
+Three angles, one product: agents are functions, the gap is reframed, the multimodal AP2 multi-agent loop runs end-to-end today.
+
+15
+00:02:55,000 --> 00:03:00,000
+github.com/ComBba/social-seeding-v2 — Apache-2.0 + BUSL-1.1.

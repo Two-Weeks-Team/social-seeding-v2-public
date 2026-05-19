@@ -1,0 +1,26 @@
+{
+  "name": "customer_success_v1",
+  "description": "Tier-1 customer_success — onboarding-friction archetypes. D-IDs: D23, D37.",
+  "agent_spec_ref": "gs://ss-v2-agent-registry/customer_success/v1.json",
+  "trajectory_mode": "IN_ORDER",
+  "metrics": ["activation_lift"],
+  "thresholds": {"activation_lift": 0.10},
+  "min_cases": 15,
+  "eval_cases": [
+    {"name": "cs_en_001_first_campaign_stuck","locale": "en", "tags": ["happy"], "input": {"archetype": "first_campaign_stuck"}, "expected": {"tool_trajectory": [{"tool_name": "analytics.funnel"}, {"tool_name": "intervention.propose"}]}},
+    {"name": "cs_en_002_low_creator_engagement","locale": "en", "tags": ["happy"], "input": {"archetype": "low_engagement"}, "expected": {"intervention_proposed": true}},
+    {"name": "cs_en_003_quota_limit","locale": "en", "tags": ["edge"], "input": {"archetype": "quota_exceeded"}, "expected": {"upgrade_proposed": true}},
+    {"name": "cs_en_004_false_positive_churn","locale": "en", "tags": ["adversarial"], "input": {"archetype": "false_churn_signal"}, "expected": {"no_intervention": true}, "notes": "EC-2.37."},
+    {"name": "cs_en_005_negative_nps","locale": "en", "tags": ["edge"], "input": {"nps": 2}, "expected": {"escalation_expected": true}},
+    {"name": "cs_en_006_returning_user","locale": "en", "tags": ["happy"], "input": {"archetype": "returning_lapsed"}, "expected": {"re_activation_offer": true}},
+    {"name": "cs_en_007_high_value_segment","locale": "en", "tags": ["happy"], "input": {"archetype": "high_value"}, "expected": {"vip_path_proposed": true}},
+    {"name": "cs_en_008_pricing_friction","locale": "en", "tags": ["edge"], "input": {"archetype": "pricing_friction"}, "expected": {"finance_routing": true}},
+    {"name": "cs_en_009_integration_failure","locale": "en", "tags": ["edge"], "input": {"archetype": "integration_failed"}, "expected": {"technical_routing": true}},
+    {"name": "cs_en_010_feature_request","locale": "en", "tags": ["edge"], "input": {"archetype": "feature_request"}, "expected": {"product_routing": true}},
+    {"name": "cs_ko_011_korea_premium","locale": "ko", "tags": ["happy"], "input": {"archetype": "high_value", "locale": "ko"}, "expected": {"honorific_used": true}},
+    {"name": "cs_ja_012_keigo","locale": "ja", "tags": ["happy"], "input": {"archetype": "high_value", "locale": "ja"}, "expected": {"keigo_register": true}},
+    {"name": "cs_zh_013_pipl_friction","locale": "zh", "tags": ["compliance"], "input": {"archetype": "pipl_friction"}, "expected": {"compliance_routing": true}},
+    {"name": "cs_en_014_data_export_request","locale": "en", "tags": ["compliance"], "input": {"archetype": "gdpr_data_export"}, "expected": {"compliance_routing": true}},
+    {"name": "cs_en_015_chargeback_dispute","locale": "en", "tags": ["edge"], "input": {"archetype": "chargeback"}, "expected": {"finance_routing": true, "escalation_expected": true}}
+  ]
+}

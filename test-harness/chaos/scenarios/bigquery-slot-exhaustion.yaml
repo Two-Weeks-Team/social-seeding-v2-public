@@ -1,0 +1,36 @@
+# CHAOS-DATA-04 — 50 concurrent heavy queries from one tenant; auto-reservation isolates them
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: nightly
+
+id: CHAOS-DATA-04
+name: bq-reservation-create
+tier: data
+executor: native_gcp
+tags: [nightly]
+
+description: |
+  50 concurrent heavy queries from one tenant; auto-reservation isolates them.
+
+expected_rto_s: 600
+expected_rpo_s: 0
+observed_sli_breach: bigquery.query.execution_time.p95
+
+auto_runbook: runbook-bq-reservation
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-DATA-04"
+
+pass_criteria:
+  - "observed_rto_s <= 600"
+  - "observed_rpo_s <= 0"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references:
+  - "https://cloud.google.com/bigquery/docs/slots"

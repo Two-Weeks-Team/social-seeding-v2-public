@@ -1,0 +1,36 @@
+# CHAOS-IDP-01 — Disable sign-in for chaos tenant; other tenants must remain unaffected
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: per_pr, nightly
+
+id: CHAOS-IDP-01
+name: tenant-isolation-verify
+tier: identity
+executor: native_gcp
+tags: [per_pr, nightly]
+
+description: |
+  Disable sign-in for chaos tenant; other tenants must remain unaffected.
+
+expected_rto_s: 30
+expected_rpo_s: 0
+observed_sli_breach: slo.auth.success_rate.tenant
+
+auto_runbook: runbook-tenant-isolation-verify
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-IDP-01"
+
+pass_criteria:
+  - "observed_rto_s <= 30"
+  - "observed_rpo_s <= 0"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references:
+  - "https://cloud.google.com/identity-platform/docs/multi-tenancy"

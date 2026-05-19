@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Social Seeding Inc.
+#
+# Hard-block any file pattern that could contain a secret or credential.
+# This .gitignore lives at the package root so it applies to agent/,
+# deployment/, docs/, and ts-patches/ uniformly.
+
+# --- Secrets (never commit) -------------------------------------------------
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+.env.*
+*.pem
+*.key
+*-credentials.json
+service-account*.json
+cookies.txt
+*.cookies
+
+# --- Python build artifacts -------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+htmlcov/
+.coverage
+coverage.xml
+
+# --- Node build artifacts (sidecar) ----------------------------------------
+node_modules/
+*.tsbuildinfo
+.next/
+.turbo/
+
+# --- IDE / OS ---------------------------------------------------------------
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- Local-only operator scratch -------------------------------------------
+evals/*.csv
+scratch/
+*.log

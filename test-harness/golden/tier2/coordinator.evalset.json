@@ -1,0 +1,16 @@
+{
+  "name": "coordinator_v1_smoke",
+  "description": "Tier-2 coordinator (M1) — evaluated TRANSITIVELY via L4 Simulation. This file is a 5-case smoke that runs in per-PR fast-eval only. D-IDs: D23, D24, D37 (§2.5).",
+  "agent_spec_ref": "gs://ss-v2-agent-registry/coordinator/v1.json",
+  "trajectory_mode": "ANY_ORDER",
+  "metrics": ["delegation_correctness"],
+  "thresholds": {"delegation_correctness": 0.80},
+  "min_cases": 5,
+  "eval_cases": [
+    {"name": "co_en_001_route_to_sourcing","locale": "en", "tags": ["happy"], "input": {"phase": "discovery"}, "expected": {"delegated_to": "sourcing"}},
+    {"name": "co_en_002_route_to_outreach","locale": "en", "tags": ["happy"], "input": {"phase": "outreach"}, "expected": {"delegated_to": "outreach_writer"}},
+    {"name": "co_en_003_route_to_compliance","locale": "en", "tags": ["compliance"], "input": {"phase": "pre_send_check"}, "expected": {"delegated_to": "compliance"}},
+    {"name": "co_en_004_parallel_fan_out","locale": "en", "tags": ["edge"], "input": {"phase": "vetting_pool", "candidate_count": 50}, "expected": {"parallel_invocations_min": 5}},
+    {"name": "co_en_005_escalation_path","locale": "en", "tags": ["edge"], "input": {"agent_blocked": "outreach_writer"}, "expected": {"human_in_loop_invoked": true}}
+  ]
+}

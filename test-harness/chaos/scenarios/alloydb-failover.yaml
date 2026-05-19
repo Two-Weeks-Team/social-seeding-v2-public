@@ -1,0 +1,36 @@
+# CHAOS-DATA-02 — AlloyDB primary fails; cross-region async replica must promote with lag<30s
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: nightly
+
+id: CHAOS-DATA-02
+name: alloydb-promote
+tier: data
+executor: native_gcp
+tags: [nightly]
+
+description: |
+  AlloyDB primary fails; cross-region async replica must promote with lag<30s.
+
+expected_rto_s: 300
+expected_rpo_s: 30
+observed_sli_breach: alloydb.feature_store.query_latency
+
+auto_runbook: runbook-alloydb-promote
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-DATA-02"
+
+pass_criteria:
+  - "observed_rto_s <= 300"
+  - "observed_rpo_s <= 30"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references:
+  - "https://cloud.google.com/alloydb/docs/cross-region-replication-overview"

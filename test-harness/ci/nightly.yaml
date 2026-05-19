@@ -1,0 +1,146 @@
+# nightly.yaml — Cloud Build YAML for nightly full pipeline.
+# Cites: D37, D39. MATRIX §7.2 — 4.5 h wall-clock, ~$140/night.
+# Trigger: Cloud Scheduler at 02:00 UTC.
+# Project: ss-v2-prod (writes results to BigQuery agent_evals.*).
+
+steps:
+  # ------------------------------------------------------------------ L1 full
+  - id: l1-full-eval
+    name: gcr.io/cloud-builders/gcloud
+    waitFor: ["-"]
+    entrypoint: bash
+    timeout: 2700s
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        echo "::L1:: full evalset 267 cases × 16 T1 agents (~40m, ~$25)"
+        for evalset in test-harness/golden/tier1/*.evalset.json; do
+          agent=$(basename "$evalset" .evalset.json)
+          gcloud aiplatform evaluation-runs create \
+            --evalset-file="$evalset" \
+            --project="ss-v2-prod"
+        done
+        # Tier-2 critic judge-of-judges + tier-3 watchdogs.
+        for evalset in test-harness/golden/tier2/*.evalset.json test-harness/golden/tier3/*.evalset.json; do
+          gcloud aiplatform evaluation-runs create --evalset-file="$evalset" --project="ss-v2-prod"
+        done
+
+  # ------------------------------------------------------------------ L4 full
+  - id: l4-simulation-full
+    name: python:3.13-slim
+    waitFor: ["-"]                # runs in parallel with L1
+    entrypoint: bash
+    timeout: 5400s
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        echo "::L4:: 1000+ simulation scenarios (~90m, ~$100)"
+        pip install pytest pyyaml google-cloud-aiplatform google-cloud-bigquery
+        HARNESS_MODE=live \
+          GOOGLE_CLOUD_PROJECT=ss-v2-sim \
+          NIGHT_INDEX=$(date -u +%j) \
+          bash test-harness/simulation/nightly.sh
+
+  # ------------------------------------------------------------------ L5 full
+  - id: l5-chaos-full
+    name: python:3.13-slim
+    waitFor: ["-"]
+    entrypoint: bash
+    timeout: 3600s
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        echo "::L5:: 25 chaos scenarios in 4 tier-bucket waves (~60m, ~$15)"
+        pip install pytest pyyaml google-cloud-bigquery
+        HARNESS_MODE=live \
+          GOOGLE_CLOUD_PROJECT=ss-v2-chaos \
+          python3 test-harness/chaos/orchestrator.py \
+            --scenarios-dir test-harness/chaos/scenarios/ \
+            --subset nightly \
+            --out /workspace/chaos-nightly.jsonl
+        # Persist to BigQuery for the §10 optimizer loop.
+        bq load --source_format=NEWLINE_DELIMITED_JSON --autodetect \
+          ss-v2-prod:chaos.results /workspace/chaos-nightly.jsonl
+
+  # ------------------------------------------------------------------ Mutation
+  - id: mutation-testing
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["-"]
+    entrypoint: bash
+    timeout: 3600s
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        echo "::Stryker:: mutation testing (capped 20m × 5 packages, ~60m)"
+        cd /workspace
+        for pkg in capabilities contracts workflows observability db; do
+          pnpm --filter "@ss/${pkg}" exec stryker run \
+            --config-file test-harness/coverage/stryker.config.json \
+            --concurrency 4 || true
+        done
+
+  # ------------------------------------------------------------------ Cost regression
+  - id: cost-regression-check
+    name: gcr.io/cloud-builders/gcloud
+    waitFor: ["l1-full-eval", "l4-simulation-full", "l5-chaos-full"]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        echo "::cost:: BigQuery cost ledger query (~5m)"
+        # MATRIX §9 — W2 cost_watch enforces $1500/mo envelope.
+        bq query --use_legacy_sql=false \
+          'SELECT SUM(cost_usd) AS night_cost
+             FROM `ss-v2-prod.agent_evals.l4_runs`
+             WHERE DATE(run_ts) = CURRENT_DATE("UTC")'
+
+  # ------------------------------------------------------------------ License + secret
+  - id: license-secret-scan
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["-"]
+    entrypoint: bash
+    timeout: 600s
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        echo "::scan:: gitleaks + secretlint (~10m)"
+        docker run --rm -v /workspace:/workspace \
+          zricethezav/gitleaks:latest \
+          detect --source /workspace --no-banner --redact
+        npx secretlint "**/*"
+
+  # ------------------------------------------------------------------ Aggregate
+  - id: aggregate-and-notify
+    name: gcr.io/cloud-builders/gcloud
+    waitFor:
+      - l1-full-eval
+      - l4-simulation-full
+      - l5-chaos-full
+      - mutation-testing
+      - cost-regression-check
+      - license-secret-scan
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        echo "::aggregate:: write summary to BigQuery + Slack/PD on regression"
+        bq query --use_legacy_sql=false \
+          'INSERT INTO `ss-v2-prod.test_runs` (run_ts, kind, pass_rate)
+           VALUES (CURRENT_TIMESTAMP(), "nightly", 0.0)'  # placeholder
+        # MATRIX §7.2 — Slack + PagerDuty on regression_score < -0.005 or L5 fail.
+
+timeout: 18000s     # 5 h hard ceiling (>4.5h soft target)
+
+substitutions:
+  _NIGHT_INDEX: ""
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_32

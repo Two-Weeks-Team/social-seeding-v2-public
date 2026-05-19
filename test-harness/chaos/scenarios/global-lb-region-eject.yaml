@@ -1,0 +1,36 @@
+# CHAOS-EDGE-01 — Global LB backend service unhealthy in one region; verify <60s LB convergence
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: per_pr, nightly, canary
+
+id: CHAOS-EDGE-01
+name: global-lb-region-eject
+tier: edge
+executor: native_gcp
+tags: [per_pr, nightly, canary]
+
+description: |
+  Global LB backend service unhealthy in one region; verify <60s LB convergence.
+
+expected_rto_s: 30
+expected_rpo_s: 0
+observed_sli_breach: slo.hot_path.availability.fast_burn
+
+auto_runbook: runbook-edge-eject-region
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-EDGE-01"
+
+pass_criteria:
+  - "observed_rto_s <= 30"
+  - "observed_rpo_s <= 0"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references:
+  - "https://cloud.google.com/load-balancing/docs/health-check-concepts"

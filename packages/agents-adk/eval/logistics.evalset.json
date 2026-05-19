@@ -1,0 +1,271 @@
+{
+  "eval_set_id": "ss_logistics_v0_1",
+  "name": "Logistics agent — 8-case golden set (D34 locale spread)",
+  "description": "Phase 3.1 golden set per logistics.spec.md §7. Mix of parseable / partial / garbage / embargoed / prompt-injection across the 4 D34 locales. Full 80-case-per-locale set lands at tests/golden/logistics/{ko,en,ja,zh-CN}.json during Phase 3 calibration.",
+  "criteria_overrides": {
+    "tool_trajectory_avg_score": 0.0,
+    "structured_extract_accuracy": 0.95,
+    "postal_code_validity": 0.98,
+    "country_code_accuracy": 0.97,
+    "false_ship_rate_max": 0.01,
+    "escalation_recall": 0.95
+  },
+  "metadata": {
+    "agent_id": "logistics",
+    "spec": "gcp-research/specs/tier1/logistics.spec.md",
+    "decisions": ["D5", "D17", "D21", "D23", "D34"],
+    "locales_covered": ["en", "en", "en", "ko", "ko", "ja", "ja", "zh-CN"],
+    "model": "gemini-2.5-flash",
+    "max_usd_per_run": 0.05
+  },
+  "eval_cases": [
+    {
+      "eval_id": "logistics_en_01_us_clean_zip",
+      "metadata": {
+        "locale": "en",
+        "expected_status": "shipped",
+        "should_escalate": false,
+        "expected_country_code": "US",
+        "note": "Clean US address with ZIP+4. Phone in E.164. Happy path."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_logistics_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"VitC + HA.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"en\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\"}},\"creatorTrackId\":\"cmp_demo:cr_alex\",\"creatorId\":\"cr_alex\",\"rawAddress\":\"Alex Lee, 1455 Market Street Suite 600, San Francisco CA 94103-1812, USA. +1 415-555-0188\",\"products\":[{\"sku\":\"vitc-30ml\",\"name\":\"Vitamin C Serum 30ml\",\"valueUsdCents\":2500,\"weightGrams\":80.0}],\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"shipped\",\"shipment\":{\"id\":\"shp_us0001alex\",\"campaignId\":\"cmp_demo\",\"creatorTrackId\":\"cmp_demo:cr_alex\",\"creatorId\":\"cr_alex\",\"status\":\"shipped\",\"carrier\":\"yuntrack\",\"trackingNumber\":\"YN0001ALEXAA\",\"shippingAddress\":{\"recipientName\":\"Alex Lee\",\"phone\":\"+1 415-555-0188\",\"line1\":\"1455 Market Street\",\"line2\":\"Suite 600\",\"city\":\"San Francisco\",\"region\":\"CA\",\"postalCode\":\"94103-1812\",\"countryCode\":\"US\"},\"products\":[{\"sku\":\"vitc-30ml\",\"name\":\"Vitamin C Serum 30ml\",\"valueUsdCents\":2500,\"weightGrams\":80.0}],\"trackingEvents\":[],\"createdAt\":\"2026-05-19T10:00:00+00:00\",\"updatedAt\":\"2026-05-19T10:00:00+00:00\"}}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "logistics_en_02_uk_clean_postcode",
+      "metadata": {
+        "locale": "en",
+        "expected_status": "shipped",
+        "should_escalate": false,
+        "expected_country_code": "GB",
+        "note": "UK postcode format (letter-digit). Confirms non-numeric postal handling."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_logistics_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"VitC + HA.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"en\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\"}},\"creatorTrackId\":\"cmp_demo:cr_jane\",\"creatorId\":\"cr_jane\",\"rawAddress\":\"Jane Smith, 10 Downing Street, Westminster, London SW1A 2AA, United Kingdom.\",\"products\":[{\"sku\":\"vitc-30ml\",\"name\":\"Vitamin C Serum 30ml\",\"valueUsdCents\":2500,\"weightGrams\":80.0}],\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"shipped\",\"shipment\":{\"id\":\"shp_gb0001jane\",\"campaignId\":\"cmp_demo\",\"creatorTrackId\":\"cmp_demo:cr_jane\",\"creatorId\":\"cr_jane\",\"status\":\"shipped\",\"carrier\":\"yuntrack\",\"trackingNumber\":\"YN0001JANEBB\",\"shippingAddress\":{\"recipientName\":\"Jane Smith\",\"phone\":\"\",\"line1\":\"10 Downing Street\",\"line2\":\"\",\"city\":\"London\",\"region\":\"Westminster\",\"postalCode\":\"SW1A 2AA\",\"countryCode\":\"GB\"},\"products\":[{\"sku\":\"vitc-30ml\",\"name\":\"Vitamin C Serum 30ml\",\"valueUsdCents\":2500,\"weightGrams\":80.0}],\"trackingEvents\":[],\"createdAt\":\"2026-05-19T10:00:00+00:00\",\"updatedAt\":\"2026-05-19T10:00:00+00:00\"}}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "logistics_en_03_garbage_address_escalates",
+      "metadata": {
+        "locale": "en",
+        "expected_status": "escalate",
+        "expected_reason": "address_unparseable",
+        "should_escalate": true,
+        "note": "Garbage input ('123 anywhere lol'). Tests false_ship_rate ≤ 0.01."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_logistics_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"VitC + HA.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"en\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\"}},\"creatorTrackId\":\"cmp_demo:cr_ghost\",\"creatorId\":\"cr_ghost\",\"rawAddress\":\"123 anywhere lol, idk, whatever\",\"products\":[{\"sku\":\"vitc-30ml\",\"name\":\"Vitamin C Serum 30ml\",\"valueUsdCents\":2500,\"weightGrams\":80.0}],\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"escalate\",\"reason\":\"address_unparseable\",\"detail\":\"recipientName missing and the address text is gibberish ('anywhere', no city, no postal code).\",\"parsedPartial\":null}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "logistics_ko_01_seoul_clean",
+      "metadata": {
+        "locale": "ko",
+        "expected_status": "shipped",
+        "should_escalate": false,
+        "expected_country_code": "KR",
+        "note": "Pure Hangul Seoul address with 5-digit postal code + KR mobile phone."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_logistics_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"VitC + HA.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"ko\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\"}},\"creatorTrackId\":\"cmp_demo:cr_minji\",\"creatorId\":\"cr_minji\",\"rawAddress\":\"서울특별시 강남구 테헤란로 123, 7층 707호, 우편번호 06234. 홍길동 010-1234-5678\",\"products\":[{\"sku\":\"vitc-30ml\",\"name\":\"Vitamin C Serum 30ml\",\"valueUsdCents\":2500,\"weightGrams\":80.0}],\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"shipped\",\"shipment\":{\"id\":\"shp_kr0001minji\",\"campaignId\":\"cmp_demo\",\"creatorTrackId\":\"cmp_demo:cr_minji\",\"creatorId\":\"cr_minji\",\"status\":\"shipped\",\"carrier\":\"yuntrack\",\"trackingNumber\":\"YN0001MINJICC\",\"shippingAddress\":{\"recipientName\":\"홍길동\",\"phone\":\"010-1234-5678\",\"line1\":\"테헤란로 123\",\"line2\":\"7층 707호\",\"city\":\"강남구\",\"region\":\"서울특별시\",\"postalCode\":\"06234\",\"countryCode\":\"KR\"},\"products\":[{\"sku\":\"vitc-30ml\",\"name\":\"Vitamin C Serum 30ml\",\"valueUsdCents\":2500,\"weightGrams\":80.0}],\"trackingEvents\":[],\"createdAt\":\"2026-05-19T10:00:00+00:00\",\"updatedAt\":\"2026-05-19T10:00:00+00:00\"}}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "logistics_ko_02_business_number_on_line2",
+      "metadata": {
+        "locale": "ko",
+        "expected_status": "shipped",
+        "should_escalate": false,
+        "expected_country_code": "KR",
+        "note": "Korean address includes 사업자등록번호 (10-digit business reg id). Must be on line2, NOT mistaken for postal code."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_logistics_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"VitC + HA.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"ko\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\"}},\"creatorTrackId\":\"cmp_demo:cr_jihoon\",\"creatorId\":\"cr_jihoon\",\"rawAddress\":\"부산광역시 해운대구 센텀중앙로 79, 센텀시티스퀘어 12층, 48058. 김지훈, 사업자등록번호 123-45-67890, 010-9876-5432\",\"products\":[{\"sku\":\"vitc-30ml\",\"name\":\"Vitamin C Serum 30ml\",\"valueUsdCents\":2500,\"weightGrams\":80.0}],\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"shipped\",\"shipment\":{\"id\":\"shp_kr0002jihoo\",\"campaignId\":\"cmp_demo\",\"creatorTrackId\":\"cmp_demo:cr_jihoon\",\"creatorId\":\"cr_jihoon\",\"status\":\"shipped\",\"carrier\":\"yuntrack\",\"trackingNumber\":\"YN0002JIHOON1\",\"shippingAddress\":{\"recipientName\":\"김지훈\",\"phone\":\"010-9876-5432\",\"line1\":\"센텀중앙로 79\",\"line2\":\"센텀시티스퀘어 12층 (사업자등록번호 123-45-67890)\",\"city\":\"해운대구\",\"region\":\"부산광역시\",\"postalCode\":\"48058\",\"countryCode\":\"KR\"},\"products\":[{\"sku\":\"vitc-30ml\",\"name\":\"Vitamin C Serum 30ml\",\"valueUsdCents\":2500,\"weightGrams\":80.0}],\"trackingEvents\":[],\"createdAt\":\"2026-05-19T10:00:00+00:00\",\"updatedAt\":\"2026-05-19T10:00:00+00:00\"}}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "logistics_ja_01_tokyo_clean_with_yubin",
+      "metadata": {
+        "locale": "ja",
+        "expected_status": "shipped",
+        "should_escalate": false,
+        "expected_country_code": "JP",
+        "note": "Japanese 〒-prefixed 7-digit postal code. Agent must strip 〒 from postalCode field."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_logistics_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"VitC + HA.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"ja\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\"}},\"creatorTrackId\":\"cmp_demo:cr_yuki\",\"creatorId\":\"cr_yuki\",\"rawAddress\":\"〒150-0001 東京都渋谷区神宮前1-1-1 表参道ヒルズ 302号室. 山田太郎 03-5555-1234\",\"products\":[{\"sku\":\"vitc-30ml\",\"name\":\"Vitamin C Serum 30ml\",\"valueUsdCents\":2500,\"weightGrams\":80.0}],\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"shipped\",\"shipment\":{\"id\":\"shp_jp0001yuki\",\"campaignId\":\"cmp_demo\",\"creatorTrackId\":\"cmp_demo:cr_yuki\",\"creatorId\":\"cr_yuki\",\"status\":\"shipped\",\"carrier\":\"yuntrack\",\"trackingNumber\":\"YN0001YUKIDDD\",\"shippingAddress\":{\"recipientName\":\"山田太郎\",\"phone\":\"03-5555-1234\",\"line1\":\"神宮前1-1-1\",\"line2\":\"表参道ヒルズ 302号室\",\"city\":\"渋谷区\",\"region\":\"東京都\",\"postalCode\":\"150-0001\",\"countryCode\":\"JP\"},\"products\":[{\"sku\":\"vitc-30ml\",\"name\":\"Vitamin C Serum 30ml\",\"valueUsdCents\":2500,\"weightGrams\":80.0}],\"trackingEvents\":[],\"createdAt\":\"2026-05-19T10:00:00+00:00\",\"updatedAt\":\"2026-05-19T10:00:00+00:00\"}}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "logistics_ja_02_missing_postal_escalates",
+      "metadata": {
+        "locale": "ja",
+        "expected_status": "escalate",
+        "expected_reason": "address_unparseable",
+        "should_escalate": true,
+        "note": "Japanese address with NO postal code → escalate. NEVER invent a postalCode."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_logistics_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"VitC + HA.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"ja\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\"}},\"creatorTrackId\":\"cmp_demo:cr_haruto\",\"creatorId\":\"cr_haruto\",\"rawAddress\":\"東京都新宿区西新宿2-8-1 新宿センタービル. 佐藤春人\",\"products\":[{\"sku\":\"vitc-30ml\",\"name\":\"Vitamin C Serum 30ml\",\"valueUsdCents\":2500,\"weightGrams\":80.0}],\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"escalate\",\"reason\":\"address_unparseable\",\"detail\":\"郵便番号が記載されていません。配送には7桁の郵便番号が必須です。\",\"parsedPartial\":{\"recipientName\":\"佐藤春人\",\"phone\":\"\",\"line1\":\"西新宿2-8-1\",\"line2\":\"新宿センタービル\",\"city\":\"新宿区\",\"region\":\"東京都\",\"postalCode\":\"\",\"countryCode\":\"JP\"}}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "logistics_zh_01_beijing_with_credit_code",
+      "metadata": {
+        "locale": "zh-CN",
+        "expected_status": "shipped",
+        "should_escalate": false,
+        "expected_country_code": "CN",
+        "note": "Chinese address includes 统一社会信用代码 (18-char business id). Must land on line2, NOT as postalCode. Postal code is 6 digits."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_logistics_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"VitC + HA.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"zh\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\"}},\"creatorTrackId\":\"cmp_demo:cr_wei\",\"creatorId\":\"cr_wei\",\"rawAddress\":\"北京市朝阳区建国门外大街1号国贸大厦A座2501室,邮编100020。李伟,统一社会信用代码91110000123456789X,138-1234-5678\",\"products\":[{\"sku\":\"vitc-30ml\",\"name\":\"Vitamin C Serum 30ml\",\"valueUsdCents\":2500,\"weightGrams\":80.0}],\"locale\":\"zh-CN\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"shipped\",\"shipment\":{\"id\":\"shp_cn0001wei\",\"campaignId\":\"cmp_demo\",\"creatorTrackId\":\"cmp_demo:cr_wei\",\"creatorId\":\"cr_wei\",\"status\":\"shipped\",\"carrier\":\"yuntrack\",\"trackingNumber\":\"YN0001WEIEEEE\",\"shippingAddress\":{\"recipientName\":\"李伟\",\"phone\":\"138-1234-5678\",\"line1\":\"建国门外大街1号\",\"line2\":\"国贸大厦A座2501室 (统一社会信用代码 91110000123456789X)\",\"city\":\"朝阳区\",\"region\":\"北京市\",\"postalCode\":\"100020\",\"countryCode\":\"CN\"},\"products\":[{\"sku\":\"vitc-30ml\",\"name\":\"Vitamin C Serum 30ml\",\"valueUsdCents\":2500,\"weightGrams\":80.0}],\"trackingEvents\":[],\"createdAt\":\"2026-05-19T10:00:00+00:00\",\"updatedAt\":\"2026-05-19T10:00:00+00:00\"}}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    }
+  ]
+}

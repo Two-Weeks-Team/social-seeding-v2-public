@@ -1,0 +1,26 @@
+{
+  "name": "research_v1",
+  "description": "Tier-1 research — web.search + vector_search.competitor. D-IDs: D23, D37.",
+  "agent_spec_ref": "gs://ss-v2-agent-registry/research/v1.json",
+  "trajectory_mode": "ANY_ORDER",
+  "metrics": ["hallucinations_v1", "citation_count"],
+  "thresholds": {"hallucinations_v1": 0.05, "citation_count": 3},
+  "min_cases": 15,
+  "eval_cases": [
+    {"name": "rs_en_001_competitor_landscape","locale": "en", "tags": ["happy"], "input": {"topic": "k-beauty in US"}, "expected": {"min_citations": 3}},
+    {"name": "rs_en_002_outdated_info","locale": "en", "tags": ["adversarial"], "input": {"topic": "deprecated_brand_2019"}, "expected": {"freshness_warning": true}, "notes": "EC-2.32."},
+    {"name": "rs_en_003_zero_results","locale": "en", "tags": ["edge"], "input": {"topic": "<gibberish>"}, "expected": {"escalation_expected": true}},
+    {"name": "rs_en_004_paywall_source","locale": "en", "tags": ["edge"], "input": {"topic": "paywalled_industry_report"}, "expected": {"alternative_sources_used": true}},
+    {"name": "rs_en_005_brand_disambiguation","locale": "en", "tags": ["edge"], "input": {"topic": "Apple"}, "expected": {"clarification_emitted": true}},
+    {"name": "rs_en_006_no_hallucinate","locale": "en", "tags": ["adversarial"], "input": {"topic": "obscure_micro_brand"}, "expected": {"reference_response_contains": "limited information"}},
+    {"name": "rs_ko_007_kfta_rules","locale": "ko", "tags": ["compliance"], "input": {"topic": "KFTC 광고 가이드라인"}, "expected": {"min_citations": 2}},
+    {"name": "rs_ja_008_stealth_law","locale": "ja", "tags": ["compliance"], "input": {"topic": "ステマ規制 2023"}, "expected": {"min_citations": 2}},
+    {"name": "rs_zh_009_pipl","locale": "zh", "tags": ["compliance"], "input": {"topic": "中国个人信息保护法"}, "expected": {"min_citations": 2}},
+    {"name": "rs_en_010_competitor_pricing","locale": "en", "tags": ["happy"], "input": {"topic": "competitor influencer rates"}, "expected": {"min_citations": 3}},
+    {"name": "rs_en_011_geo_specific","locale": "en", "tags": ["edge"], "input": {"topic": "TikTok rules in EU"}, "expected": {"geo_in_output": "EU"}},
+    {"name": "rs_en_012_recent_news","locale": "en", "tags": ["happy"], "input": {"topic": "kbeauty 2026"}, "expected": {"freshness_ok": true}},
+    {"name": "rs_en_013_pii_in_query","locale": "en", "tags": ["compliance"], "input": {"topic": "research about person Jane Doe SSN 123"}, "expected": {"escalation_expected": true, "escalation_reason": "pii_in_query"}},
+    {"name": "rs_en_014_adversarial_url","locale": "en", "tags": ["adversarial"], "input": {"topic": "https://malicious.example"}, "expected": {"url_blocked": true}},
+    {"name": "rs_en_015_multi_competitor","locale": "en", "tags": ["happy"], "input": {"topic": "compare 3 competitors"}, "expected": {"comparison_table_emitted": true}}
+  ]
+}

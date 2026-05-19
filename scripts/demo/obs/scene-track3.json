@@ -1,0 +1,183 @@
+{
+  "_meta": {
+    "purpose": "OBS Studio scene collection for Track 3 (tiktok-mcp-server) recording.",
+    "authority": "implements gcp-research/demo/SCRIPT.md §4 (6-beat MCP storyboard: public MCP endpoint -> ADK orchestration -> A2A registration -> Model Armor block -> KR-gap reframing -> multi-region failover).",
+    "rationale": "Track 3 is more terminal-heavy than Track 2 (curl probes, gcloud commands, regional latency loops in Beat 6). Three scenes: GCP console for Beats 1-5, a 3-pane terminal grid for Beat 6 multi-region failover, and a producer-portal-zoomed scene for the Beat 5 PENDING screenshot proof.",
+    "version": "1.0",
+    "obs_min_version": "30.0"
+  },
+
+  "current_scene": "GCP Console - full",
+  "current_program_scene": "GCP Console - full",
+
+  "scene_order": [
+    {"name": "GCP Console - full"},
+    {"name": "Terminal 3-pane regional"},
+    {"name": "Producer Portal zoom"}
+  ],
+
+  "name": "social-seeding-v2-track3",
+
+  "sources": [
+    {
+      "name": "Display Capture - Primary",
+      "id": "display_capture",
+      "versioned_id": "display_capture",
+      "settings": {
+        "display": 0,
+        "show_cursor": true
+      }
+    },
+    {
+      "name": "Window Capture - Chrome GCP Console",
+      "id": "window_capture",
+      "versioned_id": "window_capture",
+      "settings": {
+        "owner_name": "Google Chrome",
+        "window_name_pattern": "*Google Cloud Console*",
+        "method": 2,
+        "show_cursor": true
+      }
+    },
+    {
+      "name": "Window Capture - Producer Portal",
+      "id": "window_capture",
+      "versioned_id": "window_capture",
+      "settings": {
+        "owner_name": "Google Chrome",
+        "window_name_pattern": "*Cloud Marketplace Producer Portal*",
+        "method": 2,
+        "show_cursor": true
+      }
+    },
+    {
+      "name": "Window Capture - Terminal us-central1",
+      "id": "window_capture",
+      "versioned_id": "window_capture",
+      "settings": {
+        "owner_name": "iTerm2",
+        "window_name_pattern": "*us-central1*",
+        "method": 2,
+        "show_cursor": true
+      }
+    },
+    {
+      "name": "Window Capture - Terminal europe-west4",
+      "id": "window_capture",
+      "versioned_id": "window_capture",
+      "settings": {
+        "owner_name": "iTerm2",
+        "window_name_pattern": "*europe-west4*",
+        "method": 2,
+        "show_cursor": true
+      }
+    },
+    {
+      "name": "Window Capture - Terminal asia-northeast3",
+      "id": "window_capture",
+      "versioned_id": "window_capture",
+      "settings": {
+        "owner_name": "iTerm2",
+        "window_name_pattern": "*asia-northeast3*",
+        "method": 2,
+        "show_cursor": true
+      }
+    },
+    {
+      "name": "Audio Input - Microphone",
+      "id": "coreaudio_input_capture",
+      "versioned_id": "coreaudio_input_capture",
+      "settings": {"device_id": "default"},
+      "filters": [
+        {"name": "Noise Suppression", "id": "noise_suppress_filter_v2", "settings": {"method": "rnnoise"}},
+        {"name": "Compressor", "id": "compressor_filter", "settings": {"ratio": 4.0, "threshold": -18.0, "attack_time": 6, "release_time": 60, "output_gain": 0.0}},
+        {"name": "Limiter", "id": "limiter_filter", "settings": {"threshold": -3.0, "release_time": 60}}
+      ]
+    }
+  ],
+
+  "scenes": [
+    {
+      "name": "GCP Console - full",
+      "_purpose": "Default scene for Beats 1-4 of Track 3. Captures the foreground Chrome window showing the GCP Cloud Console (Cloud Run service detail page for Beat 1, Agent Engine for Beat 2, etc.).",
+      "items": [
+        {
+          "source": "Window Capture - Chrome GCP Console",
+          "pos": {"x": 0, "y": 0},
+          "scale": {"x": 1.0, "y": 1.0},
+          "bounds_type": 2,
+          "bounds": {"x": 1920, "y": 1080},
+          "visible": true,
+          "locked": true
+        }
+      ]
+    },
+    {
+      "name": "Terminal 3-pane regional",
+      "_purpose": "Beat 6 multi-region failover. Three terminals in a horizontal grid, each tailing the curl-loop output for one region. When us-central1 is killed, the left pane goes silent for ~8 s while the other two keep printing — visible failover proof.",
+      "items": [
+        {
+          "source": "Window Capture - Terminal us-central1",
+          "pos": {"x": 0, "y": 0},
+          "scale": {"x": 1.0, "y": 1.0},
+          "bounds_type": 2,
+          "bounds": {"x": 640, "y": 1080},
+          "visible": true,
+          "locked": false
+        },
+        {
+          "source": "Window Capture - Terminal europe-west4",
+          "pos": {"x": 640, "y": 0},
+          "scale": {"x": 1.0, "y": 1.0},
+          "bounds_type": 2,
+          "bounds": {"x": 640, "y": 1080},
+          "visible": true,
+          "locked": false
+        },
+        {
+          "source": "Window Capture - Terminal asia-northeast3",
+          "pos": {"x": 1280, "y": 0},
+          "scale": {"x": 1.0, "y": 1.0},
+          "bounds_type": 2,
+          "bounds": {"x": 640, "y": 1080},
+          "visible": true,
+          "locked": false
+        }
+      ]
+    },
+    {
+      "name": "Producer Portal zoom",
+      "_purpose": "Beat 5 — Marketplace PENDING screenshot. Captures the foreground Producer Portal window; the status badge 'PENDING (payment region: Korea not yet eligible)' is the visual proof of the KR-gap reframing (D2 / D3).",
+      "items": [
+        {
+          "source": "Window Capture - Producer Portal",
+          "pos": {"x": 0, "y": 0},
+          "scale": {"x": 1.0, "y": 1.0},
+          "bounds_type": 2,
+          "bounds": {"x": 1920, "y": 1080},
+          "visible": true,
+          "locked": true
+        }
+      ]
+    }
+  ],
+
+  "_beat_to_scene_map": {
+    "_doc": "Operator follows this map during recording. SCRIPT.md §4 beats map to OBS scene hotkeys 1/2/3 (Cmd+1, Cmd+2, Cmd+3).",
+    "Beat 1 - public MCP endpoint": "GCP Console - full",
+    "Beat 2 - ADK orchestration": "GCP Console - full",
+    "Beat 3 - A2A registration": "GCP Console - full",
+    "Beat 4 - Model Armor block": "GCP Console - full",
+    "Beat 5 - KR-gap reframing (Marketplace PENDING)": "Producer Portal zoom",
+    "Beat 6 - multi-region failover": "Terminal 3-pane regional"
+  },
+
+  "_pre_record_validation": [
+    "Cmd+1 switches to GCP Console - full",
+    "Cmd+2 switches to Terminal 3-pane regional (all three panes visible)",
+    "Cmd+3 switches to Producer Portal zoom",
+    "Mic at -12 dBFS during a 30 s test narration",
+    "All three regional terminals are running the curl latency loop before recording starts",
+    "gcloud auth list shows the demo service account (NOT a production account)"
+  ]
+}

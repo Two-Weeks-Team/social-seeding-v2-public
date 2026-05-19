@@ -1,0 +1,10 @@
+%% Beat 6 — Analyst report + cost ledger  (SCRIPT.md §3 Beat 6)
+flowchart LR
+  unlock[payout unlocked] --> analyst[analyst<br/>Gemini 2.5 Pro]:::active
+  analyst --> bq[BigQuery aggregations]
+  analyst --> vvs[Vertex Vector Search<br/>competitor compare]
+  bq & vvs --> report[campaign report]
+  report --> ledger[$0.62 total cost · D28<br/>$0.0087 / view · &lt; $0.01 target]:::active
+  ledger --> services((Agent Runtime · Workflows<br/>Model Armor · Spanner))
+
+  classDef active fill:#FFD400,stroke:#F9AB00,color:#000,stroke-width:3px;

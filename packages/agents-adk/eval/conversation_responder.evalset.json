@@ -1,0 +1,275 @@
+{
+  "eval_set_id": "ss_conversation_responder_v0_1",
+  "name": "Conversation Responder agent — 8-case golden set (D34 locale spread + spec §8 edge cases)",
+  "description": "Phase 3 skeleton golden set per conversation_responder.spec.md §7. The full 240-case set (60 per locale × 4) lands in tests/golden/conversation_responder/{ko,en,ja,zh-CN}.json during Phase 4. response_match_v2 threshold ≥ 0.80 per the agent #3 brief (tighter than the spec §7 ≥ 0.72 baseline because brief specifies high-fidelity drafting).",
+  "criteria_overrides": {
+    "tool_trajectory_avg_score": 0.0,
+    "final_response_match_v2": 0.8
+  },
+  "metadata": {
+    "agent_id": "conversation-responder",
+    "spec": "gcp-research/specs/tier1/conversation_responder.spec.md",
+    "decisions": ["D5", "D17", "D23", "D27", "D34"],
+    "model": "gemini-2.5-pro",
+    "max_usd": 0.05,
+    "locales_covered": ["en", "en", "en", "ko", "ko", "ja", "zh-CN", "en"],
+    "thresholds": {
+      "response_match_v2": 0.80,
+      "spam_score_p95": 0.30,
+      "address_acknowledgement_rate": 0.95,
+      "cta_singularity": 0.90,
+      "bannedphrase_leak": 0.0,
+      "revision_rate": 0.35
+    }
+  },
+  "eval_cases": [
+    {
+      "eval_id": "responder_en_01_interested_with_address",
+      "metadata": {
+        "locale": "en",
+        "classification": "interested",
+        "expected_outcome": "ok",
+        "should_escalate": false,
+        "note": "Happy path: address shared, agent confirms receipt + ETA. spec §6 priority 1."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"turn\":{\"threadId\":\"thr_e1\",\"creatorId\":\"cr_freshly\",\"incomingMessageId\":\"msg_e1\",\"classification\":\"interested\",\"extracted\":{\"shippingAddress\":\"123 Test St, Seoul, KR 04524\"}},\"facts\":{\"creator\":{\"uniqueId\":\"@freshly\",\"nickname\":\"Freshly\",\"signature\":\"Skincare routine reviews\",\"recentPostThemes\":[\"morning routine\"],\"followerCount\":42000},\"brand\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Brightening Vitamin C serum\",\"keyClaims\":[\"10% vitamin C\",\"fragrance-free\"]},\"logistics\":{\"shipsSamples\":true},\"hasMinimumContext\":true},\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"Confirming your sample shipment, @freshly\",\"body\":\"Hey Freshly — thanks for sharing the address. We're prepping a sample of our 10% vitamin C serum to ship this week. Expect arrival within 5–7 days. We'll follow up once the tracking number is live.\",\"tone\":\"warm\",\"spamScore\":0.06,\"deliverabilityScore\":0.86,\"skepticScore\":0.18,\"revisionCount\":0,\"groundedFacts\":[\"brand.keyClaims[0]\",\"logistics.shipsSamples\"]}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "responder_en_02_interested_no_address",
+      "metadata": {
+        "locale": "en",
+        "classification": "interested",
+        "expected_outcome": "ok",
+        "should_escalate": false,
+        "note": "spec §6 priority 2: interested but no address → ask ONE clear question."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"turn\":{\"threadId\":\"thr_e2\",\"creatorId\":\"cr_freshly\",\"incomingMessageId\":\"msg_e2\",\"classification\":\"interested\",\"extracted\":{}},\"facts\":{\"creator\":{\"uniqueId\":\"@freshly\",\"nickname\":\"Freshly\",\"signature\":\"Skincare\",\"recentPostThemes\":[\"glow routine\"],\"followerCount\":42000},\"brand\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Brightening serum\",\"keyClaims\":[\"10% vitamin C\"]},\"logistics\":{\"shipsSamples\":true},\"hasMinimumContext\":true},\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"Where should we ship your sample, @freshly?\",\"body\":\"Hi Freshly — glad you're in! Could you share the best shipping address for the sample? Once we have that we'll dispatch within 1–2 business days.\",\"tone\":\"warm\",\"spamScore\":0.05,\"deliverabilityScore\":0.84,\"skepticScore\":0.15,\"revisionCount\":0,\"groundedFacts\":[\"logistics.shipsSamples\"]}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "responder_en_03_needs_info_eta",
+      "metadata": {
+        "locale": "en",
+        "classification": "needs_info",
+        "expected_outcome": "ok",
+        "should_escalate": false,
+        "note": "spec §6 priority 3: needs_info → answer the literal question, no upsell."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"turn\":{\"threadId\":\"thr_e3\",\"creatorId\":\"cr_freshly\",\"incomingMessageId\":\"msg_e3\",\"classification\":\"needs_info\",\"extracted\":{\"question\":\"When would the sample arrive?\"}},\"facts\":{\"creator\":{\"uniqueId\":\"@freshly\",\"nickname\":\"Freshly\",\"signature\":\"Skincare\",\"recentPostThemes\":[\"morning routine\"],\"followerCount\":42000},\"brand\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Brightening serum\",\"keyClaims\":[\"10% vitamin C\"]},\"logistics\":{\"shipsSamples\":true},\"hasMinimumContext\":true},\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"Re: sample timing\",\"body\":\"Hi Freshly — once we have your shipping address, the sample typically arrives within 5–7 business days inside Korea. Happy to share a tracking number as soon as it ships.\",\"tone\":\"warm\",\"spamScore\":0.04,\"deliverabilityScore\":0.82,\"skepticScore\":0.14,\"revisionCount\":0,\"groundedFacts\":[\"logistics.shipsSamples\"]}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "responder_ko_01_interested_pure",
+      "metadata": {
+        "locale": "ko",
+        "classification": "interested",
+        "expected_outcome": "ok",
+        "should_escalate": false,
+        "note": "Korean locale; brand voice preserved; uses @handle."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"turn\":{\"threadId\":\"thr_e4\",\"creatorId\":\"cr_freshly\",\"incomingMessageId\":\"msg_e4\",\"classification\":\"interested\",\"extracted\":{\"shippingAddress\":\"서울시 강남구 테헤란로 123\"}},\"facts\":{\"creator\":{\"uniqueId\":\"@freshly\",\"nickname\":\"프레쉴리\",\"signature\":\"스킨케어 리뷰\",\"recentPostThemes\":[\"아침 루틴\"],\"followerCount\":42000},\"brand\":{\"name\":\"프레쉴리 비타민 C 세럼\",\"category\":\"skincare/serum\",\"description\":\"브라이트닝 비타민 C 세럼\",\"keyClaims\":[\"비타민 C 10%\",\"무향료\"]},\"logistics\":{\"shipsSamples\":true},\"hasMinimumContext\":true},\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"@freshly님, 샘플 발송 안내드려요\",\"body\":\"안녕하세요 프레쉴리님, 주소 공유 감사합니다. 비타민 C 10% 세럼 샘플을 이번 주 내로 발송하겠습니다. 도착까지 5-7일 정도 예상됩니다. 운송장 번호가 나오면 다시 안내드릴게요.\",\"tone\":\"warm\",\"spamScore\":0.05,\"deliverabilityScore\":0.85,\"skepticScore\":0.16,\"revisionCount\":0,\"groundedFacts\":[\"brand.keyClaims[0]\",\"logistics.shipsSamples\"]}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "responder_ko_02_suspicious_address",
+      "metadata": {
+        "locale": "ko",
+        "classification": "interested",
+        "expected_outcome": "ok",
+        "should_escalate": false,
+        "note": "spec §8 edge case 1: address looks suspicious (PO box only) — confirm receipt + flag for logistics, do NOT promise ETA."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"turn\":{\"threadId\":\"thr_e5\",\"creatorId\":\"cr_freshly\",\"incomingMessageId\":\"msg_e5\",\"classification\":\"interested\",\"extracted\":{\"shippingAddress\":\"사서함 999\"}},\"facts\":{\"creator\":{\"uniqueId\":\"@freshly\",\"nickname\":\"프레쉴리\",\"signature\":\"스킨케어\",\"recentPostThemes\":[\"루틴\"],\"followerCount\":42000},\"brand\":{\"name\":\"프레쉴리 세럼\",\"category\":\"skincare/serum\",\"description\":\"세럼\",\"keyClaims\":[\"비타민 C\"]},\"logistics\":{\"shipsSamples\":true},\"hasMinimumContext\":true},\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"@freshly님, 주소 확인 부탁드려요\",\"body\":\"안녕하세요 프레쉴리님, 주소 잘 받았습니다. 사서함 발송 가능 여부를 물류팀에서 한 번 더 확인한 뒤 발송 일정 안내드릴게요. 도로명 주소가 가능하시다면 함께 공유 부탁드립니다.\",\"tone\":\"warm\",\"spamScore\":0.06,\"deliverabilityScore\":0.81,\"skepticScore\":0.22,\"revisionCount\":1,\"groundedFacts\":[\"logistics.shipsSamples\"]}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "responder_ja_01_needs_info",
+      "metadata": {
+        "locale": "ja",
+        "classification": "needs_info",
+        "expected_outcome": "ok",
+        "should_escalate": false,
+        "note": "Japanese locale; specific question about ingredients."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"turn\":{\"threadId\":\"thr_e6\",\"creatorId\":\"cr_freshly_jp\",\"incomingMessageId\":\"msg_e6\",\"classification\":\"needs_info\",\"extracted\":{\"question\":\"無香料ですか?\"}},\"facts\":{\"creator\":{\"uniqueId\":\"@freshly_jp\",\"nickname\":\"フレッシュリー\",\"signature\":\"スキンケア\",\"recentPostThemes\":[\"朝のルーティン\"],\"followerCount\":30000},\"brand\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"美白美容液\",\"keyClaims\":[\"ビタミンC 10%\",\"無香料\",\"ヴィーガン\"]},\"logistics\":{\"shipsSamples\":true},\"hasMinimumContext\":true},\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"無香料についてのご質問\",\"body\":\"フレッシュリーさん、ご質問ありがとうございます。はい、無香料です。ビタミンC 10%配合、ヴィーガン処方になっています。サンプルをお送りする際にぜひ実際にお試しください。\",\"tone\":\"warm\",\"spamScore\":0.04,\"deliverabilityScore\":0.83,\"skepticScore\":0.13,\"revisionCount\":0,\"groundedFacts\":[\"brand.keyClaims[0]\",\"brand.keyClaims[1]\",\"brand.keyClaims[2]\"]}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "responder_zh_01_simplified_chinese",
+      "metadata": {
+        "locale": "zh-CN",
+        "classification": "interested",
+        "expected_outcome": "ok",
+        "should_escalate": false,
+        "note": "Simplified Chinese; address shared; vegan claim cited verbatim."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"turn\":{\"threadId\":\"thr_e7\",\"creatorId\":\"cr_freshly_cn\",\"incomingMessageId\":\"msg_e7\",\"classification\":\"interested\",\"extracted\":{\"shippingAddress\":\"上海市浦东新区世纪大道100号\"}},\"facts\":{\"creator\":{\"uniqueId\":\"@freshly_cn\",\"nickname\":\"小新鲜\",\"signature\":\"护肤分享\",\"recentPostThemes\":[\"晨间护肤\"],\"followerCount\":55000},\"brand\":{\"name\":\"Freshly维C精华\",\"category\":\"skincare/serum\",\"description\":\"亮白维C精华\",\"keyClaims\":[\"10%维生素C\",\"纯素配方\"]},\"logistics\":{\"shipsSamples\":true},\"hasMinimumContext\":true},\"locale\":\"zh-CN\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"@freshly_cn,样品发货确认\",\"body\":\"小新鲜你好,谢谢提供地址。我们这周会发出一支10%维生素C精华样品(纯素配方),预计5-7天内送达。物流单号出来后会再同步给你。\",\"tone\":\"warm\",\"spamScore\":0.05,\"deliverabilityScore\":0.85,\"skepticScore\":0.16,\"revisionCount\":0,\"groundedFacts\":[\"brand.keyClaims[0]\",\"brand.keyClaims[1]\",\"logistics.shipsSamples\"]}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "responder_en_04_no_sample_policy",
+      "metadata": {
+        "locale": "en",
+        "classification": "interested",
+        "expected_outcome": "ok",
+        "should_escalate": false,
+        "note": "spec §6 discipline: shipsSamples=false; reply must NOT promise a sample. Affiliate/paid path only."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"turn\":{\"threadId\":\"thr_e8\",\"creatorId\":\"cr_freshly\",\"incomingMessageId\":\"msg_e8\",\"classification\":\"interested\",\"extracted\":{}},\"facts\":{\"creator\":{\"uniqueId\":\"@freshly\",\"nickname\":\"Freshly\",\"signature\":\"Skincare\",\"recentPostThemes\":[\"glow up\"],\"followerCount\":42000},\"brand\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Brightening serum\",\"keyClaims\":[\"10% vitamin C\"]},\"logistics\":{\"shipsSamples\":false},\"hasMinimumContext\":true},\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"Glad you're interested, @freshly — affiliate details inside\",\"body\":\"Hi Freshly — great to hear you're keen. We're running this as a paid/affiliate collab (no free sample this round). Could you share your usual rate range and the formats you'd want to pitch? We'll put a brief together from there.\",\"tone\":\"warm\",\"spamScore\":0.06,\"deliverabilityScore\":0.82,\"skepticScore\":0.20,\"revisionCount\":0,\"groundedFacts\":[\"brand.keyClaims[0]\"]}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    }
+  ]
+}

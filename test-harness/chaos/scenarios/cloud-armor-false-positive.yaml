@@ -1,0 +1,36 @@
+# CHAOS-EDGE-02 — Cloud Armor regex tightening causes mass 403; rollback runbook must restore inside 60s
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: per_pr, nightly
+
+id: CHAOS-EDGE-02
+name: cloud-armor-mass-block
+tier: edge
+executor: native_gcp
+tags: [per_pr, nightly]
+
+description: |
+  Cloud Armor regex tightening causes mass 403; rollback runbook must restore inside 60s.
+
+expected_rto_s: 60
+expected_rpo_s: 0
+observed_sli_breach: slo.hot_path.availability.fast_burn
+
+auto_runbook: runbook-armor-rollback
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-EDGE-02"
+
+pass_criteria:
+  - "observed_rto_s <= 60"
+  - "observed_rpo_s <= 0"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references:
+  - "https://cloud.google.com/armor/docs/security-policy-overview"

@@ -1,0 +1,29 @@
+{
+  "type": "record",
+  "name": "ArmorBlock",
+  "namespace": "ai.socialseed.v2.system.armor",
+  "doc": "Per shared.asyncapi.yaml lines 171-185 (D36 + D21). Model Armor blocked input or output.",
+  "fields": [
+    { "name": "agentId",   "type": "string" },
+    { "name": "tenantId",  "type": "string" },
+    { "name": "blockedAt", "type": "string" },
+    { "name": "policyId",  "type": "string", "doc": "Examples: PI_JB, PII_BLOCK, RAI_DEFAULT, CUSTOM_BRAND, CUSTOM_COMPETITOR, CUSTOM_HANDLE." },
+    {
+      "name": "severity",
+      "type": {
+        "type": "enum",
+        "name": "Severity",
+        "symbols": ["low", "medium", "high", "critical"]
+      }
+    },
+    {
+      "name": "surface",
+      "type": {
+        "type": "enum",
+        "name": "Surface",
+        "symbols": ["input", "output"]
+      }
+    },
+    { "name": "rawExcerpt", "type": ["null", "string"], "default": null, "doc": "First 200 chars of blocked content (DLP-redacted per D20)." }
+  ]
+}

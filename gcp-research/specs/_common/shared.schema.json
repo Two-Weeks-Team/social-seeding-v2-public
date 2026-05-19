@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.social-seeding.com/v2/common/shared.schema.json",
+  "title": "SocialSeedingV2.Common",
+  "description": "Shared JSON Schema $defs for all 22 production agents (D23, D36). Each per-agent spec imports these via $ref.",
+  "$defs": {
+    "TenantId": {
+      "type": "string",
+      "pattern": "^t_[a-z0-9]{16}$",
+      "description": "Identity Platform tenant id (D12)."
+    },
+    "WorkspaceId": {
+      "type": "string",
+      "pattern": "^ws_[A-Za-z0-9_-]{8,40}$",
+      "description": "v2 workspace id — carried from packages/contracts/src/policy.ts."
+    },
+    "CampaignId": {
+      "type": "string",
+      "pattern": "^c_[A-Za-z0-9_-]{8,40}$"
+    },
+    "CreatorId": {
+      "type": "string",
+      "description": "TikTok unique numeric id (v1 parity)."
+    },
+    "AgentId": {
+      "type": "string",
+      "enum": [
+        "sourcing", "vetting", "outreach-writer", "conversation", "conversation-responder",
+        "logistics", "content-verify", "analyst", "research", "intake", "lead-outreach-writer",
+        "payment-mandate", "compliance", "creative", "a11y", "customer-success",
+        "coordinator", "critic", "optimizer",
+        "anomaly-watch", "cost-watch", "security-watch"
+      ]
+    },
+    "ModelId": {
+      "type": "string",
+      "enum": [
+        "gemini-2.5-pro",
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-3.1-pro-preview",
+        "imagen-4",
+        "veo-3",
+        "lyria-1"
+      ],
+      "description": "D5 — Gemini 2.5 production baseline; 3.1 Preview for final demo. D39 — Preview enabled per credits."
+    },
+    "USDCost": {
+      "type": "number",
+      "minimum": 0,
+      "description": "USD spent on one agent invocation. Recorded to BigQuery via Pub/Sub."
+    },
+    "ISODateTime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "AutonomyLevel": {
+      "type": "string",
+      "enum": ["copilot", "checkpointed", "autonomous"],
+      "description": "v2 packages/contracts/src/policy.ts:11-16."
+    },
+    "GateMode": {
+      "type": "string",
+      "enum": ["always_ask", "auto", "auto_unless"],
+      "description": "v2 packages/contracts/src/policy.ts:19-32."
+    },
+    "InvocationMetadata": {
+      "type": "object",
+      "required": ["tenantId", "workspaceId", "traceId", "invokedAt", "autonomyLevel"],
+      "properties": {
+        "tenantId":      { "$ref": "#/$defs/TenantId" },
+        "workspaceId":   { "$ref": "#/$defs/WorkspaceId" },
+        "campaignId":    { "$ref": "#/$defs/CampaignId" },
+        "traceId":       { "type": "string" },
+        "invokedAt":     { "$ref": "#/$defs/ISODateTime" },
+        "invokedBy":     { "type": "string" },
+        "autonomyLevel": { "$ref": "#/$defs/AutonomyLevel" },
+        "budgetCapUsd":  { "$ref": "#/$defs/USDCost" }
+      },
+      "additionalProperties": false
+    },
+    "Escalation": {
+      "type": "object",
+      "required": ["kind", "reason"],
+      "properties": {
+        "kind":    { "const": "escalate" },
+        "reason":  { "type": "string", "maxLength": 500 },
+        "partial": { "type": "object", "additionalProperties": true },
+        "usdSpent":{ "$ref": "#/$defs/USDCost" }
+      },
+      "additionalProperties": false
+    },
+    "Locale": {
+      "type": "string",
+      "enum": ["ko", "en", "ja", "zh-CN"],
+      "description": "D34 — 4 supported locales."
+    },
+    "ToolName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "Dotted capability name, e.g. `tiktok.search`."
+    },
+    "ToolCall": {
+      "type": "object",
+      "required": ["tool", "input", "result"],
+      "properties": {
+        "tool":   { "$ref": "#/$defs/ToolName" },
+        "input":  { "type": "object", "additionalProperties": true },
+        "result": { "type": "object", "additionalProperties": true },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "error":  { "type": ["string", "null"] }
+      }
+    },
+    "OutcomeOk": {
+      "type": "object",
+      "required": ["kind", "value", "usdSpent"],
+      "properties": {
+        "kind":     { "const": "ok" },
+        "value":    { "type": "object", "additionalProperties": true },
+        "usdSpent": { "$ref": "#/$defs/USDCost" }
+      },
+      "additionalProperties": false
+    },
+    "Outcome": {
+      "oneOf": [
+        { "$ref": "#/$defs/OutcomeOk" },
+        { "$ref": "#/$defs/Escalation" }
+      ]
+    }
+  }
+}

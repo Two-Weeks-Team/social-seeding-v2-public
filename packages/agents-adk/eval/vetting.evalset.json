@@ -1,0 +1,301 @@
+{
+  "eval_set_id": "ss_vetting_v0_1",
+  "name": "Vetting agent — 8-case golden set (action-spread + hard-fail coverage)",
+  "description": "Phase 3 skeleton golden set per vetting.spec.md §7. Covers shortlist/drop/manual_review across the 9 flag codes (6 spec + 3 task-brief hard-fail). The full 200-case set lands in tests/golden/vetting/*.json during Phase 4. Per task brief: tool_trajectory_avg_score >= 0.85, recommendation_precision >= 0.9 on holdout.",
+  "criteria_overrides": {
+    "tool_trajectory_avg_score": 0.85,
+    "fitScore_calibration_rmse_max": 0.15,
+    "flag_recall_min": 0.85,
+    "flag_precision_min": 0.80,
+    "false_clear_rate_max": 0.02,
+    "recommendation_precision_min": 0.90
+  },
+  "metadata": {
+    "agent_id": "vetting",
+    "spec": "gcp-research/specs/tier1/vetting.spec.md",
+    "decisions": ["D5", "D17", "D23", "D24"],
+    "model": "gemini-2.5-pro",
+    "max_usd_per_call": 0.03,
+    "actions_covered": ["shortlist", "drop", "manual_review"],
+    "flags_covered": [
+      "below_engagement_floor",
+      "blacklisted",
+      "wrong_language",
+      "brand_unsafe",
+      "prior_flake",
+      "data_stale",
+      "banned_words",
+      "blacklist_match",
+      "bot_account"
+    ]
+  },
+  "eval_cases": [
+    {
+      "eval_id": "vetting_01_perfect_fit_shortlist",
+      "metadata": {
+        "expected_action": "shortlist",
+        "expected_flags": [],
+        "expected_fit_score_min": 0.75,
+        "note": "K-beauty creator, 82k followers, 4.1% ER, KR language, no risk flags — straight shortlist."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_vetting_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Brightening Vitamin C serum.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"ko\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\"}},\"candidate\":{\"creator\":{\"id\":\"700123456789\",\"uniqueId\":\"beautyguru_kr\",\"nickname\":\"K-Beauty Guru\",\"signature\":\"Korean skincare reviews\",\"verified\":true,\"privateAccount\":false,\"followerCount\":82000,\"followingCount\":312,\"videoCount\":412,\"hashtags\":[\"kbeauty\"],\"language\":\"ko\",\"engagementRate\":0.041},\"matchReasons\":[\"K-beauty niche\"],\"flags\":[]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"creator\":{\"id\":\"700123456789\",\"uniqueId\":\"beautyguru_kr\",\"nickname\":\"K-Beauty Guru\",\"signature\":\"Korean skincare reviews\",\"verified\":true,\"privateAccount\":false,\"followerCount\":82000,\"followingCount\":312,\"videoCount\":412,\"hashtags\":[\"kbeauty\"],\"language\":\"ko\",\"engagementRate\":0.041},\"fitScore\":0.82,\"flags\":[],\"matchReasons\":[\"Korean-language audience aligns with KR brief.\",\"Engagement rate 4.1% exceeds the 3% minimum floor.\",\"Bio explicitly mentions skincare reviews — topic overlap with serum category.\",\"82k follower base is mid-tier with strong authenticity signals.\"],\"recommendedAction\":\"shortlist\",\"vettedAt\":\"2026-05-19T12:00:00+00:00\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {"name": "blacklist.check", "args": {"uniqueId": "beautyguru_kr"}},
+              {"name": "rapidapi.get_user_info", "args": {"uniqueId": "beautyguru_kr", "withRecentPosts": true}},
+              {"name": "ranking.score", "args": {"creator": "beautyguru_kr"}},
+              {"name": "vector_search.brand_fit", "args": {"brandEmbedding": "auto"}}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "vetting_02_blacklist_hard_drop",
+      "metadata": {
+        "expected_action": "drop",
+        "expected_flags": ["blacklist_match"],
+        "expected_fit_score_max": 0.1,
+        "note": "Hard-fail: blacklist.check returned severity='permanent' → fitScore ≤ 0.1 + drop."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_vetting_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Brightening Vitamin C serum.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"ko\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\"}},\"candidate\":{\"creator\":{\"id\":\"800999\",\"uniqueId\":\"banned_account\",\"nickname\":\"Banned\",\"verified\":false,\"privateAccount\":false,\"followerCount\":50000,\"followingCount\":100,\"videoCount\":80,\"language\":\"ko\",\"engagementRate\":0.05},\"matchReasons\":[\"KR + skincare overlap\"],\"flags\":[]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"creator\":{\"id\":\"800999\",\"uniqueId\":\"banned_account\",\"nickname\":\"Banned\",\"verified\":false,\"privateAccount\":false,\"followerCount\":50000,\"followingCount\":100,\"videoCount\":80,\"language\":\"ko\",\"engagementRate\":0.05},\"fitScore\":0.05,\"flags\":[\"blacklist_match\"],\"matchReasons\":[\"Blacklist returned severity=permanent for this handle.\",\"Workspace policy bars contact regardless of fit.\",\"FitScore floored at 0.05 per hard-fail rule.\"],\"recommendedAction\":\"drop\",\"vettedAt\":\"2026-05-19T12:00:00+00:00\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {"name": "blacklist.check", "args": {"uniqueId": "banned_account"}}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "vetting_03_bot_account_drop",
+      "metadata": {
+        "expected_action": "drop",
+        "expected_flags": ["bot_account"],
+        "expected_fit_score_max": 0.2,
+        "note": "Engagement-pod / scripted-comment / video-loop patterns → bot_account hard-fail."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_vetting_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Brightening Vitamin C serum.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"ko\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\"}},\"candidate\":{\"creator\":{\"id\":\"900001\",\"uniqueId\":\"bot_farm_42\",\"nickname\":\"Suspicious\",\"verified\":false,\"privateAccount\":false,\"followerCount\":300000,\"followingCount\":4900,\"videoCount\":2,\"language\":\"ko\",\"engagementRate\":0.18},\"matchReasons\":[\"High raw engagement\"],\"flags\":[]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"creator\":{\"id\":\"900001\",\"uniqueId\":\"bot_farm_42\",\"nickname\":\"Suspicious\",\"verified\":false,\"privateAccount\":false,\"followerCount\":300000,\"followingCount\":4900,\"videoCount\":2,\"language\":\"ko\",\"engagementRate\":0.18},\"fitScore\":0.12,\"flags\":[\"bot_account\"],\"matchReasons\":[\"Follower-to-video ratio (300k:2) is implausible for organic growth.\",\"Engagement rate 18% is far above platform norm for the follower bucket.\",\"Following/follower ratio (4900:300k) plus comment patterns suggest an engagement pod.\",\"Hard-fail: drop regardless of nominal fit.\"],\"recommendedAction\":\"drop\",\"vettedAt\":\"2026-05-19T12:00:00+00:00\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {"name": "blacklist.check", "args": {"uniqueId": "bot_farm_42"}},
+              {"name": "rapidapi.get_user_info", "args": {"uniqueId": "bot_farm_42", "withRecentPosts": true}},
+              {"name": "ranking.score", "args": {"creator": "bot_farm_42"}}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "vetting_04_banned_words_drop",
+      "metadata": {
+        "expected_action": "drop",
+        "expected_flags": ["banned_words"],
+        "note": "Bio contains workspace-policy banned terms → drop."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_vetting_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Brightening Vitamin C serum.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"ko\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\"}},\"candidate\":{\"creator\":{\"id\":\"700100\",\"uniqueId\":\"controversial_creator\",\"nickname\":\"Edgy\",\"signature\":\"Crypto pump-and-dump · NSFW links · gambling tips\",\"verified\":false,\"privateAccount\":false,\"followerCount\":120000,\"followingCount\":400,\"videoCount\":500,\"language\":\"ko\",\"engagementRate\":0.06},\"matchReasons\":[\"High reach\"],\"flags\":[]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"creator\":{\"id\":\"700100\",\"uniqueId\":\"controversial_creator\",\"nickname\":\"Edgy\",\"signature\":\"Crypto pump-and-dump · NSFW links · gambling tips\",\"verified\":false,\"privateAccount\":false,\"followerCount\":120000,\"followingCount\":400,\"videoCount\":500,\"language\":\"ko\",\"engagementRate\":0.06},\"fitScore\":0.15,\"flags\":[\"banned_words\",\"brand_unsafe\"],\"matchReasons\":[\"Bio explicitly references crypto pump-and-dump and gambling — workspace banned terms.\",\"NSFW content links are incompatible with the skincare brand voice.\",\"Hard-fail banned_words forces drop regardless of reach.\"],\"recommendedAction\":\"drop\",\"vettedAt\":\"2026-05-19T12:00:00+00:00\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {"name": "blacklist.check", "args": {"uniqueId": "controversial_creator"}},
+              {"name": "rapidapi.get_user_info", "args": {"uniqueId": "controversial_creator", "withRecentPosts": true}}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "vetting_05_low_engagement_manual_review",
+      "metadata": {
+        "expected_action": "manual_review",
+        "expected_flags": ["below_engagement_floor"],
+        "note": "Engagement 1.8% < 3% floor but creator is otherwise on-brand — route to human."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_vetting_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Brightening Vitamin C serum.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"ko\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\"}},\"candidate\":{\"creator\":{\"id\":\"700200\",\"uniqueId\":\"mega_kr_creator\",\"nickname\":\"Mega Reach KR\",\"signature\":\"Skincare + lifestyle\",\"verified\":true,\"privateAccount\":false,\"followerCount\":2400000,\"followingCount\":250,\"videoCount\":800,\"language\":\"ko\",\"engagementRate\":0.018},\"matchReasons\":[\"Huge KR reach\"],\"flags\":[]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"creator\":{\"id\":\"700200\",\"uniqueId\":\"mega_kr_creator\",\"nickname\":\"Mega Reach KR\",\"signature\":\"Skincare + lifestyle\",\"verified\":true,\"privateAccount\":false,\"followerCount\":2400000,\"followingCount\":250,\"videoCount\":800,\"language\":\"ko\",\"engagementRate\":0.018},\"fitScore\":0.55,\"flags\":[\"below_engagement_floor\"],\"matchReasons\":[\"Korean-language mega-creator with 2.4M followers in the skincare niche.\",\"Engagement rate 1.8% is below the 3% campaign floor.\",\"Operator may still want big-reach picks despite the engagement floor — flagging for review.\"],\"recommendedAction\":\"manual_review\",\"vettedAt\":\"2026-05-19T12:00:00+00:00\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {"name": "blacklist.check", "args": {"uniqueId": "mega_kr_creator"}},
+              {"name": "rapidapi.get_user_info", "args": {"uniqueId": "mega_kr_creator", "withRecentPosts": true}},
+              {"name": "ranking.score", "args": {"creator": "mega_kr_creator"}},
+              {"name": "vector_search.brand_fit", "args": {}}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "vetting_06_wrong_language_manual_review",
+      "metadata": {
+        "expected_action": "manual_review",
+        "expected_flags": ["wrong_language"],
+        "note": "Creator is English-only, brief targets KR — flag but allow operator override."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_vetting_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Brightening Vitamin C serum.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"ko\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\"}},\"candidate\":{\"creator\":{\"id\":\"700300\",\"uniqueId\":\"us_beauty_blogger\",\"nickname\":\"US Beauty\",\"signature\":\"NYC-based skincare & makeup\",\"verified\":false,\"privateAccount\":false,\"followerCount\":95000,\"followingCount\":500,\"videoCount\":300,\"language\":\"en\",\"engagementRate\":0.045},\"matchReasons\":[\"Skincare niche fit\"],\"flags\":[]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"creator\":{\"id\":\"700300\",\"uniqueId\":\"us_beauty_blogger\",\"nickname\":\"US Beauty\",\"signature\":\"NYC-based skincare & makeup\",\"verified\":false,\"privateAccount\":false,\"followerCount\":95000,\"followingCount\":500,\"videoCount\":300,\"language\":\"en\",\"engagementRate\":0.045},\"fitScore\":0.48,\"flags\":[\"wrong_language\"],\"matchReasons\":[\"Strong skincare niche match and 4.5% engagement.\",\"Creator language is English but brief targets ko — outside the configured language allowlist.\",\"Operator should decide whether to expand brief targeting or drop this candidate.\"],\"recommendedAction\":\"manual_review\",\"vettedAt\":\"2026-05-19T12:00:00+00:00\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {"name": "blacklist.check", "args": {"uniqueId": "us_beauty_blogger"}},
+              {"name": "rapidapi.get_user_info", "args": {"uniqueId": "us_beauty_blogger", "withRecentPosts": true}},
+              {"name": "ranking.score", "args": {"creator": "us_beauty_blogger"}},
+              {"name": "vector_search.brand_fit", "args": {}}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "vetting_07_prior_flake_capped_score",
+      "metadata": {
+        "expected_action": "manual_review",
+        "expected_flags": ["prior_flake"],
+        "expected_fit_score_max": 0.4,
+        "note": "Spec §8 edge case 3: priorOutcome='flaked' → fitScore must be ≤ 0.4 regardless."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_vetting_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Brightening Vitamin C serum.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"ko\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\"}},\"candidate\":{\"creator\":{\"id\":\"700400\",\"uniqueId\":\"unreliable_kr\",\"nickname\":\"Unreliable\",\"signature\":\"K-beauty enthusiast\",\"verified\":false,\"privateAccount\":false,\"followerCount\":60000,\"followingCount\":200,\"videoCount\":150,\"language\":\"ko\",\"engagementRate\":0.052,\"priorOutcome\":\"flaked\"},\"matchReasons\":[\"K-beauty topic match\"],\"flags\":[]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"creator\":{\"id\":\"700400\",\"uniqueId\":\"unreliable_kr\",\"nickname\":\"Unreliable\",\"signature\":\"K-beauty enthusiast\",\"verified\":false,\"privateAccount\":false,\"followerCount\":60000,\"followingCount\":200,\"videoCount\":150,\"language\":\"ko\",\"engagementRate\":0.052,\"priorOutcome\":\"flaked\"},\"fitScore\":0.38,\"flags\":[\"prior_flake\"],\"matchReasons\":[\"Creator previously flaked on a workspace campaign — capped at 0.4.\",\"Topic + engagement profile would otherwise score 0.7.\",\"Manual review lets operator decide whether to re-engage.\"],\"recommendedAction\":\"manual_review\",\"vettedAt\":\"2026-05-19T12:00:00+00:00\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {"name": "blacklist.check", "args": {"uniqueId": "unreliable_kr"}},
+              {"name": "rapidapi.get_user_info", "args": {"uniqueId": "unreliable_kr", "withRecentPosts": true}},
+              {"name": "ranking.score", "args": {"creator": "unreliable_kr"}}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "vetting_08_data_stale_manual_review",
+      "metadata": {
+        "expected_action": "manual_review",
+        "expected_flags": ["data_stale"],
+        "note": "Spec §8 edge case 2: empty signature + no recent posts → data_stale."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_vetting_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Brightening Vitamin C serum.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"ko\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\"}},\"candidate\":{\"creator\":{\"id\":\"700500\",\"uniqueId\":\"dormant_kr\",\"nickname\":\"Dormant\",\"signature\":\"\",\"verified\":false,\"privateAccount\":false,\"followerCount\":45000,\"followingCount\":100,\"videoCount\":80,\"language\":\"ko\"},\"matchReasons\":[\"Mid-size KR account\"],\"flags\":[]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"creator\":{\"id\":\"700500\",\"uniqueId\":\"dormant_kr\",\"nickname\":\"Dormant\",\"signature\":\"\",\"verified\":false,\"privateAccount\":false,\"followerCount\":45000,\"followingCount\":100,\"videoCount\":80,\"language\":\"ko\"},\"fitScore\":0.32,\"flags\":[\"data_stale\"],\"matchReasons\":[\"Profile signature is empty and no recent posts surfaced.\",\"Insufficient signal to score brand-fit confidently.\",\"Operator should re-pull data or skip this candidate.\"],\"recommendedAction\":\"manual_review\",\"vettedAt\":\"2026-05-19T12:00:00+00:00\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {"name": "blacklist.check", "args": {"uniqueId": "dormant_kr"}},
+              {"name": "rapidapi.get_user_info", "args": {"uniqueId": "dormant_kr", "withRecentPosts": true}}
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

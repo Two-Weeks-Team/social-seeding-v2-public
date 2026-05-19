@@ -1,0 +1,10 @@
+%% Beat 3 — Outreach tournament + approval  (SCRIPT.md §3 Beat 3)
+flowchart LR
+  creator[approved creator] --> ow[outreach_writer]:::active
+  ow --> tournament{5 angles × 4 judges<br/>= 20 LLM calls}:::active
+  tournament --> winner[winning angle]
+  winner --> compliance[compliance<br/>PIPA · CAN-SPAM · DLP]
+  compliance --> mandate[payment_mandate<br/>AP2 Intent · D27]:::active
+  mandate --> human((Human approve))
+
+  classDef active fill:#FFD400,stroke:#F9AB00,color:#000,stroke-width:3px;

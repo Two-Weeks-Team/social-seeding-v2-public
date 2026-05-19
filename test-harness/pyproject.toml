@@ -1,0 +1,26 @@
+# pyproject.toml — pytest configuration for the test-harness suite.
+# Cites: D37 (5-layer TDD). Required because we have multiple `tests/` dirs
+# nested under different L1-L5 harnesses; importlib mode prevents pytest's
+# default basename collision.
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra -q --tb=short"
+testpaths = [
+    "simulation/tests",
+    "chaos/tests",
+    "edge-cases/tests",
+    "property-based/tests",
+]
+# importlib mode — each tests/conftest.py becomes its own module, no clash.
+# https://docs.pytest.org/en/stable/explanation/pythonpath.html#import-modes
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "live: requires HARNESS_MODE=live (skipped by default)",
+    "slow: opt-in nightly-only tests",
+]
+
+[tool.pytest_consider_namespace_packages]
+enabled = true

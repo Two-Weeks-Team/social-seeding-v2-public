@@ -1,0 +1,153 @@
+{
+  "$schema": "https://a2a-protocol.org/schemas/v0.3/agent-card.json",
+  "_comment_intent": "Single source of truth: REFACTOR-MCP.md §6.1 + PROTOCOLS.md §1.3 + §3.1. Both A2A skills (Path A) and MCP tool surfaces (Path B) are declared so one image lists into the Marketplace under either category. KR-gap disclosure section per docs/KR-GAP-DISCLOSURE.md.",
+
+  "protocolVersion": "0.3.0",
+
+  "name": "Influencer Research Agent (TikTok)",
+  "description": "Given a brand brief, finds and ranks TikTok creators by engagement and brief-fit. Powered by Social Seeding's public-data TikTok pipeline (RapidAPI-mediated; no TikTok Research API). Returns a structured top-10 with reasoning, engagement-rate, and source attribution.",
+
+  "url": "https://mcp.socialseed.ing",
+  "preferredTransport": "JSONRPC",
+  "additionalInterfaces": [
+    { "url": "https://mcp.socialseed.ing/v1", "transport": "HTTP+JSON" }
+  ],
+
+  "iconUrl": "https://cdn.socialseed.ing/agents/tiktok-influencer-research-256.png",
+  "version": "1.0.0",
+  "documentationUrl": "https://docs.socialseed.ing/agents/tiktok-influencer-research",
+
+  "provider": {
+    "organization": "Social Seeding Inc.",
+    "url": "https://socialseed.ing"
+  },
+
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false,
+    "stateTransitionHistory": true,
+    "extensions": [
+      {
+        "uri": "https://ap2-protocol.org/extensions/a2a/v0.2",
+        "required": false,
+        "description": "AP2 Intent Mandate (D27) — declared as optional; the v1 surface accepts but does not yet require AP2."
+      }
+    ]
+  },
+
+  "securitySchemes": {
+    "oidc": {
+      "type": "openIdConnect",
+      "openIdConnectUrl": "https://securetoken.google.com/PROJECT_ID/.well-known/openid-configuration",
+      "_comment": "Identity Platform tenant OIDC discovery (D19). PROJECT_ID is substituted at deploy time by terraform/cloud-run-service.yaml."
+    },
+    "oauth": {
+      "type": "oauth2",
+      "flows": {
+        "authorizationCode": {
+          "authorizationUrl": "https://accounts.google.com/o/oauth2/v2/auth",
+          "tokenUrl": "https://oauth2.googleapis.com/token",
+          "scopes": {
+            "tiktok:read": "Read TikTok creator + post analytics"
+          }
+        }
+      }
+    }
+  },
+
+  "security": [
+    { "oidc": [] },
+    { "oauth": ["tiktok:read"] }
+  ],
+
+  "defaultInputModes":  ["text/plain", "application/json"],
+  "defaultOutputModes": ["application/json"],
+
+  "skills": [
+    {
+      "id": "plan_creator_search",
+      "name": "Plan and rank TikTok creators",
+      "description": "Plans queries, sources candidates across language variants, fetches engagement metrics, and returns a ranked top-10 with reasoning. Honors the per-tool daily quotas declared in the linked MCP server.",
+      "tags": ["tiktok", "influencer", "marketing", "creator-discovery", "ranking"],
+      "examples": [
+        "Find 10 vegan-skincare TikTok creators in Korea for a Gen-Z launch.",
+        "Source US fitness creators 50k-200k followers with >5% engagement.",
+        "Identify Japanese beauty creators discussing fragrance-free skincare."
+      ],
+      "inputModes":  ["text/plain", "application/json"],
+      "outputModes": ["application/json"],
+      "security": [{ "oidc": [] }, { "oauth": ["tiktok:read"] }],
+      "_output_schema_ref": "#/definitions/RankedCreators",
+      "_typical_duration_ms": 15000,
+      "_long_running": true
+    }
+  ],
+
+  "mcp_tools": [
+    {
+      "name": "tiktok_search",
+      "endpoint": "https://mcp.socialseed.ing/mcp",
+      "description": "Discover TikTok creators by keyword. 200 calls/day on the free tier.",
+      "daily_limit_free": 200
+    },
+    {
+      "name": "tiktok_user_info",
+      "endpoint": "https://mcp.socialseed.ing/mcp",
+      "description": "Fetch a creator's profile (followers, bio, video_count). 200 calls/day on the free tier.",
+      "daily_limit_free": 200
+    },
+    {
+      "name": "tiktok_user_posts",
+      "endpoint": "https://mcp.socialseed.ing/mcp",
+      "description": "Fetch a creator's recent posts with engagement metrics. 50 calls/day on the free tier.",
+      "daily_limit_free": 50
+    },
+    {
+      "name": "tiktok_post_detail",
+      "endpoint": "https://mcp.socialseed.ing/mcp",
+      "description": "Fetch detailed engagement for one post. 50 calls/day on the free tier.",
+      "daily_limit_free": 50
+    }
+  ],
+
+  "supportsAuthenticatedExtendedCard": false,
+
+  "_definitions": {
+    "RankedCreators": {
+      "type": "object",
+      "required": ["brief", "creators", "source_attribution"],
+      "properties": {
+        "brief": { "type": "string" },
+        "creators": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["unique_id", "follower_count", "engagement_rate", "fit_score", "reasoning"],
+            "properties": {
+              "unique_id": { "type": "string", "description": "TikTok handle without @" },
+              "follower_count": { "type": "integer", "minimum": 0 },
+              "engagement_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+              "fit_score": { "type": "number", "minimum": 0, "maximum": 1 },
+              "reasoning": { "type": "string", "minLength": 10, "maxLength": 500 }
+            }
+          }
+        },
+        "source_attribution": {
+          "type": "string",
+          "default": "Source: Social Seeding — https://socialseed.ing"
+        },
+        "trace": { "type": "object" }
+      }
+    }
+  },
+
+  "_kr_gap_disclosure": {
+    "_comment": "Per docs/KR-GAP-DISCLOSURE.md — the Korean entity behind this card cannot list as a paid Marketplace vendor as of 2026-05-19 because Korea is not on the 20-region payment whitelist. This card is published under the A2A-only distribution pattern documented at github.com/SocialSeeding/a2a-only-pattern.",
+    "entity_country": "KR",
+    "distribution_path": "a2a-only-with-marketplace-secondary",
+    "billing_rails": ["stripe-korea-usd", "toss-payments-krw"],
+    "pattern_repo": "https://github.com/SocialSeeding/a2a-only-pattern",
+    "marketplace_listing_status": "submitted-when-foreign-sub-ready",
+    "reference": "gcp-research/strategy/KR-GAP.md"
+  }
+}

@@ -1,0 +1,281 @@
+# built-with-tags.txt
+# ----------------------------------------------------------------------------
+# Devpost "Built With" tags for both submissions. Source of record:
+# gcp-research/submission/DEVPOST.md §A and §B (paste-ready, verbatim).
+#
+# Format: one tag per line. Each section is intended for one Devpost
+# submission. Devpost will collapse case and de-duplicate; the canonical
+# spelling below is the kebab-case Cloud product slug.
+#
+# Operator: open the Devpost form, click "Built With", paste the appropriate
+# section (track 2 OR track 3 — not both — into a single submission). Each
+# tag below is a single line; Devpost accepts comma-separated paste as well.
+# ============================================================================
+
+
+# ============================================================================
+# TRACK 2 — social-seeding-v2 (Optimize an existing prototype)
+# ============================================================================
+
+## Build pillar
+agent-development-kit-python-2.0-beta
+agent-studio
+agent-garden
+agents-cli
+gemini-3.1-pro-preview
+gemini-2.5-pro
+gemini-2.5-flash
+gemini-2.5-flash-lite
+model-context-protocol
+a2a-protocol-v0.3
+ap2-protocol-v0.2
+google-search-grounding
+vertex-ai-search-agent-search
+cloud-marketplace
+
+## Scale pillar
+vertex-ai-agent-runtime
+agent-sandbox
+agent-memory-bank
+agent-sessions
+
+## Govern pillar
+agent-gateway
+agent-identity-spiffe
+agent-registry
+model-armor
+agent-policy
+agent-compliance
+agent-security
+
+## Optimize pillar
+agent-evaluation
+agent-observability
+agent-optimizer
+agent-simulation
+agent-anomaly-detection
+
+## Vertex core
+vertex-ai-pipelines
+vertex-ai-vector-search
+vertex-ai-workbench
+
+## Compute & containers
+cloud-run-services
+cloud-run-jobs
+cloud-run-worker-pools
+cloud-run-functions
+gke-autopilot
+gke-gpu-h100-a3
+gke-tpu-v6e
+cloud-workflows
+
+## Data & storage
+spanner-multi-region
+alloydb-ai
+firestore-native
+bigquery
+bigquery-ml
+bigquery-studio
+cloud-storage
+memorystore-valkey-8
+dataform
+dataplex-knowledge-catalog
+dataflow
+pubsub
+pubsub-schema-registry
+
+## Networking
+cloud-load-balancing-global
+cloud-load-balancing-regional
+cloud-cdn
+cloud-armor
+vpc-service-controls
+private-service-connect
+cloud-nat
+cloud-dns
+identity-aware-proxy
+cloud-service-mesh
+
+## Security & IAM
+iam
+iam-conditions
+workload-identity-federation
+workforce-identity-federation
+identity-platform
+secret-manager
+cloud-kms-cmek
+cloud-hsm
+certificate-manager
+confidential-vm-gke
+binary-authorization
+security-command-center-premium-ai-protection
+sensitive-data-protection-dlp
+chronicle-secops
+
+## Observability
+cloud-logging
+log-analytics
+cloud-monitoring
+managed-service-for-prometheus
+managed-service-for-grafana
+cloud-trace
+cloud-profiler
+error-reporting
+cloud-audit-logs
+opentelemetry
+
+## DevOps & integration
+cloud-build
+cloud-deploy-canary
+artifact-registry
+artifact-analysis-slsa-l3
+cloud-workstations
+gemini-code-assist-enterprise
+cloud-scheduler
+cloud-tasks
+eventarc-advanced
+apigee-x
+apigee-api-hub
+
+## Specialized AI
+dialogflow-cx
+document-ai
+vision-ai
+imagen-4
+veo-3
+lyria
+speech-to-text
+text-to-speech
+translation-api
+
+## Firebase
+firebase-hosting
+firebase-app-hosting
+firebase-genkit
+firebase-cloud-messaging
+
+## Non-GCP
+nextjs-16
+react-native-expo
+typescript
+python
+zod
+vitest
+pytest
+mermaid
+openapi-3.1
+asyncapi-3.0
+json-schema
+
+
+
+# ============================================================================
+# TRACK 3 — tiktok-mcp-server (Refactor for Marketplace / Gemini Enterprise)
+# ============================================================================
+
+## Build pillar
+agent-development-kit-python-2.0-beta
+agent-studio
+agents-cli
+gemini-2.5-flash
+gemini-2.5-flash-lite
+model-context-protocol
+a2a-protocol-v0.3
+cloud-marketplace
+
+## Scale pillar
+vertex-ai-agent-runtime
+agent-sessions
+
+## Govern pillar
+agent-gateway
+agent-identity-spiffe
+agent-registry
+model-armor
+agent-policy
+agent-compliance
+agent-security
+chronicle-secops
+
+## Optimize pillar
+agent-evaluation
+agent-observability
+agent-anomaly-detection
+
+## Compute & containers
+cloud-run-services
+cloud-run-worker-pools
+cloud-workflows
+
+## Data & storage
+firestore-native
+bigquery
+cloud-storage
+memorystore-valkey-8
+pubsub
+pubsub-schema-registry
+dataform
+dataflow
+
+## Networking
+cloud-load-balancing-global
+cloud-cdn
+cloud-armor
+vpc-service-controls
+private-service-connect
+cloud-nat
+cloud-dns
+identity-aware-proxy
+cloud-service-mesh
+
+## Security & IAM
+iam-conditions
+workload-identity-federation
+workforce-identity-federation
+identity-platform
+secret-manager
+cloud-kms-cmek
+certificate-manager
+binary-authorization
+security-command-center-premium-ai-protection
+sensitive-data-protection-dlp
+
+## Observability
+cloud-logging
+log-analytics
+cloud-monitoring
+managed-service-for-prometheus
+managed-service-for-grafana
+cloud-trace
+error-reporting
+cloud-audit-logs
+opentelemetry
+
+## DevOps & integration
+cloud-build
+cloud-deploy-canary
+artifact-registry
+artifact-analysis-slsa-l3
+cloud-scheduler
+cloud-tasks
+eventarc-advanced
+apigee-x
+apigee-api-hub
+
+## Specialized AI
+vision-ai
+translation-api
+
+## External / non-GCP
+rapidapi
+go-fiber-v2-v3
+chromedp
+python
+fastapi
+nodriver
+puppeteer-stealth-nodejs
+model-context-protocol-sdk
+mermaid
+openapi-3.1
+asyncapi-3.0

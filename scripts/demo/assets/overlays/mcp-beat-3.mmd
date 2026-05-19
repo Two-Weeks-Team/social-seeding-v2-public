@@ -1,0 +1,8 @@
+%% Beat 3 — A2A registration / agent.json  (SCRIPT.md §4 Beat 3)
+flowchart LR
+  card[/.well-known/<br/>agent.json/]:::active --> registry[Agent Registry<br/>verified · public]:::active
+  v2[v2 sourcing agent] -->|A2A invoke| registry
+  registry -->|capabilities matrix<br/>token exchange| v2
+  spiffe[Agent Identity SPIFFE] -.-> card
+
+  classDef active fill:#FFD400,stroke:#F9AB00,color:#000,stroke-width:3px;

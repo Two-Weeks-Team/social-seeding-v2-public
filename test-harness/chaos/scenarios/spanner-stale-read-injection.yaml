@@ -1,0 +1,35 @@
+# CHAOS-DATA-05 — Force read_only_staleness=300s on 10% of traffic; agent must fall back to strong reads
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: nightly
+
+id: CHAOS-DATA-05
+name: spanner-stale-defense
+tier: data
+executor: custom_middleware
+tags: [nightly]
+
+description: |
+  Force read_only_staleness=300s on 10% of traffic; agent must fall back to strong reads.
+
+expected_rto_s: 0
+expected_rpo_s: 0
+observed_sli_breach: data_freshness_v1.regression
+
+auto_runbook: noop
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-DATA-05"
+
+pass_criteria:
+  - "observed_rto_s <= 0"
+  - "observed_rpo_s <= 0"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references: []

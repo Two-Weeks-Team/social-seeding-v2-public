@@ -1,0 +1,19 @@
+{
+  "name": "critic_v1_judge_of_judges",
+  "description": "Tier-2 critic (M2) — LLM-as-judge of agent outputs. Special judge-of-judges evalset (MATRIX §2.5 — defer to Phase 2 D24 hybrid in-process). D-IDs: D23, D25, D37.",
+  "agent_spec_ref": "gs://ss-v2-agent-registry/critic/v1.json",
+  "trajectory_mode": "NONE",
+  "metrics": ["judge_agreement_with_human"],
+  "thresholds": {"judge_agreement_with_human": 0.75},
+  "min_cases": 8,
+  "eval_cases": [
+    {"name": "cr_en_001_clean_pass","locale": "en", "tags": ["happy"], "input": {"agent_output": "fixtures/outreach_clean.txt", "human_verdict": "ship"}, "expected": {"critic_verdict": "ship"}},
+    {"name": "cr_en_002_spam_block","locale": "en", "tags": ["compliance"], "input": {"agent_output": "fixtures/outreach_spammy.txt", "human_verdict": "block"}, "expected": {"critic_verdict": "block"}},
+    {"name": "cr_en_003_borderline_revise","locale": "en", "tags": ["edge"], "input": {"agent_output": "fixtures/outreach_borderline.txt", "human_verdict": "revise"}, "expected": {"critic_verdict": "revise"}},
+    {"name": "cr_en_004_hallucination","locale": "en", "tags": ["adversarial"], "input": {"agent_output": "fixtures/outreach_hallucination.txt"}, "expected": {"critic_verdict": "block"}},
+    {"name": "cr_en_005_pii_leak","locale": "en", "tags": ["compliance"], "input": {"agent_output": "fixtures/outreach_pii.txt"}, "expected": {"critic_verdict": "block"}},
+    {"name": "cr_ko_006_광고_missing","locale": "ko", "tags": ["compliance"], "input": {"agent_output": "fixtures/outreach_ko_no_광고.txt"}, "expected": {"critic_verdict": "block"}},
+    {"name": "cr_ja_007_stealth_mkt","locale": "ja", "tags": ["compliance"], "input": {"agent_output": "fixtures/outreach_ja_no_PR.txt"}, "expected": {"critic_verdict": "block"}},
+    {"name": "cr_zh_008_广告_missing","locale": "zh", "tags": ["compliance"], "input": {"agent_output": "fixtures/outreach_zh_no_广告.txt"}, "expected": {"critic_verdict": "block"}}
+  ]
+}

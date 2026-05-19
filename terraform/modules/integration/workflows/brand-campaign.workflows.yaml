@@ -1,0 +1,227 @@
+# brand-campaign.workflows.yaml
+# Source: INNGEST-MIGRATION.md §4.1 (deploy-ready; verbatim port).
+# Mirrors packages/workflows/src/workflows/brand-campaign.ts under D18.
+# Trigger: Eventarc subscription on Pub/Sub topic "campaign.submitted".
+# Cancellation: Pub/Sub "campaign.cancelled" → cancel-on-event Cloud Run service.
+#
+# Agent endpoint resolution (D42):
+#   Agent runtime URLs are NOT hardcoded. The workflow reads each per-agent URL
+#   via `${default(map.get(args.agent_urls, "<id>"), sys.get_env("AGENT_URL_<ID>"))}`.
+#   This honors D42 in two layered ways:
+#     1. Runtime injection: callers that own the args payload (manual `gcloud
+#        workflows execute`, Cloud Scheduler with augmented JSON) pass
+#        `agent_urls` keyed by agent_id; Terraform `output -json
+#        ai_module.agent_urls` is the source of truth per environment.
+#     2. Env-var fallback: Eventarc/Pub/Sub-triggered runs receive only the
+#        CloudEvent body as args and cannot easily inject a map, so each
+#        agent URL is also exposed as user_env_var `AGENT_URL_<UPPER>` (set
+#        by terraform/modules/integration/workflows.tf from the same
+#        `agent_urls` map). `default()` selects whichever is present.
+#   No hardcoded `https://…` literals remain in this YAML (D42 anchor).
+
+main:
+  params: [args]
+  steps:
+    - init:
+        assign:
+          - campaignId: ${args.campaignId}
+          - brief: ${args.brief}
+          - workspaceId: ${brief.workspaceId}
+          - vetted: []
+          - confirmed: []
+          - shortlist: []
+
+    - observability_init:
+        call: http.post
+        args:
+          url: ${sys.get_env("OBSERVABILITY_URL") + "/runs"}
+          body:
+            campaignId: ${campaignId}
+            workflow: "brand-campaign"
+          auth:
+            type: OIDC
+        retry: ${http.default_retry}
+
+    - load_policy:
+        call: http.post
+        args:
+          url: ${sys.get_env("POLICY_URL") + "/get"}
+          body:
+            workspaceId: ${workspaceId}
+          auth:
+            type: OIDC
+        result: policy_response
+    - assign_policy:
+        assign:
+          - policy: ${policy_response.body}
+
+    - patch_stage_sourcing:
+        call: http.post
+        args:
+          url: ${sys.get_env("CAMPAIGN_REPO_URL") + "/patch-stage"}
+          body:
+            campaignId: ${campaignId}
+            stage: "sourcing"
+            state: "running"
+          auth:
+            type: OIDC
+
+    - sourcing_agent:
+        call: http.post
+        args:
+          url: ${default(map.get(args.agent_urls, "sourcing"), sys.get_env("AGENT_URL_SOURCING"))}
+          body:
+            brief: ${brief}
+            campaignId: ${campaignId}
+            campaignBudgetUsd: ${policy.budgets.maxUsdPerCampaign}
+            excludeCreatorIds: []
+          auth:
+            type: OIDC
+          timeout: 1500
+        retry:
+          predicate: ${http.default_retry_predicate}
+          max_retries: 3
+          backoff: {initial_delay: 5, max_delay: 120, multiplier: 2}
+        result: sourcing_response
+
+    - check_sourcing_outcome:
+        switch:
+          - condition: ${sourcing_response.body.kind != "ok"}
+            raise: ${"sourcing_escalated:" + sourcing_response.body.reason}
+    - assign_candidates:
+        assign:
+          - candidates: ${sourcing_response.body.value.candidates}
+
+    - vetting_fanout:
+        parallel:
+          shared: [vetted]
+          for:
+            value: candidate
+            in: ${candidates}
+            steps:
+              - call_vetting:
+                  try:
+                    call: http.post
+                    args:
+                      url: ${default(map.get(args.agent_urls, "vetting"), sys.get_env("AGENT_URL_VETTING"))}
+                      body:
+                        brief: ${brief}
+                        candidate: ${candidate}
+                        campaignId: ${campaignId}
+                      auth:
+                        type: OIDC
+                      timeout: 900
+                    result: vet_response
+                  retry:
+                    predicate: ${http.default_retry_predicate}
+                    max_retries: 3
+                    backoff: {initial_delay: 2, max_delay: 60, multiplier: 2}
+              - keep_if_ok:
+                  switch:
+                    - condition: ${vet_response.body.kind == "ok"}
+                      steps:
+                        - push_vetted:
+                            assign:
+                              - vetted: ${list.concat(vetted, [vet_response.body.value])}
+
+    - pick_shortlist:
+        call: http.post
+        args:
+          url: ${sys.get_env("PICK_SHORTLIST_URL") + "/pick"}
+          body:
+            vetted: ${vetted}
+            targetCount: ${brief.targeting.creatorCount}
+          auth:
+            type: OIDC
+        result: shortlist_response
+    - assign_shortlist:
+        assign:
+          - shortlist: ${shortlist_response.body}
+
+    - gate_approve_shortlist:
+        call: gate
+        args:
+          campaignId: ${campaignId}
+          workspaceId: ${workspaceId}
+          kind: "shortlist"
+          recommendation: ${shortlist}
+          rationale: ${"Vetted: " + string(len(vetted)) + ". Shortlist: " + string(len(shortlist)) + "."}
+          gateConfig: ${policy.gates.approveShortlist}
+        result: gate_result
+
+    - branch_on_gate:
+        switch:
+          - condition: ${gate_result.decision == "rejected"}
+            return:
+              campaignId: ${campaignId}
+              stage: "sourcing"
+              decision: "rejected"
+              trackCount: 0
+          - condition: true
+            assign:
+              - confirmed: ${gate_result.payload}
+
+    - persist_tracks:
+        for:
+          value: c
+          in: ${confirmed}
+          steps:
+            - upsert_track:
+                call: http.post
+                args:
+                  url: ${sys.get_env("CAMPAIGN_REPO_URL") + "/upsert-track"}
+                  body:
+                    campaignId: ${campaignId}
+                    creatorId: ${c.creator.id}
+                    stage: "sourcing"
+                    state: "shortlisted"
+                  auth:
+                    type: OIDC
+
+    - advance_stage_outreach:
+        call: http.post
+        args:
+          url: ${sys.get_env("CAMPAIGN_REPO_URL") + "/patch-stage"}
+          body:
+            campaignId: ${campaignId}
+            stage: "outreach"
+          auth:
+            type: OIDC
+
+    - resolve_creator_emails:
+        call: http.post
+        args:
+          url: ${sys.get_env("CREATOR_DIRECTORY_URL") + "/resolve-emails"}
+          body:
+            creatorIds: ${list.map(confirmed, "creator.id")}
+          auth:
+            type: OIDC
+        result: email_lookup_response
+    - assign_email_lookup:
+        assign:
+          - emailLookup: ${email_lookup_response.body}
+
+    - fanout_creator_tracks:
+        for:
+          value: c
+          in: ${confirmed}
+          steps:
+            - publish_creator_track_start:
+                call: googleapis.pubsub.v1.projects.topics.publish
+                args:
+                  topic: ${"projects/" + sys.get_env("GOOGLE_CLOUD_PROJECT_ID") + "/topics/creator-track.fanout"}
+                  body:
+                    messages:
+                      - data: ${base64.encode(json.encode({"campaignId": campaignId, "brief": brief, "creator": c.creator, "creatorEmail": map.get(emailLookup, c.creator.id, ""), "recentPosts": []}))}
+                        attributes:
+                          campaignId: ${campaignId}
+                          creatorId: ${c.creator.id}
+                          v2EventType: "creator-track.start"
+
+    - return_result:
+        return:
+          campaignId: ${campaignId}
+          stage: "outreach"
+          shortlistCount: ${len(shortlist)}
+          trackCount: ${len(confirmed)}
+          decision: ${gate_result.decision}

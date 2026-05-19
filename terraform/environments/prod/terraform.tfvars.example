@@ -1,0 +1,54 @@
+# =============================================================================
+# terraform.tfvars.example — prod environment placeholder values
+#
+# Copy to `terraform.tfvars` (NEVER commit the copy), then fill in real values.
+# Placeholders marked `<TBD_BY_OPERATOR>` need an operator decision; values in
+# angle brackets ending with _ID/_NUMBER are factual lookups (gcloud / cloud
+# console).
+#
+# Decision anchors:
+#   - D13: 3-region active-active mandatory.
+#   - D20: CMEK + Secret Manager + DLP redaction (modules default to CMEK ON).
+#   - D31: enterprise SLO 99.99% / p99 < 1s / RTO 1m / RPO 30s.
+#   - D44: this file is per-env; never share with dev.
+# =============================================================================
+
+# --- Identity ---------------------------------------------------------------
+project_id        = "ss-v2-prod-us"
+project_number    = "<TBD_BY_OPERATOR>"             # gcloud projects describe ss-v2-prod-us --format='value(projectNumber)'
+org_id            = "<TBD_BY_OPERATOR>"             # gcloud organizations list
+host_project_id   = "ss-shared-infra"               # per D20 / SERVICE-INVENTORY §13
+access_policy_id  = "<TBD_BY_OPERATOR>"             # gcloud access-context-manager policies list --organization=$ORG_ID
+
+# --- Region wiring (D13 trio) -----------------------------------------------
+primary_region = "us-central1"
+regions        = ["us-central1", "europe-west4", "asia-northeast3"]
+
+# --- GitHub WIF -------------------------------------------------------------
+github_owner      = "ComBba"
+github_repository = "social-seeding-v2"
+
+# --- IAP / staff SSO --------------------------------------------------------
+iap_brand_support_email = "<TBD_BY_OPERATOR>"        # e.g. ops@socialseed.ing (must be a domain user or workspace group)
+iap_member_groups       = []                         # e.g. ["principalSet://iam.googleapis.com/locations/global/workforcePools/ss-staff/group/oncall"]
+vpc_sc_corp_cidrs       = []                         # corp egress CIDRs for break-glass
+
+workforce_oidc_issuer_uri = "<TBD_BY_OPERATOR>"      # e.g. https://accounts.google.com (Google Workspace) or Okta issuer
+workforce_oidc_client_id  = "<TBD_BY_OPERATOR>"
+
+# --- Identity Platform (customer-facing) ------------------------------------
+identity_platform_google_oauth_client_id = "<TBD_BY_OPERATOR>"
+
+# --- Workstations (wire to networking module outputs once applied) ----------
+workstations_network_self_link    = "<TBD_BY_OPERATOR>"   # module.networking.vpc_id
+workstations_subnetwork_self_link = "<TBD_BY_OPERATOR>"   # module.networking.subnetwork_ids["us-central1"]
+
+# --- Observability ----------------------------------------------------------
+email_alert_recipients          = ["oncall@socialseed.ing"]
+billing_account_id              = "<TBD_BY_OPERATOR>"     # AAAAAA-BBBBBB-CCCCCC
+pagerduty_service_key_secret_id = "ss-pagerduty"
+slack_webhook_secret_id         = "ss-slack"
+monthly_budget_usd              = 5000
+
+# --- Bootstrap secret -------------------------------------------------------
+alloydb_initial_password_secret = "alloydb-bootstrap"

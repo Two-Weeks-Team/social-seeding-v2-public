@@ -1,0 +1,268 @@
+{
+  "eval_set_id": "ss_critic_v0_1",
+  "name": "Critic agent (M2) — 8-case golden set (Phase-4 skeleton)",
+  "description": "Phase-4 skeleton golden set per critic.spec.md §7. Each case pins a (rubric, candidate output, verdict) triple drawn from real Tier-1 agent outputs. The full 200-case set with human-labeled verdicts (judge_agreement_v_human ≥ 0.85 inter-rater) ships in Phase 5 once the rubric-per-locale split is finalized.",
+  "criteria_overrides": {
+    "tool_trajectory_avg_score": 0.0,
+    "final_response_match_v2": 0.7,
+    "judge_agreement_v_human": 0.8
+  },
+  "metadata": {
+    "agent_id": "critic",
+    "spec": "gcp-research/specs/tier2/critic.spec.md",
+    "decisions": ["D5", "D23", "D25", "D27", "D34", "D38"],
+    "locales_covered": ["en", "en", "en", "ko", "ko", "ja", "zh-CN", "en"],
+    "verdicts_covered": ["auto_pass", "send_to_human", "block_and_revise", "auto_pass", "block_and_revise", "send_to_human", "send_to_human", "send_to_human"],
+    "rubrics_covered": ["outreach_draft_v1", "outreach_draft_v1", "outreach_draft_v1", "report_narrative_v1", "compliance_decision_v1", "reply_draft_v1", "research_brief_v1", "mandate_v1"]
+  },
+  "eval_cases": [
+    {
+      "eval_id": "critic_en_01_outreach_auto_pass",
+      "metadata": {
+        "locale": "en",
+        "rubric": "outreach_draft_v1",
+        "expected_verdict": "auto_pass",
+        "expected_gate": "auto",
+        "note": "Clean outreach draft — all dimensions clear thresholds with comfortable margin. The composite (~0.91) is above the default 0.80 auto-pass threshold."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"candidateAgentId\":\"outreach_writer\",\"candidateOutput\":{\"subject\":\"Quick collab idea, @freshly\",\"body_md\":\"Hi @freshly — we loved your recent serum routine on TikTok. We'd love to send you our new Vitamin C serum (10% Vit C, fragrance-free). No strings — share if you genuinely like it.\",\"spam_score\":0.05,\"personalization_hooks\":[\"recent serum routine\"]},\"originalInput\":{\"brand_product\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\"},\"creator_handle\":\"@freshly\"},\"evalCriteria\":[{\"name\":\"brand_consistency\",\"threshold\":0.80,\"description\":\"Subject+body match brand voice and product claims.\"},{\"name\":\"deliverability\",\"threshold\":0.90,\"description\":\"Spam-score; subject length; unsubscribe affordance.\"},{\"name\":\"personalization\",\"threshold\":0.75,\"description\":\"At least one creator-specific hook.\"}],\"rubricName\":\"outreach_draft_v1\",\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"score\":0.913,\"perCriterionScores\":[{\"name\":\"brand_consistency\",\"score\":0.92,\"threshold\":0.80,\"passed\":true},{\"name\":\"deliverability\",\"score\":0.95,\"threshold\":0.90,\"passed\":true},{\"name\":\"personalization\",\"score\":0.87,\"threshold\":0.75,\"passed\":true}],\"verdict\":\"auto_pass\",\"gate\":\"auto\",\"rationale\":\"All three dimensions clear thresholds. brand_consistency is on-tone (Vit C + fragrance-free claims match), deliverability is clean (spam_score 0.05), and personalization cites the recent serum routine hook from the input.\",\"issues\":[],\"suggestedRevision\":null,\"humanReviewPayload\":null}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "critic_en_02_outreach_send_to_human",
+      "metadata": {
+        "locale": "en",
+        "rubric": "outreach_draft_v1",
+        "expected_verdict": "send_to_human",
+        "expected_gate": "needs_human",
+        "note": "Borderline draft — composite 0.78 just below the 0.80 auto-pass threshold; sub-scores all above the 0.30 floor so it routes to human review (not block_and_revise)."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"candidateAgentId\":\"outreach_writer\",\"candidateOutput\":{\"subject\":\"Free serum sample for your channel\",\"body_md\":\"Hi! Saw your channel. We make a Vitamin C serum and would like to send you one.\",\"spam_score\":0.18,\"personalization_hooks\":[]},\"originalInput\":{\"brand_product\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\"},\"creator_handle\":\"@freshly\"},\"evalCriteria\":[{\"name\":\"brand_consistency\",\"threshold\":0.80,\"description\":\"Subject+body match brand voice and product claims.\"},{\"name\":\"deliverability\",\"threshold\":0.90,\"description\":\"Spam-score; subject length; unsubscribe affordance.\"},{\"name\":\"personalization\",\"threshold\":0.75,\"description\":\"At least one creator-specific hook.\"}],\"rubricName\":\"outreach_draft_v1\",\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"score\":0.778,\"perCriterionScores\":[{\"name\":\"brand_consistency\",\"score\":0.78,\"threshold\":0.80,\"passed\":false},{\"name\":\"deliverability\",\"score\":0.85,\"threshold\":0.90,\"passed\":false},{\"name\":\"personalization\",\"score\":0.72,\"threshold\":0.75,\"passed\":false}],\"verdict\":\"send_to_human\",\"gate\":\"needs_human\",\"rationale\":\"Composite 0.78 lands just below the 0.80 auto-pass threshold. brand_consistency misses brand voice (no product claims cited), deliverability suffers from a 'Free' subject line, and personalization_hooks is empty.\",\"issues\":[\"brand_consistency=0.78<0.80 — no Vit C / fragrance-free claims cited\",\"deliverability=0.85<0.90 — 'Free' subject line is a spam trigger\",\"personalization=0.72<0.75 — personalization_hooks is empty\"],\"suggestedRevision\":null,\"humanReviewPayload\":{\"headline\":\"Borderline outreach — sub-thresholds across all 3 dimensions\",\"primaryConcern\":\"Subject line uses 'Free' (deliverability) and the body cites no creator-specific hook (personalization). Composite 0.78 < 0.80 auto-pass.\",\"affectedCriteria\":[\"brand_consistency\",\"deliverability\",\"personalization\"]}}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "critic_en_03_outreach_block_and_revise",
+      "metadata": {
+        "locale": "en",
+        "rubric": "outreach_draft_v1",
+        "expected_verdict": "block_and_revise",
+        "expected_gate": "blocked",
+        "note": "Spam-score-heavy draft — deliverability=0.18 is below the 0.30 quality floor; forces block_and_revise per critic.py decide_verdict() rule 1."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"candidateAgentId\":\"outreach_writer\",\"candidateOutput\":{\"subject\":\"!!! URGENT FREE GIFT !!! Claim NOW\",\"body_md\":\"CLICK HERE to claim your FREE serum!!! Limited time!!! www.bit.ly/xyz\",\"spam_score\":0.92,\"personalization_hooks\":[]},\"originalInput\":{\"brand_product\":{\"name\":\"Freshly Vitamin C Serum\"},\"creator_handle\":\"@freshly\"},\"evalCriteria\":[{\"name\":\"brand_consistency\",\"threshold\":0.80,\"description\":\"Subject+body match brand voice.\"},{\"name\":\"deliverability\",\"threshold\":0.90,\"description\":\"Spam-score; subject; unsubscribe.\"},{\"name\":\"personalization\",\"threshold\":0.75,\"description\":\"Creator-specific hook.\"}],\"rubricName\":\"outreach_draft_v1\",\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"score\":0.207,\"perCriterionScores\":[{\"name\":\"brand_consistency\",\"score\":0.25,\"threshold\":0.80,\"passed\":false},{\"name\":\"deliverability\",\"score\":0.18,\"threshold\":0.90,\"passed\":false},{\"name\":\"personalization\",\"score\":0.20,\"threshold\":0.75,\"passed\":false}],\"verdict\":\"block_and_revise\",\"gate\":\"blocked\",\"rationale\":\"All three dimensions are below the 0.30 quality floor. The subject is all-caps with repeated exclamation marks (deliverability), the body uses a shortened URL (further deliverability hit), and there is zero creator-specific signal.\",\"issues\":[\"deliverability=0.18 < 0.30 floor — all-caps subject + bit.ly link\",\"brand_consistency=0.25 < 0.30 floor — marketing-speak does not match operator-tone brand voice\",\"personalization=0.20 < 0.30 floor — personalization_hooks is empty\"],\"suggestedRevision\":\"Rewrite the subject in sentence case (~50 chars, no exclamation marks). Replace the bit.ly URL with a full https URL. Cite at least one specific recent post from the creator.\",\"humanReviewPayload\":null}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "critic_ko_01_report_auto_pass",
+      "metadata": {
+        "locale": "ko",
+        "rubric": "report_narrative_v1",
+        "expected_verdict": "auto_pass",
+        "expected_gate": "auto",
+        "note": "Korean analyst report — grounded numbers, factual tone. Composite ~0.89 auto-passes."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"candidateAgentId\":\"analyst\",\"candidateOutput\":{\"summary_md\":\"# 캠페인 요약\\n발송 120건, 응답 38건, 라이브 게시물 15건. 목표 달성률 100%.\",\"concerns\":[],\"language\":\"ko\"},\"originalInput\":{\"brief_name\":\"Freshly Vitamin C\",\"target_live_posts\":15,\"deadline\":\"2026-06-30\"},\"evalCriteria\":[{\"name\":\"groundedness\",\"threshold\":0.90,\"description\":\"Numbers in report trace back to input fields.\"},{\"name\":\"numeric_accuracy\",\"threshold\":0.95,\"description\":\"Cited numbers exactly match input.\"},{\"name\":\"tone\",\"threshold\":0.80,\"description\":\"Operator-to-operator, no marketing copy.\"}],\"rubricName\":\"report_narrative_v1\",\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"score\":0.892,\"perCriterionScores\":[{\"name\":\"groundedness\",\"score\":0.92,\"threshold\":0.90,\"passed\":true},{\"name\":\"numeric_accuracy\",\"score\":0.96,\"threshold\":0.95,\"passed\":true},{\"name\":\"tone\",\"score\":0.82,\"threshold\":0.80,\"passed\":true}],\"verdict\":\"auto_pass\",\"gate\":\"auto\",\"rationale\":\"세 가지 기준 모두 임계값 통과. 인용 수치(120/38/15)는 입력 필드와 정확히 일치하며, 운영자 톤도 깔끔합니다.\",\"issues\":[],\"suggestedRevision\":null,\"humanReviewPayload\":null}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "critic_ko_02_compliance_block_and_revise",
+      "metadata": {
+        "locale": "ko",
+        "rubric": "compliance_decision_v1",
+        "expected_verdict": "block_and_revise",
+        "expected_gate": "blocked",
+        "note": "Korean PIPA compliance decision missed an Article 23 consent flag; false_clear is the safety-critical metric (zero tolerance per MATRIX.md §8). The candidate cleared a non-compliant draft."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"candidateAgentId\":\"compliance\",\"candidateOutput\":{\"decision\":\"clear\",\"reasons\":[\"unsubscribe link present\"],\"locale\":\"ko\"},\"originalInput\":{\"draft_subject\":\"이메일 캠페인\",\"draft_body\":\"민감정보 처리에 대한 동의 없이 진행합니다.\",\"jurisdiction\":\"KR\"},\"evalCriteria\":[{\"name\":\"false_clear_rate\",\"threshold\":0.99,\"description\":\"Must NEVER clear a non-compliant draft (zero-tolerance).\"},{\"name\":\"pipa_coverage\",\"threshold\":0.95,\"description\":\"PIPA Article 23/24 checks applied.\"},{\"name\":\"rationale_quality\",\"threshold\":0.80,\"description\":\"Reasons cite specific articles.\"}],\"rubricName\":\"compliance_decision_v1\",\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"score\":0.215,\"perCriterionScores\":[{\"name\":\"false_clear_rate\",\"score\":0.10,\"threshold\":0.99,\"passed\":false},{\"name\":\"pipa_coverage\",\"score\":0.20,\"threshold\":0.95,\"passed\":false},{\"name\":\"rationale_quality\",\"score\":0.50,\"threshold\":0.80,\"passed\":false}],\"verdict\":\"block_and_revise\",\"gate\":\"blocked\",\"rationale\":\"본문에 '민감정보 처리에 대한 동의 없이 진행합니다'라는 명시적 동의 부재 표현이 있음에도 candidate는 'clear' 판정을 내렸습니다. PIPA 제23조(민감정보) 점검 누락 — 즉시 재검토 필요.\",\"issues\":[\"false_clear_rate=0.10 < 0.30 floor — 비준수 초안을 승인했습니다\",\"pipa_coverage=0.20 < 0.30 floor — 제23조 민감정보 동의 체크 미실시\",\"rationale_quality=0.50 — 'unsubscribe link present'만 인용, 구체 조항 누락\"],\"suggestedRevision\":\"본문에서 민감정보 동의 부재 문구를 탐지하면 'block' 판정으로 전환하고, PIPA 제23조 위반 사유를 reasons에 명시하세요.\",\"humanReviewPayload\":null}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "critic_ja_01_reply_send_to_human",
+      "metadata": {
+        "locale": "ja",
+        "rubric": "reply_draft_v1",
+        "expected_verdict": "send_to_human",
+        "expected_gate": "needs_human",
+        "note": "Japanese reply draft — composite ok but tone_consistency lands borderline against the operator's formal-register history. Operator should review."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"candidateAgentId\":\"conversation_responder\",\"candidateOutput\":{\"reply_md\":\"了解です!サンプル発送します。\",\"intent\":\"agree_to_collab\"},\"originalInput\":{\"thread_history\":[\"前回ご依頼の件、よろしくお願いいたします。\",\"ありがとうございます。詳細をお送りします。\"]},\"evalCriteria\":[{\"name\":\"intent_accuracy\",\"threshold\":0.85,\"description\":\"Reply matches detected intent.\"},{\"name\":\"tone_consistency\",\"threshold\":0.80,\"description\":\"Register matches operator's history (formal vs casual).\"},{\"name\":\"length_fit\",\"threshold\":0.75,\"description\":\"Length appropriate to the thread.\"}],\"rubricName\":\"reply_draft_v1\",\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"score\":0.766,\"perCriterionScores\":[{\"name\":\"intent_accuracy\",\"score\":0.90,\"threshold\":0.85,\"passed\":true},{\"name\":\"tone_consistency\",\"score\":0.65,\"threshold\":0.80,\"passed\":false},{\"name\":\"length_fit\",\"score\":0.78,\"threshold\":0.75,\"passed\":true}],\"verdict\":\"send_to_human\",\"gate\":\"needs_human\",\"rationale\":\"intent_accuracy と length_fit はクリア。ただし tone_consistency が 0.65 — スレッドの敬語レジスター(よろしくお願いいたします)に対し、candidate は『了解です』というカジュアル表現を採用しており、操作者の確認が望ましい。\",\"issues\":[\"tone_consistency=0.65<0.80 — スレッドの敬語レジスターに対しcandidate返信はカジュアル\"],\"suggestedRevision\":null,\"humanReviewPayload\":{\"headline\":\"返信トーンの確認が必要 — 敬語スレッドにカジュアル返信\",\"primaryConcern\":\"前のターンは『よろしくお願いいたします』『お送りします』の敬語ですが、candidate は『了解です!』とカジュアル表現を返しています。操作者の意向確認を推奨。\",\"affectedCriteria\":[\"tone_consistency\"]}}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "critic_zh_01_research_send_to_human",
+      "metadata": {
+        "locale": "zh-CN",
+        "rubric": "research_brief_v1",
+        "expected_verdict": "send_to_human",
+        "expected_gate": "needs_human",
+        "note": "Simplified Chinese research brief — citations_count below threshold but no obviously-hallucinated facts. Composite ~0.77; routes to human review."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"candidateAgentId\":\"research\",\"candidateOutput\":{\"brand_overview\":\"Freshly 是一家韩国护肤品牌,专注维生素C产品。\",\"top_competitors\":[\"Innisfree\",\"Laneige\"],\"sources\":[\"https://freshly.example.com\"]},\"originalInput\":{\"brand_name\":\"Freshly\",\"questions\":[\"主要竞品有哪些?\",\"市场定位?\"]},\"evalCriteria\":[{\"name\":\"hallucination_rate\",\"threshold\":0.95,\"description\":\"≤5% hallucinated facts.\"},{\"name\":\"citation_count\",\"threshold\":0.80,\"description\":\"At least 3 sources cited.\"},{\"name\":\"relevance\",\"threshold\":0.80,\"description\":\"Answers the input questions directly.\"}],\"rubricName\":\"research_brief_v1\",\"locale\":\"zh-CN\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"score\":0.766,\"perCriterionScores\":[{\"name\":\"hallucination_rate\",\"score\":0.92,\"threshold\":0.95,\"passed\":false},{\"name\":\"citation_count\",\"score\":0.50,\"threshold\":0.80,\"passed\":false},{\"name\":\"relevance\",\"score\":0.95,\"threshold\":0.80,\"passed\":true}],\"verdict\":\"send_to_human\",\"gate\":\"needs_human\",\"rationale\":\"relevance 通过(直接回应了竞品+定位两个问题),但 citation_count 仅 1 个来源(阈值≥3),hallucination_rate 略低于阈值。建议操作者审核来源是否需补充。\",\"issues\":[\"citation_count=0.50<0.80 — 仅引用1个来源,需≥3\",\"hallucination_rate=0.92<0.95 — 边缘值,建议人工核实\"],\"suggestedRevision\":null,\"humanReviewPayload\":{\"headline\":\"来源不足 — 仅引用1个来源\",\"primaryConcern\":\"研究简报只引用了一个来源(freshly.example.com),低于 citation_count ≥3 的阈值。建议补充 2 个独立来源后再发布。\",\"affectedCriteria\":[\"citation_count\",\"hallucination_rate\"]}}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "critic_en_04_mandate_policy_locked_human_review",
+      "metadata": {
+        "locale": "en",
+        "rubric": "mandate_v1",
+        "expected_verdict": "send_to_human",
+        "expected_gate": "needs_human",
+        "note": "payment_mandate output — perfect mandate_validity score but D27 policy forces human approval. Tests the mandatoryHumanReviewKinds override path."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"candidateAgentId\":\"payment_mandate\",\"candidateOutput\":{\"intent_mandate\":{\"amount_usd\":250,\"tenant_id\":\"t_test000000000001\",\"expires_at\":\"2026-06-01T00:00:00Z\",\"signature\":\"…\"},\"budget_remaining_usd\":750},\"originalInput\":{\"budget_cap_usd\":1000,\"creator_count\":5,\"per_creator_usd\":50},\"evalCriteria\":[{\"name\":\"mandate_validity\",\"threshold\":0.90,\"description\":\"Schema valid; amount within cap; tenant match.\"},{\"name\":\"amount_within_budget\",\"threshold\":0.95,\"description\":\"amount_usd <= budget_cap_usd.\"}],\"rubricName\":\"mandate_v1\",\"workspacePolicy\":{\"autoPassThreshold\":0.80,\"mandatoryHumanReviewKinds\":[\"payment_mandate\",\"compliance\"]},\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"score\":0.985,\"perCriterionScores\":[{\"name\":\"mandate_validity\",\"score\":0.98,\"threshold\":0.90,\"passed\":true},{\"name\":\"amount_within_budget\",\"score\":0.99,\"threshold\":0.95,\"passed\":true}],\"verdict\":\"send_to_human\",\"gate\":\"needs_human\",\"rationale\":\"Both dimensions clear with comfortable margin (composite 0.985). However per D27 (AP2 Intent Mandate scope — human approves payment) and workspace policy, payment_mandate output is policy-locked to human review regardless of score.\",\"issues\":[],\"suggestedRevision\":null,\"humanReviewPayload\":{\"headline\":\"Intent Mandate ready for operator approval — $250 within $1000 cap\",\"primaryConcern\":\"Mandate is schema-valid, amount ($250) is well within budget cap ($1000), and signature is present. Per D27 policy, every payment_mandate output requires human approval before AP2 publishes the Mandate Chain.\",\"affectedCriteria\":[\"mandate_validity\",\"amount_within_budget\"]}}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    }
+  ]
+}

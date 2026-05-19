@@ -1,0 +1,280 @@
+{
+  "eval_set_id": "ss_coordinator_v0_1",
+  "name": "Coordinator agent (M1) — 8-case golden set",
+  "description": "Phase 4 skeleton golden set per coordinator.spec.md §7 + Phase-4 brief. Covers the 16-Tier-1 routing fleet + remote A2A (tiktok-mcp-search), the four escalation paths (no_candidate_fits, ambiguous_task, low_confidence, policy_blocked), and the D34 4-locale rationale rendering. The full 200-task envelope golden set lands in tests/golden/coordinator/*.json during Phase 4 calibration.",
+  "criteria_overrides": {
+    "tool_trajectory_avg_score": 0.0,
+    "final_response_match_v2": 0.7,
+    "routing_accuracy": 0.85,
+    "confidence_calibration": 0.8
+  },
+  "metadata": {
+    "agent_id": "coordinator",
+    "spec": "gcp-research/specs/tier2/coordinator.spec.md",
+    "brief": "Phase 4 agent #1 (Tier-2 M1) brief — task router",
+    "decisions": ["D5", "D17", "D23", "D24", "D34", "D38"],
+    "model": "gemini-2.5-flash",
+    "max_usd": 0.005,
+    "locales_covered": ["en", "en", "en", "ko", "ko", "ja", "ja", "zh-CN"],
+    "scenarios_covered": [
+      "pick_local_over_remote",
+      "pick_remote_when_cheaper_and_allow_remote",
+      "escalate_no_candidate_fits",
+      "korean_skincare_sourcing",
+      "korean_low_confidence_escalation",
+      "japanese_outreach_pick",
+      "japanese_allow_remote_false",
+      "chinese_compliance_pick"
+    ]
+  },
+  "eval_cases": [
+    {
+      "eval_id": "coord_en_01_pick_local_sourcing",
+      "metadata": {
+        "locale": "en",
+        "expected_chosen": "sourcing",
+        "expected_fallback": "tiktok-mcp-search",
+        "should_escalate": false,
+        "note": "Happy path — task obviously matches sourcing, both candidates valid, prefer_local=true breaks tie toward local."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"Find 20 Korean skincare creators on TikTok with over 50k followers and engagement > 3%.\",\"workspacePolicy\":{\"allowedAgents\":[],\"budgetRemainingUsd\":2.50,\"slaTargetMs\":4000},\"candidateAgents\":[{\"agentId\":\"sourcing\",\"capabilities\":[\"source_creators\",\"tiktok\",\"rapidapi\"],\"avgLatencyMs\":2400,\"avgCostUsd\":0.018,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"tiktok-mcp-search\",\"capabilities\":[\"source_creators\",\"tiktok\",\"remote\",\"a2a\"],\"avgLatencyMs\":3100,\"avgCostUsd\":0.012,\"transport\":\"a2a_grpc\",\"healthy\":true}],\"locale\":\"en\",\"allowRemote\":true,\"preferLocal\":true}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"sourcing\",\"routingRationale\":\"Local sourcing agent matches the TikTok creator-search capability and stays comfortably within the 4s SLA; preferLocal=true breaks the tie.\",\"fallbackAgentId\":\"tiktok-mcp-search\",\"expectedCostUsd\":0.018,\"expectedLatencyMs\":2400,\"confidence\":0.92}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_en_02_pick_remote_when_cheapest",
+      "metadata": {
+        "locale": "en",
+        "expected_chosen": "tiktok-mcp-search",
+        "expected_fallback": "sourcing",
+        "should_escalate": false,
+        "note": "Operator explicitly asks for cost-priority + preferLocal=false → remote candidate wins on cost despite slightly higher latency."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"Use the cheapest TikTok search agent available — cost is the priority, latency within SLA is fine.\",\"workspacePolicy\":{\"allowedAgents\":[],\"budgetRemainingUsd\":2.50,\"slaTargetMs\":4000},\"candidateAgents\":[{\"agentId\":\"sourcing\",\"capabilities\":[\"source_creators\",\"tiktok\",\"rapidapi\"],\"avgLatencyMs\":2400,\"avgCostUsd\":0.018,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"tiktok-mcp-search\",\"capabilities\":[\"source_creators\",\"tiktok\",\"remote\",\"a2a\"],\"avgLatencyMs\":3100,\"avgCostUsd\":0.012,\"transport\":\"a2a_grpc\",\"healthy\":true}],\"locale\":\"en\",\"allowRemote\":true,\"preferLocal\":false}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"tiktok-mcp-search\",\"routingRationale\":\"Remote A2A agent is 33% cheaper ($0.012 vs $0.018) and the operator explicitly requested cost-priority with preferLocal=false.\",\"fallbackAgentId\":\"sourcing\",\"expectedCostUsd\":0.012,\"expectedLatencyMs\":3100,\"confidence\":0.88}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_en_03_escalate_no_candidate_fits",
+      "metadata": {
+        "locale": "en",
+        "expected_chosen": "__escalate__",
+        "expected_fallback": null,
+        "should_escalate": true,
+        "note": "Budget too tight — every candidate over_budget. Agent escalates per brief: 'no candidate satisfies policy'."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"Draft outreach emails to 30 creators using the tournament writer.\",\"workspacePolicy\":{\"allowedAgents\":[],\"budgetRemainingUsd\":0.01,\"slaTargetMs\":6000},\"candidateAgents\":[{\"agentId\":\"outreach_writer\",\"capabilities\":[\"draft_outreach\",\"tournament\"],\"avgLatencyMs\":5200,\"avgCostUsd\":0.12,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"lead_outreach_writer\",\"capabilities\":[\"draft_lead_outreach\"],\"avgLatencyMs\":4800,\"avgCostUsd\":0.09,\"transport\":\"in_process\",\"healthy\":true}],\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"__escalate__\",\"routingRationale\":\"No candidate satisfies policy — both outreach_writer ($0.12) and lead_outreach_writer ($0.09) exceed the $0.01 budgetRemainingUsd. Operator must replenish budget before routing.\",\"fallbackAgentId\":null,\"expectedCostUsd\":0,\"expectedLatencyMs\":0,\"confidence\":0.82}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_ko_01_korean_skincare_sourcing",
+      "metadata": {
+        "locale": "ko",
+        "expected_chosen": "sourcing",
+        "expected_fallback": null,
+        "should_escalate": false,
+        "note": "Korean rationale required — D34. Single candidate matches → no fallback."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"한국 스킨케어 크리에이터 20명을 TikTok에서 찾아주세요. 팔로워 5만 이상.\",\"workspacePolicy\":{\"allowedAgents\":[\"sourcing\",\"vetting\"],\"budgetRemainingUsd\":1.50,\"slaTargetMs\":4000},\"candidateAgents\":[{\"agentId\":\"sourcing\",\"capabilities\":[\"source_creators\",\"tiktok\"],\"avgLatencyMs\":2400,\"avgCostUsd\":0.018,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"vetting\",\"capabilities\":[\"vet_candidate\"],\"avgLatencyMs\":900,\"avgCostUsd\":0.010,\"transport\":\"in_process\",\"healthy\":true}],\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"sourcing\",\"routingRationale\":\"크리에이터 검색 작업이므로 sourcing 에이전트가 적합합니다. SLA 4초 이내, 예산 $0.018로 안정적입니다.\",\"fallbackAgentId\":\"vetting\",\"expectedCostUsd\":0.018,\"expectedLatencyMs\":2400,\"confidence\":0.90}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_ko_02_ambiguous_task_low_confidence",
+      "metadata": {
+        "locale": "ko",
+        "expected_chosen": "__escalate__",
+        "expected_fallback": null,
+        "should_escalate": true,
+        "note": "Ambiguous task ('크리에이터 관련 일') + multiple plausible candidates → low confidence → escalate."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"크리에이터 관련 일 좀 해줘.\",\"workspacePolicy\":{\"allowedAgents\":[],\"budgetRemainingUsd\":2.50,\"slaTargetMs\":4000},\"candidateAgents\":[{\"agentId\":\"sourcing\",\"capabilities\":[\"source_creators\"],\"avgLatencyMs\":2400,\"avgCostUsd\":0.018,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"vetting\",\"capabilities\":[\"vet_candidate\"],\"avgLatencyMs\":900,\"avgCostUsd\":0.010,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"conversation\",\"capabilities\":[\"classify_reply\"],\"avgLatencyMs\":600,\"avgCostUsd\":0.003,\"transport\":\"in_process\",\"healthy\":true}],\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"__escalate__\",\"routingRationale\":\"작업 설명이 모호하여 sourcing, vetting, conversation 중 어느 에이전트가 적합한지 결정할 수 없습니다. 운영자에게 명확화를 요청합니다.\",\"fallbackAgentId\":null,\"expectedCostUsd\":0,\"expectedLatencyMs\":0,\"confidence\":0.45}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_ja_01_japanese_outreach",
+      "metadata": {
+        "locale": "ja",
+        "expected_chosen": "outreach_writer",
+        "expected_fallback": null,
+        "should_escalate": false,
+        "note": "Japanese rationale (D34). outreach_writer is the unique match for tournament-style drafting; budget is generous."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"20名のクリエイターにアウトリーチメールを下書きしてください。トーナメント方式で。\",\"workspacePolicy\":{\"allowedAgents\":[],\"budgetRemainingUsd\":5.00,\"slaTargetMs\":8000},\"candidateAgents\":[{\"agentId\":\"outreach_writer\",\"capabilities\":[\"draft_outreach\",\"tournament\"],\"avgLatencyMs\":5200,\"avgCostUsd\":0.12,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"sourcing\",\"capabilities\":[\"source_creators\"],\"avgLatencyMs\":2400,\"avgCostUsd\":0.018,\"transport\":\"in_process\",\"healthy\":true}],\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"outreach_writer\",\"routingRationale\":\"トーナメント方式のアウトリーチ作成という要求は outreach_writer の能力と一致しており、予算とSLAの範囲内です。\",\"fallbackAgentId\":\"sourcing\",\"expectedCostUsd\":0.12,\"expectedLatencyMs\":5200,\"confidence\":0.93}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_ja_02_allow_remote_false_picks_local",
+      "metadata": {
+        "locale": "ja",
+        "expected_chosen": "sourcing",
+        "expected_fallback": null,
+        "should_escalate": false,
+        "note": "allowRemote=false forces local pick even when remote is cheaper. D24 phase-0 behavior."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"日本のスキンケアクリエイターを15名探してください。リモートエージェントは使用不可。\",\"workspacePolicy\":{\"allowedAgents\":[],\"budgetRemainingUsd\":1.00,\"slaTargetMs\":5000},\"candidateAgents\":[{\"agentId\":\"sourcing\",\"capabilities\":[\"source_creators\",\"tiktok\"],\"avgLatencyMs\":2400,\"avgCostUsd\":0.018,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"tiktok-mcp-search\",\"capabilities\":[\"source_creators\",\"remote\"],\"avgLatencyMs\":3100,\"avgCostUsd\":0.012,\"transport\":\"a2a_grpc\",\"healthy\":true}],\"locale\":\"ja\",\"allowRemote\":false,\"preferLocal\":true}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"sourcing\",\"routingRationale\":\"allowRemote=false のため、リモートの tiktok-mcp-search は除外。local の sourcing が唯一の選択肢で、SLA・予算ともに問題ありません。\",\"fallbackAgentId\":null,\"expectedCostUsd\":0.018,\"expectedLatencyMs\":2400,\"confidence\":0.95}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_zh_01_compliance_pick",
+      "metadata": {
+        "locale": "zh-CN",
+        "expected_chosen": "compliance",
+        "expected_fallback": null,
+        "should_escalate": false,
+        "note": "Simplified Chinese rationale (D34). PIPA / CAN-SPAM consent check is the compliance agent's exclusive domain."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"在发送外联邮件之前,检查韩国PIPA第23条和CAN-SPAM法的合规性。\",\"workspacePolicy\":{\"allowedAgents\":[],\"budgetRemainingUsd\":2.00,\"slaTargetMs\":4000},\"candidateAgents\":[{\"agentId\":\"compliance\",\"capabilities\":[\"check_compliance\",\"pipa\",\"canspam\"],\"avgLatencyMs\":1800,\"avgCostUsd\":0.025,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"outreach_writer\",\"capabilities\":[\"draft_outreach\"],\"avgLatencyMs\":5200,\"avgCostUsd\":0.12,\"transport\":\"in_process\",\"healthy\":true}],\"locale\":\"zh-CN\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"compliance\",\"routingRationale\":\"任务明确要求PIPA和CAN-SPAM合规检查,compliance代理是唯一具备这些能力标签的候选者,且预算和SLA均满足。\",\"fallbackAgentId\":\"outreach_writer\",\"expectedCostUsd\":0.025,\"expectedLatencyMs\":1800,\"confidence\":0.94}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    }
+  ]
+}

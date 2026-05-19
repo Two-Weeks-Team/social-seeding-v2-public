@@ -1,0 +1,36 @@
+# CHAOS-VEND-01 — RapidAPI 5xx for 5 min; sourcing falls back to Vector Search cache
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: per_pr, nightly
+
+id: CHAOS-VEND-01
+name: source-degrade
+tier: vendor
+executor: native_gcp
+tags: [per_pr, nightly]
+
+description: |
+  RapidAPI 5xx for 5 min; sourcing falls back to Vector Search cache.
+
+expected_rto_s: 300
+expected_rpo_s: 0
+observed_sli_breach: rapidapi.errors.5xx_rate
+
+auto_runbook: runbook-source-degrade
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-VEND-01"
+
+pass_criteria:
+  - "observed_rto_s <= 300"
+  - "observed_rpo_s <= 0"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references:
+  - "https://rapidapi.com/blog/api-glossary/status-codes/"

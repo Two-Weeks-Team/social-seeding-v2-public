@@ -1,0 +1,35 @@
+# CHAOS-IDP-03 — Block egress to Workforce IF; staff break-glass workflow must surface
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: nightly
+
+id: CHAOS-IDP-03
+name: staff-bypass-prep
+tier: identity
+executor: native_gcp
+tags: [nightly]
+
+description: |
+  Block egress to Workforce IF; staff break-glass workflow must surface.
+
+expected_rto_s: 600
+expected_rpo_s: 0
+observed_sli_breach: slo.staff.console.success_rate
+
+auto_runbook: runbook-staff-bypass-prep
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-IDP-03"
+
+pass_criteria:
+  - "observed_rto_s <= 600"
+  - "observed_rpo_s <= 0"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references: []

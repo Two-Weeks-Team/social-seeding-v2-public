@@ -1,0 +1,11 @@
+%% Beat 4 — Real Gmail send + real reply  (SCRIPT.md §3 Beat 4)
+flowchart LR
+  approve((human approved)) --> send[gmail.send · D10]:::active
+  send --> sent[Gmail Sent folder]
+  sent --> wait[Cloud Workflows<br/>waitForEvent]
+  wait --> reply[real reply arrives]:::active
+  reply --> conv[conversation<br/>Gemini 2.5 Flash-Lite]:::active
+  conv --> classify[intent=interested · constraint=shipping]
+  classify --> responder[conversation_responder]
+
+  classDef active fill:#FFD400,stroke:#F9AB00,color:#000,stroke-width:3px;

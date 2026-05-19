@@ -1,0 +1,36 @@
+# CHAOS-COMP-02 — Litmus drains an Agent Sandbox Spot VM; Autopilot reschedule <90s
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: nightly
+
+id: CHAOS-COMP-02
+name: gke-spot-preemption
+tier: compute
+executor: litmus
+tags: [nightly]
+
+description: |
+  Litmus drains an Agent Sandbox Spot VM; Autopilot reschedule <90s.
+
+expected_rto_s: 90
+expected_rpo_s: 0
+observed_sli_breach: creative_agent.job.latency
+
+auto_runbook: runbook-sandbox-requeue
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-COMP-02"
+
+pass_criteria:
+  - "observed_rto_s <= 90"
+  - "observed_rpo_s <= 0"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references:
+  - "https://cloud.google.com/kubernetes-engine/docs/concepts/spot-vms"

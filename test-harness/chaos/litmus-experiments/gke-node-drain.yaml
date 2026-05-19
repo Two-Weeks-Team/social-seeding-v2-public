@@ -1,0 +1,29 @@
+# Litmus CR — node-drain for the Agent Sandbox Spot VM pool.
+# Backs CHAOS-COMP-02 (chaos/SCENARIOS.md §3.3).
+# Apply: kubectl -n chaos-system apply -f gke-node-drain.yaml
+---
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: gke-node-preemption
+  namespace: chaos-system
+  labels:
+    chaos_run_id: "REPLACE_AT_APPLY"
+spec:
+  engineState: active
+  appinfo:
+    appns: agent-sandbox
+    applabel: app=creative-worker
+    appkind: deployment
+  chaosServiceAccount: litmus-chaos-runner
+  experiments:
+    - name: node-drain
+      spec:
+        components:
+          env:
+            - name: TARGET_NODE
+              value: gke-autopilot-sandbox-spot-xyz
+            - name: TOTAL_CHAOS_DURATION
+              value: "60"
+            - name: DRAIN_TIMEOUT
+              value: "60"

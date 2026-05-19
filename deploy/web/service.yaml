@@ -1,0 +1,140 @@
+###############################################################################
+# deploy/web/service.yaml — Cloud Run service spec for Mission Control
+#
+# Applied by `gcloud run services replace` from deploy/web/cloudbuild.yaml.
+#
+# Cites:
+#   D7  — Containerized everywhere
+#   D13 — Multi-region active-active (this manifest is applied per-region;
+#         the regional Global Load Balancer in front splits traffic)
+#   D17 — Vertex AI Agent Runtime: Mission Control TALKS TO Agent Runtime
+#         (env `VERTEX_AGENT_RUNTIME_BASE` points at the regional endpoint)
+#   D26 — Mission Control (Next.js 16) of the three-surface UI
+#   D31 — Enterprise SLO (99.99%, p99 < 1s): minScale: 1 keeps cold starts
+#         out of the hot path; cpu-throttling=false ensures Next.js SSR
+#         responds within budget under bursty traffic
+#   D32 — Cloud Monitoring + alerting
+#   D44 — Terraform per-env tfvars provide the bound service account, the
+#         CMEK key name, and the Secret Manager refs
+#
+# Token substitutions filled at deploy time:
+#   __PROJECT__       — GCP project ID (e.g. ss-v2-prod)
+#   __REGION__        — Region (e.g. us-central1)
+#   __SHA__           — Short commit SHA (image tag)
+#   __REVISION_TAG__  — Traffic-targeting tag (e.g. v1, canary, stable)
+###############################################################################
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: ss-web
+  labels:
+    app.kubernetes.io/name: ss-web
+    app.kubernetes.io/component: mission-control
+    app.kubernetes.io/part-of: social-seeding-v2
+  annotations:
+    run.googleapis.com/launch-stage: GA
+    run.googleapis.com/ingress: all
+    run.googleapis.com/description: >
+      Social Seeding v2 Mission Control (Next.js 16) — operator UI for the
+      22-agent fleet running on Vertex AI Agent Runtime (D17/D26).
+spec:
+  template:
+    metadata:
+      annotations:
+        # Pin a revision name so we can address it by tag (canary / rollback).
+        run.googleapis.com/execution-environment: gen2
+        # D31 hot path — CPU always allocated for SSR latency budget.
+        run.googleapis.com/cpu-throttling: "false"
+        # Hot warm pool — 1 keep-warm instance per region (D13 + D31).
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "100"
+        # CMEK per D20 (Cloud KMS ring named after the service).
+        run.googleapis.com/cmek-key-name: >-
+          projects/__PROJECT__/locations/__REGION__/keyRings/ss-web/cryptoKeys/cloud-run
+        # VPC connector pulls Cloud Run egress through a Serverless VPC Access
+        # connector so calls to Vertex AI Agent Runtime + internal services
+        # stay inside the VPC (Cloud Armor + VPC Service Controls per D40).
+        run.googleapis.com/vpc-access-connector: >-
+          projects/__PROJECT__/locations/__REGION__/connectors/ss-vpc-conn
+        run.googleapis.com/vpc-access-egress: private-ranges-only
+        # SLO label — used by Cloud Monitoring availability alert (D32).
+        run.googleapis.com/sla-tier: enterprise-99-99
+    spec:
+      serviceAccountName: web-runner@__PROJECT__.iam.gserviceaccount.com
+      timeoutSeconds: 60
+      containerConcurrency: 80
+      containers:
+        - name: web
+          image: __REGION__-docker.pkg.dev/__PROJECT__/ss-web/web:__SHA__
+          ports:
+            - name: http1
+              containerPort: 8080
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "8080"
+            - name: HOSTNAME
+              value: "0.0.0.0"
+            - name: NEXT_TELEMETRY_DISABLED
+              value: "1"
+            - name: GOOGLE_CLOUD_PROJECT
+              value: "__PROJECT__"
+            - name: GOOGLE_CLOUD_LOCATION
+              value: "__REGION__"
+            - name: GOOGLE_GENAI_USE_VERTEXAI
+              value: "true"
+            # Vertex AI Agent Runtime base (per-region, injected by terraform
+            # output -> Cloud Run env update; this is the placeholder used
+            # before terraform owns the env var, see D42).
+            - name: VERTEX_AGENT_RUNTIME_BASE
+              value: "https://__REGION__-aiplatform.googleapis.com"
+            - name: REVISION_TAG
+              value: "__REVISION_TAG__"
+            # Secrets — Secret Manager refs only; never inline values.
+            - name: AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: web-auth-secret
+                  key: latest
+            - name: IDENTITY_PLATFORM_TENANT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: identity-platform-tenant-id
+                  key: latest
+            - name: GOOGLE_OAUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: google-oauth-client-id
+                  key: latest
+            - name: GOOGLE_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: google-oauth-client-secret
+                  key: latest
+            - name: LOG_LEVEL
+              value: "info"
+          resources:
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+          startupProbe:
+            httpGet:
+              path: /api/healthz
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 24
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 8080
+            periodSeconds: 30
+            timeoutSeconds: 5
+  traffic:
+    # Default: 100% to the latest healthy revision. Terraform may rewrite this
+    # block to split traffic between __REVISION_TAG__ and `stable` for canary.
+    - latestRevision: true
+      percent: 100
+      tag: __REVISION_TAG__

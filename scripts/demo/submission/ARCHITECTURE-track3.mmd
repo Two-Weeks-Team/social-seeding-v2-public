@@ -1,0 +1,38 @@
+%% ARCHITECTURE-track3.mmd
+%% ----------------------------------------------------------------------------
+%% Track 3 (tiktok-mcp-server) architecture. Implements
+%% gcp-research/demo-deliverables/SUBMISSION-PACKAGE.md §2 template, refined
+%% with D2 / D3 (KR-region gap reframing) and D17 / D24 (A2A v0.3
+%% distribution path).
+%%
+%% Render:
+%%   mmdc -i ARCHITECTURE-track3.mmd -o ARCHITECTURE-track3.png \
+%%        -w 1600 -H 900 -b transparent --theme neutral
+%% ----------------------------------------------------------------------------
+flowchart LR
+  ge[Gemini Enterprise customer agent<br/>OR Claude Desktop · Cursor MCP client] --> entry
+
+  entry{{Cloud Load Balancing Global · Cloud Armor<br/>Identity Platform multi-tenant · D19<br/>Apigee X per-call meter · D28}}
+
+  entry --> orch[ADK orchestration agent<br/>Vertex AI Agent Runtime · D17<br/>Gemini 2.5 Flash · A2A v0.3]
+
+  orch -. inline guardrail .-> armor[Model Armor max policy<br/>PI / JB / PII / Custom regex · D21]
+
+  orch --> mcp[MCP endpoint · Cloud Run<br/>4 tools · MCP spec-compliant]
+
+  mcp --> tools[search_users · user_info<br/>user_posts · post_detail]
+
+  tools --> scrapers[(Existing scraper fleet · D8 / D14<br/>5 services · RapidAPI · Vultr<br/>Cloud Service Mesh mTLS)]
+
+  orch --> registry[Agent Registry · agent.json<br/>A2A v0.3 verified · D3 reframing<br/>SPIFFE Agent Identity]
+
+  registry -.distribution.-> dist[Cloud Marketplace listing<br/>PENDING · KR payment-region · D2<br/>+ A2A-only path · D3]
+
+  armor -.audit.-> sec[Chronicle SecOps SIEM · D32<br/>Cloud Logging · Audit Logs · D33<br/>Watchdog W3 quarantine threshold]
+
+  classDef gcp fill:#4285F4,stroke:#1A73E8,color:#fff,stroke-width:1px;
+  classDef boundary fill:#FFD400,stroke:#F9AB00,color:#000,stroke-width:2px;
+  classDef gap fill:#EA4335,stroke:#C5221F,color:#fff,stroke-width:2px;
+  class orch,mcp,tools,registry,sec,armor gcp;
+  class entry boundary;
+  class dist gap;

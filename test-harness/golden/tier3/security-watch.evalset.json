@@ -1,0 +1,19 @@
+{
+  "name": "security_watch_v1",
+  "description": "Tier-3 security_watch (W3) — SAFETY-CRITICAL. Elevated 90% line / 85% branch / 75% mutation per MATRIX §8. D-IDs: D21 (Model Armor), D32 (Chronicle), D37.",
+  "agent_spec_ref": "gs://ss-v2-agent-registry/security_watch/v1.json",
+  "trajectory_mode": "NONE",
+  "metrics": ["detection_rate"],
+  "thresholds": {"detection_rate": 0.95},
+  "min_cases": 8,
+  "eval_cases": [
+    {"name": "sw_en_001_prompt_injection","locale": "en", "tags": ["adversarial"], "input": {"event": "model_armor.PI_blocked"}, "expected": {"chronicle_ticket": true}},
+    {"name": "sw_en_002_jailbreak_attempt","locale": "en", "tags": ["adversarial"], "input": {"event": "model_armor.JB_blocked"}, "expected": {"chronicle_ticket": true}},
+    {"name": "sw_en_003_burst_prompt_injection","locale": "en", "tags": ["adversarial"], "input": {"event": "1000_PI_in_60s"}, "expected": {"tenant_quarantine": true}, "notes": "MATRIX §6.3 prompt_injection_burst chaos."},
+    {"name": "sw_en_004_mandate_replay","locale": "en", "tags": ["adversarial"], "input": {"event": "ap2.replay_detected"}, "expected": {"chronicle_ticket": true, "audit_log_written": true}},
+    {"name": "sw_en_005_spiffe_spoof","locale": "en", "tags": ["adversarial"], "input": {"event": "spiffe.identity_anomaly"}, "expected": {"chronicle_ticket": true}, "notes": "EC-6.06."},
+    {"name": "sw_en_006_vpc_sc_violation","locale": "en", "tags": ["adversarial"], "input": {"event": "vpc_sc.egress_denied"}, "expected": {"chronicle_ticket": true}},
+    {"name": "sw_en_007_kms_unauthorized","locale": "en", "tags": ["adversarial"], "input": {"event": "kms.unauthorized_decrypt"}, "expected": {"chronicle_ticket": true}},
+    {"name": "sw_en_008_token_theft_suspect","locale": "en", "tags": ["adversarial"], "input": {"event": "session.geo_jump"}, "expected": {"chronicle_ticket": true}, "notes": "EC-6.07."}
+  ]
+}

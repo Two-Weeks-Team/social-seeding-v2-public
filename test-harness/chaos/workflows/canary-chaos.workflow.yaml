@@ -1,0 +1,69 @@
+# canary-chaos.workflow.yaml — Cloud Deploy verify-step driver.
+# Cites: D37, ARCHITECTURE.md §7. chaos/SCENARIOS.md §7.2 per-deploy gate.
+#
+# Runs the 4 SLO-direct chaos scenarios during the canary 10% window:
+#   CHAOS-COMP-01 (cold-start regression)
+#   CHAOS-MODEL-01 (Vertex 429 fallback)
+#   CHAOS-EDGE-01 (Global LB convergence)
+#   CHAOS-DATA-01 (Spanner failover smoke)
+#
+# Pass criteria: all four within their D31 envelope; any failure
+# triggers Cloud Deploy auto-rollback.
+
+main:
+  params: [event]
+  steps:
+    - init:
+        assign:
+          - release_id: ${event.release_id}
+          - canary_endpoint: ${event.canary_endpoint}
+          - run_id: ${"canary-" + release_id}
+    - run_canary_chaos:
+        parallel:
+          shared: [run_id, canary_endpoint]
+          branches:
+            - cold_start:
+                steps:
+                  - cold:
+                      call: http.post
+                      args:
+                        url: ${canary_endpoint + "/chaos/CHAOS-COMP-01"}
+                        body: { run_id: "${run_id}" }
+                      result: cold_result
+            - vertex_429:
+                steps:
+                  - v429:
+                      call: http.post
+                      args:
+                        url: ${canary_endpoint + "/chaos/CHAOS-MODEL-01"}
+                        body: { run_id: "${run_id}" }
+                      result: v429_result
+            - edge_01:
+                steps:
+                  - edge:
+                      call: http.post
+                      args:
+                        url: ${canary_endpoint + "/chaos/CHAOS-EDGE-01"}
+                        body: { run_id: "${run_id}" }
+                      result: edge_result
+            - data_01:
+                steps:
+                  - data:
+                      call: http.post
+                      args:
+                        url: ${canary_endpoint + "/chaos/CHAOS-DATA-01"}
+                        body: { run_id: "${run_id}" }
+                      result: data_result
+    - decision:
+        # If any of the four failed, return non-zero so Cloud Deploy rolls back.
+        switch:
+          - condition: ${cold_result.passed and v429_result.passed and edge_result.passed and data_result.passed}
+            return:
+              verdict: pass
+        return:
+          verdict: fail
+          reasons:
+            - cold_start: ${cold_result.passed}
+            - vertex_429: ${v429_result.passed}
+            - edge_01: ${edge_result.passed}
+            - data_01: ${data_result.passed}

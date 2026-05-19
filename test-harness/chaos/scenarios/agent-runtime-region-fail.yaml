@@ -1,0 +1,35 @@
+# CHAOS-COMP-04 — Disable Agent Runtime endpoint in europe-west4; global aggregate must stay >99
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: nightly
+
+id: CHAOS-COMP-04
+name: regional-runtime-drain
+tier: compute
+executor: native_gcp
+tags: [nightly]
+
+description: |
+  Disable Agent Runtime endpoint in europe-west4; global aggregate must stay >99.99%.
+
+expected_rto_s: 60
+expected_rpo_s: 0
+observed_sli_breach: slo.hot_path.availability.region_eu
+
+auto_runbook: runbook-region-drain
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-COMP-04"
+
+pass_criteria:
+  - "observed_rto_s <= 60"
+  - "observed_rpo_s <= 0"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references: []

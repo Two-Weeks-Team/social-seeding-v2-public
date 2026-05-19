@@ -1,0 +1,59 @@
+1
+00:00:00,000 --> 00:00:05,000
+Track 3 — tiktok-mcp-server: Gemini Enterprise + A2A v0.3 + KR-region-gap reframe.
+
+2
+00:00:05,000 --> 00:00:12,500
+Scene 1 — The problem on screen. Marketplace's seller wizard has no Korea billing region. The same Cloud Run service is live in Seoul.
+
+3
+00:00:12,500 --> 00:00:20,000
+Scene 2 — The open-standard alternative: A2A v0.3 AgentCard at /.well-known/agent.json. Three skills, three transports, JWS-signed.
+
+4
+00:00:20,000 --> 00:00:33,100
+Scene 3 — Importing into Gemini Enterprise via the A2A endpoint URL. Paste, discover, register — distribution without a Marketplace listing.
+
+5
+00:00:33,100 --> 00:00:44,400
+Scene 4 — Same skill invoked over MCP via tools/call. Typed input, typed output, JSON-RPC envelope visible.
+
+6
+00:00:44,400 --> 00:00:57,500
+Scene 5 — Same skill invoked over A2A. One server, two protocols, trace correlation across both.
+
+7
+00:00:57,500 --> 00:01:06,900
+Scene 6 — Model Armor blocks an injection attempt in real time. Identity Platform OIDC subject visible on the audit record.
+
+8
+00:01:06,900 --> 00:01:21,900
+Scene 7 — Gemini Enterprise workspace uses the agent in natural-language chat. The Cloud Run logs confirm the back-end was hit.
+
+9
+00:01:21,900 --> 00:01:29,400
+Scene 8 — Per-skill USD ledger. tiktok.lookup at $0.094, tiktok.search at $0.036, tiktok.profile at $0.009.
+
+10
+00:01:29,400 --> 00:01:36,900
+Scene 9 — Producer Portal shows the listing pending. The reframe — we ship via A2A — turns the negative into the thesis.
+
+11
+00:01:36,900 --> 00:01:48,200
+Scene 10 — Multi-region active-active: asia-northeast3, us-central1, europe-west1. Three Identity Platform tenants. Enterprise-grade by default.
+
+12
+00:01:48,200 --> 00:01:59,500
+Scene 11 — A2A streaming returns text + image + JSON in one response. Multimodal at the protocol layer, not just the model.
+
+13
+00:01:59,500 --> 00:02:03,300
+Scene 12 — curl /healthz: ok. pytest: 47 passed in 4.2s. Live Cloud Run + green local tests.
+
+14
+00:02:03,300 --> 00:02:55,000
+The KR-region-gap is the differentiator. Gemini Enterprise + A2A is the post-Marketplace distribution channel.
+
+15
+00:02:55,000 --> 00:03:00,000
+github.com/ComBba/tiktok-mcp-server — Apache-2.0.
