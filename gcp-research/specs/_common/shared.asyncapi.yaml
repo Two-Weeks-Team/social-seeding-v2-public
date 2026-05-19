@@ -1,0 +1,203 @@
+asyncapi: 3.0.0
+info:
+  title: Social Seeding v2 — Shared AsyncAPI Channels (Pub/Sub)
+  version: 0.1.0
+  description: |
+    AsyncAPI 3.0 shared channels (D36) for the Pub/Sub fan-out and
+    Eventarc Advanced subscription surface (D18). Each per-agent spec
+    references the channels it produces / consumes via `$ref`.
+
+    Topic naming convention:
+      `agent.{tier}.{agentId}.{eventName}` — e.g. `agent.t1.sourcing.candidates_ready`
+      `system.{domain}.{eventName}`         — e.g. `system.armor.input_blocked`
+      `watchdog.{watchdog}.{eventName}`     — e.g. `watchdog.anomaly.detected`
+
+    Schema Registry: Pub/Sub Schema Registry holds the AVRO/JSON
+    schemas; producers fail-publish on schema-incompatible payloads.
+
+defaultContentType: application/json
+
+servers:
+  pubsubProd:
+    host: pubsub.googleapis.com
+    protocol: pubsub+https
+    description: |
+      Cloud Pub/Sub production project (D18). Cross-region replication
+      handled by Pub/Sub itself; subscribers regional (us-central1 /
+      europe-west4 / asia-northeast3).
+    security:
+      - $ref: '#/components/securitySchemes/ServiceAccount'
+  eventarcProd:
+    host: eventarc.googleapis.com
+    protocol: https
+    description: Eventarc Advanced (D18) for system event routing.
+
+channels:
+  # ── Lifecycle / status (every agent emits these) ─────────────────────
+  agent.lifecycle.invoked:
+    address: agent.lifecycle.invoked
+    messages:
+      AgentInvoked:
+        $ref: '#/components/messages/AgentInvoked'
+    description: Fired the instant any agent begins execution (post Model-Armor input scan).
+  agent.lifecycle.completed:
+    address: agent.lifecycle.completed
+    messages:
+      AgentCompleted:
+        $ref: '#/components/messages/AgentCompleted'
+    description: Fired on `ok` outcome. Carries final USD spent + trace ids.
+  agent.lifecycle.escalated:
+    address: agent.lifecycle.escalated
+    messages:
+      AgentEscalated:
+        $ref: '#/components/messages/AgentEscalated'
+    description: Fired on `escalate` outcome. Critic (M2) + human-approval inbox subscribe.
+
+  # ── Cost / token telemetry (cost_watch consumes) ─────────────────────
+  agent.cost.recorded:
+    address: agent.cost.recorded
+    messages:
+      AgentCostRecorded:
+        $ref: '#/components/messages/AgentCostRecorded'
+    description: |
+      One message per LLM call. Backed by `recordCost` in
+      v2 packages/observability. cost_watch (W2) subscribes per-tenant.
+
+  # ── Model Armor signal (security_watch consumes) ─────────────────────
+  system.armor.input_blocked:
+    address: system.armor.input_blocked
+    messages:
+      ArmorBlock:
+        $ref: '#/components/messages/ArmorBlock'
+  system.armor.output_blocked:
+    address: system.armor.output_blocked
+    messages:
+      ArmorBlock:
+        $ref: '#/components/messages/ArmorBlock'
+
+  # ── Anomaly (anomaly_watch publishes) ────────────────────────────────
+  watchdog.anomaly.detected:
+    address: watchdog.anomaly.detected
+    messages:
+      AnomalyDetected:
+        $ref: '#/components/messages/AnomalyDetected'
+
+operations:
+  publishAgentInvoked:
+    action: send
+    channel: { $ref: '#/channels/agent.lifecycle.invoked' }
+    messages:
+      - $ref: '#/channels/agent.lifecycle.invoked/messages/AgentInvoked'
+  publishAgentCompleted:
+    action: send
+    channel: { $ref: '#/channels/agent.lifecycle.completed' }
+    messages:
+      - $ref: '#/channels/agent.lifecycle.completed/messages/AgentCompleted'
+  publishAgentEscalated:
+    action: send
+    channel: { $ref: '#/channels/agent.lifecycle.escalated' }
+    messages:
+      - $ref: '#/channels/agent.lifecycle.escalated/messages/AgentEscalated'
+
+components:
+  securitySchemes:
+    ServiceAccount:
+      type: oauth2
+      description: GCP service account with `pubsub.publisher` / `pubsub.subscriber` roles.
+      flows:
+        clientCredentials:
+          tokenUrl: https://oauth2.googleapis.com/token
+          scopes:
+            "https://www.googleapis.com/auth/pubsub": Full Pub/Sub access
+
+  messages:
+    AgentInvoked:
+      contentType: application/json
+      payload:
+        type: object
+        required: [agentId, tenantId, traceId, invokedAt]
+        properties:
+          agentId: { type: string }
+          tenantId: { type: string }
+          traceId: { type: string }
+          invokedAt: { type: string, format: date-time }
+          invokedBy: { type: string }
+          inputDigest:
+            type: string
+            description: SHA-256 of canonicalized input (replay key).
+    AgentCompleted:
+      contentType: application/json
+      payload:
+        type: object
+        required: [agentId, tenantId, traceId, completedAt, usdSpent]
+        properties:
+          agentId: { type: string }
+          tenantId: { type: string }
+          traceId: { type: string }
+          completedAt: { type: string, format: date-time }
+          usdSpent: { type: number, minimum: 0 }
+          llmCalls: { type: integer, minimum: 0 }
+          toolCalls: { type: integer, minimum: 0 }
+          durationMs: { type: integer, minimum: 0 }
+    AgentEscalated:
+      contentType: application/json
+      payload:
+        type: object
+        required: [agentId, tenantId, traceId, reason, escalatedAt]
+        properties:
+          agentId: { type: string }
+          tenantId: { type: string }
+          traceId: { type: string }
+          reason: { type: string, maxLength: 500 }
+          partial:
+            type: object
+            additionalProperties: true
+          escalatedAt: { type: string, format: date-time }
+          usdSpent: { type: number, minimum: 0 }
+    AgentCostRecorded:
+      contentType: application/json
+      payload:
+        type: object
+        required: [agentId, tenantId, model, inputTokens, outputTokens, usd, at]
+        properties:
+          agentId: { type: string }
+          tenantId: { type: string }
+          campaignId: { type: string }
+          model: { type: string, examples: [gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite, gemini-3.1-pro-preview] }
+          inputTokens: { type: integer, minimum: 0 }
+          outputTokens: { type: integer, minimum: 0 }
+          usd: { type: number, minimum: 0 }
+          at: { type: string, format: date-time }
+    ArmorBlock:
+      contentType: application/json
+      payload:
+        type: object
+        required: [agentId, tenantId, blockedAt, policyId, severity, surface]
+        properties:
+          agentId: { type: string }
+          tenantId: { type: string }
+          blockedAt: { type: string, format: date-time }
+          policyId: { type: string, examples: [PI_JB, PII_BLOCK, RAI_DEFAULT, CUSTOM_BRAND, CUSTOM_COMPETITOR, CUSTOM_HANDLE] }
+          severity: { type: string, enum: [low, medium, high, critical] }
+          surface: { type: string, enum: [input, output] }
+          rawExcerpt:
+            type: string
+            description: First 200 chars of blocked content (DLP-redacted).
+    AnomalyDetected:
+      contentType: application/json
+      payload:
+        type: object
+        required: [signalKind, tenantId, agentId, detectedAt, severity]
+        properties:
+          signalKind:
+            type: string
+            enum: [cost_spike, latency_spike, token_explosion, error_rate_spike, escalation_storm]
+          tenantId: { type: string }
+          agentId: { type: string }
+          detectedAt: { type: string, format: date-time }
+          severity: { type: string, enum: [info, warn, page] }
+          metricValue: { type: number }
+          baseline: { type: number }
+          runbookId:
+            type: string
+            description: Cloud Workflows auto-runbook to invoke (D32).

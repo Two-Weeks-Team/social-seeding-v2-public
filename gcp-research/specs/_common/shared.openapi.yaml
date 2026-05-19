@@ -1,0 +1,211 @@
+openapi: 3.1.0
+info:
+  title: Social Seeding v2 — Shared Agent OpenAPI Components
+  version: 0.1.0
+  description: |
+    Shared OpenAPI 3.1 components for all 22 production agents (D23, D36).
+    Imported by every per-agent spec via `$ref`. Owned by the M3 PM agent.
+
+    Each Tier-1/2/3 agent exposes a REST surface at:
+      `POST /agents/{agentId}:invoke`
+    backed by Vertex AI Agent Runtime (D17). Cloud Workflows (D18) is the
+    primary invoker; Mission Control (D26) may also call directly for HITL.
+
+servers:
+  - url: https://agents.social-seeding.com/v1
+    description: Multi-region Global LB (D13). Latency-routed to us/eu/ap regions.
+  - url: https://staging-agents.social-seeding.com/v1
+    description: Canary endpoint (10% traffic) for Cloud Deploy canary (D37).
+
+components:
+  securitySchemes:
+    IdentityPlatformJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Identity Platform JWT (D19) — customer tenant token.
+    WorkforceIF:
+      type: oauth2
+      description: Workforce Identity Federation (D19) — staff SSO.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://accounts.google.com/o/oauth2/auth
+          tokenUrl: https://oauth2.googleapis.com/token
+          scopes:
+            "agent.invoke": Invoke any agent
+            "agent.admin": Administrative operations
+    AgentIdentitySPIFFE:
+      type: http
+      scheme: bearer
+      bearerFormat: SPIFFE-X509
+      description: |
+        Agent Identity (SPIFFE) — workload-to-workload identity for
+        agent → agent A2A invocations (D24 1→100 phase). Trust domain:
+        `spiffe://social-seeding.com/`.
+
+  parameters:
+    TenantHeader:
+      name: X-Tenant-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        pattern: '^t_[a-z0-9]{16}$'
+      description: Identity Platform tenant id (D12 multi-tenant).
+    TraceParent:
+      name: traceparent
+      in: header
+      required: false
+      schema:
+        type: string
+      description: W3C Trace Context (Cloud Trace; D31).
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: Cloud Tasks idempotency token (D18).
+
+  schemas:
+    AgentInvokeMetadata:
+      type: object
+      required: [tenantId, traceId, invokedAt]
+      properties:
+        tenantId:
+          type: string
+        traceId:
+          type: string
+          description: Cloud Trace span id (W3C format).
+        invokedAt:
+          type: string
+          format: date-time
+        invokedBy:
+          type: string
+          description: |
+            One of: `mc:user:{userId}`, `workflow:{workflowId}`,
+            `agent:{agentId}` (A2A invocation), `cron:{schedulerJobId}`.
+        budgetCapUsd:
+          type: number
+          minimum: 0
+          description: |
+            Per-invocation USD cap from agent definition; runtime aborts
+            and escalates if exceeded (carries the v2 `maxUsd` semantic).
+        autonomyLevel:
+          type: string
+          enum: [copilot, checkpointed, autonomous]
+          description: From WorkspacePolicy (v2 packages/contracts/src/policy.ts:11-16).
+
+    AgentEscalation:
+      type: object
+      required: [kind, reason]
+      properties:
+        kind:
+          type: string
+          enum: [escalate]
+        reason:
+          type: string
+          maxLength: 500
+        partial:
+          description: |
+            Best-effort partial output the human can finish (any shape).
+          type: object
+          additionalProperties: true
+        usdSpent:
+          type: number
+          minimum: 0
+
+    AgentOk:
+      type: object
+      required: [kind, value, usdSpent]
+      properties:
+        kind:
+          type: string
+          enum: [ok]
+        value:
+          description: |
+            The agent's output — concrete shape varies per agent and is
+            defined in each agent's spec via JSON Schema.
+          type: object
+          additionalProperties: true
+        usdSpent:
+          type: number
+          minimum: 0
+        trace:
+          $ref: '#/components/schemas/RunTraceLite'
+
+    RunTraceLite:
+      type: object
+      properties:
+        spanIds:
+          type: array
+          items: { type: string }
+        toolCalls:
+          type: integer
+          minimum: 0
+        llmCalls:
+          type: integer
+          minimum: 0
+        modelArmorBlocks:
+          type: integer
+          minimum: 0
+          description: Model Armor blocks fired during this run (D21).
+
+    AgentOutcome:
+      oneOf:
+        - $ref: '#/components/schemas/AgentOk'
+        - $ref: '#/components/schemas/AgentEscalation'
+      discriminator:
+        propertyName: kind
+        mapping:
+          ok: '#/components/schemas/AgentOk'
+          escalate: '#/components/schemas/AgentEscalation'
+
+    Problem:
+      description: RFC 7807 problem detail.
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        traceId: { type: string }
+
+  responses:
+    BadRequest:
+      description: Input failed JSON Schema validation.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid Identity Platform JWT (D19).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Token valid but tenant not authorized for this agent (IAM Conditions).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    ModelArmorBlocked:
+      description: Model Armor blocked input or output (D21).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    BudgetExceeded:
+      description: Agent exceeded its per-invocation USD cap.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    InternalError:
+      description: Unhandled runtime error; logged to Error Reporting.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+security:
+  - IdentityPlatformJWT: []
+  - AgentIdentitySPIFFE: []

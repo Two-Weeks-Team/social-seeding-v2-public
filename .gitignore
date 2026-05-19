@@ -37,3 +37,6 @@ test-results/
 
 # local dev mongod (scripts/dev-mongo.ts)
 .mongo-dev/
+
+# Devpost research artifacts
+AI-Agents-Challenge-Kickoff.pdf
