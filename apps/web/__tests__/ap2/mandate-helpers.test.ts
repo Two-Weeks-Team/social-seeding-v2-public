@@ -11,6 +11,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { ApprovalSchema, PaymentMandateRecommendationSchema } from "@ss/contracts";
 import {
   AP2_STATE_TONE,
   expiryGuard,
@@ -106,6 +107,23 @@ describe("sumMoney", () => {
     expect(out).toEqual({ amount: "1304000", currency: "KRW" });
   });
 
+  // Codex PR-fix: https://github.com/Two-Weeks-Team/social-seeding-v2/pull/1#discussion_r3266224734
+  // Regression for zero-decimal cent-scaling — previously the BigInt total
+  // was returned without dividing out the ×100 padding, inflating by 100×.
+  it("sums JPY (zero-decimal) accurately — does not inflate by 100×", () => {
+    const out = sumMoney([
+      { amount: "16200", currency: "JPY" },
+      { amount: "8000", currency: "JPY" },
+      { amount: "4100", currency: "JPY" },
+    ]);
+    expect(out).toEqual({ amount: "28300", currency: "JPY" });
+  });
+
+  it("sums a single KRW item without inflating (regression)", () => {
+    const out = sumMoney([{ amount: "1000000", currency: "KRW" }]);
+    expect(out).toEqual({ amount: "1000000", currency: "KRW" });
+  });
+
   it("sums USD with cent precision", () => {
     const out = sumMoney([
       { amount: "100.50", currency: "USD" },
@@ -113,6 +131,21 @@ describe("sumMoney", () => {
       { amount: "0.84", currency: "USD" },
     ]);
     expect(out).toEqual({ amount: "148.34", currency: "USD" });
+  });
+
+  it("sums EUR / GBP with cent precision (regression — two-decimal path unchanged)", () => {
+    expect(
+      sumMoney([
+        { amount: "10.00", currency: "EUR" },
+        { amount: "5.50", currency: "EUR" },
+      ]),
+    ).toEqual({ amount: "15.50", currency: "EUR" });
+    expect(
+      sumMoney([
+        { amount: "99.99", currency: "GBP" },
+        { amount: "0.01", currency: "GBP" },
+      ]),
+    ).toEqual({ amount: "100.00", currency: "GBP" });
   });
 
   it("throws on mixed currencies", () => {
@@ -326,6 +359,56 @@ describe("Zod schemas (PROTOCOLS.md §2 verbatim)", () => {
       reason: "freeform",
     });
     expect(bad.success).toBe(false);
+  });
+});
+
+describe("ApprovalSchema — payment_mandate kind (D27)", () => {
+  // Codex PR-fix: https://github.com/Two-Weeks-Team/social-seeding-v2/pull/1#discussion_r3266224720
+  // The drill-in branch in apps/web/app/(mission-control)/approvals/[id]/page.tsx
+  // assumes ApprovalSchema accepts kind="payment_mandate"; without it the parse
+  // throws before the branch is reached and sign/reject routes fail.
+  it("accepts kind = 'payment_mandate'", () => {
+    const parsed = ApprovalSchema.safeParse({
+      id: "a1",
+      workspaceId: "ws1",
+      campaignId: "camp1",
+      kind: "payment_mandate",
+      recommendation: { jti: "j1" },
+      rationale: "AP2 Intent Mandate composed for 3 creator payouts (조사 완료된 후보들).",
+      createdAt: new Date(),
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.kind).toBe("payment_mandate");
+    }
+  });
+
+  it("still accepts the four legacy kinds (regression)", () => {
+    for (const kind of ["shortlist", "outreach_send", "reply_response", "shipment"] as const) {
+      const parsed = ApprovalSchema.safeParse({
+        id: "a1",
+        workspaceId: "ws1",
+        campaignId: "camp1",
+        kind,
+        recommendation: {},
+        rationale: "regression",
+        createdAt: new Date(),
+      });
+      expect(parsed.success).toBe(true);
+    }
+  });
+
+  it("PaymentMandateRecommendationSchema accepts the structural shape", () => {
+    const ok = PaymentMandateRecommendationSchema.safeParse({
+      jti: uuidv7(),
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      delegation_mode: "human_present",
+      recipients: [{ creatorId: "c1" }],
+      partner: "adyen",
+      totalAmount: { amount: "1000000", currency: "KRW" },
+      composedAt: Math.floor(Date.now() / 1000),
+    });
+    expect(ok.success).toBe(true);
   });
 });
 

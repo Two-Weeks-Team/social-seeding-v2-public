@@ -21,6 +21,7 @@ const KIND_LABEL: Record<Approval["kind"], string> = {
   reply_response: "REPLY_RESPONSE",
   shipment: "SHIPMENT",
   stage_advance: "STAGE_ADVANCE",
+  payment_mandate: "PAYMENT_MANDATE", // AP2 Intent Mandate sign checkpoint (D27).
 };
 
 const KIND_PHASE: Record<Approval["kind"], string | null> = {
@@ -29,9 +30,16 @@ const KIND_PHASE: Record<Approval["kind"], string | null> = {
   reply_response: null, // P2-C6b: drill-in live
   shipment: null, // P3-C7a: drill-in live (approveShipment producer = creator-track P3-C6)
   stage_advance: null,
+  payment_mandate: null, // Phase 6 — AP2 drill-in live (renderPaymentMandateApproval).
 };
 
-const REVIEWABLE_KINDS = new Set<Approval["kind"]>(["shortlist", "outreach_send", "reply_response", "shipment"]);
+const REVIEWABLE_KINDS = new Set<Approval["kind"]>([
+  "shortlist",
+  "outreach_send",
+  "reply_response",
+  "shipment",
+  "payment_mandate",
+]);
 
 /** Best-effort subject extraction from an outreach_send recommendation (which is OutreachDraft). */
 function outreachSubject(rec: unknown): string | null {

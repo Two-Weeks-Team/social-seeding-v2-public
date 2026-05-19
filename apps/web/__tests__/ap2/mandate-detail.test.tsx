@@ -16,8 +16,8 @@
  * the AP2 contracts land in `@ss/contracts`.
  */
 
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MandateDetail } from "../../app/(mission-control)/approvals/[id]/_ap2/mandate-detail";
 import type { PaymentMandateDraft } from "../../lib/ap2/mandate";
 
@@ -233,6 +233,93 @@ describe("MandateDetail (D26/D27/D34)", () => {
     );
     const ariaLabeled = container.querySelectorAll("[aria-label*='Korean']");
     expect(ariaLabeled.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * Regression test for the edit-then-cancel-then-resign retry path.
+   *
+   * Scenario: operator applies edits via the drawer → opens WebAuthn dialog →
+   * cancels it → clicks the now-relabelled "Sign with edits" primary button.
+   * Before the fix, this button still routed to `handleSignAll` which set
+   * `signKind="sign-all"`, causing WebAuthnStepUp to receive `edits=undefined`
+   * and the server to sign the original mandate (silently dropping reviewed
+   * changes). After the fix the primary button routes to a handler that
+   * preserves `edits` and the post-cancel sign attempt carries them through.
+   *
+   * Codex PR-fix: https://github.com/Two-Weeks-Team/social-seeding-v2/pull/1#discussion_r3266224729
+   */
+  it("preserves edits when operator cancels WebAuthn then re-clicks 'Sign with edits'", async () => {
+    const onSigned = vi.fn();
+    // Test hook simulates the WebAuthn ceremony — returns an assertion shape
+    // matching SerializedAssertion (used by handleStepUpResult).
+    const testHook = vi.fn(async () => ({
+      id: "cred-1",
+      rawId: "rawid-b64",
+      type: "public-key" as const,
+      response: {
+        clientDataJSON: "client-b64",
+        authenticatorData: "auth-b64",
+        signature: "sig-b64",
+      },
+    }));
+    render(
+      <MandateDetail
+        approvalId="a1"
+        approvalCreatedAt={new Date().toISOString()}
+        campaignId="camp1"
+        campaignName="Acme Pet Foods"
+        rationale="후보 검토 완료된 3명에게 지급 (조사 결과 첨부)."
+        draft={makeDraft()}
+        locale="en"
+        onSigned={onSigned}
+        webAuthnTestHook={testHook}
+      />,
+    );
+
+    // 1. Open the edit drawer via the per-recipient inline "edit" link
+    //    (RecipientTable renders one per row).
+    const editLinks = screen.getAllByRole("button", { name: /edit/i });
+    const firstEditLink = editLinks[0];
+    expect(firstEditLink).toBeDefined();
+    fireEvent.click(firstEditLink!);
+
+    // 2. Apply an edit to the first recipient — reduce 504,000 → 400,000 KRW.
+    const amountInput = await screen.findByLabelText(/amount for kr_petlover/i);
+    fireEvent.change(amountInput, { target: { value: "400000" } });
+    const save = screen.getByRole("button", { name: /Save changes/i });
+    fireEvent.click(save);
+
+    // 3. The primary button label should flip to "Sign with edits (1 change)".
+    const primaryAfterEdit = screen.getByRole("button", { name: /Sign with edits/i });
+    expect(primaryAfterEdit).toBeTruthy();
+
+    // 4. Click "Sign with edits" — opens the WebAuthn dialog. Cancel it.
+    fireEvent.click(primaryAfterEdit);
+    const cancelButtons = screen.getAllByRole("button", { name: /Cancel/i });
+    // The dialog's Cancel is the last-mounted Cancel button.
+    const lastCancel = cancelButtons[cancelButtons.length - 1];
+    expect(lastCancel).toBeDefined();
+    fireEvent.click(lastCancel!);
+
+    // 5. Click the primary button again — without the fix this would route
+    //    to handleSignAll and the next sign attempt would carry edits=undefined.
+    const primaryAfterCancel = screen.getByRole("button", { name: /Sign with edits/i });
+    fireEvent.click(primaryAfterCancel);
+
+    // 6. Wait for the test-hook assertion path to resolve and capture the
+    //    StepUpResult.edits — assert recipient edits were preserved.
+    await vi.waitFor(() => expect(onSigned).toHaveBeenCalled());
+    const firstCall = onSigned.mock.calls[0];
+    expect(firstCall).toBeDefined();
+    const signed = firstCall![0] as {
+      edits?: {
+        recipientEdits: Array<{ creatorId: string; amount: { amount: string } | null }>;
+      };
+    };
+    expect(signed.edits).toBeDefined();
+    expect(signed.edits?.recipientEdits).toHaveLength(1);
+    expect(signed.edits?.recipientEdits[0]?.creatorId).toBe("c1");
+    expect(signed.edits?.recipientEdits[0]?.amount?.amount).toBe("400000");
   });
 
   it("blocks submit when an Intent is within 60 s of expiry", () => {

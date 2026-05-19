@@ -332,12 +332,18 @@ export function sumMoney(items: Money[]): Money {
     const padded = (fracPart + "00").slice(0, 2);
     totalMinor += BigInt((intPart ?? "0") + padded);
   }
-  const totalStr = totalMinor.toString();
-  // Re-attach decimal for non-zero-decimal currencies.
-  const minorDigits = isZeroDecimalCurrency(currency) ? 0 : 2;
-  if (minorDigits === 0) {
-    return { amount: totalStr, currency };
+  // For zero-decimal currencies (KRW/JPY per D34) the input amount "504000"
+  // has already been ×100-padded into minor units above; we must divide back
+  // out so the result represents whole units. Otherwise three KRW recipients
+  // at ₩504,000 + ₩320,000 + ₩480,000 would report ₩130,400,000 instead of
+  // the correct ₩1,304,000.
+  // Codex PR-fix: https://github.com/Two-Weeks-Team/social-seeding-v2/pull/1#discussion_r3266224734
+  if (isZeroDecimalCurrency(currency)) {
+    return { amount: (totalMinor / 100n).toString(), currency };
   }
+  // Two-decimal currencies — re-attach the decimal point at the -2 position.
+  const totalStr = totalMinor.toString();
+  const minorDigits = 2;
   const padded = totalStr.padStart(minorDigits + 1, "0");
   const head = padded.slice(0, -minorDigits) || "0";
   const tail = padded.slice(-minorDigits);

@@ -143,7 +143,8 @@ export function WebAuthnStepUp({
     if (!testHook && supported && status === "idle") {
       void trigger();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Intentionally mount-once: trigger is captured at first render only
+    // (react-hooks/exhaustive-deps plugin not installed in this monorepo).
   }, []);
 
   const locked = attemptCount >= 3;

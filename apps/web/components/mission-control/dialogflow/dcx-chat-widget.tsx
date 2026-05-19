@@ -245,6 +245,7 @@ async function triggerPwaPush(approvalIds: string[]): Promise<void> {
  * runtime; we declare its element typing here so TSX accepts the JSX.
  */
 declare module "react" {
+  // eslint-disable-next-line @typescript-eslint/no-namespace -- JSX module augmentation requires namespace per React types
   namespace JSX {
     interface IntrinsicElements {
       "df-messenger": React.HTMLAttributes<HTMLElement> & {

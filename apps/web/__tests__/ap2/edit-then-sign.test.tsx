@@ -71,9 +71,9 @@ describe("EditThenSignDrawer (D27/D33)", () => {
     const save = screen.getByRole("button", { name: /Save changes/i });
     fireEvent.click(save);
     expect(onApply).toHaveBeenCalledOnce();
-    const call = onApply.mock.calls[0][0];
-    expect(call.recipientEdits).toHaveLength(1);
-    expect(call.recipientEdits[0].amount.amount).toBe("400000");
+    const call = onApply.mock.calls[0]?.[0];
+    expect(call?.recipientEdits).toHaveLength(1);
+    expect(call?.recipientEdits[0]?.amount?.amount).toBe("400000");
   });
 
   it("requires uplift_acknowledged when an edit exceeds 1.2× proposed", () => {
@@ -143,6 +143,6 @@ describe("EditThenSignDrawer (D27/D33)", () => {
     fireEvent.change(note, { target: { value: "double-check creator handle" } });
     const save = screen.getByRole("button", { name: /Save changes/i });
     fireEvent.click(save);
-    expect(onApply.mock.calls[0][0].operatorNote).toBe("double-check creator handle");
+    expect(onApply.mock.calls[0]?.[0]?.operatorNote).toBe("double-check creator handle");
   });
 });

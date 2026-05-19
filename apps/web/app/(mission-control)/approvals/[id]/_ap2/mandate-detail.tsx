@@ -66,6 +66,14 @@ export interface MandateDetailProps {
   /** Used by tests + Storybook. */
   onSigned?: (result: StepUpResult) => void;
   onRejected?: (reason: RejectReason, note?: string) => void;
+  /**
+   * Test-only — forwarded to {@link WebAuthnStepUp} so unit tests can simulate
+   * the WebAuthn ceremony without `navigator.credentials.get`. Production
+   * callers should leave this undefined.
+   *
+   * Codex PR-fix: https://github.com/Two-Weeks-Team/social-seeding-v2/pull/1#discussion_r3266224729
+   */
+  webAuthnTestHook?: import("./webauthn-step-up").WebAuthnStepUpProps["testHook"];
 }
 
 export function MandateDetail(props: MandateDetailProps) {
@@ -119,6 +127,19 @@ export function MandateDetail(props: MandateDetailProps) {
   function handleSignAll() {
     setSignNonce(uuidv7());
     setSignKind("sign-all");
+  }
+
+  /**
+   * Retry path after the operator cancels the WebAuthn dialog with saved edits.
+   * Without this branch the primary button (which has been relabelled to
+   * "Sign with edits") would route to `handleSignAll`, dropping the saved
+   * `edits` state and submitting the original mandate.
+   *
+   * Codex PR-fix: https://github.com/Two-Weeks-Team/social-seeding-v2/pull/1#discussion_r3266224729
+   */
+  function handleSignWithSavedEdits() {
+    setSignNonce(uuidv7());
+    setSignKind("sign-with-edits");
   }
 
   function handleEditThenSign(applied: MandateEdit) {
@@ -337,7 +358,14 @@ export function MandateDetail(props: MandateDetailProps) {
         <Button
           variant="primary"
           tone="approve"
-          onClick={handleSignAll}
+          // If the operator already applied edits and cancelled the WebAuthn
+          // dialog, the button label flips to "Sign with edits". In that case
+          // we must route to a handler that preserves the saved `edits` state
+          // — otherwise WebAuthnStepUp receives `edits=undefined` and the
+          // server signs the original mandate, silently dropping reviewed
+          // amount/recipient/TTL changes.
+          // Codex PR-fix: https://github.com/Two-Weeks-Team/social-seeding-v2/pull/1#discussion_r3266224729
+          onClick={edits && changeCount > 0 ? handleSignWithSavedEdits : handleSignAll}
           disabled={submitBlocked}
           aria-describedby="ap2-action-hint-sign"
         >
@@ -379,6 +407,7 @@ export function MandateDetail(props: MandateDetailProps) {
             setSignNonce(null);
           }}
           onSuccess={handleStepUpResult}
+          testHook={props.webAuthnTestHook}
         />
       )}
 
