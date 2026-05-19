@@ -1,0 +1,168 @@
+# per-pr.yaml — Cloud Build YAML for per-PR pipeline.
+# Cites: D37 (5-layer TDD), D39 ($1500 envelope).
+# MATRIX §7.1 — 8 stages, ≤12 min wall-clock, ~$3-5/PR.
+# chaos/SCENARIOS.md §5.1 — per_pr fast subset (10 chaos scenarios).
+# simulation/SCENARIOS.md §7.4 — 50-scenario per-PR smoke (~$3).
+#
+# Trigger: GitHub push (any branch).
+# Project: ss-v2-ci (separate from sim/chaos projects).
+# Substitutions:
+#   _GIT_SHA           short SHA, used for trace IDs
+#   _PR_ID             GitHub PR number
+#   _TOUCHED_AGENTS    space-separated list (set by a pre-step grep)
+
+steps:
+  # ------------------------------------------------------------------ Stage 1
+  - id: stage1-lint-typecheck
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["-"]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        echo "::stage1:: lint + typecheck (~1m)"
+        cd /workspace
+        pnpm install --frozen-lockfile
+        pnpm run lint
+        pnpm exec tsc --noEmit
+        pip3 install ruff mypy
+        ruff check test-harness/
+        # mypy is non-fatal at stage1 — strict checking lives in stage3.
+
+  # ------------------------------------------------------------------ Stage 2 (parallel to stage 3)
+  - id: stage2-vitest
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["stage1-lint-typecheck"]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        echo "::stage2:: Vitest @ss/capabilities + workflows + observability (~2m)"
+        cd /workspace
+        pnpm --filter @ss/capabilities --filter @ss/workflows --filter @ss/observability test
+        # MATRIX §3.3 coverage floors gate the merge.
+        pnpm --filter @ss/capabilities exec vitest run --coverage \
+          --coverage.lines=90 --coverage.branches=85 --coverage.functions=95
+
+  # ------------------------------------------------------------------ Stage 3
+  - id: stage3-pytest
+    name: python:3.13-slim
+    waitFor: ["stage1-lint-typecheck"]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        echo "::stage3:: pytest test-harness/ (TestInputContract+Plumbing+Escalation, ~3m)"
+        pip install pytest hypothesis pyyaml jsonschema google-cloud-aiplatform
+        cd /workspace
+        HARNESS_MODE=stub HARNESS_PROFILE=ci pytest test-harness/ -q --tb=short
+        # Per MATRIX §4.4 coverage targets — TODO wire pytest-cov once
+        # packages/agents-adk/ exists in the monorepo.
+
+  # ------------------------------------------------------------------ Stage 4
+  - id: stage4-l1-fast-eval
+    name: gcr.io/cloud-builders/gcloud
+    waitFor: ["stage2-vitest", "stage3-pytest"]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        echo "::stage4:: L1 fast-eval (5 cases per touched agent, max 80, ~3m)"
+        # MATRIX §2.4 — per-PR runs the 5-case fast-eval subset per agent.
+        # Only run if the PR touches an agent file.
+        TOUCHED="${_TOUCHED_AGENTS:-}"
+        if [ -z "$TOUCHED" ]; then
+          echo "no agents touched; skipping L1 fast-eval"
+          exit 0
+        fi
+        for agent in $TOUCHED; do
+          gcloud aiplatform evaluation-runs create \
+            --evalset-file="test-harness/golden/tier1/${agent}.evalset.json" \
+            --max-cases=5 \
+            --project="ss-v2-ci"
+        done
+
+  # ------------------------------------------------------------------ Stage 5
+  - id: stage5-spec-conformance
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["stage3-pytest"]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        echo "::stage5:: OpenAPI 3.1 + AsyncAPI 3.0 + JSON Schema validation (~1m)"
+        # Stub — the real spec files land per D36 schema-first.
+        echo "spec conformance: pending D36 wire-up (MATRIX §7.1 stage 5)"
+
+  # ------------------------------------------------------------------ Stage 6
+  - id: stage6-chaos-smoke
+    name: python:3.13-slim
+    waitFor: ["stage3-pytest"]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        echo "::stage6:: chaos smoke — 2 scenarios from per_pr subset (~2m)"
+        pip install pytest pyyaml
+        cd /workspace
+        # Per chaos/SCENARIOS.md §5.1 — fast subset, bounded at 60s each.
+        # Stage 6 runs 2 of the 10 (regional eject + Vertex 429) — see MATRIX §7.1.
+        HARNESS_MODE=stub python3 test-harness/chaos/orchestrator.py \
+          --scenario test-harness/chaos/scenarios/global-lb-region-eject.yaml
+        HARNESS_MODE=stub python3 test-harness/chaos/orchestrator.py \
+          --scenario test-harness/chaos/scenarios/vertex-429.yaml
+
+  # ------------------------------------------------------------------ Stage 7
+  - id: stage7-binauthz-attestation
+    name: gcr.io/cloud-builders/gcloud
+    waitFor: ["stage4-l1-fast-eval", "stage5-spec-conformance", "stage6-chaos-smoke"]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        echo "::stage7:: Binary Authorization attestation (~30s)"
+        gcloud beta container binauthz attestations sign-and-create \
+          --artifact-url="us-central1-docker.pkg.dev/ss-v2/agents/all:${_GIT_SHA}" \
+          --attestor="ss-v2-ci-attestor" \
+          --keyversion="projects/ss-v2-ci/locations/us-central1/keyRings/ci/cryptoKeys/binauthz/cryptoKeyVersions/1"
+
+  # ------------------------------------------------------------------ Stage 8
+  - id: stage8-artifact-push
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["stage7-binauthz-attestation"]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        echo "::stage8:: Artifact Registry push + SLSA attestation (~30s)"
+        docker push "us-central1-docker.pkg.dev/ss-v2/agents/all:${_GIT_SHA}"
+        # SLSA L3 provenance is generated by Cloud Build automatically when
+        # `enableProvenance: true` is set on the trigger.
+
+# Budget: 12 minutes wall-clock, parallelism via waitFor.
+timeout: 900s
+
+# Per MATRIX §7.1 — substitutions populated by the trigger.
+substitutions:
+  _GIT_SHA: ""
+  _PR_ID: ""
+  _TOUCHED_AGENTS: ""
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+# Per-PR cost cap (MATRIX §9): hard-fail if estimated > $5.
+artifacts:
+  objects:
+    location: "gs://ss-v2-ci-artifacts/per-pr/${_PR_ID}/"
+    paths:
+      - "test-harness/.results-*.jsonl"

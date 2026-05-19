@@ -1,0 +1,14 @@
+{
+  "type": "record",
+  "name": "AgentInvoked",
+  "namespace": "ai.socialseed.v2.agent.lifecycle",
+  "doc": "Per shared.asyncapi.yaml lines 114-127 (D36). Fired the instant any agent begins execution (post Model-Armor input scan).",
+  "fields": [
+    { "name": "agentId",     "type": "string" },
+    { "name": "tenantId",    "type": "string" },
+    { "name": "traceId",     "type": "string" },
+    { "name": "invokedAt",   "type": "string", "doc": "ISO-8601 date-time." },
+    { "name": "invokedBy",   "type": ["null", "string"], "default": null },
+    { "name": "inputDigest", "type": ["null", "string"], "default": null, "doc": "SHA-256 of canonicalized input (replay key)." }
+  ]
+}

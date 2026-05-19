@@ -1,0 +1,274 @@
+{
+  "eval_set_id": "ss_customer_success_v0_1",
+  "name": "Customer Success agent — 8-case golden set (D34 locale spread)",
+  "description": "Phase 3 skeleton golden set per customer_success.spec.md §7. Eight cases across the four D34 locales covering the friction-signal taxonomy + the three task-brief escalation conditions (retention_risk=critical, insufficient_grounding_evidence, no_high_confidence_intervention). The 100-workspace golden snapshot (spec §7) lands in tests/golden/customer_success/*.json during Phase 4 once BigQuery analytics.funnel is wired.",
+  "criteria_overrides": {
+    "tool_trajectory_avg_score": 0.0,
+    "final_response_match_v2": 0.7
+  },
+  "metadata": {
+    "agent_id": "customer_success",
+    "spec": "gcp-research/specs/tier1/customer_success.spec.md",
+    "decisions": ["D5", "D11", "D12", "D17", "D23", "D26", "D32", "D34"],
+    "pricing_ref": "gcp-research/pricing/MODEL.md §9 (Drucker CS framework)",
+    "locales_covered": ["en", "en", "en", "ko", "ko", "ja", "ja", "zh-CN"],
+    "thresholds": {
+      "activation_lift": 0.10,
+      "precision_of_high_priority_interventions": 0.75,
+      "signal_precision": 0.80
+    }
+  },
+  "eval_cases": [
+    {
+      "eval_id": "cs_en_01_first_campaign_stalled",
+      "metadata": {
+        "locale": "en",
+        "expected_retention_risk": "medium",
+        "expected_signals": ["first_campaign_stalled", "outreach_unanswered_30d", "high_invocation_no_completion"],
+        "should_escalate": false,
+        "note": "Canonical first-time operator with 0/2 completion, 12 invocations — agent proposes csm_outreach (high) + feature_demo (medium)."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_test000000000001\",\"lifecycleEvents\":[{\"event_type\":\"intake.completed\",\"timestamp\":\"2026-04-21T12:00:00+00:00\",\"properties\":{\"workspace_id\":\"ws_a\"}},{\"event_type\":\"campaign.created\",\"timestamp\":\"2026-04-24T12:00:00+00:00\",\"properties\":{\"campaign_id\":\"cmp_001\"}},{\"event_type\":\"campaign.outreach_sent\",\"timestamp\":\"2026-04-25T12:00:00+00:00\",\"properties\":{\"campaign_id\":\"cmp_001\"}}],\"usageMetrics\":{\"campaigns_started\":2,\"campaigns_finished\":0,\"agent_invocations\":12,\"approvals_actioned\":1,\"dollars_spent\":85.5},\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"health_score\":0.35,\"friction_signals\":[\"first_campaign_stalled\",\"outreach_unanswered_30d\",\"high_invocation_no_completion\"],\"proposed_interventions\":[{\"kind\":\"csm_outreach\",\"channel\":\"phone\",\"message_template\":\"Hi {{first_name}}, your first campaign has been open 25 days without a reply — can I walk you through template adjustments next week?\",\"expected_lift_pct\":42.0,\"priority\":\"high\"},{\"kind\":\"feature_demo\",\"channel\":\"email\",\"message_template\":\"Hi {{first_name}}, here's a 4-minute walkthrough of how other operators tightened their outreach templates after a slow start.\",\"expected_lift_pct\":22.0,\"priority\":\"medium\"}],\"retention_risk\":\"medium\",\"grounding_evidence\":[\"usage_metrics.completion_ratio=0.0 (0 of 2 started)\",\"usage_metrics.invocations_per_finished=12.0\",\"event[2]: campaign.outreach_sent 25 days ago with no reply_received in window\"]}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "cs_en_02_healthy_power_user",
+      "metadata": {
+        "locale": "en",
+        "expected_retention_risk": "low",
+        "expected_signals": [],
+        "should_escalate": false,
+        "note": "Power user — 7/8 completion, $4.2K spend. Single low-priority QBR nudge. No friction, no high-priority intervention."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_test000000000002\",\"lifecycleEvents\":[{\"event_type\":\"campaign.completed\",\"timestamp\":\"2026-05-16T12:00:00+00:00\",\"properties\":{\"campaign_id\":\"cmp_007\"}},{\"event_type\":\"campaign.verified\",\"timestamp\":\"2026-05-17T12:00:00+00:00\",\"properties\":{\"campaign_id\":\"cmp_007\"}}],\"usageMetrics\":{\"campaigns_started\":8,\"campaigns_finished\":7,\"agent_invocations\":42,\"approvals_actioned\":30,\"dollars_spent\":4200.0},\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"health_score\":0.92,\"friction_signals\":[],\"proposed_interventions\":[{\"kind\":\"email_followup\",\"channel\":\"email\",\"message_template\":\"Hi {{first_name}}, you've completed 7 campaigns this month — want a quarterly business review?\",\"expected_lift_pct\":18.0,\"priority\":\"low\"}],\"retention_risk\":\"low\",\"grounding_evidence\":[\"usage_metrics.completion_ratio=0.875 (7 of 8 started)\",\"usage_metrics.dollars_spent=$4200.00\",\"usage_metrics.approvals_actioned=30 (operator engaged with HITL)\"]}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "cs_en_03_critical_churn_should_escalate",
+      "metadata": {
+        "locale": "en",
+        "expected_retention_risk": "critical",
+        "expected_signals": ["intake_abandoned", "feature_unused_45d", "low_engagement_overall", "no_approvals_actioned"],
+        "should_escalate": true,
+        "escalation_reason": "retention_risk_critical",
+        "note": "Tenant signed up, abandoned intake, no activity for 45+ days. Agent emits retention_risk=critical → runtime returns Escalation."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_test000000000003\",\"lifecycleEvents\":[{\"event_type\":\"intake.started\",\"timestamp\":\"2026-04-01T12:00:00+00:00\",\"properties\":{\"workspace_id\":\"ws_c\"}},{\"event_type\":\"intake.abandoned\",\"timestamp\":\"2026-04-02T12:00:00+00:00\",\"properties\":{\"workspace_id\":\"ws_c\"}}],\"usageMetrics\":{\"campaigns_started\":0,\"campaigns_finished\":0,\"agent_invocations\":0,\"approvals_actioned\":0,\"dollars_spent\":0.0},\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"health_score\":0.05,\"friction_signals\":[\"intake_abandoned\",\"feature_unused_45d\",\"low_engagement_overall\",\"no_approvals_actioned\"],\"proposed_interventions\":[{\"kind\":\"csm_outreach\",\"channel\":\"phone\",\"message_template\":\"Hi {{first_name}}, we noticed you started signing up but didn't finish — would 15 minutes help unblock you?\",\"expected_lift_pct\":35.0,\"priority\":\"high\"}],\"retention_risk\":\"critical\",\"grounding_evidence\":[\"event[1]: intake.abandoned 47 days ago\",\"usage_metrics.campaigns_started=0\",\"usage_metrics.agent_invocations=0 (no feature engagement in window)\",\"usage_metrics.approvals_actioned=0\"]}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "cs_ko_01_budget_unused_korean",
+      "metadata": {
+        "locale": "ko",
+        "expected_retention_risk": "medium",
+        "expected_signals": ["budget_unused", "low_response_rate"],
+        "should_escalate": false,
+        "note": "Korean operator with low-spend campaign. Korean message_template required."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_test000000000004\",\"lifecycleEvents\":[{\"event_type\":\"campaign.outreach_sent\",\"timestamp\":\"2026-05-01T12:00:00+00:00\",\"properties\":{\"campaign_id\":\"cmp_kr_001\"}},{\"event_type\":\"campaign.reply_received\",\"timestamp\":\"2026-05-02T12:00:00+00:00\",\"properties\":{\"campaign_id\":\"cmp_kr_001\"}}],\"usageMetrics\":{\"campaigns_started\":1,\"campaigns_finished\":0,\"agent_invocations\":6,\"approvals_actioned\":2,\"dollars_spent\":18.0},\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"health_score\":0.55,\"friction_signals\":[\"budget_unused\",\"low_response_rate\"],\"proposed_interventions\":[{\"kind\":\"in_app_nudge\",\"channel\":\"in_app\",\"message_template\":\"안녕하세요 {{first_name}}, 현재 캠페인의 응답률이 낮습니다. '템플릿 새로고침' 마법사를 시도해보세요.\",\"expected_lift_pct\":18.0,\"priority\":\"medium\"},{\"kind\":\"feature_demo\",\"channel\":\"email\",\"message_template\":\"안녕하세요 {{first_name}}, 다른 운영자들이 응답률을 높인 4분 분량의 워크스루를 준비했습니다.\",\"expected_lift_pct\":12.0,\"priority\":\"low\"}],\"retention_risk\":\"medium\",\"grounding_evidence\":[\"usage_metrics.dollars_spent=$18.00 (30일 누적, 활성 플랜 대비 낮음)\",\"event[0..1]: outreach_sent → reply_received 비율 50% (N=1, 통계적 유의성 부족)\",\"usage_metrics.campaigns_started=1\"]}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "cs_ko_02_insufficient_grounding_escalation",
+      "metadata": {
+        "locale": "ko",
+        "expected_retention_risk": "medium",
+        "expected_signals": ["low_engagement_overall"],
+        "should_escalate": true,
+        "escalation_reason": "insufficient_grounding_evidence",
+        "note": "Agent confidently emits signals but only 2 grounding evidence items — runtime escalates per task-brief guard #2."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_test000000000005\",\"lifecycleEvents\":[{\"event_type\":\"agent.invoked\",\"timestamp\":\"2026-05-10T12:00:00+00:00\",\"properties\":{\"workspace_id\":\"ws_e\"}}],\"usageMetrics\":{\"campaigns_started\":0,\"campaigns_finished\":0,\"agent_invocations\":1,\"approvals_actioned\":0,\"dollars_spent\":0.0},\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"health_score\":0.4,\"friction_signals\":[\"low_engagement_overall\"],\"proposed_interventions\":[{\"kind\":\"email_followup\",\"channel\":\"email\",\"message_template\":\"안녕하세요 {{first_name}}, 캠페인 시작을 도와드릴까요? 5분 가이드를 보내드립니다.\",\"expected_lift_pct\":15.0,\"priority\":\"medium\"}],\"retention_risk\":\"medium\",\"grounding_evidence\":[\"usage_metrics.campaigns_started=0\",\"usage_metrics.agent_invocations=1\"]}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "cs_ja_01_verified_below_target",
+      "metadata": {
+        "locale": "ja",
+        "expected_retention_risk": "medium",
+        "expected_signals": ["verified_below_target", "high_invocation_no_completion"],
+        "should_escalate": false,
+        "note": "Japanese operator — campaigns complete but verified counts are well under target. Japanese message_template required."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_test000000000006\",\"lifecycleEvents\":[{\"event_type\":\"campaign.completed\",\"timestamp\":\"2026-05-12T12:00:00+00:00\",\"properties\":{\"campaign_id\":\"cmp_jp_001\",\"target\":15,\"verified\":3}},{\"event_type\":\"campaign.verified\",\"timestamp\":\"2026-05-13T12:00:00+00:00\",\"properties\":{\"campaign_id\":\"cmp_jp_001\"}}],\"usageMetrics\":{\"campaigns_started\":3,\"campaigns_finished\":3,\"agent_invocations\":85,\"approvals_actioned\":12,\"dollars_spent\":680.0},\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"health_score\":0.5,\"friction_signals\":[\"verified_below_target\",\"high_invocation_no_completion\"],\"proposed_interventions\":[{\"kind\":\"feature_demo\",\"channel\":\"email\",\"message_template\":\"{{first_name}}様、検証率を改善するためのターゲティング設定の見直しについて、4分間の動画をご用意しました。\",\"expected_lift_pct\":24.0,\"priority\":\"high\"},{\"kind\":\"csm_outreach\",\"channel\":\"phone\",\"message_template\":\"{{first_name}}様、検証目標との乖離について、30分のオペレーションレビューを設定しませんか?\",\"expected_lift_pct\":18.0,\"priority\":\"medium\"}],\"retention_risk\":\"medium\",\"grounding_evidence\":[\"event[0].properties: target=15, verified=3 (20% of target)\",\"usage_metrics.invocations_per_finished=28.3 (高い)\",\"usage_metrics.dollars_spent=$680.00 over 3 finished campaigns\"]}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "cs_ja_02_no_high_confidence_escalation",
+      "metadata": {
+        "locale": "ja",
+        "expected_retention_risk": "low",
+        "expected_signals": ["feature_unused_45d"],
+        "should_escalate": true,
+        "escalation_reason": "no_high_confidence_intervention",
+        "note": "Agent emits 2 candidates both <5% lift — runtime escalates per task-brief guard #3."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_test000000000007\",\"lifecycleEvents\":[{\"event_type\":\"campaign.completed\",\"timestamp\":\"2026-04-05T12:00:00+00:00\",\"properties\":{\"campaign_id\":\"cmp_jp_002\"}}],\"usageMetrics\":{\"campaigns_started\":1,\"campaigns_finished\":1,\"agent_invocations\":2,\"approvals_actioned\":1,\"dollars_spent\":120.0},\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"health_score\":0.65,\"friction_signals\":[\"feature_unused_45d\"],\"proposed_interventions\":[{\"kind\":\"in_app_nudge\",\"channel\":\"in_app\",\"message_template\":\"{{first_name}}様、新機能のレポート機能をお試しください。\",\"expected_lift_pct\":3.5,\"priority\":\"low\"},{\"kind\":\"email_followup\",\"channel\":\"email\",\"message_template\":\"{{first_name}}様、最近のアップデートをご確認ください。\",\"expected_lift_pct\":4.0,\"priority\":\"low\"}],\"retention_risk\":\"low\",\"grounding_evidence\":[\"event[0]: campaign.completed 44 days ago, no activity since\",\"usage_metrics.agent_invocations=2 (across 1 feature surface only)\",\"usage_metrics.dollars_spent=$120.00\"]}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "cs_zh_01_chinese_locale_pure",
+      "metadata": {
+        "locale": "zh-CN",
+        "expected_retention_risk": "medium",
+        "expected_signals": ["first_campaign_stalled"],
+        "should_escalate": false,
+        "note": "Simplified-Chinese operator. message_template must be in 简体中文."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"tenantId\":\"t_test000000000008\",\"lifecycleEvents\":[{\"event_type\":\"intake.completed\",\"timestamp\":\"2026-04-15T12:00:00+00:00\",\"properties\":{\"workspace_id\":\"ws_h\"}},{\"event_type\":\"campaign.created\",\"timestamp\":\"2026-04-18T12:00:00+00:00\",\"properties\":{\"campaign_id\":\"cmp_cn_001\"}},{\"event_type\":\"campaign.outreach_sent\",\"timestamp\":\"2026-04-19T12:00:00+00:00\",\"properties\":{\"campaign_id\":\"cmp_cn_001\"}}],\"usageMetrics\":{\"campaigns_started\":1,\"campaigns_finished\":0,\"agent_invocations\":4,\"approvals_actioned\":2,\"dollars_spent\":210.0},\"locale\":\"zh-CN\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"health_score\":0.45,\"friction_signals\":[\"first_campaign_stalled\"],\"proposed_interventions\":[{\"kind\":\"csm_outreach\",\"channel\":\"phone\",\"message_template\":\"{{first_name}}您好,您的首个活动已开放30天但尚未完成 — 我们可以安排15分钟的电话来排查吗?\",\"expected_lift_pct\":38.0,\"priority\":\"high\"},{\"kind\":\"feature_demo\",\"channel\":\"email\",\"message_template\":\"{{first_name}}您好,这是其他运营者优化外联模板的4分钟教程。\",\"expected_lift_pct\":20.0,\"priority\":\"medium\"}],\"retention_risk\":\"medium\",\"grounding_evidence\":[\"usage_metrics.completion_ratio=0.0 (0 of 1 started)\",\"event[2]: campaign.outreach_sent 30 days ago without completion\",\"usage_metrics.dollars_spent=$210.00 (campaign active but stalled)\"]}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    }
+  ]
+}

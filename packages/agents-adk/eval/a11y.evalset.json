@@ -1,0 +1,284 @@
+{
+  "eval_set_id": "ss_a11y_v0_1",
+  "name": "A11y agent — 8-case golden set (D34 locale spread + multimodal asset mix)",
+  "description": "Phase 3 golden set per a11y.spec.md §7. Mix of image / video / audio assets across the 4 D34 locales, covering happy paths (alt-text + caption + transcript) and the spec's escalation conditions (audio_no_transcription / unsupported_locale / asset_too_large / language_mismatch / prompt_injection_attempt). Full 60-asset × 4-locale set lands at tests/golden/a11y/{image,video,audio}.json during Phase 3 calibration.",
+  "criteria_overrides": {
+    "tool_trajectory_avg_score": 0.0,
+    "a11y_compliance_score": 0.95,
+    "caption_wer": 0.10,
+    "translation_bleu": 0.45,
+    "vtt_validity": 1.0,
+    "escalation_recall": 0.95
+  },
+  "metadata": {
+    "agent_id": "a11y",
+    "spec": "gcp-research/specs/tier1/a11y.spec.md",
+    "decisions": ["D5", "D17", "D22", "D23", "D26", "D29", "D33", "D34"],
+    "locales_covered": ["en", "en", "en", "ko", "ko", "ja", "ja", "zh-CN"],
+    "asset_kinds_covered": ["image", "video", "audio"],
+    "audiences_covered": ["general", "screen_reader", "low_vision", "deaf_hh"],
+    "model": "gemini-2.5-flash",
+    "max_usd_per_run": 0.02
+  },
+  "eval_cases": [
+    {
+      "eval_id": "a11y_en_01_image_general",
+      "metadata": {
+        "locale": "en",
+        "audience": "general",
+        "asset_kind": "image",
+        "expected_status": "produced",
+        "should_escalate": false,
+        "note": "Single image, general audience. Alt-text + caption required; no transcript. Compliance score should be 1.0."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"content\":{\"imageUrls\":[\"gs://ss-v2-media/demo/skincare-routine-en-001.jpg\"],\"sourceCaption\":\"Morning skincare routine featuring Freshly Vitamin C Serum\",\"sourceLocale\":\"en\"},\"locale\":\"en\",\"audience\":\"general\",\"assetKind\":\"image\",\"assetSizeMb\":0.4}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"produced\",\"altTexts\":[\"A woman in her late twenties applies Freshly Vitamin C Serum at a sunlit bathroom counter; the amber dropper bottle sits beside a folded white towel and a sprig of eucalyptus.\"],\"captions\":{\"text\":\"Morning skincare routine featuring Freshly Vitamin C Serum.\",\"locale\":\"en\",\"timingMarksSec\":[]},\"transcript\":{\"fullText\":\"\",\"timingMarks\":[]},\"wcagCompliance\":{\"ariaLabelsSuggested\":[\"product photo of vitamin C serum dropper bottle\"],\"focusOrderIssues\":[],\"contrastWarnings\":[]},\"locale\":\"en\",\"complianceScore\":1.0}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "a11y_en_02_video_deaf_hh",
+      "metadata": {
+        "locale": "en",
+        "audience": "deaf_hh",
+        "asset_kind": "video",
+        "expected_status": "produced",
+        "should_escalate": false,
+        "note": "Video with audio track. Deaf/HH audience requires transcript + captionCues + non-verbal sound markers."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"content\":{\"videoUrl\":\"gs://ss-v2-media/demo/tutorial-en-001.mp4\",\"audioUrl\":\"gs://ss-v2-media/demo/tutorial-en-001-audio.wav\",\"sourceCaption\":\"Day 30 honest review of Freshly Vitamin C Serum\",\"sourceLocale\":\"en\"},\"locale\":\"en\",\"audience\":\"deaf_hh\",\"assetKind\":\"video\",\"assetSizeMb\":38.5}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"produced\",\"altTexts\":[],\"captions\":{\"text\":\"Day 30 review of Freshly Vitamin C Serum — visible brightening before and after.\",\"locale\":\"en\",\"timingMarksSec\":[0.0,4.2,9.8,15.3,22.1]},\"transcript\":{\"fullText\":\"[upbeat music] Hi everyone, I've been using Freshly Vitamin C Serum for thirty days. Here's the before, and here's the after. [music swells] Honestly, the brightening effect is real but subtle — give it at least three weeks before you judge.\",\"timingMarks\":[0.0,1.5,2.1,2.7,3.4,4.0,4.6,5.3,6.1,6.9,7.6,8.4,9.2,10.0,11.1,12.0,13.0,14.2,15.3,16.4,17.6,18.5,19.4],\"speakerLabels\":[\"S1\",\"S1\",\"S1\",\"S1\",\"S1\",\"S1\",\"S1\",\"S1\",\"S1\",\"S1\",\"S1\",\"S1\",\"S1\",\"S1\",\"S1\",\"S1\",\"S1\",\"S1\",\"S1\",\"S1\",\"S1\",\"S1\",\"S1\"]},\"wcagCompliance\":{\"ariaLabelsSuggested\":[\"video player: 30-day Vitamin C Serum review\"],\"focusOrderIssues\":[],\"contrastWarnings\":[]},\"locale\":\"en\",\"complianceScore\":1.0}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "a11y_en_03_oversize_video_escalates",
+      "metadata": {
+        "locale": "en",
+        "audience": "general",
+        "asset_kind": "video",
+        "expected_status": "escalate",
+        "expected_reason": "asset_too_large",
+        "should_escalate": true,
+        "note": "Video > 100MB triggers batch-mode escalation per a11y.spec.md §6."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"content\":{\"videoUrl\":\"gs://ss-v2-media/demo/longform-en-001.mp4\",\"sourceCaption\":\"Extended product walkthrough — 4K, 12 minutes\",\"sourceLocale\":\"en\"},\"locale\":\"en\",\"audience\":\"general\",\"assetKind\":\"video\",\"assetSizeMb\":248.0}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"escalate\",\"reason\":\"asset_too_large\",\"detail\":\"Video asset is 248 MB which exceeds the 100 MB synchronous-invocation limit; the caller must use the background batch endpoint.\",\"parsedPartial\":{\"asset_kind\":\"video\",\"size_mb\":\"248.0\"}}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "a11y_ko_01_image_screen_reader",
+      "metadata": {
+        "locale": "ko",
+        "audience": "screen_reader",
+        "asset_kind": "image",
+        "expected_status": "produced",
+        "should_escalate": false,
+        "note": "Korean image, screen-reader audience. Alt-text must be ≤125 chars per WCAG SC 1.1.1 and not start with '이미지' / '사진'."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"content\":{\"imageUrls\":[\"gs://ss-v2-media/demo/skincare-ko-002.jpg\"],\"sourceCaption\":\"Freshly 비타민C 세럼 30일 사용 후기 #스킨케어 #비타민C\",\"sourceLocale\":\"ko\"},\"locale\":\"ko\",\"audience\":\"screen_reader\",\"assetKind\":\"image\",\"assetSizeMb\":0.6}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"produced\",\"altTexts\":[\"여성이 욕실 거울 앞에서 호박색 드롭퍼 보틀의 비타민C 세럼을 손등에 도포하고 있는 셀카, 자연광 조명.\"],\"captions\":{\"text\":\"비타민C 세럼 30일 사용 후기 — 자연광 셀카.\",\"locale\":\"ko\",\"timingMarksSec\":[]},\"transcript\":{\"fullText\":\"\",\"timingMarks\":[]},\"wcagCompliance\":{\"ariaLabelsSuggested\":[\"비타민C 세럼 제품 사진\"],\"focusOrderIssues\":[],\"contrastWarnings\":[]},\"locale\":\"ko\",\"complianceScore\":1.0}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "a11y_ko_02_audio_low_vision_language_mismatch",
+      "metadata": {
+        "locale": "ko",
+        "audience": "low_vision",
+        "asset_kind": "audio",
+        "expected_status": "escalate",
+        "expected_reason": "language_mismatch",
+        "should_escalate": true,
+        "note": "Audio source is Japanese but target locale is Korean; Translation API is out of scope for this invocation → escalate."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"content\":{\"audioUrl\":\"gs://ss-v2-media/demo/podcast-ja-clip-002.wav\",\"sourceCaption\":\"日本語のスキンケアレビュー\",\"sourceLocale\":\"ja\"},\"locale\":\"ko\",\"audience\":\"low_vision\",\"assetKind\":\"audio\",\"assetSizeMb\":12.4}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"escalate\",\"reason\":\"language_mismatch\",\"detail\":\"오디오 소스가 일본어인데 대상 로케일은 한국어이며, 이 호출에서 번역 도구를 사용할 수 없습니다.\",\"parsedPartial\":{\"source_locale\":\"ja\",\"target_locale\":\"ko\"}}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "a11y_ja_01_video_general",
+      "metadata": {
+        "locale": "ja",
+        "audience": "general",
+        "asset_kind": "video",
+        "expected_status": "produced",
+        "should_escalate": false,
+        "note": "Japanese video with audio. Full bundle (caption + transcript + cues) required. Tests JP transcript timing fidelity."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"content\":{\"videoUrl\":\"gs://ss-v2-media/demo/tutorial-ja-001.mp4\",\"audioUrl\":\"gs://ss-v2-media/demo/tutorial-ja-001-audio.wav\",\"sourceCaption\":\"フレッシュリー ビタミンC美容液 30日レビュー\",\"sourceLocale\":\"ja\"},\"locale\":\"ja\",\"audience\":\"general\",\"assetKind\":\"video\",\"assetSizeMb\":54.0}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"produced\",\"altTexts\":[],\"captions\":{\"text\":\"フレッシュリー ビタミンC美容液 30日レビュー — ビフォーアフター比較。\",\"locale\":\"ja\",\"timingMarksSec\":[0.0,5.1,11.4,17.8]},\"transcript\":{\"fullText\":\"こんにちは、皆さん。今日はフレッシュリーのビタミンC美容液を三十日間使った正直なレビューをお届けします。肌のトーンが明るくなりましたが、効果が出るまでに最低三週間はかかりました。\",\"timingMarks\":[0.0,0.6,1.4,2.2,3.0,3.9,4.7,5.5,6.4,7.3,8.2,9.1,10.0,10.9,11.8,12.7,13.6,14.5,15.4,16.3,17.2,18.1,19.0],\"speakerLabels\":null},\"wcagCompliance\":{\"ariaLabelsSuggested\":[\"ビデオプレーヤー: ビタミンC美容液 30日レビュー\"],\"focusOrderIssues\":[],\"contrastWarnings\":[\"5秒〜8秒の白テキストが明るい背景に重なり、コントラスト比 3.2:1 (WCAG AA: 4.5:1 必要)\"]},\"locale\":\"ja\",\"complianceScore\":1.0}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "a11y_ja_02_audio_no_stt",
+      "metadata": {
+        "locale": "ja",
+        "audience": "deaf_hh",
+        "asset_kind": "audio",
+        "expected_status": "escalate",
+        "expected_reason": "audio_no_transcription",
+        "should_escalate": true,
+        "note": "Audio-only input but Whisper/STT capability is out of scope for this invocation → escalate per task brief."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"content\":{\"audioUrl\":\"gs://ss-v2-media/demo/podcast-ja-001.wav\",\"sourceCaption\":\"音声のみのコンテンツ\",\"sourceLocale\":\"ja\"},\"locale\":\"ja\",\"audience\":\"deaf_hh\",\"assetKind\":\"audio\",\"assetSizeMb\":8.2}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"escalate\",\"reason\":\"audio_no_transcription\",\"detail\":\"音声アセットが提供されましたが、この呼び出しでは Whisper/STT 機能が利用できません。文字起こしを生成するには、Phase 4 の stt.transcribe ツールが必要です。\",\"parsedPartial\":{\"asset_kind\":\"audio\",\"source_locale\":\"ja\"}}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "a11y_zh_01_image_low_vision",
+      "metadata": {
+        "locale": "zh-CN",
+        "audience": "low_vision",
+        "asset_kind": "image",
+        "expected_status": "produced",
+        "should_escalate": false,
+        "note": "Chinese image, low-vision audience. Must emit contrast_warnings and ariaLabelsSuggested for any visible controls."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"content\":{\"imageUrls\":[\"gs://ss-v2-media/demo/skincare-zh-001.jpg\"],\"sourceCaption\":\"Freshly 维C精华液 30天使用体验 #护肤 #维生素C\",\"sourceLocale\":\"zh-CN\"},\"locale\":\"zh-CN\",\"audience\":\"low_vision\",\"assetKind\":\"image\",\"assetSizeMb\":0.7}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"result\":{\"status\":\"produced\",\"altTexts\":[\"一位女性在自然光下的浴室内,手持 Freshly 维C精华液琥珀色滴管瓶,在脸颊涂抹精华液;背景为白色瓷砖,左下角有 'BEFORE / AFTER' 文字叠加。\"],\"captions\":{\"text\":\"Freshly 维C精华液 30天使用体验 — 前后对比照片。\",\"locale\":\"zh-CN\",\"timingMarksSec\":[]},\"transcript\":{\"fullText\":\"\",\"timingMarks\":[]},\"wcagCompliance\":{\"ariaLabelsSuggested\":[\"维C精华液产品照片\",\"前后对比图\"],\"focusOrderIssues\":[],\"contrastWarnings\":[\"图像左下角 'BEFORE / AFTER' 白色文字叠加在浅米色背景上,对比度约 2.8:1,低于 WCAG AA 要求的 4.5:1\"]},\"locale\":\"zh-CN\",\"complianceScore\":1.0}}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    }
+  ]
+}

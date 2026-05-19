@@ -1,0 +1,10 @@
+%% Beat 2 — ADK orchestration agent  (SCRIPT.md §4 Beat 2)
+flowchart LR
+  user[user prompt:<br/>"5 Korean skincare<br/>creators"] --> orch[ADK orchestrator<br/>Gemini 2.5 Flash]:::active
+  orch --> t1[search_users]:::active
+  t1 --> t2[user_info]:::active
+  t2 --> t3[user_posts]:::active
+  t3 --> t4[post_detail]:::active
+  t4 --> summary[summary<br/>w/ MCP-call citations]
+
+  classDef active fill:#FFD400,stroke:#F9AB00,color:#000,stroke-width:3px;

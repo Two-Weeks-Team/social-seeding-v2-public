@@ -1,0 +1,10 @@
+%% Beat 2 — Vetting fan-out × 12  (SCRIPT.md §3 Beat 2)
+flowchart LR
+  shortlist[40 candidates] --> fanout{Cloud Workflows<br/>fan-out × 12}
+  fanout --> v1[vetting #1]:::active
+  fanout --> v2[vetting #2]:::active
+  fanout --> vN[vetting #12]:::active
+  v1 & v2 & vN --> critic[critic M2]:::active
+  critic --> approved[5 approved · 7 escalated]
+
+  classDef active fill:#FFD400,stroke:#F9AB00,color:#000,stroke-width:3px;

@@ -1,0 +1,171 @@
+{
+  "_meta": {
+    "purpose": "OBS Studio scene collection for Track 2 (social-seeding-v2) recording.",
+    "authority": "implements gcp-research/demo/SCRIPT.md §2.1 (three-scene layout) and §3 (6-beat storyboard: brief intake -> vetting fan-out -> outreach tournament + approval -> Gmail send + reply -> logistics + verify -> analyst + cost ledger).",
+    "rationale": "Three named scenes cover every beat. Scene A is the full Mission Control workspace used for the wide reasoning shots. Scene B narrows to the relevant pane when the workflow zooms (e.g. the cost ledger card during Beat 3). Scene C splits browser + terminal side-by-side for the Beat 1 trigger and the Beat 6 cost ledger drilldown.",
+    "version": "1.0",
+    "import_target": "OBS Studio Scene Collection (Scene Collection > Import)",
+    "obs_min_version": "30.0"
+  },
+
+  "current_scene": "Mission Control - full",
+  "current_program_scene": "Mission Control - full",
+
+  "scene_order": [
+    {"name": "Mission Control - full"},
+    {"name": "Mission Control - zoom"},
+    {"name": "Terminal + browser split"}
+  ],
+
+  "name": "social-seeding-v2-track2",
+
+  "sources": [
+    {
+      "name": "Display Capture - Primary",
+      "id": "display_capture",
+      "versioned_id": "display_capture",
+      "settings": {
+        "display": 0,
+        "show_cursor": true,
+        "crop_mode": 0,
+        "monitor_id": "auto"
+      }
+    },
+    {
+      "name": "Window Capture - Mission Control",
+      "id": "window_capture",
+      "versioned_id": "window_capture",
+      "settings": {
+        "owner_name": "Google Chrome",
+        "window_name_pattern": "Mission Control",
+        "method": 2,
+        "show_cursor": true,
+        "show_shadow": false,
+        "cursor_color": "auto"
+      }
+    },
+    {
+      "name": "Window Capture - Terminal",
+      "id": "window_capture",
+      "versioned_id": "window_capture",
+      "settings": {
+        "owner_name": "iTerm2",
+        "window_name_pattern": "*",
+        "method": 2,
+        "show_cursor": true
+      }
+    },
+    {
+      "name": "Audio Input - Microphone",
+      "id": "coreaudio_input_capture",
+      "versioned_id": "coreaudio_input_capture",
+      "settings": {
+        "device_id": "default"
+      },
+      "filters": [
+        {
+          "name": "Noise Suppression",
+          "id": "noise_suppress_filter_v2",
+          "settings": {"method": "rnnoise"}
+        },
+        {
+          "name": "Compressor",
+          "id": "compressor_filter",
+          "settings": {"ratio": 4.0, "threshold": -18.0, "attack_time": 6, "release_time": 60, "output_gain": 0.0}
+        },
+        {
+          "name": "Limiter",
+          "id": "limiter_filter",
+          "settings": {"threshold": -3.0, "release_time": 60}
+        }
+      ]
+    },
+    {
+      "name": "Audio Output - Desktop",
+      "id": "coreaudio_output_capture",
+      "versioned_id": "coreaudio_output_capture",
+      "settings": {
+        "device_id": "default"
+      },
+      "_note": "captured for system-beep and Gmail-arrival ping moments during Beat 4; otherwise muted in mixer"
+    }
+  ],
+
+  "scenes": [
+    {
+      "name": "Mission Control - full",
+      "_purpose": "Default scene used for Beats 2, 3, 5, 6 of Track 2. Full Mission Control workspace at 1080p, no overlay.",
+      "items": [
+        {
+          "source": "Display Capture - Primary",
+          "pos": {"x": 0, "y": 0},
+          "scale": {"x": 1.0, "y": 1.0},
+          "bounds_type": 0,
+          "bounds": {"x": 1920, "y": 1080},
+          "visible": true,
+          "locked": true
+        }
+      ]
+    },
+    {
+      "name": "Mission Control - zoom",
+      "_purpose": "Used when the demo narrows to a single Mission Control pane (e.g. the cost ledger card in Beat 6). Captures the foreground Chrome Mission Control window directly so the address bar + tabs do not leak in.",
+      "items": [
+        {
+          "source": "Window Capture - Mission Control",
+          "pos": {"x": 0, "y": 0},
+          "scale": {"x": 1.0, "y": 1.0},
+          "bounds_type": 2,
+          "bounds": {"x": 1920, "y": 1080},
+          "visible": true,
+          "locked": true
+        }
+      ]
+    },
+    {
+      "name": "Terminal + browser split",
+      "_purpose": "Used in Beat 1 (operator runs scripts/run-demo.ts in terminal; Mission Control reacts on the right) and Beat 4 (terminal showing Inngest dashboard CLI on the left; Gmail Sent folder on the right). Source order matters: terminal goes first because it is the trigger.",
+      "items": [
+        {
+          "source": "Window Capture - Terminal",
+          "pos": {"x": 0, "y": 0},
+          "scale": {"x": 1.0, "y": 1.0},
+          "bounds_type": 2,
+          "bounds": {"x": 960, "y": 1080},
+          "visible": true,
+          "locked": false
+        },
+        {
+          "source": "Window Capture - Mission Control",
+          "pos": {"x": 960, "y": 0},
+          "scale": {"x": 1.0, "y": 1.0},
+          "bounds_type": 2,
+          "bounds": {"x": 960, "y": 1080},
+          "visible": true,
+          "locked": false
+        }
+      ]
+    }
+  ],
+
+  "_beat_to_scene_map": {
+    "_doc": "Operator follows this map during recording. SCRIPT.md §3 beats map to OBS scene hotkeys 1/2/3 (Cmd+1, Cmd+2, Cmd+3).",
+    "Beat 1 - brief intake + sourcing": "Terminal + browser split",
+    "Beat 2 - vetting fan-out": "Mission Control - full",
+    "Beat 3 - outreach tournament + approval": "Mission Control - zoom",
+    "Beat 4 - Gmail send + reply": "Terminal + browser split",
+    "Beat 5 - logistics + verify": "Mission Control - full",
+    "Beat 6 - analyst report + cost ledger": "Mission Control - zoom"
+  },
+
+  "_install_note": "OBS Studio > Scene Collection > Import > select this file. After import, edit each window-capture source to point at the actual Chrome window (Mission Control) and iTerm2 session — these are host-specific window IDs that cannot be hard-coded across operators.",
+
+  "_pre_record_validation": [
+    "Cmd+1 switches to Mission Control - full (verify with the live preview)",
+    "Cmd+2 switches to Mission Control - zoom (verify Chrome window is selected)",
+    "Cmd+3 switches to Terminal + browser split (verify both sources visible at 50/50)",
+    "Audio mixer shows mic at -12 dBFS during a 30 s test narration",
+    "Desktop audio peaks below -20 dBFS unless a Gmail arrival ping plays (intentional)",
+    "Cursor highlight overlay is visible in every scene (separate Lua plugin, see cursor-highlight.lua)"
+  ]
+}

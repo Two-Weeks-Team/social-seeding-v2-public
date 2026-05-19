@@ -1,0 +1,293 @@
+################################################################################
+# Patch: add Identity Platform OAuth route module to tiktok-mcp-server.
+#
+# Source:  REFACTOR-MCP.md §4.5
+# Target:  ~/Documents/GitHub/social-seeding-platform/microservices/tiktok-mcp-server
+#
+# Apply (after PR review):
+#   cd ~/Documents/GitHub/social-seeding-platform/microservices/tiktok-mcp-server
+#   git apply --3way \
+#     ~/Documents/GitHub/social-seeding-v2/gcp-research/refactor-mcp/code/ts-patches/identity-platform.ts.patch
+#
+# Pairs with `transport-streamable.ts.patch` (the 1-line swap at line 59).
+#
+# Migration plan (REFACTOR-MCP §4.3 dual-write, T+7 cutover):
+#   * T+0  ─ Mount both registerOAuthRoutes + registerIdentityPlatformRoutes
+#            ("dual-live"). Existing SQLite tokens continue to work.
+#   * T+1  ─ README install snippets switch to Identity Platform.
+#   * T+7  ─ Stop issuing SQLite tokens. Delete the SQLite path entirely.
+#   * T+8  ─ Drop the oauth_* tables; usage_daily migrates to Firestore.
+#
+# Adds two new files (no in-place edits to existing files):
+#   src/auth/identity-platform.ts
+#   src/auth/firestore-usage.ts   (companion — per-uid quota store per §4.4)
+#
+# Required package.json edits are documented separately at the end of this
+# patch (cannot diff package-lock.json safely from the v2 repo).
+################################################################################
+diff --git a/src/auth/identity-platform.ts b/src/auth/identity-platform.ts
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/src/auth/identity-platform.ts
+@@ -0,0 +1,168 @@
++/**
++ * Identity Platform OAuth gateway — replaces the SQLite-backed OAuth 2.1
++ * server at `src/auth/oauth.ts`.
++ *
++ * Rationale (REFACTOR-MCP §4.1):
++ *   - In-container SQLite at /data/oauth.db is single-instance; Cloud Run
++ *     autoscale would create N independent OAuth states.
++ *   - Auto-approve /oauth/authorize ships no user identity → Marketplace
++ *     "Enterprise Standards" review blocks anonymous flows on agent listings.
++ *   - Custom DCR (POST /oauth/register) is superseded by Identity Platform's
++ *     OIDC OP — clients self-register against Identity Platform directly.
++ *
++ * What this module does:
++ *   1. Serves `/.well-known/oauth-protected-resource` pointing at the
++ *      Identity Platform tenant's OIDC issuer.
++ *   2. Verifies a Firebase ID token presented as `Authorization: Bearer ...`
++ *      on every /mcp call. Attaches `req.uid` for downstream use.
++ *   3. Surfaces a 401 with a RFC-6750-compliant `WWW-Authenticate` header on
++ *      any verification failure.
++ *
++ * What this module does NOT do:
++ *   - Mint tokens (Identity Platform is the OP; clients hit Google directly).
++ *   - Persist a session (Cloud Run multi-instance + stateless verifier).
++ *   - Per-tool quota tracking (lives in src/limits/usage-tracker.ts; the
++ *     companion Firestore patch moves the quota key from `(date, tool)` to
++ *     `(date, tool, uid)` so quotas survive autoscaling).
++ *
++ * Environment:
++ *   GOOGLE_APPLICATION_CREDENTIALS_JSON  — service-account JSON (preferred)
++ *   GOOGLE_APPLICATION_CREDENTIALS       — path to JSON (alternative)
++ *   GCP_PROJECT                          — Identity Platform project id
++ *   IDENTITY_PLATFORM_TENANT_ID          — tenant id (multi-tenant)
++ *   MCP_RESOURCE                         — base URL we declare as `resource`
++ */
++
++import type { Express, NextFunction, Request, Response } from "express";
++import { initializeApp, cert, getApps, type App } from "firebase-admin/app";
++import { getAuth, type DecodedIdToken } from "firebase-admin/auth";
++
++import { getConfig } from "../config/index.js";
++
++// Augment Express Request with the verified Identity Platform uid so the
++// withLimit() wrapper (src/server.ts:22-69) can move from global-keyed
++// quotas to per-uid quotas with no further plumbing changes.
++declare module "express-serve-static-core" {
++  interface Request {
++    uid?: string;
++    identity?: {
++      uid: string;
++      email?: string;
++      emailVerified?: boolean;
++      tenant?: string;
++    };
++  }
++}
++
++let _adminApp: App | null = null;
++
++function getAdminApp(): App {
++  if (_adminApp) return _adminApp;
++  if (getApps().length > 0) {
++    _adminApp = getApps()[0]!;
++    return _adminApp;
++  }
++
++  const jsonEnv = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
++  if (jsonEnv) {
++    try {
++      _adminApp = initializeApp({ credential: cert(JSON.parse(jsonEnv)) });
++      return _adminApp;
++    } catch (err) {
++      throw new Error(
++        `GOOGLE_APPLICATION_CREDENTIALS_JSON is not valid JSON: ${(err as Error).message}`,
++      );
++    }
++  }
++
++  // Falls back to GOOGLE_APPLICATION_CREDENTIALS file path or ADC (Cloud Run
++  // runtime service account). firebase-admin handles both transparently.
++  _adminApp = initializeApp();
++  return _adminApp;
++}
++
++/**
++ * Mount the Identity Platform routes + `/mcp` bearer middleware on the
++ * provided Express app. Designed to be drop-in compatible with
++ * `registerOAuthRoutes(app)` — same call site, same surface area.
++ */
++export function registerIdentityPlatformRoutes(app: Express): void {
++  const cfg = getConfig();
++  const project = process.env.GCP_PROJECT ?? "";
++  const tenant = process.env.IDENTITY_PLATFORM_TENANT_ID ?? "";
++
++  // ── Protected Resource Metadata ─────────────────────────────────────────
++  app.get("/.well-known/oauth-protected-resource", (_req, res) => {
++    const authServer = project && tenant
++      ? `https://identitytoolkit.googleapis.com/v1/projects/${project}/tenants/${tenant}`
++      : `${cfg.MCP_RESOURCE}/.well-known/oauth-authorization-server`;
++    res.json({
++      resource: cfg.MCP_RESOURCE,
++      authorization_servers: [authServer],
++      scopes_supported: ["tiktok:read"],
++      resource_documentation: "https://docs.socialseed.ing/agent",
++    });
++  });
++
++  // ── Discovery: keep this alias for clients that hit the OIDC config path.
++  app.get("/.well-known/openid-configuration", (_req, res) => {
++    res.redirect(
++      project && tenant
++        ? `https://identitytoolkit.googleapis.com/v1/projects/${project}/tenants/${tenant}/.well-known/openid-configuration`
++        : "/.well-known/oauth-protected-resource",
++    );
++  });
++
++  // ── /mcp bearer middleware ──────────────────────────────────────────────
++  app.use("/mcp", async (req: Request, res: Response, next: NextFunction) => {
++    const authz = req.header("authorization");
++    if (!authz?.toLowerCase().startsWith("bearer ")) {
++      return _unauthorized(res, "invalid_request", "Authorization Bearer required");
++    }
++    const token = authz.slice(7).trim();
++    if (!token) {
++      return _unauthorized(res, "invalid_request", "Bearer token empty");
++    }
++
++    try {
++      const decoded: DecodedIdToken = await getAuth(getAdminApp()).verifyIdToken(
++        token,
++        false,
++      );
++      if (tenant && decoded.firebase?.tenant && decoded.firebase.tenant !== tenant) {
++        return _unauthorized(
++          res,
++          "invalid_token",
++          `tenant mismatch (expected ${tenant})`,
++        );
++      }
++      req.uid = decoded.uid;
++      req.identity = {
++        uid: decoded.uid,
++        email: decoded.email,
++        emailVerified: decoded.email_verified,
++        tenant: decoded.firebase?.tenant,
++      };
++      next();
++    } catch (err) {
++      return _unauthorized(res, "invalid_token", (err as Error).message);
++    }
++  });
++}
++
++function _unauthorized(res: Response, code: string, description: string): void {
++  res.setHeader(
++    "WWW-Authenticate",
++    `Bearer error="${code}", error_description="${description.replace(/"/g, "'")}"`,
++  );
++  res.status(401).json({ error: code, error_description: description });
++}
+diff --git a/src/auth/firestore-usage.ts b/src/auth/firestore-usage.ts
+new file mode 100644
+index 0000000..2222222
+--- /dev/null
++++ b/src/auth/firestore-usage.ts
+@@ -0,0 +1,86 @@
++/**
++ * Firestore-backed per-uid daily usage tracker.
++ *
++ * Replaces the global `(date, tool_name)` key in
++ * `src/auth/store.ts:45-50` with a per-user `(uid, date, tool_name)` key so
++ * Cloud Run autoscaling and the multi-tenant Identity Platform model both
++ * work without leaking quota across users.
++ *
++ * Doc id format: `${uid}_${date}_${tool}` — flat keyspace, predictable cost.
++ * Free tier: 50K reads + 20K writes per day covers the 500 ops/user envelope
++ * (REFACTOR-MCP §4.4).
++ *
++ * Backend toggle (REFACTOR-MCP §9.4):
++ *   USAGE_BACKEND=firestore  (production)
++ *   USAGE_BACKEND=memory     (fallback if Firestore errors persist; loses
++ *                              counts across cold starts but the cold-start
++ *                              cycle self-limits abuse to a few minutes)
++ */
++
++import { Firestore, FieldValue } from "@google-cloud/firestore";
++
++const COLLECTION = "v2_mcp_usage";
++
++let _client: Firestore | null = null;
++const _memory = new Map<string, number>();
++
++function client(): Firestore {
++  if (_client) return _client;
++  _client = new Firestore({
++    projectId: process.env.GCP_PROJECT,
++    ignoreUndefinedProperties: true,
++  });
++  return _client;
++}
++
++function todayUTC(): string {
++  return new Date().toISOString().slice(0, 10);
++}
++
++function key(uid: string, tool: string, date = todayUTC()): string {
++  return `${uid}_${date}_${tool}`;
++}
++
++export async function getUsage(uid: string, tool: string): Promise<number> {
++  if (process.env.USAGE_BACKEND === "memory") {
++    return _memory.get(key(uid, tool)) ?? 0;
++  }
++  try {
++    const doc = await client().collection(COLLECTION).doc(key(uid, tool)).get();
++    return Number(doc.data()?.count ?? 0);
++  } catch (err) {
++    console.warn("[firestore-usage] read failed, returning 0:", (err as Error).message);
++    return 0;
++  }
++}
++
++export async function incrementUsage(uid: string, tool: string): Promise<void> {
++  if (process.env.USAGE_BACKEND === "memory") {
++    const k = key(uid, tool);
++    _memory.set(k, (_memory.get(k) ?? 0) + 1);
++    return;
++  }
++  try {
++    await client().collection(COLLECTION).doc(key(uid, tool)).set(
++      {
++        uid,
++        tool,
++        date: todayUTC(),
++        count: FieldValue.increment(1),
++        updatedAt: FieldValue.serverTimestamp(),
++      },
++      { merge: true },
++    );
++  } catch (err) {
++    console.warn("[firestore-usage] write failed, dropping count:", (err as Error).message);
++  }
++}
++
++/** Used by tests and ops scripts to wipe a single user-day. */
++export async function resetUsage(uid: string, tool: string): Promise<void> {
++  if (process.env.USAGE_BACKEND === "memory") {
++    _memory.delete(key(uid, tool));
++    return;
++  }
++  await client().collection(COLLECTION).doc(key(uid, tool)).delete();
++}
+
+################################################################################
+# Package.json edits — apply manually (cannot patch lockfile from this PR).
+#
+#   pnpm remove better-sqlite3 @types/better-sqlite3   # after T+7 cutover only
+#   pnpm add firebase-admin@^13.0.0 @google-cloud/firestore@^7.10.0
+#
+# Until T+7, KEEP better-sqlite3 in place so the dual-live path still resolves.
+################################################################################

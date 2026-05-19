@@ -1,0 +1,36 @@
+# CHAOS-MODEL-03 — Mocked 410 on gemini-3
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: nightly
+
+id: CHAOS-MODEL-03
+name: model-migrate
+tier: model
+executor: native_gcp
+tags: [nightly]
+
+description: |
+  Mocked 410 on gemini-3.1-preview; sessions must auto-swap to 2.5 GA.
+
+expected_rto_s: 300
+expected_rpo_s: 0
+observed_sli_breach: vertex.gemini.errors.410
+
+auto_runbook: runbook-model-migrate
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-MODEL-03"
+
+pass_criteria:
+  - "observed_rto_s <= 300"
+  - "observed_rpo_s <= 0"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references:
+  - "https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference"

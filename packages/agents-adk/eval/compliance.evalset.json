@@ -1,0 +1,271 @@
+{
+  "eval_set_id": "ss_compliance_v0_1",
+  "name": "Compliance agent — 8-case golden set (D34 locale spread, PIPA + CAN-SPAM + DLP)",
+  "description": "Phase 3.12 golden set per compliance.spec.md §7 + the deliverable spec. Mix of clear / block / require_human_review cases across the 4 D34 locales. Encodes the precision_no_false_clear ≥ 0.99 invariant (2026 PIPA amendment — false clear is extreme severity, 10% revenue fine). Full 200-case holdout (tests/golden/compliance/*.json) lands during Phase 4 calibration with the live SDP + Spanner consent ledger.",
+  "criteria_overrides": {
+    "tool_trajectory_avg_score": 0.0,
+    "precision_no_false_clear": 0.99,
+    "recall_known_violations": 0.95,
+    "pipa_article_22_accuracy": 0.95,
+    "canspam_full_coverage": 1.0,
+    "critical_dlp_detection": 1.0,
+    "latency_p95_ms_max": 800
+  },
+  "metadata": {
+    "agent_id": "compliance",
+    "spec": "gcp-research/specs/tier1/compliance.spec.md",
+    "decisions": ["D5", "D10", "D17", "D21", "D22", "D23", "D33", "D34"],
+    "locales_covered": ["en", "en", "en", "ko", "ko", "ja", "ja", "zh-CN"],
+    "model": "gemini-2.5-pro",
+    "modality": "text",
+    "max_usd_per_run": 0.03,
+    "extreme_severity_property": "ANY 'clear' on a body containing critical PII (KR_RRN / US_SSN / CREDIT_CARD / PASSPORT_NUMBER / BANK_ACCOUNT) is a false clear — fails the run."
+  },
+  "eval_cases": [
+    {
+      "eval_id": "compliance_en_01_us_clean_canspam_complete",
+      "metadata": {
+        "locale": "en",
+        "jurisdiction": "US",
+        "expected_decision": "clear",
+        "expected_critical_dlp": [],
+        "note": "US CAN-SPAM 100% coverage — unsubscribe link present, physical address present, non-deceptive subject. Recipient consent on file. Safe send."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"outboundMessage\":{\"subject\":\"Partnership inquiry — Freshly Vitamin C Serum\",\"body\":\"Hi creator, this is Freshly Skincare reaching out about our 10% Vitamin C Serum collaboration program. If you'd prefer not to hear from us again, you can unsubscribe at https://freshly.example.com/unsubscribe. Freshly Skincare, 500 Market St, San Francisco, CA 94105.\",\"recipientEmail\":\"creator@example.com\",\"jurisdictionInferred\":\"US\",\"fromEmail\":\"ops@freshly.example.com\",\"messageKind\":\"cold_outreach\"},\"consentRecord\":{\"source\":\"instagram_form_2026-04-15\",\"timestamp\":\"2026-04-15T00:00:00+00:00\",\"scope\":[\"marketing_outreach\"]},\"tenantPhysicalAddress\":\"500 Market St, San Francisco, CA 94105\",\"tenantBusinessName\":\"Freshly Skincare\",\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"decision\":\"clear\",\"findings\":{\"pipa22Pass\":true,\"canspamPass\":true,\"gdprPass\":true,\"dlpPiiDetected\":[],\"requiredChanges\":[]},\"evidencePackId\":\"ev-en-01-clean-us-canspam-001\",\"rationale\":\"US CAN-SPAM 15 USC § 7704 all three rules cleared: working unsubscribe URL, physical postal address, non-deceptive subject. Recipient opted in via instagram_form. No DLP info-types detected. Safe to send today.\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "compliance_en_02_us_missing_unsubscribe_review",
+      "metadata": {
+        "locale": "en",
+        "jurisdiction": "US",
+        "expected_decision": "require_human_review",
+        "expected_required_change_keyword": "add_unsubscribe_link",
+        "note": "US CAN-SPAM §7704(a)(3) violation — no unsubscribe URL. CAN-SPAM hygiene only; route to operator for re-draft."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"outboundMessage\":{\"subject\":\"Quick question about your channel\",\"body\":\"Hi, this is Freshly Skincare. We'd love to send you our Vitamin C Serum to try. Freshly Skincare, 500 Market St, San Francisco, CA 94105.\",\"recipientEmail\":\"creator@example.com\",\"jurisdictionInferred\":\"US\",\"fromEmail\":\"ops@freshly.example.com\",\"messageKind\":\"cold_outreach\"},\"consentRecord\":{\"source\":\"instagram_form_2026-04-15\",\"timestamp\":\"2026-04-15T00:00:00+00:00\",\"scope\":[\"marketing_outreach\"]},\"tenantPhysicalAddress\":\"500 Market St, San Francisco, CA 94105\",\"tenantBusinessName\":\"Freshly Skincare\",\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"decision\":\"require_human_review\",\"findings\":{\"pipa22Pass\":true,\"canspamPass\":false,\"gdprPass\":true,\"dlpPiiDetected\":[],\"requiredChanges\":[\"add_unsubscribe_link: CAN-SPAM § 7704(a)(3) — working unsubscribe link required\"]}, \"evidencePackId\":\"ev-en-02-no-unsub-us-001\",\"rationale\":\"CAN-SPAM § 7704(a)(3) failed — body lacks both an unsubscribe keyword and a clickable URL. Physical address and non-deceptive subject clear. Route to operator to add the required mechanism before re-submitting.\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "compliance_en_03_credit_card_in_body_block",
+      "metadata": {
+        "locale": "en",
+        "jurisdiction": "US",
+        "expected_decision": "block",
+        "expected_critical_dlp": ["CREDIT_CARD"],
+        "note": "Critical PII (Luhn-valid credit card 4111-1111-1111-1111) in body → ALWAYS block. Tests critical_dlp_detection = 1.0."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"outboundMessage\":{\"subject\":\"Sample shipment + invoice details\",\"body\":\"Hi creator, your sample is on the way! For the partnership fee, please confirm card on file: 4111 1111 1111 1111. Unsubscribe: https://freshly.example.com/unsubscribe. Freshly Skincare, 500 Market St, San Francisco, CA 94105.\",\"recipientEmail\":\"creator@example.com\",\"jurisdictionInferred\":\"US\",\"fromEmail\":\"ops@freshly.example.com\",\"messageKind\":\"transactional\"},\"consentRecord\":{\"source\":\"signed_contract_2026-05-01\",\"timestamp\":\"2026-05-01T00:00:00+00:00\",\"scope\":[\"contract_communication\"]},\"tenantPhysicalAddress\":\"500 Market St, San Francisco, CA 94105\",\"tenantBusinessName\":\"Freshly Skincare\",\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"decision\":\"block\",\"findings\":{\"pipa22Pass\":true,\"canspamPass\":true,\"gdprPass\":true,\"dlpPiiDetected\":[\"CREDIT_CARD\"],\"requiredChanges\":[\"remove_pii_other: critical PII detected — remove before any send\"]}, \"evidencePackId\":\"ev-en-03-creditcard-block-001\",\"rationale\":\"Critical DLP: a Luhn-valid CREDIT_CARD-shaped string is present in the body. Even with a valid contract relationship, transmitting card numbers in plaintext email is PCI-DSS-disqualifying and must be blocked. Operator must remove the card before any retry.\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "compliance_ko_01_pipa_22_clean",
+      "metadata": {
+        "locale": "ko",
+        "jurisdiction": "KR",
+        "expected_decision": "clear",
+        "expected_critical_dlp": [],
+        "note": "PIPA Article 22 + K-CAN-SPAM compliant: (광고) prefix, BRN in body, working unsubscribe, prior consent on record, business name present, no phone in body."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"outboundMessage\":{\"subject\":\"(광고) Freshly 비타민C 세럼 협업 제안\",\"body\":\"안녕하세요, Freshly Skincare입니다.\\n사업자등록번호: 123-45-67890\\n10% 비타민C 세럼 30일 챌린지에 함께해주실 크리에이터를 찾고 있습니다.\\n수신을 원하지 않으시면 https://freshly.example.com/unsubscribe 에서 거부하실 수 있습니다.\",\"recipientEmail\":\"creator@example.com\",\"jurisdictionInferred\":\"KR\",\"fromEmail\":\"ops@freshly.example.com\",\"messageKind\":\"cold_outreach\"},\"consentRecord\":{\"source\":\"tiktok_form_2026-04-01\",\"timestamp\":\"2026-04-01T00:00:00+00:00\",\"scope\":[\"marketing_outreach\"]},\"tenantPhysicalAddress\":\"서울특별시 강남구 테헤란로 123\",\"tenantBusinessNumber\":\"123-45-67890\",\"tenantBusinessName\":\"Freshly Skincare\",\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"decision\":\"clear\",\"findings\":{\"pipa22Pass\":true,\"canspamPass\":true,\"gdprPass\":true,\"dlpPiiDetected\":[],\"requiredChanges\":[]}, \"evidencePackId\":\"ev-ko-01-clean-pipa-001\",\"rationale\":\"PIPA Article 22 + 정보통신망법 §50 모두 통과: (광고) 제목 prefix, 본문에 사업자등록번호 123-45-67890 명시, 작동하는 수신거부 URL, tiktok_form 사전 동의 기록, 발신 사업자명 명시. DLP 미검출. 발송 가능.\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "compliance_ko_02_rrn_in_body_block_extreme_severity",
+      "metadata": {
+        "locale": "ko",
+        "jurisdiction": "KR",
+        "expected_decision": "block",
+        "expected_critical_dlp": ["KR_RRN"],
+        "note": "주민등록번호 (KR_RRN) detected in body — 2026 PIPA amendment: extreme severity, 10% revenue fine. ALWAYS block; precision_no_false_clear sentinel."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"outboundMessage\":{\"subject\":\"(광고) 캠페인 정산 안내\",\"body\":\"Freshly Skincare입니다.\\n사업자등록번호: 123-45-67890\\n정산을 위해 주민등록번호 850315-2345678 확인 부탁드립니다.\\n수신거부: https://freshly.example.com/unsubscribe\",\"recipientEmail\":\"creator@example.com\",\"jurisdictionInferred\":\"KR\",\"fromEmail\":\"ops@freshly.example.com\",\"messageKind\":\"transactional\"},\"consentRecord\":{\"source\":\"contract_2026-05-01\",\"timestamp\":\"2026-05-01T00:00:00+00:00\",\"scope\":[\"contract_communication\"]},\"tenantPhysicalAddress\":\"서울특별시 강남구 테헤란로 123\",\"tenantBusinessNumber\":\"123-45-67890\",\"tenantBusinessName\":\"Freshly Skincare\",\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"decision\":\"block\",\"findings\":{\"pipa22Pass\":true,\"canspamPass\":true,\"gdprPass\":true,\"dlpPiiDetected\":[\"KR_RRN\"],\"requiredChanges\":[\"remove_pii_other: critical PII detected — remove before any send\"]}, \"evidencePackId\":\"ev-ko-02-rrn-block-001\",\"rationale\":\"치명적 DLP: 본문에 KR_RRN(주민등록번호) 패턴 검출. 2026 PIPA 개정안에 따라 무동의 RRN 전송은 매출액 10%까지 과징금 부과 대상. 발송 차단. 본문에서 RRN 제거 후 재검토 요청.\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "compliance_ja_01_jp_no_ad_prefix_review",
+      "metadata": {
+        "locale": "ja",
+        "jurisdiction": "JP",
+        "expected_decision": "require_human_review",
+        "note": "JP recipient — JP 特定電子メール法 mirrors K-CAN-SPAM hygiene rules but day-1 spec only formally encodes KR + US. Soft DLP (phone) present → human review."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"outboundMessage\":{\"subject\":\"Freshly コラボのご案内\",\"body\":\"はじめまして、Freshly Skincareです。Vitamin C セラムのコラボ企画にご興味ありますか?ご質問は 080-1234-5678 までお気軽に。配信停止: https://freshly.example.com/unsubscribe\",\"recipientEmail\":\"creator@example.jp\",\"jurisdictionInferred\":\"JP\",\"fromEmail\":\"ops@freshly.example.com\",\"messageKind\":\"cold_outreach\"},\"consentRecord\":{\"source\":\"twitter_dm_2026-03-22\",\"timestamp\":\"2026-03-22T00:00:00+00:00\",\"scope\":[\"marketing_outreach\"]},\"tenantPhysicalAddress\":\"500 Market St, San Francisco, CA 94105\",\"tenantBusinessName\":\"Freshly Skincare\",\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"decision\":\"require_human_review\",\"findings\":{\"pipa22Pass\":true,\"canspamPass\":true,\"gdprPass\":true,\"dlpPiiDetected\":[\"PHONE_NUMBER\"],\"requiredChanges\":[]}, \"evidencePackId\":\"ev-ja-01-soft-dlp-001\",\"rationale\":\"JP管轄。 KR/US 規則ではpassだが、本文に PHONE_NUMBER (ソフトDLP) を検出。連絡先を本文に直接含めず別チャネルを案内するよう運用者に確認を求める。\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "compliance_ja_02_eu_recipient_gdpr_block",
+      "metadata": {
+        "locale": "ja",
+        "jurisdiction": "EU",
+        "expected_decision": "block",
+        "note": "JP-locale operator targeting EU recipient. Per D22 (GDPR/SOC2 deferred), ANY EU jurisdiction → block + gdpr_escalate."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"outboundMessage\":{\"subject\":\"Collaboration request from Freshly\",\"body\":\"Hello, this is Freshly Skincare. We are interested in collaborating with you on our new Vitamin C serum. Unsubscribe: https://freshly.example.com/unsubscribe. Freshly Skincare, 500 Market St, San Francisco, CA 94105.\",\"recipientEmail\":\"creator@example.de\",\"jurisdictionInferred\":\"EU\",\"fromEmail\":\"ops@freshly.example.com\",\"messageKind\":\"cold_outreach\"},\"consentRecord\":{\"source\":\"instagram_form_2026-04-15\",\"timestamp\":\"2026-04-15T00:00:00+00:00\",\"scope\":[\"marketing_outreach\"]},\"tenantPhysicalAddress\":\"500 Market St, San Francisco, CA 94105\",\"tenantBusinessName\":\"Freshly Skincare\",\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"decision\":\"block\",\"findings\":{\"pipa22Pass\":true,\"canspamPass\":true,\"gdprPass\":false,\"dlpPiiDetected\":[],\"requiredChanges\":[\"gdpr_escalate: EU recipient — GDPR/ePrivacy compliance deferred (D22). Block and route to Phase 4 operator approval.\"]}, \"evidencePackId\":\"ev-ja-02-gdpr-eu-block-001\",\"rationale\":\"EU管轄を検出。D22 によりGDPR/SOC2 はPhase 4まで保留中。EU受信者宛の発送は一律ブロック。運用者承認ワークフローでケースバイケース対応する。\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "compliance_zh_01_cn_no_scope_review",
+      "metadata": {
+        "locale": "zh-CN",
+        "jurisdiction": "CN",
+        "expected_decision": "require_human_review",
+        "note": "CN recipient. Consent source on file but scope is empty. KR + US gates auto-pass for non-KR/non-US jurisdiction so the deterministic decision is `clear`; the Pro model is expected to apply PIPL conservative-super-set reasoning and downgrade to `require_human_review` per spec.md §8 row 7 (operator override path)."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"outboundMessage\":{\"subject\":\"Freshly维生素C精华液 合作邀请\",\"body\":\"您好,我是Freshly Skincare。希望邀请您参加我们的维生素C精华液合作项目。退订:https://freshly.example.com/unsubscribe。Freshly Skincare, 500 Market St, San Francisco, CA 94105.\",\"recipientEmail\":\"creator@example.cn\",\"jurisdictionInferred\":\"CN\",\"fromEmail\":\"ops@freshly.example.com\",\"messageKind\":\"cold_outreach\"},\"consentRecord\":{\"source\":\"legacy_record_no_scope_recorded\",\"scope\":[]},\"tenantPhysicalAddress\":\"500 Market St, San Francisco, CA 94105\",\"tenantBusinessName\":\"Freshly Skincare\",\"locale\":\"zh-CN\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"decision\":\"require_human_review\",\"findings\":{\"pipa22Pass\":true,\"canspamPass\":true,\"gdprPass\":true,\"dlpPiiDetected\":[],\"requiredChanges\":[\"obtain_prior_consent: 中国大陆 PIPL 第13条 — 收件人事先同意记录缺失\"]}, \"evidencePackId\":\"ev-zh-01-no-consent-cn-001\",\"rationale\":\"中国大陆管辖。 PIPL 第13条要求事先同意。 consentRecord.source 与 scope 均为空,意味着无法证明已获取收件人同意。 转人工审核,运用者补充同意来源后再放行。\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    }
+  ]
+}

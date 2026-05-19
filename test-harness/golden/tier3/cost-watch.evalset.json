@@ -1,0 +1,17 @@
+{
+  "name": "cost_watch_v1",
+  "description": "Tier-3 cost_watch (W2) — pure pytest + Vitest (no LLM). D-IDs: D23, D28, D37, D39. Elevated coverage threshold per MATRIX §8.",
+  "agent_spec_ref": "gs://ss-v2-agent-registry/cost_watch/v1.json",
+  "trajectory_mode": "NONE",
+  "metrics": ["alert_accuracy"],
+  "thresholds": {"alert_accuracy": 0.99},
+  "min_cases": 6,
+  "eval_cases": [
+    {"name": "cw_en_001_50pct_alert","locale": "en", "tags": ["happy"], "input": {"tenant_usd_pct": 0.50}, "expected": {"alert_level": "info"}},
+    {"name": "cw_en_002_75pct_alert","locale": "en", "tags": ["edge"], "input": {"tenant_usd_pct": 0.75}, "expected": {"alert_level": "warning"}},
+    {"name": "cw_en_003_90pct_alert","locale": "en", "tags": ["edge"], "input": {"tenant_usd_pct": 0.90}, "expected": {"alert_level": "high"}},
+    {"name": "cw_en_004_95pct_quarantine","locale": "en", "tags": ["edge"], "input": {"tenant_usd_pct": 0.95}, "expected": {"alert_level": "critical", "quarantine_action": true}},
+    {"name": "cw_en_005_runaway_token_burn","locale": "en", "tags": ["adversarial"], "input": {"token_rate_multiplier": 10}, "expected": {"alert_level": "critical"}, "notes": "Chaos cost_blowout trigger."},
+    {"name": "cw_en_006_under_budget","locale": "en", "tags": ["happy"], "input": {"tenant_usd_pct": 0.20}, "expected": {"alert_level": "none"}}
+  ]
+}

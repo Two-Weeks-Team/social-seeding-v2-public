@@ -1,0 +1,123 @@
+###############################################################################
+# Multi-target Dockerfile for the tiktok-mcp-server refactor.
+#
+# Produces TWO images from one source tree, addressed via `--target`:
+#   runtime-node : the existing Node MCP server (sidecar in the Cloud Run pod)
+#   runtime-adk  : the Python ADK orchestration layer (primary ingress)
+#
+# Reference: REFACTOR-MCP.md §5.2.
+#
+# Build locally for a smoke check:
+#   docker build --target=runtime-node -f Dockerfile.multi-container -t mcp-node .
+#   docker build --target=runtime-adk  -f Dockerfile.multi-container -t mcp-adk  .
+#
+# Notes:
+#   * The Node side mirrors the existing
+#     `microservices/tiktok-mcp-server/Dockerfile` and so must be applied with
+#     the platform repo as the build context. The Python side expects the
+#     `agent/` directory present in the build context.
+#   * `--platform=linux/amd64` is recommended for Cloud Run; this file does
+#     not pin a platform so local arm64 builds also succeed.
+#   * No secrets are baked into either image — runtime injection only
+#     (OBS-03 in the existing Dockerfile line 41-46 is preserved here).
+###############################################################################
+
+
+###############################################################################
+# Stage 1 — Node builder (compilers for native addons).
+###############################################################################
+FROM node:22-alpine AS builder-node
+RUN apk add --no-cache python3 make g++
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY tsconfig.json ./
+COPY src/ ./src/
+RUN npm run build && npm prune --omit=dev
+
+
+###############################################################################
+# Stage 2 — Node MCP runtime (the existing tiktok-mcp-server, slimmed).
+###############################################################################
+FROM node:22-alpine AS runtime-node
+RUN apk add --no-cache wget && addgroup -S app && adduser -S -G app node || true
+WORKDIR /app
+COPY package*.json ./
+COPY --from=builder-node /app/dist ./dist
+COPY --from=builder-node /app/node_modules ./node_modules
+
+# /data is kept for backward-compat during the Identity Platform cutover
+# (REFACTOR-MCP §4.3 dual-mount). Once the cutover lands at T+7 the
+# SQLite mount is removed in a follow-up commit.
+RUN mkdir -p /data && chown node:node /data
+USER node
+
+EXPOSE 8100
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD wget -qO- http://localhost:8100/health || exit 1
+CMD ["node", "dist/index.js", "--http"]
+
+
+###############################################################################
+# Stage 3 — Python ADK builder.
+###############################################################################
+FROM python:3.13-slim AS builder-adk
+WORKDIR /build
+
+# Install build deps first so the layer caches independently of source edits.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Use uv as the resolver / installer.
+RUN pip install --no-cache-dir uv
+
+COPY agent/pyproject.toml ./pyproject.toml
+COPY agent/src ./src
+
+# Install the package into a virtualenv so the runtime stage can copy it
+# in one shot (no compilers, no cache).
+RUN uv venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN uv pip install --no-cache --python /opt/venv/bin/python -e .
+
+
+###############################################################################
+# Stage 4 — Python ADK runtime (primary public ingress on Cloud Run).
+###############################################################################
+FROM python:3.13-slim AS runtime-adk
+WORKDIR /app
+
+# curl for the HEALTHCHECK only; everything else stays out of the runtime
+# layer so the attack surface is minimal.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --uid 1001 --shell /usr/sbin/nologin adk
+
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
+COPY --from=builder-adk /opt/venv /opt/venv
+COPY --from=builder-adk /build/src /app/src
+COPY agent/README.md /app/README.md
+
+# Deployment artifacts (agent.json, etc.) are served by FastAPI from the
+# deployment/ directory at the well-known endpoints.
+COPY deployment/agent.json /app/deployment/agent.json
+
+# The package metadata lives in src/; expose it on PYTHONPATH so uvicorn
+# can locate `tiktok_orchestrator.main:app` without a redundant pip install.
+ENV PYTHONPATH=/app/src
+
+USER adk
+EXPOSE 8200
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+  CMD curl -fsS http://localhost:8200/healthz || exit 1
+
+CMD ["uvicorn", "tiktok_orchestrator.main:app", \
+     "--host", "0.0.0.0", "--port", "8200", \
+     "--workers", "2", "--access-log"]

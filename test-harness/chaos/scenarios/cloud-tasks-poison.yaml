@@ -1,0 +1,36 @@
+# CHAOS-EVT-02 — Inject malformed task; DLQ runbook must move retries>5 and resume queue
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: per_pr, nightly
+
+id: CHAOS-EVT-02
+name: tasks-poison-isolate
+tier: event
+executor: pubsub_harness
+tags: [per_pr, nightly]
+
+description: |
+  Inject malformed task; DLQ runbook must move retries>5 and resume queue.
+
+expected_rto_s: 300
+expected_rpo_s: 0
+observed_sli_breach: cloudtasks.queue.depth
+
+auto_runbook: runbook-tasks-poison-isolate
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-EVT-02"
+
+pass_criteria:
+  - "observed_rto_s <= 300"
+  - "observed_rpo_s <= 0"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references:
+  - "https://cloud.google.com/tasks/docs/dual-overview"

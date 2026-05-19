@@ -1,0 +1,56 @@
+# CHAOS-DATA-01 — Spanner regional failover
+# Cites: D13 (active-active), D31 (RPO 0 for Spanner), D32 (auto-runbook), D37
+# Source: chaos/SCENARIOS.md §3.4 CHAOS-DATA-01
+# Tags: per_pr (one of 10 fast subset, MATRIX §7.1), nightly, canary
+# Hot-path tier: data-plane
+
+id: CHAOS-DATA-01
+name: spanner-regional-failover
+tier: data
+executor: native_gcp
+tags: [per_pr, nightly, canary]
+
+description: |
+  Force a Spanner leader change in the multi-region nam-eur-asia1 config.
+  Validates: zero data loss (RPO 0 — synchronous replication), RTO < 60 s,
+  hot-path p99 returns inside 1 s within 90 s.
+
+trigger:
+  type: gcloud
+  command: |
+    gcloud spanner instances move-leader ss-v2-chaos \
+      --target-config=nam-eur-asia1 \
+      --target-region=europe-west4
+  preconditions:
+    - "running against project ss-v2-chaos, NOT prod"
+    - "chaos_canary table exists with id=$RUN_ID row written within last 5 s"
+
+expected_rto_s: 60
+expected_rpo_s: 0  # Spanner multi-region is synchronous
+observed_sli_breach: spanner.read_write_latency.spike
+
+auto_runbook: runbook-spanner-failover-verify
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: sql
+  query: |
+    SELECT canary_id, last_write_ts
+      FROM chaos_canary
+      WHERE canary_id = @run_id
+  expect:
+    - "result must match value written 5s before failover (RPO 0)"
+    - "round-trip < 90s after failover begins"
+
+pass_criteria:
+  - observed_rto_s <= 60
+  - observed_rpo_s == 0
+  - hot_path_p99_within_90s <= 1000
+  - auto_runbook_fired == true
+
+stub_override:
+  pass: true  # in stub mode, the drill succeeds
+
+references:
+  - "https://cloud.google.com/spanner/docs/instance-configurations#multi-region-configs"
+  - "https://cloud.google.com/spanner/docs/disaster-recovery"

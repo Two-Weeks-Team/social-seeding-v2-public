@@ -1,0 +1,258 @@
+{
+  "eval_set_id": "ss_anomaly_watch_v0_1",
+  "name": "Anomaly Watch (W1) — 8-case golden set (precision-biased)",
+  "description": "Phase 4 skeleton golden set per anomaly_watch.spec.md §7. The 100-snapshot labelled cohort (real outages + chaos exercises + cold-start false positives) lands in tests/golden/anomaly_watch/*.json during Phase 5 to validate precision ≥ 0.90, recall ≥ 0.80. Cases are deliberately weighted toward false-positive traps (cold-start, demo-recording, info-only ticks) because pager-budget burn from FPs is the agent's worst failure mode.",
+  "criteria_overrides": {
+    "tool_trajectory_avg_score": 0.0,
+    "final_response_match_v2": 0.7
+  },
+  "metadata": {
+    "agent_id": "anomaly-watch",
+    "spec": "gcp-research/specs/tier3/anomaly_watch.spec.md",
+    "decisions": ["D23", "D31", "D32", "D34", "D37"],
+    "model": "gemini-2.5-flash",
+    "max_usd": 0.01,
+    "eval_targets": {
+      "precision": 0.90,
+      "recall": 0.80,
+      "mean_time_to_action_sec": 60
+    }
+  },
+  "eval_cases": [
+    {
+      "eval_id": "anomaly_watch_01_clean_tick",
+      "metadata": {
+        "expected_anomaly_count": 0,
+        "expected_action_kind": null,
+        "note": "Every metric within ±1σ of baseline — agent must NOT fabricate anomalies. Precision case."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"metricSnapshots\":[{\"metricName\":\"latency_p99_ms\",\"ts\":\"2026-05-19T12:00:00+00:00\",\"value\":1010.0,\"baselineP50\":1000.0,\"baselineP99\":1200.0,\"region\":\"us-central1\"},{\"metricName\":\"error_rate\",\"ts\":\"2026-05-19T12:00:00+00:00\",\"value\":0.011,\"baselineP50\":0.010,\"baselineP99\":0.020,\"region\":\"us-central1\"}],\"currentRunbooksAvailable\":[\"throttle-vertex-v1\",\"quarantine-tenant-v1\"],\"pageThresholdSeverity\":\"critical\",\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"anomaliesDetected\":[],\"actions\":[],\"confidence\":1.0}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "anomaly_watch_02_latency_spike_runbook",
+      "metadata": {
+        "expected_anomaly_count": 1,
+        "expected_action_kind": "trigger_runbook",
+        "expected_runbook_id": "throttle-vertex-v1",
+        "note": "p99 latency 4.5σ above baseline; matching runbook exists. Happy path of spec §5."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"metricSnapshots\":[{\"metricName\":\"latency_p99_ms\",\"ts\":\"2026-05-19T12:05:00+00:00\",\"value\":4200.0,\"baselineP50\":1000.0,\"baselineP99\":1200.0,\"region\":\"us-central1\"}],\"currentRunbooksAvailable\":[\"throttle-vertex-v1\"],\"pageThresholdSeverity\":\"critical\",\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"anomaliesDetected\":[{\"metric\":\"latency_p99_ms\",\"severity\":\"critical\",\"zScore\":4.65,\"suspectedCause\":\"Hot-path p99 latency 4.65σ above baseline in us-central1; likely Vertex AI Agent Runtime saturation.\"}],\"actions\":[{\"kind\":\"trigger_runbook\",\"runbookId\":\"throttle-vertex-v1\",\"severity\":\"critical\",\"reason\":\"p99 latency 4200ms (baseline 1000ms, 4.65σ). Throttling Vertex calls per registered runbook.\"}],\"confidence\":0.92}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "anomaly_watch_03_no_runbook_pages_human",
+      "metadata": {
+        "expected_anomaly_count": 1,
+        "expected_action_kind": "page_human",
+        "note": "Model Armor block storm — no auto-runbook. Spec §6 escalation 'no matching runbook → page'."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"metricSnapshots\":[{\"metricName\":\"model_armor_block_count\",\"ts\":\"2026-05-19T12:10:00+00:00\",\"value\":60.0,\"baselineP50\":5.0,\"baselineP99\":12.0,\"region\":\"us-central1\"}],\"currentRunbooksAvailable\":[\"throttle-vertex-v1\"],\"pageThresholdSeverity\":\"critical\",\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"anomaliesDetected\":[{\"metric\":\"model_armor_block_count\",\"severity\":\"critical\",\"zScore\":18.21,\"suspectedCause\":\"Sustained prompt-injection campaign or Model Armor policy regression — block count 12× baseline p99.\"}],\"actions\":[{\"kind\":\"page_human\",\"severity\":\"critical\",\"reason\":\"Model Armor blocks 60 (baseline p50=5, p99=12). No runbook covers Model Armor incidents; paging on-call.\"}],\"confidence\":0.88}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "anomaly_watch_04_warn_silent_log",
+      "metadata": {
+        "expected_anomaly_count": 1,
+        "expected_action_kind": "silent_log",
+        "note": "Mild error-rate elevation (~2.4σ) — below page threshold and no runbook applies. Spec §8 edge case: most ticks should land here, not on the pager."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"metricSnapshots\":[{\"metricName\":\"error_rate\",\"ts\":\"2026-05-19T12:15:00+00:00\",\"value\":0.025,\"baselineP50\":0.010,\"baselineP99\":0.020,\"region\":\"us-central1\"}],\"currentRunbooksAvailable\":[\"throttle-vertex-v1\"],\"pageThresholdSeverity\":\"critical\",\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"anomaliesDetected\":[{\"metric\":\"error_rate\",\"severity\":\"warn\",\"zScore\":3.49,\"suspectedCause\":\"Error rate elevated 3.49σ; could be transient dependency degradation. Below page threshold.\"}],\"actions\":[{\"kind\":\"silent_log\",\"severity\":\"warn\",\"reason\":\"Error rate 2.5% (baseline 1%). Within SLO budget and no matching runbook; logging for retro.\"}],\"confidence\":0.78}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "anomaly_watch_05_tenant_quarantine",
+      "metadata": {
+        "expected_anomaly_count": 1,
+        "expected_action_kind": "trigger_runbook",
+        "expected_runbook_id": "quarantine-tenant-v1",
+        "note": "Single-tenant error_rate spike — quarantine runbook isolates the blast radius. Spec §2 quarantine_tenant decision."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"metricSnapshots\":[{\"metricName\":\"error_rate\",\"ts\":\"2026-05-19T12:20:00+00:00\",\"value\":0.42,\"baselineP50\":0.008,\"baselineP99\":0.025,\"tenantId\":\"t_acme00000000001\",\"region\":\"us-central1\"}],\"currentRunbooksAvailable\":[\"throttle-vertex-v1\",\"quarantine-tenant-v1\"],\"pageThresholdSeverity\":\"critical\",\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"anomaliesDetected\":[{\"metric\":\"error_rate\",\"severity\":\"critical\",\"zScore\":54.83,\"suspectedCause\":\"Per-tenant error rate 42% (baseline 0.8%); likely tenant-specific config regression or adversarial workload.\"}],\"actions\":[{\"kind\":\"trigger_runbook\",\"runbookId\":\"quarantine-tenant-v1\",\"severity\":\"critical\",\"reason\":\"Tenant t_acme00000000001 error rate 42% vs 0.8% baseline. Quarantining to protect other tenants.\",\"tenantId\":\"t_acme00000000001\"}],\"confidence\":0.94}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "anomaly_watch_06_cold_start_false_positive",
+      "metadata": {
+        "expected_anomaly_count": 0,
+        "expected_action_kind": null,
+        "note": "Latency 1.5σ above baseline — classic cold-start signature. Spec §8 edge case 3: agent must recognize warm-up window and stay info-only. Precision-critical case."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"metricSnapshots\":[{\"metricName\":\"latency_p95_ms\",\"ts\":\"2026-05-19T12:25:00+00:00\",\"value\":1129.0,\"baselineP50\":1000.0,\"baselineP99\":1200.0,\"region\":\"asia-northeast3\"}],\"currentRunbooksAvailable\":[\"throttle-vertex-v1\"],\"pageThresholdSeverity\":\"critical\",\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"anomaliesDetected\":[],\"actions\":[],\"confidence\":1.0}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "anomaly_watch_07_correlated_regional_brownout",
+      "metadata": {
+        "expected_anomaly_count": 3,
+        "expected_action_kind": "trigger_runbook",
+        "note": "Three metrics spike together in one region — agent should emit ONE umbrella action covering all three, not three duplicate pages. Spec §6: 'cross-region correlated anomaly → page'; here all in the same region, so a regional shift runbook is the right call."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"metricSnapshots\":[{\"metricName\":\"latency_p99_ms\",\"ts\":\"2026-05-19T12:30:00+00:00\",\"value\":5500.0,\"baselineP50\":1000.0,\"baselineP99\":1200.0,\"region\":\"europe-west4\"},{\"metricName\":\"error_rate\",\"ts\":\"2026-05-19T12:30:00+00:00\",\"value\":0.18,\"baselineP50\":0.010,\"baselineP99\":0.020,\"region\":\"europe-west4\"},{\"metricName\":\"tool_failure_count\",\"ts\":\"2026-05-19T12:30:00+00:00\",\"value\":85.0,\"baselineP50\":3.0,\"baselineP99\":10.0,\"region\":\"europe-west4\"}],\"currentRunbooksAvailable\":[\"shift-traffic-from-region-v2\",\"throttle-vertex-v1\"],\"pageThresholdSeverity\":\"critical\",\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"anomaliesDetected\":[{\"metric\":\"latency_p99_ms\",\"severity\":\"critical\",\"zScore\":10.0,\"suspectedCause\":\"europe-west4 brownout — p99 5.5× baseline.\"},{\"metric\":\"error_rate\",\"severity\":\"critical\",\"zScore\":10.0,\"suspectedCause\":\"europe-west4 brownout — error rate 18×.\"},{\"metric\":\"tool_failure_count\",\"severity\":\"critical\",\"zScore\":10.0,\"suspectedCause\":\"europe-west4 brownout — tool failures 28×.\"}],\"actions\":[{\"kind\":\"trigger_runbook\",\"runbookId\":\"shift-traffic-from-region-v2\",\"severity\":\"critical\",\"reason\":\"All three hot-path metrics critical in europe-west4 simultaneously — regional brownout signature. Shifting traffic.\"}],\"confidence\":0.96}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "anomaly_watch_08_ko_locale_demo_recording_silent",
+      "metadata": {
+        "expected_anomaly_count": 1,
+        "expected_action_kind": "silent_log",
+        "locale": "ko",
+        "note": "Korean locale + relaxed page_threshold (operator tightened to 'critical' AND a non-critical anomaly) — spec §8 edge case 1 'anomaly during demo recording: log_only severity to avoid pages during scripted scenes'. The locale exercises D34 — `reason` should render in 한국어."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"metricSnapshots\":[{\"metricName\":\"token_count_per_call\",\"ts\":\"2026-05-19T12:35:00+00:00\",\"value\":18000.0,\"baselineP50\":4000.0,\"baselineP99\":9000.0,\"region\":\"us-central1\"}],\"currentRunbooksAvailable\":[\"throttle-vertex-v1\"],\"pageThresholdSeverity\":\"critical\",\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"anomaliesDetected\":[{\"metric\":\"token_count_per_call\",\"severity\":\"warn\",\"zScore\":6.51,\"suspectedCause\":\"호출당 토큰 사용량 급증. 데모 녹화 중 긴 프롬프트 가능성.\"}],\"actions\":[{\"kind\":\"silent_log\",\"severity\":\"warn\",\"reason\":\"호출당 토큰 18000 (기준선 4000). page_threshold(critical) 미만이며 매칭되는 런북 없음. 로그만 기록.\"}],\"confidence\":0.72}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    }
+  ]
+}

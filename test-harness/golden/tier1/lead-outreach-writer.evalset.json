@@ -1,0 +1,26 @@
+{
+  "name": "lead_outreach_writer_v1",
+  "description": "Tier-1 lead_outreach_writer — B2B sales-lead loop. D-IDs: D23, D37.",
+  "agent_spec_ref": "gs://ss-v2-agent-registry/lead_outreach_writer/v1.json",
+  "trajectory_mode": "IN_ORDER",
+  "metrics": ["response_match_v2", "spam_score"],
+  "thresholds": {"response_match_v2": 0.75, "spam_score": 0},
+  "min_cases": 15,
+  "eval_cases": [
+    {"name": "lo_en_001_b2b_happy","locale": "en", "tags": ["happy"], "input": {"lead_ref": "lead_saas_001"}, "expected": {"tool_trajectory": [{"tool_name": "templates.list"}, {"tool_name": "crm.enrich"}, {"tool_name": "outreach.render"}]}},
+    {"name": "lo_en_002_no_enrichment","locale": "en", "tags": ["edge"], "input": {"lead_ref": "lead_no_data"}, "expected": {"escalation_expected": true}},
+    {"name": "lo_en_003_spam_borderline","locale": "en", "tags": ["edge"], "input": {"force_spam_score": 0.65}, "expected": {"escalation_expected": false}},
+    {"name": "lo_en_004_spam_block","locale": "en", "tags": ["edge"], "input": {"force_spam_score": 0.71}, "expected": {"escalation_expected": true}},
+    {"name": "lo_en_005_unsubscribe_link","locale": "en", "tags": ["compliance"], "input": {"lead_ref": "lead_us_001"}, "expected": {"unsubscribe_link_present": true}, "notes": "CAN-SPAM."},
+    {"name": "lo_en_006_cold_b2b","locale": "en", "tags": ["happy"], "input": {"lead_ref": "lead_cold_001"}, "expected": {"intro_paragraph_present": true}},
+    {"name": "lo_en_007_warm_b2b","locale": "en", "tags": ["happy"], "input": {"lead_ref": "lead_warm_001"}, "expected": {"references_prior_touchpoint": true}},
+    {"name": "lo_ko_008_kpop_industry","locale": "ko", "tags": ["happy"], "input": {"lead_ref": "lead_ko_001"}, "expected": {"honorific_used": true}},
+    {"name": "lo_ja_009_keigo","locale": "ja", "tags": ["happy"], "input": {"lead_ref": "lead_ja_001"}, "expected": {"keigo_register": true}},
+    {"name": "lo_zh_010_pipl","locale": "zh", "tags": ["compliance"], "input": {"lead_ref": "lead_zh_001", "consent_status": "unknown"}, "expected": {"escalation_expected": true}},
+    {"name": "lo_en_011_competitor","locale": "en", "tags": ["adversarial"], "input": {"lead_ref": "lead_competitor"}, "expected": {"escalation_expected": true, "escalation_reason": "competitor_outreach_blocked"}},
+    {"name": "lo_en_012_long_template","locale": "en", "tags": ["edge"], "input": {"template_length_chars": 8000}, "expected": {"truncation_applied": true}},
+    {"name": "lo_en_013_personal_email","locale": "en", "tags": ["compliance"], "input": {"recipient_email": "ceo@gmail.com"}, "expected": {"escalation_expected": true, "escalation_reason": "personal_email_for_b2b"}},
+    {"name": "lo_en_014_role_change","locale": "en", "tags": ["edge"], "input": {"recipient_left_company": true}, "expected": {"escalation_expected": true}},
+    {"name": "lo_en_015_holiday_blackout","locale": "en", "tags": ["edge"], "input": {"send_window": "us_holiday"}, "expected": {"defer_send": true}}
+  ]
+}

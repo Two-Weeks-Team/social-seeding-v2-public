@@ -1,0 +1,271 @@
+{
+  "eval_set_id": "ss_analyst_v0_1",
+  "name": "Analyst agent — 8-case golden set (performance-band + locale spread)",
+  "description": "Phase 3 skeleton golden set per analyst.spec.md §7. Covers the 6 performance bands (winning / on-target / behind / failed / over-budget / mid-flight) across the D34 4-locale set (3 EN + 2 KO + 2 JA + 1 ZH). Full 80-case set lands in tests/golden/analyst/{ko,en,ja,zh-CN}.json during Phase 4 per analyst.spec.md §7. Numeric grounding: every value in `final_response` must trace back to the matching `report.*` field in `user_content` (grounding_score ≥ 0.95).",
+  "criteria_overrides": {
+    "tool_trajectory_avg_score": 0.0,
+    "final_response_match_v2": 0.7,
+    "grounding_score": 0.95,
+    "concerns_flag_consistency": 0.98,
+    "summary_quality": 0.85,
+    "recommendation_specificity": 0.8
+  },
+  "metadata": {
+    "agent_id": "analyst",
+    "spec": "gcp-research/specs/tier1/analyst.spec.md",
+    "decisions": ["D5", "D17", "D23", "D25", "D32", "D34"],
+    "architecture_ref": "ARCHITECTURE.md §3 row 8 — analyst | Gemini 2.5 Pro | bigquery.query, view_metrics.aggregate | Memory Bank | accuracy + grounding score",
+    "v2_reference": "packages/agents/src/analyst.agent.ts:61-155 (Haiku → upgraded to Pro per ARCHITECTURE.md §3)",
+    "locales_covered": ["en", "en", "en", "ko", "ko", "ja", "ja", "zh-CN"],
+    "performance_bands": {
+      "winning": 2,
+      "on_target": 1,
+      "behind": 2,
+      "failed": 1,
+      "over_budget": 1,
+      "mid_flight": 1
+    }
+  },
+  "eval_cases": [
+    {
+      "eval_id": "analyst_en_01_winning_goal_met",
+      "metadata": {
+        "locale": "en",
+        "performance_band": "winning",
+        "expected_flags": ["goal_met"],
+        "expected_concerns_count": 1,
+        "should_escalate": false,
+        "note": "Over-delivered: 16/15 verified, 80% of budget. Lead summary with the win per spec §8 edge case 1."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_analyst_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Brightening Vitamin C serum with hyaluronic acid.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.02,\"languages\":[\"ko\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\",\"budgetUsd\":300.0}},\"report\":{\"campaignId\":\"cmp_winning\",\"brief\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"deadline\":\"2026-06-30T23:59:00+00:00\"},\"funnel\":{\"candidate\":20,\"outreach_sent\":20,\"in_conversation\":18,\"agreed\":17,\"shipped\":17,\"delivered\":17,\"posted\":17,\"verified\":16,\"declined\":0,\"no_response\":0,\"flaked\":0},\"goals\":{\"targetLivePosts\":15,\"verifiedCount\":16,\"percentOfGoal\":1.067,\"daysToDeadline\":5,\"goalMet\":true},\"reach\":{\"verifiedViews\":420000,\"verifiedLikes\":28400,\"verifiedComments\":2100,\"verifiedShares\":860,\"weightedEngagementRate\":0.075},\"performance\":{\"avgPerformanceScore\":82.4,\"medianPerformanceScore\":84.0,\"topPerformerCreatorId\":\"cr_minji\"},\"cost\":{\"spentUsd\":240.5,\"costPerVerifiedPost\":15.03,\"budgetUsd\":300.0,\"percentOfBudget\":0.8017},\"tracks\":[],\"flags\":[\"goal_met\"],\"generatedAt\":\"2026-05-19T00:00:00+00:00\"},\"creatorHandles\":{\"cr_minji\":\"@freshly_mj\"},\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"summary\":\"Freshly hit 16 verified posts against the 15-post target with five days to spare. Cost-efficient at $15 per verified post and 80% of budget consumed.\",\"highlights\":[\"@freshly_mj led the cohort with a 84 median performance score.\",\"420k verified views at 7.5% weighted engagement rate.\",\"107% of the target ($240.50 spent of $300.00 budget).\"],\"concerns\":[\"goal_met fired — no risk to surface; campaign closed in the green.\"],\"recommendations\":[\"Re-engage @freshly_mj at the same tier for the next launch.\",\"Raise the next campaign's target to 20 posts given the $59 budget headroom.\"],\"markdown\":\"# Freshly Vitamin C Serum — Campaign Report\\n\\nOver-delivered: 16 / 15 verified, $15.03 per verified post.\\n\\n## Summary\\nFreshly hit 16 verified posts against the 15-post target with five days to spare. Cost-efficient at $15 per verified post.\\n\\n## What worked\\n- @freshly_mj led with a 84 median performance score.\\n- 420,000 verified views at 7.5% weighted ER.\\n- 80% of budget consumed.\\n\\n## Next campaign\\n- Re-engage @freshly_mj at the same tier.\\n- Raise the target to 20 given the budget headroom.\\n\\n## Numbers\\n| Metric | Value |\\n|---|---|\\n| Verified posts | 16 / 15 |\\n| Reach | 420,000 views |\\n| Spent | $240.50 / $300.00 |\\n\"}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "analyst_en_02_behind_low_response",
+      "metadata": {
+        "locale": "en",
+        "performance_band": "behind",
+        "expected_flags": ["no_verified_yet", "low_response_rate"],
+        "expected_concerns_count": 2,
+        "should_escalate": false,
+        "note": "Mid-flight, 0/15 verified, 40 days remaining. Spec §6 'early_call' framing — agent produces, workflow tags."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_analyst_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Brightening Vitamin C serum.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.02,\"languages\":[\"ko\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\",\"budgetUsd\":300.0}},\"report\":{\"campaignId\":\"cmp_behind\",\"brief\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"deadline\":\"2026-06-30T23:59:00+00:00\"},\"funnel\":{\"candidate\":20,\"outreach_sent\":20,\"in_conversation\":2,\"agreed\":0,\"shipped\":0,\"delivered\":0,\"posted\":0,\"verified\":0,\"declined\":0,\"no_response\":18,\"flaked\":0},\"goals\":{\"targetLivePosts\":15,\"verifiedCount\":0,\"percentOfGoal\":0.0,\"daysToDeadline\":40,\"goalMet\":false},\"reach\":{\"verifiedViews\":0,\"verifiedLikes\":0,\"verifiedComments\":0,\"verifiedShares\":0,\"weightedEngagementRate\":null},\"performance\":{\"avgPerformanceScore\":null,\"medianPerformanceScore\":null,\"topPerformerCreatorId\":null},\"cost\":{\"spentUsd\":12.5,\"costPerVerifiedPost\":null,\"budgetUsd\":300.0,\"percentOfBudget\":0.0417},\"tracks\":[],\"flags\":[\"no_verified_yet\",\"low_response_rate\"],\"generatedAt\":\"2026-05-19T00:00:00+00:00\"},\"creatorHandles\":{},\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"summary\":\"Freshly is 0 of 15 verified with 40 days remaining and a 10% outreach reply rate (2/20). Too early to call a failure, but outreach quality is the immediate blocker.\",\"highlights\":[],\"concerns\":[\"No verified posts yet — campaign opened recently (no_verified_yet).\",\"Reply rate is 10% (2 of 20 outreach) — below the 25% baseline (low_response_rate).\"],\"recommendations\":[\"Refresh the outreach template — current copy yielded only 2 replies on 20 sends.\",\"Re-target with creators in the 25k-50k follower band; current cohort may skew larger.\"],\"markdown\":\"# Freshly Vitamin C Serum — Campaign Report\\n\\nBehind: 0 / 15 verified, 40 days remaining.\\n\\n## Summary\\nFreshly is 0 of 15 verified with 40 days remaining and a 10% outreach reply rate.\\n\\n## What to watch\\n- No verified posts yet (no_verified_yet).\\n- 10% reply rate (low_response_rate).\\n\\n## Next campaign\\n- Refresh the outreach template.\\n- Re-target with mid-tier creators.\\n\\n## Numbers\\n| Metric | Value |\\n|---|---|\\n| Verified posts | 0 / 15 |\\n| Reply rate | 2 / 20 (10%) |\\n| Spent | $12.50 / $300.00 |\\n\"}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "analyst_en_03_over_budget_deadline_missed",
+      "metadata": {
+        "locale": "en",
+        "performance_band": "over_budget",
+        "expected_flags": ["budget_exceeded", "deadline_missed", "high_flake_rate"],
+        "expected_concerns_count": 3,
+        "should_escalate": false,
+        "note": "Failed: missed deadline AND over budget AND >30% flake rate. Three concerns, no highlights."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_analyst_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"NovaBrand Serum\",\"category\":\"skincare/serum\",\"description\":\"Niacinamide brightening serum.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.02,\"languages\":[\"en\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-04-30T23:59:00+00:00\",\"budgetUsd\":200.0}},\"report\":{\"campaignId\":\"cmp_failed\",\"brief\":{\"name\":\"NovaBrand Serum\",\"category\":\"skincare/serum\",\"deadline\":\"2026-04-30T23:59:00+00:00\"},\"funnel\":{\"candidate\":20,\"outreach_sent\":20,\"in_conversation\":12,\"agreed\":10,\"shipped\":10,\"delivered\":8,\"posted\":4,\"verified\":3,\"declined\":2,\"no_response\":6,\"flaked\":4},\"goals\":{\"targetLivePosts\":15,\"verifiedCount\":3,\"percentOfGoal\":0.2,\"daysToDeadline\":-19,\"goalMet\":false},\"reach\":{\"verifiedViews\":18000,\"verifiedLikes\":540,\"verifiedComments\":42,\"verifiedShares\":18,\"weightedEngagementRate\":0.033},\"performance\":{\"avgPerformanceScore\":58.0,\"medianPerformanceScore\":60.0,\"topPerformerCreatorId\":\"cr_dev\"},\"cost\":{\"spentUsd\":245.0,\"costPerVerifiedPost\":81.67,\"budgetUsd\":200.0,\"percentOfBudget\":1.225},\"tracks\":[],\"flags\":[\"budget_exceeded\",\"deadline_missed\",\"high_flake_rate\"],\"generatedAt\":\"2026-05-19T00:00:00+00:00\"},\"creatorHandles\":{\"cr_dev\":\"@dev_skin\"},\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"summary\":\"NovaBrand closed at 3 of 15 verified posts, 19 days past deadline and 22% over budget. The 40% flake rate on shipped samples was the dominant failure mode.\",\"highlights\":[],\"concerns\":[\"Spent $245 against a $200 budget — 22% over (budget_exceeded).\",\"Deadline passed 19 days ago without hitting target (deadline_missed).\",\"4 of 10 agreed creators flaked after shipment (high_flake_rate).\"],\"recommendations\":[\"Tighten the agreement step — collect a soft-commit before shipping the next cohort.\",\"Cap creator-acquisition spend at $15/verified-post next time; this run hit $82.\"],\"markdown\":\"# NovaBrand Serum — Campaign Report\\n\\nFailed: 3 / 15 verified, 19 days past deadline.\\n\\n## Summary\\nNovaBrand closed at 3 of 15 verified posts, 19 days past deadline and 22% over budget.\\n\\n## What to watch\\n- 22% over budget ($245 / $200).\\n- Deadline missed by 19 days.\\n- 40% flake rate (4 of 10 agreed).\\n\\n## Next campaign\\n- Add a soft-commit step before shipping.\\n- Cap creator-acquisition spend at $15 per verified post.\\n\\n## Numbers\\n| Metric | Value |\\n|---|---|\\n| Verified posts | 3 / 15 |\\n| Spent | $245.00 / $200.00 |\\n| Cost per verified | $81.67 |\\n\"}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "analyst_ko_01_korean_winning",
+      "metadata": {
+        "locale": "ko",
+        "performance_band": "on_target",
+        "expected_flags": ["goal_met"],
+        "expected_concerns_count": 1,
+        "should_escalate": false,
+        "note": "Korean locale — on-target campaign just hit 15/15. Markdown body in Korean per D34."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_analyst_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"코스믹 토너\",\"category\":\"skincare/toner\",\"description\":\"AHA/BHA 각질 케어 토너.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"ko\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\",\"budgetUsd\":300.0}},\"report\":{\"campaignId\":\"cmp_ko_winning\",\"brief\":{\"name\":\"코스믹 토너\",\"category\":\"skincare/toner\",\"deadline\":\"2026-06-30T23:59:00+00:00\"},\"funnel\":{\"candidate\":20,\"outreach_sent\":20,\"in_conversation\":17,\"agreed\":16,\"shipped\":16,\"delivered\":16,\"posted\":15,\"verified\":15,\"declined\":1,\"no_response\":2,\"flaked\":0},\"goals\":{\"targetLivePosts\":15,\"verifiedCount\":15,\"percentOfGoal\":1.0,\"daysToDeadline\":12,\"goalMet\":true},\"reach\":{\"verifiedViews\":280000,\"verifiedLikes\":18900,\"verifiedComments\":1240,\"verifiedShares\":520,\"weightedEngagementRate\":0.074},\"performance\":{\"avgPerformanceScore\":76.5,\"medianPerformanceScore\":78.0,\"topPerformerCreatorId\":\"cr_sori\"},\"cost\":{\"spentUsd\":265.0,\"costPerVerifiedPost\":17.67,\"budgetUsd\":300.0,\"percentOfBudget\":0.8833},\"tracks\":[],\"flags\":[\"goal_met\"],\"generatedAt\":\"2026-05-19T00:00:00+00:00\"},\"creatorHandles\":{\"cr_sori\":\"@sori_skincare\"},\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"summary\":\"코스믹 토너는 15/15 목표를 정확히 달성했고, 12일을 남기고 예산의 88%로 완료했습니다. @sori_skincare가 78점 중위 성과 점수로 코호트를 이끌었습니다.\",\"highlights\":[\"15 of 15 목표 달성 (12일 여유).\",\"@sori_skincare 78 중위 성과 점수, 280,000 검증 조회수.\",\"예산의 88% 사용 ($265 / $300).\"],\"concerns\":[\"goal_met이 발생 — 추가 우려 사항 없음.\"],\"recommendations\":[\"@sori_skincare를 다음 캠페인 시드 크리에이터로 재계약하세요.\",\"검증 게시물당 $17.67 비용을 다음 캠페인 KPI로 고정하세요.\"],\"markdown\":\"# 코스믹 토너 — 캠페인 리포트\\n\\n달성: 15 / 15 검증, 12일 여유.\\n\\n## 요약\\n코스믹 토너는 15/15 목표를 정확히 달성했고, 예산의 88%로 완료했습니다.\\n\\n## 잘 된 점\\n- @sori_skincare가 78점 중위 성과로 코호트 리드.\\n- 280,000 검증 조회수, ER 7.4%.\\n- 예산의 88% 사용 ($265 / $300).\\n\\n## 다음 캠페인\\n- @sori_skincare 재계약.\\n- 검증 게시물당 $17.67 KPI 고정.\\n\\n## 숫자\\n| 지표 | 값 |\\n|---|---|\\n| 검증 게시물 | 15 / 15 |\\n| 도달 | 280,000 조회수 |\\n| 지출 | $265.00 / $300.00 |\\n\"}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "analyst_ko_02_korean_mid_flight_no_handles",
+      "metadata": {
+        "locale": "ko",
+        "performance_band": "mid_flight",
+        "expected_flags": [],
+        "expected_concerns_count": 0,
+        "should_escalate": false,
+        "note": "Mid-flight, no flags fired, NO creatorHandles — spec §8 edge case 4 (cite by creatorId)."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_analyst_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"하이드라 크림\",\"category\":\"skincare/moisturizer\",\"description\":\"히알루론산 보습 크림.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"ko\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-07-30T23:59:00+00:00\",\"budgetUsd\":300.0}},\"report\":{\"campaignId\":\"cmp_mid\",\"brief\":{\"name\":\"하이드라 크림\",\"category\":\"skincare/moisturizer\",\"deadline\":\"2026-07-30T23:59:00+00:00\"},\"funnel\":{\"candidate\":20,\"outreach_sent\":12,\"in_conversation\":9,\"agreed\":6,\"shipped\":4,\"delivered\":3,\"posted\":2,\"verified\":2,\"declined\":1,\"no_response\":2,\"flaked\":0},\"goals\":{\"targetLivePosts\":15,\"verifiedCount\":2,\"percentOfGoal\":0.1333,\"daysToDeadline\":72,\"goalMet\":false},\"reach\":{\"verifiedViews\":34000,\"verifiedLikes\":1800,\"verifiedComments\":120,\"verifiedShares\":40,\"weightedEngagementRate\":0.058},\"performance\":{\"avgPerformanceScore\":71.0,\"medianPerformanceScore\":71.0,\"topPerformerCreatorId\":\"cr_alpha\"},\"cost\":{\"spentUsd\":45.0,\"costPerVerifiedPost\":22.5,\"budgetUsd\":300.0,\"percentOfBudget\":0.15},\"tracks\":[],\"flags\":[],\"generatedAt\":\"2026-05-19T00:00:00+00:00\"},\"creatorHandles\":{},\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"summary\":\"하이드라 크림은 캠페인 초반(72일 남음)에 2/15 검증, 15%의 예산 사용을 기록했습니다. 발화 플래그는 없으나 아직 outreach가 12/20으로 절반 수준입니다.\",\"highlights\":[\"cr_alpha 71점 평균 성과 점수, 34,000 조회수.\",\"검증 게시물당 $22.50, 15%의 예산만 소진.\"],\"concerns\":[],\"recommendations\":[\"남은 8명에게 즉시 outreach를 발송하세요 — 현재 12/20.\",\"cr_alpha를 시드 사례로 활용해 후속 크리에이터 모집 톤을 조정하세요.\"],\"markdown\":\"# 하이드라 크림 — 캠페인 리포트\\n\\n진행 중: 2 / 15 검증, 72일 남음.\\n\\n## 요약\\n하이드라 크림은 캠페인 초반에 2/15 검증, 15%의 예산 사용을 기록했습니다.\\n\\n## 잘 된 점\\n- cr_alpha 71점 평균 성과 점수.\\n- 34,000 조회수, ER 5.8%.\\n\\n## 다음 캠페인\\n- 남은 8명에게 outreach 발송.\\n- cr_alpha를 시드 사례로 활용.\\n\\n## 숫자\\n| 지표 | 값 |\\n|---|---|\\n| 검증 게시물 | 2 / 15 |\\n| 지출 | $45.00 / $300.00 |\\n\"}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "analyst_ja_01_japanese_winning",
+      "metadata": {
+        "locale": "ja",
+        "performance_band": "winning",
+        "expected_flags": ["goal_met"],
+        "expected_concerns_count": 1,
+        "should_escalate": false,
+        "note": "Japanese locale — winning campaign with strong concentration on one creator (90% of views)."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_analyst_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"プリュムマスク\",\"category\":\"skincare/mask\",\"description\":\"夜用美白マスク。\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":15,\"minEngagementRate\":0.03,\"languages\":[\"ja\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":10,\"deadline\":\"2026-06-30T23:59:00+00:00\",\"budgetUsd\":250.0}},\"report\":{\"campaignId\":\"cmp_ja_winning\",\"brief\":{\"name\":\"プリュムマスク\",\"category\":\"skincare/mask\",\"deadline\":\"2026-06-30T23:59:00+00:00\"},\"funnel\":{\"candidate\":15,\"outreach_sent\":15,\"in_conversation\":12,\"agreed\":11,\"shipped\":11,\"delivered\":11,\"posted\":11,\"verified\":11,\"declined\":0,\"no_response\":0,\"flaked\":0},\"goals\":{\"targetLivePosts\":10,\"verifiedCount\":11,\"percentOfGoal\":1.1,\"daysToDeadline\":15,\"goalMet\":true},\"reach\":{\"verifiedViews\":510000,\"verifiedLikes\":34000,\"verifiedComments\":2400,\"verifiedShares\":800,\"weightedEngagementRate\":0.073},\"performance\":{\"avgPerformanceScore\":80.0,\"medianPerformanceScore\":78.0,\"topPerformerCreatorId\":\"cr_hana\"},\"cost\":{\"spentUsd\":210.0,\"costPerVerifiedPost\":19.09,\"budgetUsd\":250.0,\"percentOfBudget\":0.84},\"tracks\":[],\"flags\":[\"goal_met\"],\"generatedAt\":\"2026-05-19T00:00:00+00:00\"},\"creatorHandles\":{\"cr_hana\":\"@hana_glow\"},\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"summary\":\"プリュムマスクは目標の10件に対して11件の検証投稿を15日残しで達成しました。@hana_glowが平均78点のパフォーマンスで牽引し、ROIは検証投稿あたり$19.09です。\",\"highlights\":[\"11 / 10 目標達成(15日余裕)。\",\"@hana_glow 78点中央値スコア、510,000検証ビュー。\",\"予算の84%消化($210 / $250)。\"],\"concerns\":[\"goal_metが発火 — 追加の懸念事項なし。\"],\"recommendations\":[\"次回キャンペーンで@hana_glowを再契約してください。\",\"検証投稿あたり$19.09を次回KPIとして固定してください。\"],\"markdown\":\"# プリュムマスク — キャンペーンレポート\\n\\n達成: 11 / 10 検証、15日余裕。\\n\\n## 概要\\nプリュムマスクは目標の10件に対して11件の検証投稿を達成しました。\\n\\n## 良かった点\\n- 11 / 10 目標達成。\\n- @hana_glowが平均78点で牽引。\\n- 510,000検証ビュー、ER 7.3%。\\n\\n## 次回キャンペーン\\n- @hana_glow再契約。\\n- 検証投稿あたり$19.09をKPI固定。\\n\\n## 数値\\n| 指標 | 値 |\\n|---|---|\\n| 検証投稿 | 11 / 10 |\\n| リーチ | 510,000 ビュー |\\n| 支出 | $210.00 / $250.00 |\\n\"}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "analyst_ja_02_japanese_behind",
+      "metadata": {
+        "locale": "ja",
+        "performance_band": "behind",
+        "expected_flags": ["no_verified_yet"],
+        "expected_concerns_count": 1,
+        "should_escalate": false,
+        "note": "Japanese behind-target; only no_verified_yet fired (deadline far enough that 'too early to call' framing applies per spec §6)."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_analyst_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"スキンセラム\",\"category\":\"skincare/serum\",\"description\":\"ナイアシンアミドセラム。\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.02,\"languages\":[\"ja\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":12,\"deadline\":\"2026-08-30T23:59:00+00:00\",\"budgetUsd\":250.0}},\"report\":{\"campaignId\":\"cmp_ja_early\",\"brief\":{\"name\":\"スキンセラム\",\"category\":\"skincare/serum\",\"deadline\":\"2026-08-30T23:59:00+00:00\"},\"funnel\":{\"candidate\":20,\"outreach_sent\":15,\"in_conversation\":8,\"agreed\":5,\"shipped\":3,\"delivered\":2,\"posted\":0,\"verified\":0,\"declined\":0,\"no_response\":7,\"flaked\":0},\"goals\":{\"targetLivePosts\":12,\"verifiedCount\":0,\"percentOfGoal\":0.0,\"daysToDeadline\":103,\"goalMet\":false},\"reach\":{\"verifiedViews\":0,\"verifiedLikes\":0,\"verifiedComments\":0,\"verifiedShares\":0,\"weightedEngagementRate\":null},\"performance\":{\"avgPerformanceScore\":null,\"medianPerformanceScore\":null,\"topPerformerCreatorId\":null},\"cost\":{\"spentUsd\":28.0,\"costPerVerifiedPost\":null,\"budgetUsd\":250.0,\"percentOfBudget\":0.112},\"tracks\":[],\"flags\":[\"no_verified_yet\"],\"generatedAt\":\"2026-05-19T00:00:00+00:00\"},\"creatorHandles\":{},\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"summary\":\"スキンセラムは現時点で0/12の検証投稿ですが、締切まで103日残っているため、判断は時期尚早です。outreachは15/20送信済み、配送が3件進行中です。\",\"highlights\":[\"15/20のoutreach完了、配送3件が進行中。\",\"予算の11.2%のみ消化($28 / $250)。\"],\"concerns\":[\"検証投稿がまだなし — キャンペーン序盤(no_verified_yet)。\"],\"recommendations\":[\"残り5名のoutreach発送を24時間以内に完了してください。\",\"配送済み3名のフォローアップを優先し、投稿サイクルを短縮してください。\"],\"markdown\":\"# スキンセラム — キャンペーンレポート\\n\\n進行中: 0 / 12 検証、103日残り。\\n\\n## 概要\\n締切まで103日残っているため、判断は時期尚早です。\\n\\n## 良かった点\\n- 15/20のoutreach完了。\\n- 予算の11.2%のみ消化。\\n\\n## 懸念事項\\n- 検証投稿がまだなし(no_verified_yet)。\\n\\n## 次回キャンペーン\\n- 残り5名のoutreach発送を完了。\\n- 配送済み3名のフォローアップを優先。\\n\\n## 数値\\n| 指標 | 値 |\\n|---|---|\\n| 検証投稿 | 0 / 12 |\\n| 支出 | $28.00 / $250.00 |\\n\"}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "analyst_zh_01_simplified_chinese_failed",
+      "metadata": {
+        "locale": "zh-CN",
+        "performance_band": "failed",
+        "expected_flags": ["deadline_missed", "low_response_rate"],
+        "expected_concerns_count": 2,
+        "should_escalate": false,
+        "note": "zh-CN failed campaign — deadline passed, low response rate, no over-budget. Tests Chinese number formatting + markdown."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_test_analyst_001\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"洁润精华\",\"category\":\"skincare/serum\",\"description\":\"维生素C+B5精华液。\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.02,\"languages\":[\"zh\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-04-15T23:59:00+00:00\",\"budgetUsd\":250.0}},\"report\":{\"campaignId\":\"cmp_zh_failed\",\"brief\":{\"name\":\"洁润精华\",\"category\":\"skincare/serum\",\"deadline\":\"2026-04-15T23:59:00+00:00\"},\"funnel\":{\"candidate\":20,\"outreach_sent\":20,\"in_conversation\":3,\"agreed\":2,\"shipped\":2,\"delivered\":2,\"posted\":2,\"verified\":2,\"declined\":1,\"no_response\":16,\"flaked\":0},\"goals\":{\"targetLivePosts\":15,\"verifiedCount\":2,\"percentOfGoal\":0.1333,\"daysToDeadline\":-34,\"goalMet\":false},\"reach\":{\"verifiedViews\":24000,\"verifiedLikes\":860,\"verifiedComments\":52,\"verifiedShares\":18,\"weightedEngagementRate\":0.039},\"performance\":{\"avgPerformanceScore\":62.0,\"medianPerformanceScore\":62.0,\"topPerformerCreatorId\":\"cr_li\"},\"cost\":{\"spentUsd\":85.0,\"costPerVerifiedPost\":42.5,\"budgetUsd\":250.0,\"percentOfBudget\":0.34},\"tracks\":[],\"flags\":[\"deadline_missed\",\"low_response_rate\"],\"generatedAt\":\"2026-05-19T00:00:00+00:00\"},\"creatorHandles\":{\"cr_li\":\"@li_glow\"},\"locale\":\"zh-CN\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"summary\":\"洁润精华最终为2/15验证发布,截止日已过34天。回复率仅3/20(15%),是本次活动的核心瓶颈。\",\"highlights\":[],\"concerns\":[\"截止日已过34天且未达标(deadline_missed)。\",\"outreach回复率仅15%(3/20),低于25%基线(low_response_rate)。\"],\"recommendations\":[\"重写outreach模板 — 当前模板20次发送仅3次回复。\",\"将创作者层级下调至25k-50k粉丝段,提高响应率。\"],\"markdown\":\"# 洁润精华 — 活动报告\\n\\n失败: 2 / 15 验证,截止日已过34天。\\n\\n## 摘要\\n洁润精华最终为2/15验证发布,截止日已过34天。回复率仅3/20。\\n\\n## 需关注\\n- 截止日已过34天(deadline_missed)。\\n- 回复率仅15%(low_response_rate)。\\n\\n## 下次活动\\n- 重写outreach模板。\\n- 下调创作者层级至25k-50k粉丝。\\n\\n## 数字\\n| 指标 | 值 |\\n|---|---|\\n| 验证发布 | 2 / 15 |\\n| 回复率 | 3 / 20 (15%) |\\n| 支出 | $85.00 / $250.00 |\\n\"}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    }
+  ]
+}

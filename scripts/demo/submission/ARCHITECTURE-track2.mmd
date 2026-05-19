@@ -1,0 +1,36 @@
+%% ARCHITECTURE-track2.mmd
+%% ----------------------------------------------------------------------------
+%% Track 2 (social-seeding-v2) architecture for the Google for Startups
+%% AI Agents Challenge submission. Implements gcp-research/decisions/
+%% ARCHITECTURE.md §3 (agent fleet) + §4 (data plane) + §5 (orchestration)
+%% under the 10-box rule from SUBMISSION-PACKAGE.md §2.
+%%
+%% Render:
+%%   mmdc -i ARCHITECTURE-track2.mmd -o ARCHITECTURE-track2.png \
+%%        -w 1600 -H 900 -b transparent --theme neutral
+%% ----------------------------------------------------------------------------
+flowchart LR
+  user[Brand Manager · Mission Control Next.js 16<br/>Dialogflow CX chatbot · React Native PWA] --> gw
+
+  gw{{Agent Gateway · Cloud Armor<br/>Identity Platform multi-tenant<br/>AP2 Intent Mandate gate · D27}}
+
+  gw --> orch[Cloud Workflows · Pub/Sub<br/>Cloud Tasks · Eventarc Advanced<br/>D18 durable orchestration]
+
+  orch --> fleet{22-agent fleet on Vertex AI Agent Runtime<br/>16 domain · 3 meta M1-M3 · 3 watchdog W1-W3<br/>Gemini 2.5 Pro · Flash · Flash-Lite · D23}
+
+  fleet -. inline guardrail .-> armor[Model Armor max policy<br/>PI / JB / PII / Custom regex<br/>Agent Anomaly Detection · D21]
+
+  fleet --> data[(Spanner Multi-region · D15<br/>AlloyDB AI + Vertex Vector Search<br/>Firestore Memory Bank · D16)]
+
+  fleet --> ai[Gemini 2.5 + Imagen 4 + Veo 3 + Lyria<br/>Vision AI · Document AI · Translation API<br/>i18n D34: ko · en · ja · zh]
+
+  fleet --> side[Gmail send · D10 test only<br/>Apigee X $0.01 / view meter · D28<br/>BigQuery streaming via Dataflow]
+
+  armor -.audit.-> sec[Chronicle SecOps SIEM · D32<br/>Cloud Logging · Audit Logs<br/>DLP redaction · CMEK · D20]
+
+  fleet -.eval + RLHF.-> learn[Agent Evaluation · Agent Simulation<br/>Agent Optimizer · Vertex Pipelines<br/>SFT + Pro→Flash distill · D25]
+
+  classDef gcp fill:#4285F4,stroke:#1A73E8,color:#fff,stroke-width:1px;
+  classDef boundary fill:#FFD400,stroke:#F9AB00,color:#000,stroke-width:2px;
+  class fleet,data,ai,armor,sec,learn,orch gcp;
+  class gw boundary;

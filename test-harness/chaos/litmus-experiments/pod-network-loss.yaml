@@ -1,0 +1,26 @@
+# Litmus CR — pod-network-loss for cross-region tenancy isolation drills.
+# Backs the "network_partition_us_eu" scenario hinted at in MATRIX §6.3.
+---
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: pod-network-loss
+  namespace: chaos-system
+spec:
+  engineState: active
+  appinfo:
+    appns: agent-sandbox
+    applabel: app=creative-worker
+    appkind: deployment
+  chaosServiceAccount: litmus-chaos-runner
+  experiments:
+    - name: pod-network-loss
+      spec:
+        components:
+          env:
+            - name: TOTAL_CHAOS_DURATION
+              value: "120"
+            - name: NETWORK_PACKET_LOSS_PERCENTAGE
+              value: "100"
+            - name: DESTINATION_IPS
+              value: "10.128.0.0/16"  # cross-region subnet (chaos VPC only)

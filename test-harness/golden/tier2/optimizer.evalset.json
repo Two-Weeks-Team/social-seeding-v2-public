@@ -1,0 +1,16 @@
+{
+  "name": "optimizer_v1_smoke",
+  "description": "Tier-2 optimizer (M3) — REWARD CONSUMER, not subject. Smoke evalset for the GEPA/MIPRO prompt-diff workflow only. D-IDs: D23, D25, D37 (§10).",
+  "agent_spec_ref": "gs://ss-v2-agent-registry/optimizer/v1.json",
+  "trajectory_mode": "NONE",
+  "metrics": ["prompt_diff_quality"],
+  "thresholds": {"prompt_diff_quality": 0.70},
+  "min_cases": 5,
+  "eval_cases": [
+    {"name": "op_en_001_no_change_needed","locale": "en", "tags": ["happy"], "input": {"eval_delta": "+0.01"}, "expected": {"action": "noop"}, "notes": "MATRIX §10.1 — net delta below +0.02 threshold."},
+    {"name": "op_en_002_meaningful_lift","locale": "en", "tags": ["happy"], "input": {"eval_delta": "+0.05"}, "expected": {"action": "open_pr"}},
+    {"name": "op_en_003_regression_block","locale": "en", "tags": ["edge"], "input": {"eval_delta": "-0.02"}, "expected": {"action": "block_no_pr"}, "notes": "Negative deltas auto-block."},
+    {"name": "op_en_004_l4_negative_reward","locale": "en", "tags": ["edge"], "input": {"l1_delta": "+0.05", "l4_reward_delta": "-0.10"}, "expected": {"action": "block_no_pr"}, "notes": "L1 up but L4 down — block."},
+    {"name": "op_en_005_concurrent_rewrite_block","locale": "en", "tags": ["edge"], "input": {"agents_rewritten_tonight": 3}, "expected": {"action": "defer"}, "notes": "MATRIX §10.1 — max 2/night across fleet."}
+  ]
+}

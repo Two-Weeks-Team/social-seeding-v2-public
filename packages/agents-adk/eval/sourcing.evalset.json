@@ -1,0 +1,267 @@
+{
+  "eval_set_id": "ss_sourcing_v0_1",
+  "name": "Sourcing agent — 8-case golden set (D34 locale spread)",
+  "description": "Phase 3 skeleton golden set per sourcing.spec.md §7. The full 80-case set (20 per locale per sourcing.spec.md §7) lands in tests/golden/sourcing/{ko-skincare,en-fitness,ja-cafe,zh-tech}.json during Phase 4 calibration. Each case captures the synthesised final response — the agent's real tool sequence (rapidapi.tiktok_search × 2-4, blacklist.check × 1, vector_search.creator × 1) lands when ADK FunctionTools are wired (Phase 4 / BN-11 follow-up).",
+  "criteria_overrides": {
+    "tool_trajectory_avg_score": 0.0,
+    "final_response_match_v2": 0.65
+  },
+  "metadata": {
+    "agent_id": "sourcing",
+    "spec": "gcp-research/specs/tier1/sourcing.spec.md",
+    "decisions": ["D5", "D14", "D17", "D23", "D24", "D34"],
+    "locales_covered": ["en", "en", "en", "ko", "ko", "ja", "ja", "zh-CN"],
+    "phase_3_boundary_notes": [
+      "candidates[] are synthesised fixtures, not live RapidAPI hits.",
+      "queriesUsed[] are the strings the agent *would* run; Phase 4 records the actual tool invocation log.",
+      "coverageNote intentionally varies tone (comfortable / tight / saturation) to seed the eval rubric."
+    ]
+  },
+  "eval_cases": [
+    {
+      "eval_id": "sourcing_en_01_fitness_comfortable",
+      "metadata": {
+        "locale": "en",
+        "campaign": "en-fitness",
+        "expected_coverage_state": "comfortable",
+        "should_escalate": false,
+        "creator_count_target": 15
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_eval_en_fit_01\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"PulseBand\",\"category\":\"fitness/wearable\",\"description\":\"Sweat-proof HR band for home workouts and HIIT.\",\"keyClaims\":[\"24h battery\",\"sweat-proof IP68\"]},\"targeting\":{\"creatorCount\":15,\"minEngagementRate\":0.04,\"languages\":[\"en\"],\"hashtags\":[\"fittok\",\"homeworkout\",\"hiit\"],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":12,\"deadline\":\"2026-07-15T23:59:00+00:00\"}},\"excludeCreatorIds\":[],\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"candidates\":[{\"creator\":{\"id\":\"700111\",\"uniqueId\":\"dailyworkout_us\",\"nickname\":\"Daily Workout\",\"signature\":\"Home workouts · 6-min routines\",\"verified\":false,\"privateAccount\":false,\"followerCount\":145000,\"followingCount\":210,\"videoCount\":720,\"heartCount\":6800000,\"hashtags\":[\"fitness\",\"homeworkout\",\"fittok\"],\"language\":\"en\",\"avgViews\":42000,\"engagementRate\":0.053,\"influenceScore\":78.0},\"matchReasons\":[\"Bio mentions home workouts · 6-min routines — direct topic overlap with HIIT focus.\",\"Hashtags #fittok + #homeworkout match the brief's targeting set.\"],\"flags\":[]},{\"creator\":{\"id\":\"700222\",\"uniqueId\":\"hiit_with_jay\",\"nickname\":\"HIIT with Jay\",\"signature\":\"3-min HIIT for busy people\",\"verified\":false,\"privateAccount\":false,\"followerCount\":92000,\"followingCount\":340,\"videoCount\":410,\"heartCount\":3100000,\"hashtags\":[\"hiit\",\"fittok\"],\"language\":\"en\",\"avgViews\":28000,\"engagementRate\":0.061,\"influenceScore\":71.0},\"matchReasons\":[\"Channel name 'HIIT with Jay' aligns with PulseBand's HIIT-focused positioning.\",\"6.1% engagement clears the 4% floor with comfortable margin.\"],\"flags\":[]}],\"queriesUsed\":[\"hiit home workout\",\"#fittok #homeworkout\"],\"coverageNote\":\"found 45 in-range; brief wants 15 — comfortable margin\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "sourcing_en_02_fitness_tight_honesty",
+      "metadata": {
+        "locale": "en",
+        "campaign": "en-fitness",
+        "expected_coverage_state": "tight",
+        "should_escalate": false,
+        "note": "sourcing.spec.md §1 honesty contract: short honest list > escalation. Coverage = 4 < 15, but the agent returns what it found instead of escalating."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_eval_en_fit_02\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"PulseBand Pro\",\"category\":\"fitness/wearable\",\"description\":\"Premium HR band targeting CrossFit athletes.\",\"keyClaims\":[\"competition-grade\"]},\"targeting\":{\"creatorCount\":15,\"minEngagementRate\":0.06,\"languages\":[\"en\"],\"hashtags\":[\"crossfit\",\"functionalfitness\"],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":12,\"deadline\":\"2026-07-15T23:59:00+00:00\"}},\"excludeCreatorIds\":[],\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"candidates\":[{\"creator\":{\"id\":\"700333\",\"uniqueId\":\"crossfit_kara\",\"nickname\":\"CrossFit Kara\",\"signature\":\"Competition prep, RX athletes only\",\"verified\":false,\"privateAccount\":false,\"followerCount\":58000,\"followingCount\":420,\"videoCount\":310,\"heartCount\":1900000,\"hashtags\":[\"crossfit\",\"functionalfitness\"],\"language\":\"en\",\"avgViews\":21000,\"engagementRate\":0.072,\"influenceScore\":68.0},\"matchReasons\":[\"Bio explicitly targets competition prep — matches brand's premium athlete positioning.\"],\"flags\":[]}],\"queriesUsed\":[\"crossfit competition prep\",\"#crossfit #functionalfitness\",\"functional fitness coach\"],\"coverageNote\":\"tight, only 1 matched after engagement floor — broaden hashtags or relax 6% min engagement\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "sourcing_en_03_blacklist_saturation_escalate",
+      "metadata": {
+        "locale": "en",
+        "campaign": "en-fitness",
+        "expected_coverage_state": "escalate",
+        "should_escalate": true,
+        "note": "Spec §6 / task brief: >50% blacklist saturation forces escalation. This case represents the agent's final answer JUST BEFORE escalating — the workflow inspects the empty candidates + coverage note and routes to human."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_eval_en_fit_03\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"PulseBand Reset\",\"category\":\"fitness/wearable\",\"description\":\"Re-launch into a heavily-blacklisted niche.\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":10,\"minEngagementRate\":0.03,\"languages\":[\"en\"],\"hashtags\":[\"fittok\"],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":8,\"deadline\":\"2026-07-30T23:59:00+00:00\"}},\"excludeCreatorIds\":[],\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"candidates\":[],\"queriesUsed\":[\"home workout\",\"#fittok\",\"hiit creator\"],\"coverageNote\":\"blacklist_saturation: 18 of 28 hits permanent-blacklisted (64%) — workspace history is exhausted for this niche\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "sourcing_ko_01_skincare_comfortable",
+      "metadata": {
+        "locale": "ko",
+        "campaign": "ko-skincare",
+        "expected_coverage_state": "comfortable",
+        "should_escalate": false
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_eval_ko_skin_01\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"10% 비타민C + 히알루론산 brightening serum.\",\"keyClaims\":[\"10% 비타민C\",\"향료 무첨가\"]},\"targeting\":{\"creatorCount\":20,\"minEngagementRate\":0.03,\"languages\":[\"ko\"],\"hashtags\":[\"스킨케어\",\"비타민C\"],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":15,\"deadline\":\"2026-06-30T23:59:00+00:00\"}},\"excludeCreatorIds\":[],\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"candidates\":[{\"creator\":{\"id\":\"700444\",\"uniqueId\":\"beautyguru_kr\",\"nickname\":\"K-Beauty Guru\",\"signature\":\"한국 스킨케어 리뷰 · DM문의\",\"verified\":true,\"privateAccount\":false,\"followerCount\":82000,\"followingCount\":312,\"videoCount\":412,\"heartCount\":2400000,\"hashtags\":[\"스킨케어\",\"kbeauty\",\"비타민C\"],\"language\":\"ko\",\"avgViews\":18500,\"engagementRate\":0.041,\"influenceScore\":72.0},\"matchReasons\":[\"바이오에 '한국 스킨케어 리뷰' 명시 — 비타민C 세럼 카테고리와 직접 일치.\",\"해시태그 #스킨케어 + #비타민C 가 브리프의 타겟팅 세트와 일치.\"],\"flags\":[]},{\"creator\":{\"id\":\"700555\",\"uniqueId\":\"glow_seoul\",\"nickname\":\"Glow Seoul\",\"signature\":\"서울 데일리 스킨케어 루틴\",\"verified\":false,\"privateAccount\":false,\"followerCount\":45000,\"followingCount\":189,\"videoCount\":230,\"heartCount\":1100000,\"hashtags\":[\"스킨케어\",\"데일리스킨케어\"],\"language\":\"ko\",\"avgViews\":9200,\"engagementRate\":0.038,\"influenceScore\":63.0},\"matchReasons\":[\"데일리 스킨케어 루틴 콘셉트 — 세럼 신제품 노출에 적합.\",\"3.8% 인게이지먼트, 최소 기준 3% 상회.\"],\"flags\":[]}],\"queriesUsed\":[\"비타민C 세럼 리뷰\",\"#스킨케어 #비타민C\"],\"coverageNote\":\"60건 매칭; 브리프 20명 — 여유 있음\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "sourcing_ko_02_skincare_no_hashtags_infer",
+      "metadata": {
+        "locale": "ko",
+        "campaign": "ko-skincare",
+        "expected_coverage_state": "comfortable",
+        "should_escalate": false,
+        "note": "Spec §8 edge case 1: brief omits hashtags — agent infers from brandProduct.description + category."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_eval_ko_skin_02\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Glow Up Toner\",\"category\":\"skincare/toner\",\"description\":\"녹차 추출 진정 토너, 민감성 피부용.\",\"keyClaims\":[\"녹차 추출\",\"진정 효과\"]},\"targeting\":{\"creatorCount\":10,\"minEngagementRate\":0.025,\"languages\":[\"ko\"],\"hashtags\":[],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":8,\"deadline\":\"2026-07-31T23:59:00+00:00\"}},\"excludeCreatorIds\":[],\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"candidates\":[{\"creator\":{\"id\":\"700666\",\"uniqueId\":\"sensitive_skin_kr\",\"nickname\":\"Sensitive Skin KR\",\"signature\":\"민감성 피부 토너/세럼 리뷰\",\"verified\":false,\"privateAccount\":false,\"followerCount\":38000,\"followingCount\":256,\"videoCount\":188,\"heartCount\":820000,\"hashtags\":[\"민감성피부\",\"토너추천\",\"스킨케어\"],\"language\":\"ko\",\"avgViews\":7800,\"engagementRate\":0.031,\"influenceScore\":58.0},\"matchReasons\":[\"민감성 피부 전문 채널 — 진정 토너의 핵심 사용자층과 일치.\",\"닉네임 직접 일치, 해시태그 #민감성피부 + #토너추천 매칭.\"],\"flags\":[]}],\"queriesUsed\":[\"민감성 피부 토너\",\"녹차 토너 리뷰\",\"#스킨케어 진정\"],\"coverageNote\":\"35건 매칭; 브리프 10명 — 여유 있음 (해시태그는 설명에서 추론)\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "sourcing_ja_01_cafe_comfortable",
+      "metadata": {
+        "locale": "ja",
+        "campaign": "ja-cafe",
+        "expected_coverage_state": "comfortable",
+        "should_escalate": false
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_eval_ja_cafe_01\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Morning Beans\",\"category\":\"food/coffee\",\"description\":\"スペシャルティコーヒーのサブスクリプション。\",\"keyClaims\":[\"スペシャルティ\",\"自家焙煎\"]},\"targeting\":{\"creatorCount\":12,\"minEngagementRate\":0.035,\"languages\":[\"ja\"],\"hashtags\":[\"カフェ\",\"コーヒー好き\"],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":10,\"deadline\":\"2026-08-15T23:59:00+00:00\"}},\"excludeCreatorIds\":[],\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"candidates\":[{\"creator\":{\"id\":\"700777\",\"uniqueId\":\"tokyo_coffee_log\",\"nickname\":\"Tokyo Coffee Log\",\"signature\":\"東京カフェ巡り · スペシャルティ専門\",\"verified\":false,\"privateAccount\":false,\"followerCount\":68000,\"followingCount\":410,\"videoCount\":325,\"heartCount\":1800000,\"hashtags\":[\"カフェ\",\"コーヒー好き\",\"スペシャルティ\"],\"language\":\"ja\",\"avgViews\":14000,\"engagementRate\":0.046,\"influenceScore\":69.0},\"matchReasons\":[\"バイオに「スペシャルティ専門」明記 — 商品コンセプトと直結。\",\"#カフェ + #コーヒー好き タグ一致、4.6% エンゲージで 3.5% 基準クリア。\"],\"flags\":[]}],\"queriesUsed\":[\"スペシャルティコーヒー\",\"#カフェ #コーヒー好き\"],\"coverageNote\":\"38件マッチ、必要12名 — 余裕あり\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "sourcing_ja_02_cafe_overlap_low_diversity",
+      "metadata": {
+        "locale": "ja",
+        "campaign": "ja-cafe",
+        "expected_coverage_state": "tight",
+        "should_escalate": false,
+        "note": "Spec §8 edge case 6: two queries return overlapping creators 100% — flag `low_query_diversity` in coverageNote without escalating."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_eval_ja_cafe_02\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"Morning Beans Mini\",\"category\":\"food/coffee\",\"description\":\"ニッチサブスク、東京限定。\",\"keyClaims\":[]},\"targeting\":{\"creatorCount\":8,\"minEngagementRate\":0.04,\"languages\":[\"ja\"],\"hashtags\":[\"カフェ\",\"東京カフェ\"],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":true},\"goals\":{\"targetLivePosts\":6,\"deadline\":\"2026-09-30T23:59:00+00:00\"}},\"excludeCreatorIds\":[\"early_adopter_jp\"],\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"candidates\":[{\"creator\":{\"id\":\"700888\",\"uniqueId\":\"shibuya_brew\",\"nickname\":\"Shibuya Brew\",\"signature\":\"渋谷カフェ・ハンドドリップ\",\"verified\":false,\"privateAccount\":false,\"followerCount\":29000,\"followingCount\":180,\"videoCount\":165,\"heartCount\":520000,\"hashtags\":[\"カフェ\",\"東京カフェ\",\"ハンドドリップ\"],\"language\":\"ja\",\"avgViews\":4800,\"engagementRate\":0.044,\"influenceScore\":54.0},\"matchReasons\":[\"渋谷ハンドドリップ専門 — 東京限定サブスクと地理的に一致。\"],\"flags\":[]}],\"queriesUsed\":[\"#カフェ #東京カフェ\",\"東京 ハンドドリップ\"],\"coverageNote\":\"low_query_diversity: 2クエリの結果が大幅重複。必要8名に対し2名のみ — ハッシュタグ拡張推奨\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "sourcing_zh_01_tech_comfortable",
+      "metadata": {
+        "locale": "zh-CN",
+        "campaign": "zh-tech",
+        "expected_coverage_state": "comfortable",
+        "should_escalate": false
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_eval_zh_tech_01\",\"createdBy\":\"op@example.com\",\"brandProduct\":{\"name\":\"CodeFlow IDE\",\"category\":\"tech/devtools\",\"description\":\"面向独立开发者的 AI 代码编辑器。\",\"keyClaims\":[\"AI 补全\",\"零配置\"]},\"targeting\":{\"creatorCount\":10,\"minEngagementRate\":0.03,\"languages\":[\"zh\"],\"hashtags\":[\"程序员\",\"开发者工具\"],\"excludeBlacklist\":true},\"logistics\":{\"shipsSamples\":false},\"goals\":{\"targetLivePosts\":8,\"deadline\":\"2026-08-31T23:59:00+00:00\"}},\"excludeCreatorIds\":[],\"locale\":\"zh-CN\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"candidates\":[{\"creator\":{\"id\":\"700999\",\"uniqueId\":\"devlife_cn\",\"nickname\":\"DevLife CN\",\"signature\":\"独立开发者日常 · AI 工具评测\",\"verified\":false,\"privateAccount\":false,\"followerCount\":75000,\"followingCount\":290,\"videoCount\":210,\"heartCount\":1600000,\"hashtags\":[\"程序员\",\"开发者工具\",\"AI编程\"],\"language\":\"zh\",\"avgViews\":15000,\"engagementRate\":0.052,\"influenceScore\":74.0},\"matchReasons\":[\"主页明确 'AI 工具评测' — 与 CodeFlow IDE 的 AI 补全卖点直接相关。\",\"标签 #程序员 + #开发者工具 + #AI编程 三重匹配,5.2% 互动率超过 3% 基线。\"],\"flags\":[]}],\"queriesUsed\":[\"AI 编程工具\",\"#程序员 #开发者工具\"],\"coverageNote\":\"匹配 32 名;计划 10 名 — 余量充足\"}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    }
+  ]
+}

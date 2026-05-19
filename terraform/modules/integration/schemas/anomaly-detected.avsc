@@ -1,0 +1,30 @@
+{
+  "type": "record",
+  "name": "AnomalyDetected",
+  "namespace": "ai.socialseed.v2.watchdog.anomaly",
+  "doc": "Per shared.asyncapi.yaml lines 186-203 (D36 + D23 + D32). Published by anomaly_watch; auto-runbook subscribers consume.",
+  "fields": [
+    {
+      "name": "signalKind",
+      "type": {
+        "type": "enum",
+        "name": "SignalKind",
+        "symbols": ["cost_spike", "latency_spike", "token_explosion", "error_rate_spike", "escalation_storm"]
+      }
+    },
+    { "name": "tenantId",   "type": "string" },
+    { "name": "agentId",    "type": "string" },
+    { "name": "detectedAt", "type": "string" },
+    {
+      "name": "severity",
+      "type": {
+        "type": "enum",
+        "name": "AnomalySeverity",
+        "symbols": ["info", "warn", "page"]
+      }
+    },
+    { "name": "metricValue", "type": ["null", "double"], "default": null },
+    { "name": "baseline",    "type": ["null", "double"], "default": null },
+    { "name": "runbookId",   "type": ["null", "string"], "default": null, "doc": "Cloud Workflows auto-runbook to invoke (D32)." }
+  ]
+}

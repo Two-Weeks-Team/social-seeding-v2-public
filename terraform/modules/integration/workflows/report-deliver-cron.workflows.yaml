@@ -1,0 +1,67 @@
+# report-deliver-cron.workflows.yaml
+# Trigger: Cloud Scheduler cron `0 9 * * *` (daily 09:00 KST per TF-Module-8 brief).
+# Source pattern: INNGEST-MIGRATION.md §3.5 (cron port). NOTE: §3.5 line 504
+# specifies weekly Mon 09:00; the TF-Module-8 brief promotes this to daily
+# so operators see fresh numbers every business morning.
+#
+# Each workspace flagged as `cadence: "daily"` by /reports/list-due gets a
+# generated report URL + Gmail delivery (or Slack webhook for Enterprise).
+
+main:
+  params: [args]
+  steps:
+    - init:
+        assign:
+          - triggeredBy: ${default(args.triggeredBy, "manual")}
+
+    - list_workspaces_due:
+        call: http.post
+        args:
+          url: ${sys.get_env("CAMPAIGN_REPO_URL") + "/reports/list-due"}
+          body:
+            cadence: "daily"
+          auth:
+            type: OIDC
+        result: workspaces_response
+
+    - generate_and_send:
+        for:
+          value: workspace
+          in: ${workspaces_response.body.workspaces}
+          steps:
+            - generate_report:
+                call: http.post
+                args:
+                  url: ${sys.get_env("CAMPAIGN_REPO_URL") + "/reports/generate"}
+                  body:
+                    workspaceId: ${workspace.id}
+                    period: ${default(workspace.reportPeriod, "last-24h")}
+                  auth:
+                    type: OIDC
+                  timeout: 300
+                retry:
+                  predicate: ${http.default_retry_predicate}
+                  max_retries: 3
+                  backoff: {initial_delay: 10, max_delay: 120, multiplier: 2}
+                result: report_response
+
+            - send_report:
+                call: http.post
+                args:
+                  url: ${sys.get_env("CAMPAIGN_REPO_URL") + "/reports/deliver"}
+                  body:
+                    workspaceId: ${workspace.id}
+                    reportId: ${report_response.body.reportId}
+                    recipients: ${workspace.reportRecipients}
+                  auth:
+                    type: OIDC
+                  timeout: 120
+                retry:
+                  predicate: ${http.default_retry_predicate}
+                  max_retries: 5
+                  backoff: {initial_delay: 5, max_delay: 600, multiplier: 2}
+
+    - return_summary:
+        return:
+          triggeredBy: ${triggeredBy}
+          deliveredCount: ${len(workspaces_response.body.workspaces)}

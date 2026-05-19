@@ -1,0 +1,294 @@
+{
+  "eval_set_id": "ss_outreach_writer_v0_1",
+  "name": "Outreach Writer tournament — 8-case golden set (D34 locale spread + angle coverage)",
+  "description": "Phase 3.5 skeleton golden set per outreach_writer.spec.md §7. The tournament shape (5 angles × 4 judges) makes a single ground-truth final_response unrealistic — each case fixes the FACTS + INPUT and asserts an EXPECTED ANGLE WINNER + tournament-level metrics (weighted_score, spam_score, banned-phrase compliance). The full 40-case-per-locale set (160 total) lands in tests/golden/outreach_writer/{ko,en,ja,zh-CN}.json during Phase 4 mass-production.",
+  "criteria_overrides": {
+    "response_match_v2": 0.75,
+    "spam_score_max": 3.0,
+    "groundedness_min": 0.95,
+    "judge_calibration_min": 0.80,
+    "bannedphrase_leak_rate_max": 0.00,
+    "revise_rate_max": 0.30,
+    "weighted_score_min_average": 0.65
+  },
+  "metadata": {
+    "agent_id": "outreach-writer",
+    "spec": "gcp-research/specs/tier1/outreach_writer.spec.md",
+    "decisions": ["D5", "D10", "D21", "D23", "D27", "D34"],
+    "model": "gemini-2.5-pro",
+    "tournament_max_usd": 0.10,
+    "drafter_max_usd_per_call": 0.02,
+    "judge_max_usd_per_call": 0.005,
+    "judge_weights": {
+      "skeptic": 0.40,
+      "conversion": 0.30,
+      "deliverability": 0.15,
+      "brand": 0.15
+    },
+    "judge_weighting_method": "weighted_geometric_mean",
+    "locales_covered": ["ko", "ko", "en", "en", "ja", "ja", "zh-CN", "ko"],
+    "angles_covered": [
+      "pain_killer",
+      "aspirational",
+      "peer_proof",
+      "data_specific",
+      "contrarian_hook"
+    ],
+    "escalation_paths_covered": [
+      "insufficient_context",
+      "draft_below_quality_floor",
+      "tournament_collapse"
+    ]
+  },
+  "eval_cases": [
+    {
+      "eval_id": "outreach_ko_01_peer_proof_kbeauty_winner",
+      "metadata": {
+        "locale": "ko",
+        "expected_angle": "peer_proof",
+        "expected_weighted_score_min": 0.75,
+        "expected_spam_score_max": 2.5,
+        "should_escalate": false,
+        "note": "K-beauty creator with strong recentPostThemes; peer_proof should win because the facts give the strongest concrete-comparison hook."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"facts\":{\"creator\":{\"uniqueId\":\"beautyguru_kr\",\"nickname\":\"K-Beauty Guru\",\"signature\":\"Korean skincare reviews · DM for collabs\",\"topHashtags\":[\"스킨케어\",\"kbeauty\",\"비타민C\"],\"recentPostThemes\":[\"morning routine\",\"vitamin C review\",\"AM/PM steps\"],\"followerCount\":82000,\"avgViews\":18500,\"engagementRate\":0.041},\"brand\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Brightening vitamin C serum with hyaluronic acid.\",\"keyClaims\":[\"10% vitamin C\",\"fragrance-free\",\"vegan\"]},\"logistics\":{\"shipsSamples\":true},\"hasMinimumContext\":true},\"voiceNotes\":\"warm, conversational, K-beauty native vocabulary\",\"bannedPhrases\":[\"urgent\",\"limited time\"],\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"@beautyguru_kr · Freshly Vitamin C 세럼 협업 제안\",\"body\":\"<p>안녕하세요, K-Beauty Guru님</p><p>최근 비타민 C 리뷰 영상을 인상 깊게 봤습니다. Freshly의 10% 비타민 C 세럼이 영상의 모닝 루틴 톤과 잘 어울릴 것 같아 제안 드려요.</p><p>샘플을 보내드려도 괜찮을까요?</p>\",\"angle\":\"peer_proof\",\"spamScore\":1.5,\"groundedFacts\":[\"creator.recentPostThemes[1]\",\"brand.keyClaims[0]\"],\"locale\":\"ko\",\"judgeScores\":{\"brand\":0.86,\"conversion\":0.84,\"deliverability\":0.88,\"skeptic\":0.82},\"judgeScoreCards\":[{\"judge\":\"skeptic\",\"score\":0.82,\"rationale\":\"Specific reference to creator's vitamin C review — not a generic blast.\",\"flags\":[]},{\"judge\":\"conversion\",\"score\":0.84,\"rationale\":\"Clear single CTA (sample request) with one question mark.\",\"flags\":[]},{\"judge\":\"deliverability\",\"score\":0.88,\"rationale\":\"Plain HTML, no CAPS / bangs / $ / Re: prefix.\",\"flags\":[]},{\"judge\":\"brand\",\"score\":0.86,\"rationale\":\"Cites keyClaims[0] (10% vitamin C) faithfully; matches voiceNotes tone.\",\"flags\":[]}],\"weightedScore\":0.838}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "outreach_ko_02_data_specific_winner_vegan_claim",
+      "metadata": {
+        "locale": "ko",
+        "expected_angle": "data_specific",
+        "expected_weighted_score_min": 0.70,
+        "should_escalate": false,
+        "note": "Creator's bio mentions vegan lifestyle → data_specific angle on brand.keyClaims[2] (vegan) becomes the strongest grounded hook."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"facts\":{\"creator\":{\"uniqueId\":\"vegan_skincare_kr\",\"nickname\":\"Vegan Skincare KR\",\"signature\":\"100% 비건 스킨케어 리뷰\",\"topHashtags\":[\"비건뷰티\",\"vegan\",\"kbeauty\"],\"recentPostThemes\":[\"비건 인증 제품\",\"성분 분석\"],\"followerCount\":45000,\"engagementRate\":0.055},\"brand\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Brightening vitamin C serum.\",\"keyClaims\":[\"10% vitamin C\",\"fragrance-free\",\"vegan\"]},\"logistics\":{\"shipsSamples\":true},\"hasMinimumContext\":true},\"voiceNotes\":\"professional, ingredient-focused\",\"bannedPhrases\":[],\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"@vegan_skincare_kr · Freshly 비건 인증 세럼 협업\",\"body\":\"<p>안녕하세요, Vegan Skincare KR님</p><p>Freshly Vitamin C 세럼은 비건 인증을 받았고 향료를 사용하지 않습니다. 비건 성분 분석 콘텐츠와 결이 맞아 보여서 연락드렸어요.</p><p>샘플을 보내드려도 될까요?</p>\",\"angle\":\"data_specific\",\"spamScore\":1.0,\"groundedFacts\":[\"brand.keyClaims[2]\",\"brand.keyClaims[1]\",\"creator.recentPostThemes[1]\"],\"locale\":\"ko\",\"judgeScores\":{\"brand\":0.84,\"conversion\":0.78,\"deliverability\":0.86,\"skeptic\":0.74},\"judgeScoreCards\":[{\"judge\":\"skeptic\",\"score\":0.74,\"rationale\":\"Concrete vegan-cert claim is specific; could be sharper on differentiator vs other vegan brands.\",\"flags\":[]},{\"judge\":\"conversion\",\"score\":0.78,\"rationale\":\"Single CTA + sample mention aligned with vegan content angle.\",\"flags\":[]},{\"judge\":\"deliverability\",\"score\":0.86,\"rationale\":\"Clean copy, no spam tokens.\",\"flags\":[]},{\"judge\":\"brand\",\"score\":0.84,\"rationale\":\"Faithful citation of keyClaims; tone matches ingredient-focused voice.\",\"flags\":[]}],\"weightedScore\":0.779}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "outreach_en_03_aspirational_us_creator",
+      "metadata": {
+        "locale": "en",
+        "expected_angle": "aspirational",
+        "expected_weighted_score_min": 0.70,
+        "should_escalate": false,
+        "note": "US English creator with growth-trajectory content; aspirational angle frames the brand as the next plateau."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"facts\":{\"creator\":{\"uniqueId\":\"glowup_journey\",\"nickname\":\"Glow Up Journey\",\"signature\":\"From breakouts to glass skin · NYC\",\"topHashtags\":[\"glowup\",\"skincarejourney\",\"transformation\"],\"recentPostThemes\":[\"6-month skin transformation\",\"breakout to clear\"],\"followerCount\":62000,\"engagementRate\":0.038},\"brand\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Brightening serum for transformation routines.\",\"keyClaims\":[\"10% vitamin C\",\"clinically tested\"]},\"logistics\":{\"shipsSamples\":true},\"hasMinimumContext\":true},\"voiceNotes\":\"encouraging, growth-oriented\",\"bannedPhrases\":[],\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"@glowup_journey — your transformation series + Freshly\",\"body\":\"<p>Hi Glow Up Journey,</p><p>Your 6-month transformation series is exactly the kind of arc we built Freshly's Vitamin C serum for — the brightening step that fits between breakout-recovery and glass-skin maintenance.</p><p>Could we send you a bottle for the next chapter of the series?</p>\",\"angle\":\"aspirational\",\"spamScore\":1.0,\"groundedFacts\":[\"creator.recentPostThemes[0]\",\"brand.keyClaims[0]\"],\"locale\":\"en\",\"judgeScores\":{\"brand\":0.80,\"conversion\":0.82,\"deliverability\":0.88,\"skeptic\":0.78},\"judgeScoreCards\":[{\"judge\":\"skeptic\",\"score\":0.78,\"rationale\":\"Hooks into the series narrative rather than a generic 'we love your work'.\",\"flags\":[]},{\"judge\":\"conversion\",\"score\":0.82,\"rationale\":\"Single question CTA tied to a concrete next post.\",\"flags\":[]},{\"judge\":\"deliverability\",\"score\":0.88,\"rationale\":\"Plain HTML, no spam markers.\",\"flags\":[]},{\"judge\":\"brand\",\"score\":0.80,\"rationale\":\"Tone matches voiceNotes; cites one keyClaim.\",\"flags\":[]}],\"weightedScore\":0.797}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "outreach_en_04_pain_killer_dry_skin",
+      "metadata": {
+        "locale": "en",
+        "expected_angle": "pain_killer",
+        "expected_weighted_score_min": 0.65,
+        "should_escalate": false,
+        "note": "Creator's recent post themes describe a friction (winter dryness) — pain_killer angle ties brand to direct relief."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"facts\":{\"creator\":{\"uniqueId\":\"dryskinfix\",\"nickname\":\"Dry Skin Fix\",\"signature\":\"Honest skincare for sensitive + dry skin\",\"topHashtags\":[\"sensitiveskin\",\"dryskin\",\"hyaluronicacid\"],\"recentPostThemes\":[\"winter dryness struggle\",\"flaking patches review\"],\"followerCount\":34000,\"engagementRate\":0.062},\"brand\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Vitamin C serum with hyaluronic acid for dry skin.\",\"keyClaims\":[\"hyaluronic acid\",\"non-irritating\",\"fragrance-free\"]},\"logistics\":{\"shipsSamples\":true},\"hasMinimumContext\":true},\"voiceNotes\":\"empathetic, honest\",\"bannedPhrases\":[\"miracle\",\"cure\"],\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"@dryskinfix — winter flaking · Freshly serum sample\",\"body\":\"<p>Hi Dry Skin Fix,</p><p>The winter dryness review you posted hit close to home — Freshly's vitamin C serum was formulated with hyaluronic acid and zero fragrance for exactly that flaking-patch routine.</p><p>Mind if we send a sample for an honest test?</p>\",\"angle\":\"pain_killer\",\"spamScore\":1.0,\"groundedFacts\":[\"creator.recentPostThemes[0]\",\"brand.keyClaims[0]\",\"brand.keyClaims[2]\"],\"locale\":\"en\",\"judgeScores\":{\"brand\":0.80,\"conversion\":0.78,\"deliverability\":0.86,\"skeptic\":0.74},\"judgeScoreCards\":[{\"judge\":\"skeptic\",\"score\":0.74,\"rationale\":\"Direct reference to creator's stated pain point — not generic empathy.\",\"flags\":[]},{\"judge\":\"conversion\",\"score\":0.78,\"rationale\":\"Honest-test framing matches voiceNotes; CTA is one question.\",\"flags\":[]},{\"judge\":\"deliverability\",\"score\":0.86,\"rationale\":\"No spam tokens; banned terms ('miracle','cure') absent.\",\"flags\":[]},{\"judge\":\"brand\",\"score\":0.80,\"rationale\":\"Two keyClaims cited; voiceNotes tone preserved.\",\"flags\":[]}],\"weightedScore\":0.770}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "outreach_ja_05_contrarian_hook_jpop_creator",
+      "metadata": {
+        "locale": "ja",
+        "expected_angle": "contrarian_hook",
+        "expected_weighted_score_min": 0.65,
+        "should_escalate": false,
+        "note": "Japanese creator whose niche is 'not-recommended products'; contrarian_hook angle leans into the creator's signature voice."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"facts\":{\"creator\":{\"uniqueId\":\"jpop_skincare\",\"nickname\":\"JP Skincare Critic\",\"signature\":\"バズらない美容アイテムだけ紹介\",\"topHashtags\":[\"スキンケア\",\"日本コスメ\"],\"recentPostThemes\":[\"地味だけど効くアイテム\",\"成分重視レビュー\"],\"followerCount\":51000,\"engagementRate\":0.047},\"brand\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Quiet workhorse vitamin C serum for ingredient-first reviewers.\",\"keyClaims\":[\"10% vitamin C\",\"fragrance-free\"]},\"logistics\":{\"shipsSamples\":true},\"hasMinimumContext\":true},\"voiceNotes\":\"controlled, anti-hype\",\"bannedPhrases\":[\"バズる\",\"話題\"],\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"@jpop_skincare · 地味なビタミンC、いかがですか\",\"body\":\"<p>JP Skincare Criticさん、こんにちは。</p><p>派手な広告とは無縁の、成分重視のビタミンCセラム『Freshly』をご紹介させてください。10% ビタミンC、無香料。レビュー基準に合うかは送ってから判断していただければと思います。</p><p>サンプルをお送りしてもよろしいでしょうか？</p>\",\"angle\":\"contrarian_hook\",\"spamScore\":1.0,\"groundedFacts\":[\"creator.recentPostThemes[0]\",\"brand.keyClaims[0]\",\"brand.keyClaims[1]\"],\"locale\":\"ja\",\"judgeScores\":{\"brand\":0.82,\"conversion\":0.74,\"deliverability\":0.86,\"skeptic\":0.76},\"judgeScoreCards\":[{\"judge\":\"skeptic\",\"score\":0.76,\"rationale\":\"Anti-hype framing matches the creator's stated niche — unlikely to be a copy-paste blast.\",\"flags\":[]},{\"judge\":\"conversion\",\"score\":0.74,\"rationale\":\"One CTA; could push slightly harder on the review hook.\",\"flags\":[]},{\"judge\":\"deliverability\",\"score\":0.86,\"rationale\":\"Plain Japanese HTML; no spam tokens; banned terms absent.\",\"flags\":[]},{\"judge\":\"brand\",\"score\":0.82,\"rationale\":\"Cites keyClaims; tone aligned with voiceNotes (anti-hype).\",\"flags\":[]}],\"weightedScore\":0.781}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "outreach_ja_06_no_sample_paid_ask",
+      "metadata": {
+        "locale": "ja",
+        "expected_angle": "data_specific",
+        "expected_weighted_score_min": 0.65,
+        "should_escalate": false,
+        "note": "logistics.shipsSamples=false — body MUST NOT imply a free sample. spec §8 edge case 1."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"facts\":{\"creator\":{\"uniqueId\":\"jp_pro_reviewer\",\"nickname\":\"JP Pro Reviewer\",\"signature\":\"プロモーション動画専門\",\"topHashtags\":[\"PR動画\",\"美容\"],\"recentPostThemes\":[\"美容アイテムPR\",\"成分解説\"],\"followerCount\":120000,\"engagementRate\":0.029},\"brand\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Paid affiliate PR ask.\",\"keyClaims\":[\"10% vitamin C\",\"affiliate revenue share\"]},\"logistics\":{\"shipsSamples\":false},\"hasMinimumContext\":true},\"voiceNotes\":\"business, partnership-focused\",\"bannedPhrases\":[\"サンプル\",\"無料\"],\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"@jp_pro_reviewer · Freshly アフィリエイト提携のご相談\",\"body\":\"<p>JP Pro Reviewerさん、こんにちは。</p><p>美容アイテムPRと成分解説で活躍されている貴チャンネルに合うアフィリエイト提携をご提案できれば嬉しいです。10% ビタミンCセラム『Freshly』のレベニューシェア条件、ご覧いただけますか？</p>\",\"angle\":\"data_specific\",\"spamScore\":1.0,\"groundedFacts\":[\"creator.recentPostThemes[0]\",\"brand.keyClaims[1]\"],\"locale\":\"ja\",\"judgeScores\":{\"brand\":0.84,\"conversion\":0.76,\"deliverability\":0.88,\"skeptic\":0.72},\"judgeScoreCards\":[{\"judge\":\"skeptic\",\"score\":0.72,\"rationale\":\"Frames as paid partnership; no free-sample misdirection.\",\"flags\":[]},{\"judge\":\"conversion\",\"score\":0.76,\"rationale\":\"Single CTA on revenue share — appropriate for the ask shape.\",\"flags\":[]},{\"judge\":\"deliverability\",\"score\":0.88,\"rationale\":\"Banned terms (サンプル/無料) absent.\",\"flags\":[]},{\"judge\":\"brand\",\"score\":0.84,\"rationale\":\"Cites the affiliate keyClaim; tone is business-aligned.\",\"flags\":[]}],\"weightedScore\":0.780}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "outreach_zhCN_07_pain_killer_acne_prone",
+      "metadata": {
+        "locale": "zh-CN",
+        "expected_angle": "pain_killer",
+        "expected_weighted_score_min": 0.65,
+        "should_escalate": false,
+        "note": "Chinese (zh-CN) creator with stated acne-prone content; pain_killer angle should win."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"facts\":{\"creator\":{\"uniqueId\":\"acne_skincare_cn\",\"nickname\":\"痘痘肌护肤\",\"signature\":\"敏感+痘痘肌实测\",\"topHashtags\":[\"痘痘肌\",\"敏感肌\",\"维C\"],\"recentPostThemes\":[\"痘痘肌维C使用\",\"温和成分测评\"],\"followerCount\":78000,\"engagementRate\":0.052},\"brand\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Gentle vitamin C serum for acne-prone skin.\",\"keyClaims\":[\"10% vitamin C\",\"non-comedogenic\",\"fragrance-free\"]},\"logistics\":{\"shipsSamples\":true},\"hasMinimumContext\":true},\"voiceNotes\":\"温和, professional\",\"bannedPhrases\":[],\"locale\":\"zh-CN\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"@acne_skincare_cn · 痘痘肌的 Freshly 维C 测评合作\",\"body\":\"<p>痘痘肌护肤博主，您好。</p><p>看到您最近的痘痘肌维C使用视频，Freshly 的 10% 维C 精华专为痘痘肌做了非致痘配方，无香料。是否方便寄送一份样品做真实测评？</p>\",\"angle\":\"pain_killer\",\"spamScore\":1.0,\"groundedFacts\":[\"creator.recentPostThemes[0]\",\"brand.keyClaims[0]\",\"brand.keyClaims[1]\"],\"locale\":\"zh-CN\",\"judgeScores\":{\"brand\":0.82,\"conversion\":0.80,\"deliverability\":0.86,\"skeptic\":0.74},\"judgeScoreCards\":[{\"judge\":\"skeptic\",\"score\":0.74,\"rationale\":\"References the creator's acne-prone niche directly.\",\"flags\":[]},{\"judge\":\"conversion\",\"score\":0.80,\"rationale\":\"Sample-request CTA appropriate for an evaluation creator.\",\"flags\":[]},{\"judge\":\"deliverability\",\"score\":0.86,\"rationale\":\"Plain HTML, no spam tokens.\",\"flags\":[]},{\"judge\":\"brand\",\"score\":0.82,\"rationale\":\"Two keyClaims cited (10% vitamin C, non-comedogenic); tone gentle.\",\"flags\":[]}],\"weightedScore\":0.790}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "outreach_ko_08_insufficient_context_escalate",
+      "metadata": {
+        "locale": "ko",
+        "expected_angle": null,
+        "expected_escalation_reason": "insufficient_context",
+        "should_escalate": true,
+        "note": "spec §6 + §8 #3: hasMinimumContext=False — orchestrator must short-circuit before any drafter call. Empty signature AND empty recentPostThemes is the canonical trigger."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"facts\":{\"creator\":{\"uniqueId\":\"dormant_kr_creator\",\"nickname\":\"Dormant\",\"signature\":\"\",\"topHashtags\":[],\"recentPostThemes\":[],\"followerCount\":12000},\"brand\":{\"name\":\"Freshly Vitamin C Serum\",\"category\":\"skincare/serum\",\"description\":\"Vitamin C serum.\",\"keyClaims\":[]},\"logistics\":{\"shipsSamples\":true},\"hasMinimumContext\":false},\"voiceNotes\":\"\",\"bannedPhrases\":[],\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"kind\":\"escalate\",\"reason\":\"insufficient_context: facts.hasMinimumContext is False\",\"partial\":{\"facts_creator\":\"dormant_kr_creator\"},\"usdSpent\":0.0}"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": []
+          }
+        }
+      ]
+    }
+  ]
+}

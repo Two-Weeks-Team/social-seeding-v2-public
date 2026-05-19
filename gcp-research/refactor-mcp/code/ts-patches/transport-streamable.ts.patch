@@ -1,0 +1,105 @@
+################################################################################
+# Patch: dual-live OAuth migration switch in streamable-http transport.
+#
+# Source:  REFACTOR-MCP.md §4.5
+# Target:  ~/Documents/GitHub/social-seeding-platform/microservices/tiktok-mcp-server
+#          src/transport/streamable-http.ts
+#
+# Apply (after PR review):
+#   cd ~/Documents/GitHub/social-seeding-platform/microservices/tiktok-mcp-server
+#   git apply --3way \
+#     ~/Documents/GitHub/social-seeding-v2/gcp-research/refactor-mcp/code/ts-patches/transport-streamable.ts.patch
+#
+# Behaviour (REFACTOR-MCP §4.3):
+#   * Both registerOAuthRoutes(app) (legacy SQLite path) AND
+#     registerIdentityPlatformRoutes(app) (new Firebase path) are mounted.
+#   * Order: Identity Platform middleware runs first (it owns /mcp). Legacy
+#     routes only own the /oauth/* + /.well-known/oauth-* paths and only
+#     respond to clients that still possess a SQLite-issued token.
+#   * The new flag MCP_AUTH_MODE controls which path is active:
+#       MCP_AUTH_MODE=legacy        — only SQLite routes (pre-cutover)
+#       MCP_AUTH_MODE=dual          — both (T+0 to T+7)            ← default
+#       MCP_AUTH_MODE=identity_only — only Identity Platform (post T+7)
+#
+# This is the "1-line swap" REFACTOR-MCP §4.5 talks about — but it's
+# wrapped in a feature flag for safety. The flag flips trivially at T+7.
+################################################################################
+diff --git a/src/transport/streamable-http.ts b/src/transport/streamable-http.ts
+index 1234567..89abcde 100644
+--- a/src/transport/streamable-http.ts
++++ b/src/transport/streamable-http.ts
+@@ -17,7 +17,8 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
+ import { createMcpServer } from "../server.js";
+ import { getConfig } from "../config/index.js";
+ import { getApiKey } from "../backend/api-key-rotation.js";
+-import { registerOAuthRoutes } from "../auth/oauth.js";
++import { registerOAuthRoutes } from "../auth/oauth.js";          // legacy SQLite path
++import { registerIdentityPlatformRoutes } from "../auth/identity-platform.js"; // new D19 path
+
+ // Session store: sessionId → { server, transport }
+ const sessions = new Map<
+@@ -25,6 +26,15 @@ const sessions = new Map<
+   { server: McpServer; transport: StreamableHTTPServerTransport }
+ >();
+
++/**
++ * Dual-live migration toggle (REFACTOR-MCP §4.3).
++ *   legacy        — SQLite OAuth only (pre-cutover).
++ *   dual          — both (T+0..T+7); Identity Platform wins on /mcp because
++ *                    it mounts first. Existing SQLite tokens self-expire in 1h.
++ *   identity_only — Identity Platform only (post T+7).
++ */
++type AuthMode = "legacy" | "dual" | "identity_only";
++
+ export async function startHttp(): Promise<void> {
+   const cfg = getConfig();
+
+@@ -54,9 +64,30 @@ export async function startHttp(): Promise<void> {
+     next();
+   });
+
+-  // OAuth 2.1 endpoints (must be before /mcp)
+-  registerOAuthRoutes(app);
++  // Auth migration switch — REFACTOR-MCP §4.3 dual-live, T+7 cutover.
++  const mode = (process.env.MCP_AUTH_MODE as AuthMode | undefined) ?? "dual";
++  switch (mode) {
++    case "legacy":
++      console.log("[tiktok-mcp] auth mode: legacy SQLite OAuth (D19 pending)");
++      registerOAuthRoutes(app);
++      break;
++    case "identity_only":
++      console.log("[tiktok-mcp] auth mode: Identity Platform only (D19 active)");
++      registerIdentityPlatformRoutes(app);
++      break;
++    case "dual":
++    default:
++      console.log("[tiktok-mcp] auth mode: dual (Identity Platform + SQLite fallback)");
++      // Order matters — Identity Platform owns /mcp; legacy keeps the
++      // /oauth/* endpoints alive for clients on stale SQLite-issued tokens
++      // until their 1h TTL expires (src/auth/oauth.ts:27 TOKEN_TTL_MS).
++      registerIdentityPlatformRoutes(app);
++      registerOAuthRoutes(app);
++      break;
++  }
+
+   // Health check
+   app.get("/health", (_req, res) => {
+     res.json({ status: "healthy", service: "tiktok-mcp-server" });
+   });
+
+@@ -88,7 +119,12 @@ export async function startHttp(): Promise<void> {
+
+     // New session — create (only on POST with initialize)
+     if (req.method === "POST") {
+       const newSessionId = randomUUID();
+       const transport = new StreamableHTTPServerTransport({
+         sessionIdGenerator: () => newSessionId,
+       });
+-      const server = createMcpServer();
++      // Per REFACTOR-MCP §4.6 — pass the verified uid down so withLimit()
++      // can key its quota per-user (Firestore-backed). The server factory
++      // tolerates an undefined uid (back-compat with the legacy path).
++      const uid = (req as Request & { uid?: string }).uid;
++      const server = createMcpServer({ uid });
+       await server.connect(transport);
+       sessions.set(newSessionId, { server, transport });

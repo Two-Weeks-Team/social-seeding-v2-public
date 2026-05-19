@@ -1,0 +1,142 @@
+###############################################################################
+# Cloud Run service spec — multi-container (ADK agent + Node MCP sidecar).
+#
+# Applied by `gcloud run services replace` from the cloudbuild.yaml pipeline.
+# Token substitutions (`__PROJECT__`, `__LOCATION__`, `__REPO__`, `__SHA__`)
+# are filled in at deploy time so we never check in the project id.
+#
+# Reference: REFACTOR-MCP.md §5.3.
+#
+# Notes:
+#   * sessionAffinity:"true" addresses REFACTOR-MCP §9.5 — the MCP transport
+#     keeps an in-memory Map<sessionId,{server,transport}> so consecutive
+#     requests in a session MUST land on the same instance.
+#   * Only the ADK container exposes a port (8200). The Node container
+#     listens on 127.0.0.1:8100 (loopback) and is not externally reachable.
+#   * Resource requests are conservative for Track 3 demo traffic; tune the
+#     min/maxScale + CPU for production after seeing real load.
+###############################################################################
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: tiktok-mcp
+  annotations:
+    run.googleapis.com/launch-stage: GA
+    run.googleapis.com/ingress: all
+    run.googleapis.com/description: >
+      SocialSeeding Influencer Research Agent — ADK orchestration + tiktok-mcp
+      sidecar (multi-container Cloud Run).
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/cpu-throttling: "true"
+        run.googleapis.com/sessionAffinity: "true"
+        autoscaling.knative.dev/minScale: "1"      # warm one instance for the demo window
+        autoscaling.knative.dev/maxScale: "10"
+        run.googleapis.com/cmek-key-name: >-
+          projects/__PROJECT__/locations/__LOCATION__/keyRings/socialseed-mcp/cryptoKeys/cloud-run
+        # Per Track 3 Phase 5 §5.4 Enterprise Standards — secrets via Secret
+        # Manager only; no `ENV` injection in the manifest.
+    spec:
+      serviceAccountName: tiktok-mcp-runner@__PROJECT__.iam.gserviceaccount.com
+      timeoutSeconds: 60
+      containerConcurrency: 30
+      containers:
+        # ---------------------------------------------------------------------
+        # Container A — ADK orchestration agent (Python). Primary ingress.
+        # ---------------------------------------------------------------------
+        - name: agent
+          image: __LOCATION__-docker.pkg.dev/__PROJECT__/__REPO__/mcp-adk:__SHA__
+          ports:
+            - name: http1
+              containerPort: 8200
+          env:
+            - name: GOOGLE_CLOUD_PROJECT
+              value: "__PROJECT__"
+            - name: GOOGLE_CLOUD_LOCATION
+              value: "__LOCATION__"
+            - name: MCP_BASE_URL
+              value: "http://127.0.0.1:8100"
+            - name: PUBLIC_BASE_URL
+              value: "https://mcp.socialseed.ing"
+            - name: REQUIRE_AUTH
+              value: "true"
+            - name: IDENTITY_PLATFORM_TENANT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: identity-platform-tenant-id
+                  key: latest
+            - name: MODEL_ARMOR_INPUT_TEMPLATE
+              value: >-
+                projects/__PROJECT__/locations/__LOCATION__/templates/ss-input
+            - name: MODEL_ARMOR_OUTPUT_TEMPLATE
+              value: >-
+                projects/__PROJECT__/locations/__LOCATION__/templates/ss-output
+            - name: MODEL_ARMOR_FAIL_MODE
+              value: "closed"
+            - name: ADK_FLASH_MODEL
+              value: "gemini-2.5-flash"
+            - name: ADK_PRO_MODEL
+              value: "gemini-2.5-pro"
+            - name: LOG_LEVEL
+              value: "INFO"
+          resources:
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8200
+            periodSeconds: 5
+            failureThreshold: 12
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8200
+            periodSeconds: 30
+            timeoutSeconds: 5
+        # ---------------------------------------------------------------------
+        # Container B — Node MCP sidecar (existing tiktok-mcp-server, 4 tools).
+        # ---------------------------------------------------------------------
+        - name: mcp
+          image: __LOCATION__-docker.pkg.dev/__PROJECT__/__REPO__/mcp-node:__SHA__
+          env:
+            - name: MCP_HOST
+              value: "127.0.0.1"
+            - name: MCP_PORT
+              value: "8100"
+            - name: MCP_RESOURCE
+              value: "https://mcp.socialseed.ing"
+            - name: BACKEND_URL
+              value: "https://backend.socialseed.ing"
+            - name: BACKEND_DASHBOARD_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: backend-dashboard-email
+                  key: latest
+            - name: BACKEND_DASHBOARD_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backend-dashboard-password
+                  key: latest
+            # OBS-03 (existing Dockerfile line 41-46): SENTRY_DSN only at
+            # runtime, never baked into the image.
+            - name: SENTRY_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: sentry-dsn
+                  key: latest
+          resources:
+            limits:
+              cpu: "1"
+              memory: "512Mi"
+          # No public port → no liveness probe target; Cloud Run will restart
+          # the entire pod if the primary container is unhealthy.
+  traffic:
+    - latestRevision: true
+      percent: 100

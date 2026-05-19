@@ -6,7 +6,7 @@
 >
 > **Audience**: (1) the 13 background agents queued for SDD/TDD/architecture work, (2) future code authors, (3) judges (a sanitized subset).
 >
-> **Status as of 2026-05-19**: 39 decisions recorded across 8 rounds. No code may be written until each decision has either an entry below or an explicit "Outstanding" line in §6.
+> **Status as of 2026-05-19**: 44 decisions recorded across 10 rounds. No code may be written until each decision has either an entry below or an explicit "Outstanding" line in §6.
 
 ---
 
@@ -29,7 +29,7 @@
 
 ---
 
-## 2. Decisions of record (39)
+## 2. Decisions of record (44)
 
 Status legend: ✅ active · 🔁 superseded · ⏸ deferred · ❓ outstanding
 
@@ -116,6 +116,21 @@ Status legend: ✅ active · 🔁 superseded · ⏸ deferred · ❓ outstanding
 | ID | Decision | Source | Status | Implication |
 |---|---|---|---|---|
 | **D39** | **GCP credits available**: **$1,500 USD** (vibeCat 수상 외) — replaces challenge $500 cap assumption | user 2026-05-19 | ✅ | Cost-saving levers in COST-PLAN.md relaxed; Gemini 3.1 Pro Preview enabled for final demo; Memorystore + Memory Bank + AlloyDB run 24×7 during judging window |
+
+### Round 9 — Security hardening (D40)
+
+| ID | Decision | Source | Status | Implication |
+|---|---|---|---|---|
+| **D40** | **`prompt_guard` regex covers particle-rich CJK injection variants per BN-9** — KO/JA/ZH alternation gaps relaxed from `\s*` to particle-aware character classes (`[\s　을를은는의에이가도모두]*` / `[\s　をにへでがのは]*` / `[\s　的了也]*`); JA alternation gains `前`; ZH gains `前面` (g2) + `指示` (g3) | autonomous `/goal` session 2026-05-19 (W1 / BN-9) | ✅ | Tighter security posture for production CJK traffic; W1 unblocks W2 Korean tests using natural particle-rich text; `tests/tools/test_prompt_guard.py` pins 6 new regression cases + a clean-text safety check |
+
+### Round 10 — Integration plane (D41-D44)
+
+| ID | Decision | Source | Status | Implication |
+|---|---|---|---|---|
+| **D41** | **Capability layer ADK FunctionTool pattern**: each tool exposes `def tool_fn(input: PydanticInputModel) -> PydanticOutputModel`; runtime selects stub vs live via `CAPABILITY_LAYER_MODE=stub\|live` env var; stubs return deterministic canned data, live mode calls real Cloud SDK; per-tool USD cost surfaced via attribute for `cost_watch` | autonomous `/goal` session 2026-05-19 (W2) | ✅ | Unblocks all 16 Tier-1 agents from `tools=[]` placeholder state; deterministic dev/CI traffic + real prod traffic via single seam |
+| **D42** | **Cloud Workflows YAML wires via Terraform output injection** — workflow `call:` URLs reference `${args.agent_url}`, populated from `terraform output -json` per environment; no hardcoded hostnames in YAML | autonomous `/goal` session 2026-05-19 (W3) | ✅ | Dev/staging/prod agent endpoints vary without YAML edits; `gcloud workflows deploy` idempotent across regions |
+| **D43** | **End-to-end smoke test is the Phase-3 canary** — `scripts/smoke-test/run-brand-campaign.sh` exercises brand-brief → 22-agent fleet → Gmail send (to `app.2weeks@gmail.com` per D10) → workflow continuation → final report; must exit 0 before any deploy or demo recording | autonomous `/goal` session 2026-05-19 (W4) | ✅ | Gating condition for W6/W7/W8; protects D31 99.99% SLO claim with empirical baseline |
+| **D44** | **Terraform root config lives in `terraform/environments/<env>/`** (dev, staging, prod), NOT in module dirs; root configs call `module "compute" { source = "../../modules/compute" ... }` with per-env vars | autonomous `/goal` session 2026-05-19 (W6) | ✅ | Module reuse across 3 regions × 3 envs without duplication; backend state per env in distinct GCS buckets |
 
 ---
 
@@ -286,3 +301,8 @@ Per user directive 2026-05-19 ("실제 코드를 적용하기 전에 반드시 �
 | 2026-05-19 | D35-D38 | Round 7 (build methodology) recorded | user interview |
 | 2026-05-19 | D39 | $1500 GCP credits clarified | user message |
 | 2026-05-19 | — | Document committed pre-code | user directive |
+| 2026-05-19 | D40 | prompt_guard regex covers particle-rich CJK injection variants per BN-9 | autonomous /goal session (W1) |
+| 2026-05-19 | D41 | Capability layer ADK FunctionTool stub/live pattern via CAPABILITY_LAYER_MODE env | autonomous /goal session (W2) |
+| 2026-05-19 | D42 | Cloud Workflows YAMLs inject agent URLs via Terraform output, no hardcode | autonomous /goal session (W3) |
+| 2026-05-19 | D43 | End-to-end smoke test is Phase-3 canary gating deploy + demo | autonomous /goal session (W4) |
+| 2026-05-19 | D44 | Terraform root config lives in terraform/environments/<env>/, modules reused | autonomous /goal session (W6) |

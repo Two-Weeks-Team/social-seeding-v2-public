@@ -18,6 +18,7 @@ import {
   type ConversationTurn,
   type OutreachDraft,
 } from "@ss/contracts";
+import { renderPaymentMandateApproval } from "./_ap2/render-payment-mandate";
 
 /**
  * Approval drill-in. Server component (form) + server action for resolve.
@@ -218,6 +219,16 @@ export default async function ApprovalDetailPage({ params }: { params: Promise<{
   }
   if (approval.kind === "shipment") {
     return renderShipmentApproval(approval, campaign?.brief.brandProduct.name);
+  }
+  // Phase-6 (this task) — AP2 Intent Mandate is the 5th approval kind. The
+  // `kind` enum in `@ss/contracts` will be extended in a follow-up PR (the
+  // schema literal addition is a one-line change). Until that lands we
+  // tolerate the cast: the row's `recommendation` is the source of truth
+  // (PaymentMandateDraft Zod-parsed at render time). Cites D26 (Mission
+  // Control), D27 (Intent-only), D33 (lifecycle), D34 (i18n).
+  const kindRaw = (approval as { kind: unknown }).kind;
+  if (kindRaw === "payment_mandate") {
+    return renderPaymentMandateApproval(approval, campaign?.brief.brandProduct.name);
   }
 
   if (approval.kind !== "shortlist") {

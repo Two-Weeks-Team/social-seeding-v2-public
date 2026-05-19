@@ -1,0 +1,268 @@
+{
+  "eval_set_id": "ss_security_watch_v0_1",
+  "name": "Security Watch agent (W3) — 8-case golden set (decision-band + edge spread)",
+  "description": "Phase 4 skeleton golden set per security_watch.spec.md §7. Covers the 5 decision tiers (log_only / warn / page_oncall / quarantine_tenant / disable_workspace) across the major threat kinds + the four spec §8 edge cases (demo window, cross-tenant pattern, already quarantined, partner allowlisted, recursive injection). Full 80-case set lands in tests/golden/security_watch/*.json during Phase 5 per spec §7. Latency budget: median TTR ≤ 90 sec from signal arrival to action; false_quarantine_rate ≤ 0.001; missed_critical_rate = 0.",
+  "criteria_overrides": {
+    "tool_trajectory_avg_score": 0.0,
+    "final_response_match_v2": 0.7,
+    "decision_band_match": 0.95,
+    "false_quarantine_rate": 0.001,
+    "missed_critical_rate": 0.0,
+    "chronicle_case_completeness": 0.95
+  },
+  "metadata": {
+    "agent_id": "security_watch",
+    "spec": "gcp-research/specs/tier3/security_watch.spec.md",
+    "decisions": ["D5", "D17", "D20", "D21", "D23", "D32"],
+    "architecture_ref": "ARCHITECTURE.md §3 row 22 — security_watch (W3) | Gemini 2.5 Flash | model_armor.query_blocks, chronicle.query, tenant.quarantine | None | TTR (time to remediate)",
+    "v2_reference": "No v2 predecessor — v2 had no security agents (spec §1 'v2 reference: No v2 predecessor').",
+    "decision_bands": {
+      "log_only": 2,
+      "warn": 1,
+      "page_oncall": 2,
+      "quarantine_tenant": 2,
+      "disable_workspace": 1
+    },
+    "edge_cases_covered": [
+      "demo_window",
+      "already_quarantined",
+      "partner_allowlisted",
+      "cross_tenant_pattern",
+      "recursive_injection_in_evidence"
+    ]
+  },
+  "eval_cases": [
+    {
+      "eval_id": "secwatch_01_abuse_pattern_quarantine_burst",
+      "metadata": {
+        "decision_band": "quarantine_tenant",
+        "expected_severity": "page",
+        "threat_kind": "abuse_pattern",
+        "should_escalate": true,
+        "note": "Spec §5 Mermaid happy path: 27 Model Armor blocks in 60min + 1 Chronicle high-severity alert → quarantine_tenant for 2h. Confidence ≥ 0.85 (handler does not downgrade)."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"threatKind\":\"abuse_pattern\",\"tenantId\":\"t_evalsecwatch01\",\"workspaceId\":\"ws_eval_secwatch_001\",\"detectedAt\":\"2026-05-19T12:00:00+00:00\",\"timeWindowMin\":60,\"suspectedPattern\":\"prompt_injection_burst\",\"evidence\":{\"armorBlockIds\":[\"blk_0001\",\"blk_0002\",\"blk_0003\",\"blk_0004\",\"blk_0005\",\"blk_0006\",\"blk_0007\",\"blk_0008\",\"blk_0009\",\"blk_0010\",\"blk_0011\",\"blk_0012\",\"blk_0013\",\"blk_0014\",\"blk_0015\",\"blk_0016\",\"blk_0017\",\"blk_0018\",\"blk_0019\",\"blk_0020\",\"blk_0021\",\"blk_0022\",\"blk_0023\",\"blk_0024\",\"blk_0025\",\"blk_0026\",\"blk_0027\"],\"chronicleAlertIds\":[\"alert_001\"],\"recentArmorBlocks\":[{\"blockId\":\"blk_0001\",\"ts\":\"2026-05-19T11:58:00+00:00\",\"severity\":\"warn\",\"findingType\":\"model_armor_pi\",\"promptHash\":\"aaaaaaaaaaaaaaaa\"},{\"blockId\":\"blk_0002\",\"ts\":\"2026-05-19T11:54:00+00:00\",\"severity\":\"warn\",\"findingType\":\"model_armor_pi\",\"promptHash\":\"bbbbbbbbbbbbbbbb\"}],\"recentChronicleAlerts\":[{\"alertId\":\"alert_001\",\"ts\":\"2026-05-19T11:55:00+00:00\",\"severity\":\"high\",\"rule\":\"ss.prompt_injection.v1\"}],\"rawExcerpts\":[\"[REDACTED-PII] suspicious payload signature observed\"],\"patternFingerprint\":\"fp_pi_burst_abc\"}}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"decision\":\"quarantine_tenant\",\"severity\":\"page\",\"rationale\":\"27 Model Armor prompt-injection blocks in 60 minutes against a baseline of 0-2, correlated with a Chronicle high-severity alert (ss.prompt_injection.v1). Pattern matches abuse_pattern. Recommending quarantine for 2 hours with on-call paging.\",\"confidence\":0.92,\"actionTakenAt\":\"2026-05-19T12:00:00+00:00\",\"quarantineUntil\":\"2026-05-19T14:00:00+00:00\",\"remediationRunbookId\":\"rb_abuse_pattern_v1\",\"crossTenantPattern\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "secwatch_02_chronicle_critical_always_pages",
+      "metadata": {
+        "decision_band": "page_oncall",
+        "expected_severity": "page",
+        "threat_kind": "chronicle_critical",
+        "should_escalate": true,
+        "note": "ALWAYS_PAGE_KINDS member — single signal triggers page_oncall regardless of evidence count. Pages on-call + opens Chronicle case. demoWindow does NOT downgrade."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"threatKind\":\"chronicle_critical\",\"tenantId\":\"t_evalsecwatch02\",\"detectedAt\":\"2026-05-19T12:00:00+00:00\",\"timeWindowMin\":15,\"demoWindow\":true,\"evidence\":{\"chronicleAlertIds\":[\"alert_cr_001\"],\"recentChronicleAlerts\":[{\"alertId\":\"alert_cr_001\",\"ts\":\"2026-05-19T11:59:00+00:00\",\"severity\":\"critical\",\"rule\":\"ss.cred_exfil.v1\"}]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"decision\":\"page_oncall\",\"severity\":\"page\",\"rationale\":\"Chronicle critical alert ss.cred_exfil.v1 fired for tenant. threatKind chronicle_critical is in ALWAYS_PAGE_KINDS — demo window does not downgrade. Paging on-call for triage and Chronicle case open.\",\"confidence\":0.97,\"actionTakenAt\":\"2026-05-19T12:00:00+00:00\",\"remediationRunbookId\":\"rb_chronicle_critical_v1\",\"crossTenantPattern\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "secwatch_03_credential_exfiltration_quarantine",
+      "metadata": {
+        "decision_band": "quarantine_tenant",
+        "expected_severity": "page",
+        "threat_kind": "credential_exfiltration",
+        "should_escalate": true,
+        "note": "Member of SINGLE_SIGNAL_QUARANTINE_KINDS — one signal warrants quarantine. Cred exfil is high enough confidence that a 24h quarantine is justified (vs. 2h for abuse_pattern)."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"threatKind\":\"credential_exfiltration\",\"tenantId\":\"t_evalsecwatch03\",\"workspaceId\":\"ws_eval_secwatch_003\",\"detectedAt\":\"2026-05-19T12:00:00+00:00\",\"timeWindowMin\":30,\"evidence\":{\"armorBlockIds\":[\"blk_ce_001\"],\"chronicleAlertIds\":[\"alert_ce_001\"],\"recentArmorBlocks\":[{\"blockId\":\"blk_ce_001\",\"ts\":\"2026-05-19T11:58:00+00:00\",\"severity\":\"page\",\"findingType\":\"credential_exfiltration\",\"promptHash\":\"cccccccccccccccc\"}],\"recentChronicleAlerts\":[{\"alertId\":\"alert_ce_001\",\"ts\":\"2026-05-19T11:59:00+00:00\",\"severity\":\"high\",\"rule\":\"ss.cred_exfil.v1\"}]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"decision\":\"quarantine_tenant\",\"severity\":\"page\",\"rationale\":\"Single credential_exfiltration block with correlated Chronicle alert ss.cred_exfil.v1. Single-signal quarantine kind. Recommending 24h quarantine and on-call paging; assess Identity Platform token revocation in runbook.\",\"confidence\":0.94,\"actionTakenAt\":\"2026-05-19T12:00:00+00:00\",\"quarantineUntil\":\"2026-05-20T12:00:00+00:00\",\"remediationRunbookId\":\"rb_cred_exfil_v1\",\"crossTenantPattern\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "secwatch_04_unauthorized_a2a_disable_workspace",
+      "metadata": {
+        "decision_band": "disable_workspace",
+        "expected_severity": "page",
+        "threat_kind": "unauthorized_a2a_call",
+        "should_escalate": true,
+        "note": "SURGICAL_DISABLE_KINDS member — cross-tenant a2a interaction implies the abusing WORKSPACE is the right blast radius, not the whole tenant. Pages on-call."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"threatKind\":\"unauthorized_a2a_call\",\"tenantId\":\"t_evalsecwatch04\",\"workspaceId\":\"ws_eval_secwatch_004\",\"agentId\":\"sourcing\",\"detectedAt\":\"2026-05-19T12:00:00+00:00\",\"timeWindowMin\":15,\"evidence\":{\"chronicleAlertIds\":[\"alert_a2a_001\"],\"recentChronicleAlerts\":[{\"alertId\":\"alert_a2a_001\",\"ts\":\"2026-05-19T11:59:00+00:00\",\"severity\":\"high\",\"rule\":\"ss.a2a.cross_tenant.v1\"}]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"decision\":\"disable_workspace\",\"severity\":\"page\",\"rationale\":\"Sourcing agent in workspace ws_eval_secwatch_004 attempted unauthorized a2a call across tenant boundary (Chronicle rule ss.a2a.cross_tenant.v1). Surgical disable of the offending workspace; leave the rest of the tenant operational. Paging on-call for forensics.\",\"confidence\":0.91,\"actionTakenAt\":\"2026-05-19T12:00:00+00:00\",\"remediationRunbookId\":\"rb_a2a_violation_v1\",\"crossTenantPattern\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "secwatch_05_partner_allowlist_log_only",
+      "metadata": {
+        "decision_band": "log_only",
+        "expected_severity": "info",
+        "threat_kind": "custom_competitor_regex",
+        "should_escalate": false,
+        "note": "Spec §8 edge case 4: partnerAllowlisted=true. Burst pattern looks like an attack but is expected from this integration partner. Log only, no on-call action."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"threatKind\":\"custom_competitor_regex\",\"tenantId\":\"t_evalsecwatch05\",\"detectedAt\":\"2026-05-19T12:00:00+00:00\",\"timeWindowMin\":60,\"partnerAllowlisted\":true,\"evidence\":{\"armorBlockIds\":[\"blk_partner_001\",\"blk_partner_002\",\"blk_partner_003\",\"blk_partner_004\",\"blk_partner_005\",\"blk_partner_006\",\"blk_partner_007\",\"blk_partner_008\",\"blk_partner_009\",\"blk_partner_010\",\"blk_partner_011\",\"blk_partner_012\",\"blk_partner_013\",\"blk_partner_014\",\"blk_partner_015\"],\"recentArmorBlocks\":[{\"blockId\":\"blk_partner_001\",\"ts\":\"2026-05-19T11:58:00+00:00\",\"severity\":\"warn\",\"findingType\":\"custom_competitor_regex\",\"promptHash\":\"dddddddddddddddd\"}]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"decision\":\"log_only\",\"severity\":\"info\",\"rationale\":\"15 custom_competitor_regex blocks in 60 minutes — burst pattern. Tenant is on the partner allowlist (W3 memory bank); this volume is expected from this integration. Logging only; no on-call action required.\",\"confidence\":0.87,\"actionTakenAt\":\"2026-05-19T12:00:00+00:00\",\"crossTenantPattern\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "secwatch_06_already_quarantined_no_double_page",
+      "metadata": {
+        "decision_band": "log_only",
+        "expected_severity": "info",
+        "threat_kind": "model_armor_pi",
+        "should_escalate": false,
+        "note": "Spec §8 edge case 3: tenant already quarantined. Agent recommends log_only; the security-handler extends the TTL upstream without re-paging on-call."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"threatKind\":\"model_armor_pi\",\"tenantId\":\"t_evalsecwatch06\",\"detectedAt\":\"2026-05-19T12:00:00+00:00\",\"timeWindowMin\":30,\"alreadyQuarantined\":true,\"evidence\":{\"armorBlockIds\":[\"blk_q_001\",\"blk_q_002\",\"blk_q_003\"],\"recentArmorBlocks\":[{\"blockId\":\"blk_q_001\",\"ts\":\"2026-05-19T11:58:00+00:00\",\"severity\":\"warn\",\"findingType\":\"model_armor_pi\",\"promptHash\":\"eeeeeeeeeeeeeeee\"}]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"decision\":\"log_only\",\"severity\":\"info\",\"rationale\":\"3 Model Armor prompt-injection blocks observed, but tenant is already quarantined. The security-handler will extend the existing TTL upstream. Do not re-page on-call; logging only.\",\"confidence\":0.89,\"actionTakenAt\":\"2026-05-19T12:00:00+00:00\",\"crossTenantPattern\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "secwatch_07_demo_window_downgrades_to_warn",
+      "metadata": {
+        "decision_band": "warn",
+        "expected_severity": "warn",
+        "threat_kind": "model_armor_pi",
+        "should_escalate": false,
+        "note": "Spec §8 edge case 1: tenant in active demo recording (D30). model_armor_pi is NOT in ALWAYS_PAGE_KINDS, so the page severity downgrades to warn — the demo is not interrupted by a page."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"threatKind\":\"model_armor_pi\",\"tenantId\":\"t_evalsecwatch07\",\"detectedAt\":\"2026-05-19T12:00:00+00:00\",\"timeWindowMin\":60,\"demoWindow\":true,\"evidence\":{\"armorBlockIds\":[\"blk_d_001\",\"blk_d_002\",\"blk_d_003\",\"blk_d_004\",\"blk_d_005\",\"blk_d_006\",\"blk_d_007\",\"blk_d_008\",\"blk_d_009\",\"blk_d_010\",\"blk_d_011\",\"blk_d_012\"],\"recentArmorBlocks\":[{\"blockId\":\"blk_d_001\",\"ts\":\"2026-05-19T11:58:00+00:00\",\"severity\":\"warn\",\"findingType\":\"model_armor_pi\",\"promptHash\":\"ffffffffffffffff\"}]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"decision\":\"warn\",\"severity\":\"warn\",\"rationale\":\"12 Model Armor prompt-injection blocks in 60 minutes — elevated but under quarantine threshold. Demo window is active and model_armor_pi is not in ALWAYS_PAGE_KINDS; downgrading page severity to warn. Operator-inbox notification only.\",\"confidence\":0.81,\"actionTakenAt\":\"2026-05-19T12:00:00+00:00\",\"remediationRunbookId\":\"rb_prompt_injection_v1\",\"crossTenantPattern\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "secwatch_08_cross_tenant_campaign_attack",
+      "metadata": {
+        "decision_band": "page_oncall",
+        "expected_severity": "page",
+        "threat_kind": "abuse_pattern",
+        "should_escalate": true,
+        "note": "Spec §8 edge case 2: same patternFingerprint observed across ≥3 tenants in window. Workflow's suspectedPattern is campaign_attack. Agent flags crossTenantPattern=true and recommends page_oncall (the handler escalates to disable_workspace on the multiple impacted workspaces, not whole-tenant quarantine on each)."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"threatKind\":\"abuse_pattern\",\"tenantId\":\"t_evalsecwatch08\",\"detectedAt\":\"2026-05-19T12:00:00+00:00\",\"timeWindowMin\":60,\"suspectedPattern\":\"campaign_attack\",\"evidence\":{\"armorBlockIds\":[\"blk_ct_001\",\"blk_ct_002\",\"blk_ct_003\",\"blk_ct_004\",\"blk_ct_005\",\"blk_ct_006\",\"blk_ct_007\",\"blk_ct_008\",\"blk_ct_009\",\"blk_ct_010\",\"blk_ct_011\",\"blk_ct_012\",\"blk_ct_013\",\"blk_ct_014\",\"blk_ct_015\"],\"recentArmorBlocks\":[{\"blockId\":\"blk_ct_001\",\"ts\":\"2026-05-19T11:58:00+00:00\",\"severity\":\"warn\",\"findingType\":\"abuse_pattern\",\"promptHash\":\"deadbeefcafebabe\"},{\"blockId\":\"blk_ct_002\",\"ts\":\"2026-05-19T11:55:00+00:00\",\"severity\":\"warn\",\"findingType\":\"abuse_pattern\",\"promptHash\":\"deadbeefcafebabe\"},{\"blockId\":\"blk_ct_003\",\"ts\":\"2026-05-19T11:50:00+00:00\",\"severity\":\"warn\",\"findingType\":\"abuse_pattern\",\"promptHash\":\"deadbeefcafebabe\"}],\"patternFingerprint\":\"deadbeefcafebabe\"}}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"decision\":\"page_oncall\",\"severity\":\"page\",\"rationale\":\"15 abuse_pattern blocks in 60 minutes with patternFingerprint deadbeefcafebabe observed across 3 tenants (workflow flagged suspectedPattern=campaign_attack). Coordinated cross-tenant attack. Paging on-call for surgical disable_workspace on each impacted workspace; do not whole-tenant quarantine.\",\"confidence\":0.88,\"actionTakenAt\":\"2026-05-19T12:00:00+00:00\",\"remediationRunbookId\":\"rb_abuse_pattern_v1\",\"crossTenantPattern\":true}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+%% Beat 5 — Logistics + verify  (SCRIPT.md §3 Beat 5)
+flowchart LR
+  address[creator confirms address] --> logistics[logistics<br/>Gemini 2.5 Flash]:::active
+  logistics --> ship[shipment record]
+  ship --> timer[Cloud Workflows<br/>+5d durable timer]:::active
+  timer --> verify[content_verify<br/>Gemini 2.5 Flash · Vision AI]:::active
+  verify --> bbox[brand logo bbox match]
+  bbox --> unlock[payout unlocked]
+
+  classDef active fill:#FFD400,stroke:#F9AB00,color:#000,stroke-width:3px;

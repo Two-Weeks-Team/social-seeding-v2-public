@@ -1,0 +1,12 @@
+%% Beat 6 — Multi-region failover  (SCRIPT.md §4 Beat 6)
+flowchart LR
+  glb[Cloud LB Global<br/>3 regions active-active]:::active --> us[us-central1]:::gone
+  glb --> eu[europe-west4]:::active
+  glb --> ap[asia-northeast3]:::active
+  us -.killed.-> down((Cloud Run<br/>delete))
+  glb -. 8 s re-route .-> eu
+  glb -. 8 s re-route .-> ap
+  slo[D31 SLO<br/>99.99% / yr · RTO 1 min · RPO 30 s]:::active
+
+  classDef active fill:#FFD400,stroke:#F9AB00,color:#000,stroke-width:3px;
+  classDef gone fill:#666,stroke:#444,color:#aaa,stroke-width:2px,stroke-dasharray: 5 5;

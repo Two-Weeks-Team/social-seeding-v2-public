@@ -1,0 +1,9 @@
+%% Beat 1 — Brief intake + sourcing  (SCRIPT.md §3 Beat 1)
+flowchart LR
+  user[Brand Manager] --> mc[Mission Control]
+  mc --> sourcing[sourcing<br/>Gemini 2.5 Pro]:::active
+  sourcing --> rapid[RapidAPI]
+  sourcing --> vvs[Vertex Vector Search]
+  sourcing --> table[40 candidates]
+
+  classDef active fill:#FFD400,stroke:#F9AB00,color:#000,stroke-width:3px;

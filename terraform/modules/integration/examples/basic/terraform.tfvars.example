@@ -1,0 +1,21 @@
+# Example tfvars for the integration module basic example.
+# Copy to terraform.tfvars and fill in real values before terraform plan.
+
+project_id     = "ss-v2-prod"
+primary_region = "asia-northeast3"
+
+workflows_invoker_sa_email = "workflows-invoker@ss-v2-prod.iam.gserviceaccount.com"
+pubsub_publisher_sa_email  = "pubsub-publisher@ss-v2-prod.iam.gserviceaccount.com"
+cmek_key_id                = "projects/ss-v2-prod/locations/asia-northeast3/keyRings/ss-keyring/cryptoKeys/pubsub-cmek"
+
+# Cloud Run service URLs from the compute module's outputs.
+# Replace each with module.compute.<name>_url after compute applies.
+observability_url     = "https://observability-xxx-an.a.run.app"
+policy_url            = "https://policy-xxx-an.a.run.app"
+campaign_repo_url     = "https://campaign-repo-xxx-an.a.run.app"
+agent_runtime_url     = "https://agent-runtime-xxx-an.a.run.app"
+pick_shortlist_url    = "https://pick-shortlist-xxx-an.a.run.app"
+creator_directory_url = "https://creator-directory-xxx-an.a.run.app"
+callback_router_url   = "https://callback-router-xxx-an.a.run.app"
+approvals_api_url     = "https://approvals-api-xxx-an.a.run.app"
+gate_predicate_url    = "https://gate-predicate-xxx-an.a.run.app"

@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "AgentCompleted",
+  "namespace": "ai.socialseed.v2.agent.lifecycle",
+  "doc": "Per shared.asyncapi.yaml lines 128-141 (D36). Fired on agent 'ok' outcome.",
+  "fields": [
+    { "name": "agentId",     "type": "string" },
+    { "name": "tenantId",    "type": "string" },
+    { "name": "traceId",     "type": "string" },
+    { "name": "completedAt", "type": "string", "doc": "ISO-8601 date-time." },
+    { "name": "usdSpent",    "type": "double", "doc": ">= 0; total USD spent in this invocation." },
+    { "name": "llmCalls",    "type": ["null", "int"], "default": null },
+    { "name": "toolCalls",   "type": ["null", "int"], "default": null },
+    { "name": "durationMs",  "type": ["null", "long"], "default": null }
+  ]
+}

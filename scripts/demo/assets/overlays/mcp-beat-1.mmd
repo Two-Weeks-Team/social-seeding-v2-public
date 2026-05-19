@@ -1,0 +1,11 @@
+%% Beat 1 — Public MCP endpoint  (SCRIPT.md §4 Beat 1)
+flowchart LR
+  client[Claude Desktop · Cursor] --> manifest[/.well-known/<br/>mcp-manifest/]
+  client --> endpoint[mcp.socialseed.ing<br/>/tools/*]:::active
+  endpoint --> t1[search_users]
+  endpoint --> t2[user_info]
+  endpoint --> t3[user_posts]
+  endpoint --> t4[post_detail]
+  endpoint --> cr[Cloud Run · live traffic]
+
+  classDef active fill:#FFD400,stroke:#F9AB00,color:#000,stroke-width:3px;

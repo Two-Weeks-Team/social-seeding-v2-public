@@ -1,0 +1,350 @@
+# creator-track.workflows.yaml
+# Source: INNGEST-MIGRATION.md §4.2 (load-bearing extract; rest of YAML follows
+# §3 patterns identically). The full file ships the extracted reply-wait
+# segment + the conventional outreach send / classify-reply / terminal-mark
+# steps. Comments at each step block reference the v2 line in
+# packages/workflows/src/workflows/creator-track.ts that motivates it.
+# Trigger: Eventarc → Pub/Sub topic "creator-track.fanout".
+#
+# Agent endpoint resolution (D42):
+#   See brand-campaign.workflows.yaml header for full rationale.
+#   Each `call:` URL resolves via:
+#     ${default(map.get(args.agent_urls, "<id>"), sys.get_env("AGENT_URL_<ID>"))}
+#   `extract_facts` and `classify_reply` are documented sub-route IDs (see
+#   terraform/modules/integration/WIRE-NOTES.md §3) that map to
+#   `outreach_writer` and `conversation` agent runtimes respectively.
+
+main:
+  params: [args]
+  steps:
+    - init:
+        assign:
+          - campaignId: ${args.campaignId}
+          - brief: ${args.brief}
+          - creator: ${args.creator}
+          - creatorEmail: ${default(args.creatorEmail, "")}
+          - workspaceId: ${brief.workspaceId}
+          - creatorId: ${creator.id}
+          - sendResult: {}
+
+    - check_email:
+        switch:
+          - condition: ${creatorEmail == ""}
+            steps:
+              - mark_no_email:
+                  call: http.post
+                  args:
+                    url: ${sys.get_env("CAMPAIGN_REPO_URL") + "/patch-track"}
+                    body:
+                      campaignId: ${campaignId}
+                      creatorId: ${creatorId}
+                      state: "no_response"
+                    auth:
+                      type: OIDC
+              - return_no_email:
+                  return:
+                    terminalState: "no_email"
+                    reason: "creator has no resolvable email"
+
+    - load_policy:
+        call: http.post
+        args:
+          url: ${sys.get_env("POLICY_URL") + "/get"}
+          body:
+            workspaceId: ${workspaceId}
+          auth:
+            type: OIDC
+        result: policy_response
+    - assign_policy:
+        assign:
+          - policy: ${policy_response.body}
+
+    # ── extract_facts agent ─────────────────────────────────────────────
+    - extract_facts:
+        call: http.post
+        args:
+          url: ${default(map.get(args.agent_urls, "extract_facts"), sys.get_env("AGENT_URL_EXTRACT_FACTS"))}
+          body:
+            creator: ${creator}
+            brief: ${brief}
+            campaignId: ${campaignId}
+          auth:
+            type: OIDC
+          timeout: 600
+        retry:
+          predicate: ${http.default_retry_predicate}
+          max_retries: 3
+          backoff: {initial_delay: 2, max_delay: 60, multiplier: 2}
+        result: facts_response
+
+    # ── outreach_writer agent (5-angle tournament internal) ─────────────
+    - draft_outreach:
+        call: http.post
+        args:
+          url: ${default(map.get(args.agent_urls, "outreach_writer"), sys.get_env("AGENT_URL_OUTREACH_WRITER"))}
+          body:
+            facts: ${facts_response.body.value}
+            brief: ${brief}
+            campaignId: ${campaignId}
+          auth:
+            type: OIDC
+          timeout: 1200
+        result: draft_response
+
+    # ── gate(approveOutreachSend) ───────────────────────────────────────
+    - gate_outreach_send:
+        call: gate
+        args:
+          campaignId: ${campaignId}
+          workspaceId: ${workspaceId}
+          kind: "outreachSend"
+          recommendation: ${draft_response.body.value}
+          rationale: "Outreach draft pending operator review."
+          gateConfig: ${policy.gates.approveOutreachSend}
+        result: outreach_gate
+
+    - branch_outreach_decision:
+        switch:
+          - condition: ${outreach_gate.decision == "rejected"}
+            steps:
+              - mark_outreach_rejected:
+                  call: http.post
+                  args:
+                    url: ${sys.get_env("CAMPAIGN_REPO_URL") + "/patch-track"}
+                    body:
+                      campaignId: ${campaignId}
+                      creatorId: ${creatorId}
+                      state: "rejected"
+                    auth:
+                      type: OIDC
+              - return_rejected:
+                  return:
+                    terminalState: "rejected"
+
+    # ── send_outreach via gmail.send capability ─────────────────────────
+    - send_outreach:
+        call: http.post
+        args:
+          url: ${sys.get_env("CAMPAIGN_REPO_URL") + "/send-outreach"}
+          body:
+            campaignId: ${campaignId}
+            creatorId: ${creatorId}
+            email: ${creatorEmail}
+            draft: ${outreach_gate.payload}
+          auth:
+            type: OIDC
+          timeout: 120
+        retry:
+          predicate: ${http.default_retry_predicate}
+          max_retries: 5
+          backoff: {initial_delay: 5, max_delay: 600, multiplier: 2}
+        result: send_response
+    - assign_send_result:
+        assign:
+          - sendResult: ${send_response.body}
+
+    # ── create durable callback for the Gmail reply ─────────────────────
+    - create_reply_callback:
+        call: events.create_callback_endpoint
+        args:
+          http_callback_method: "POST"
+        result: reply_callback_endpoint
+
+    - register_reply_callback:
+        call: http.post
+        args:
+          url: ${sys.get_env("CALLBACK_ROUTER_URL") + "/register"}
+          body:
+            eventType: "gmail.reply.received"
+            correlation:
+              campaignId: ${campaignId}
+              creatorId: ${creatorId}
+              threadId: ${sendResult.threadId}
+            callbackUrl: ${reply_callback_endpoint.url}
+            ttlSeconds: 1209600   # 14d to match Inngest step.sleep("14d")
+          auth:
+            type: OIDC
+
+    - await_reply:
+        try:
+          call: events.await_callback
+          args:
+            callback: ${reply_callback_endpoint}
+            timeout: 1209600    # 14 days (was step.sleep("14d") in Inngest)
+          result: reply_callback
+        except:
+          as: e
+          steps:
+            - timeout_no_response:
+                call: http.post
+                args:
+                  url: ${sys.get_env("CAMPAIGN_REPO_URL") + "/patch-track"}
+                  body:
+                    campaignId: ${campaignId}
+                    creatorId: ${creatorId}
+                    state: "no_response"
+                    threadId: ${sendResult.threadId}
+                  auth:
+                    type: OIDC
+            - return_no_response:
+                return:
+                  terminalState: "no_response"
+                  threadId: ${sendResult.threadId}
+
+    # ── classify_reply agent ────────────────────────────────────────────
+    # NOTE: The async.data.X ↔ event.data.X trap (gate.ts:48-56 / creator-track.ts:322-329)
+    # maps to: NEVER reference ${args.threadId} below — that's the workflow's
+    # initial trigger, not the awaited reply. The awaited reply is at
+    # ${reply_callback.body.*}. INNGEST-MIGRATION.md §3.2 documents this.
+    - classify_reply:
+        call: http.post
+        args:
+          url: ${default(map.get(args.agent_urls, "classify_reply"), sys.get_env("AGENT_URL_CLASSIFY_REPLY"))}
+          body:
+            reply: ${reply_callback.body}
+            brief: ${brief}
+            campaignId: ${campaignId}
+            creatorId: ${creatorId}
+          auth:
+            type: OIDC
+          timeout: 600
+        result: classify_response
+
+    # ── gate(approveReplyResponse) ──────────────────────────────────────
+    - gate_reply_response:
+        call: gate
+        args:
+          campaignId: ${campaignId}
+          workspaceId: ${workspaceId}
+          kind: "replyResponse"
+          recommendation: ${classify_response.body.value}
+          rationale: ${"Reply class: " + classify_response.body.value.replyClass}
+          gateConfig: ${policy.gates.approveReplyResponse}
+        result: reply_gate
+
+    - send_reply_response:
+        switch:
+          - condition: ${reply_gate.decision == "approved"}
+            steps:
+              - send_reply:
+                  call: http.post
+                  args:
+                    url: ${sys.get_env("CAMPAIGN_REPO_URL") + "/send-reply"}
+                    body:
+                      campaignId: ${campaignId}
+                      creatorId: ${creatorId}
+                      threadId: ${sendResult.threadId}
+                      reply: ${reply_gate.payload}
+                    auth:
+                      type: OIDC
+
+    - mark_terminal:
+        call: http.post
+        args:
+          url: ${sys.get_env("CAMPAIGN_REPO_URL") + "/patch-track"}
+          body:
+            campaignId: ${campaignId}
+            creatorId: ${creatorId}
+            state: "engaged"
+            threadId: ${sendResult.threadId}
+          auth:
+            type: OIDC
+
+    - return_engaged:
+        return:
+          terminalState: "engaged"
+          threadId: ${sendResult.threadId}
+          replyClass: ${classify_response.body.value.replyClass}
+
+# ─────────────────────────────────────────────────────────────────────────
+# Gate subworkflow embedded so creator-track has a local fallback when the
+# global gate workflow is being canary-deployed. Identical body to
+# gate.workflows.yaml; INNGEST-MIGRATION §3.4 source.
+gate:
+  params: [campaignId, workspaceId, kind, recommendation, rationale, gateConfig]
+  steps:
+    - fast_path_auto:
+        switch:
+          - condition: ${gateConfig.mode == "auto"}
+            return:
+              decision: "approved"
+              payload: ${recommendation}
+
+    - evaluate_auto_unless:
+        switch:
+          - condition: ${gateConfig.mode == "auto_unless"}
+            steps:
+              - call_predicate_eval:
+                  call: http.post
+                  args:
+                    url: ${sys.get_env("GATE_PREDICATE_URL") + "/evaluate-predicate"}
+                    body:
+                      escalateIf: ${gateConfig.escalateIf}
+                      recommendation: ${recommendation}
+                    auth:
+                      type: OIDC
+                  result: predicate_eval
+              - branch_on_predicate:
+                  switch:
+                    - condition: ${not predicate_eval.body.shouldEscalate}
+                      return:
+                        decision: "approved"
+                        payload: ${recommendation}
+
+    - create_approval_row:
+        call: http.post
+        args:
+          url: ${sys.get_env("APPROVALS_API_URL") + "/create"}
+          body:
+            workspaceId: ${workspaceId}
+            campaignId: ${campaignId}
+            kind: ${kind}
+            recommendation: ${recommendation}
+            rationale: ${rationale}
+          auth:
+            type: OIDC
+        result: approval_create
+
+    - create_callback:
+        call: events.create_callback_endpoint
+        args:
+          http_callback_method: "POST"
+        result: callback_endpoint
+
+    - persist_callback_url:
+        call: http.post
+        args:
+          url: ${sys.get_env("APPROVALS_API_URL") + "/" + approval_create.body.approvalId + "/callback-url"}
+          body:
+            callbackUrl: ${callback_endpoint.url}
+          auth:
+            type: OIDC
+
+    - notify_inbox:
+        call: googleapis.pubsub.v1.projects.topics.publish
+        args:
+          topic: ${"projects/" + sys.get_env("GOOGLE_CLOUD_PROJECT_ID") + "/topics/approval.requested"}
+          body:
+            messages:
+              - data: ${base64.encode(json.encode({"approvalId": approval_create.body.approvalId, "campaignId": campaignId, "workspaceId": workspaceId, "kind": kind}))}
+                attributes:
+                  approvalId: ${approval_create.body.approvalId}
+                  kind: ${kind}
+
+    - await_resolution:
+        try:
+          call: events.await_callback
+          args:
+            callback: ${callback_endpoint}
+            timeout: 604800
+          result: resolution
+        except:
+          as: e
+          steps:
+            - raise_timeout:
+                raise: ${"ApprovalTimeout:" + approval_create.body.approvalId + ":" + kind}
+
+    - return_resolution:
+        return:
+          decision: ${resolution.body.decision}
+          payload: ${default(resolution.body.editedPayload, recommendation)}

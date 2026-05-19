@@ -1,0 +1,21 @@
+{
+  "name": "analyst_v1",
+  "description": "Tier-1 analyst — bigquery.query + view_metrics.aggregate. D-IDs: D23, D37.",
+  "agent_spec_ref": "gs://ss-v2-agent-registry/analyst/v1.json",
+  "trajectory_mode": "IN_ORDER",
+  "metrics": ["groundedness", "numeric_accuracy"],
+  "thresholds": {"groundedness": 0.90, "numeric_accuracy": 0.99},
+  "min_cases": 10,
+  "eval_cases": [
+    {"name": "an_en_001_basic_report","locale": "en", "tags": ["happy"], "input": {"campaign_id": "camp_001", "period_days": 30}, "expected": {"tool_trajectory": [{"tool_name": "bigquery.query"}, {"tool_name": "view_metrics.aggregate"}], "must_cite_numbers": true}},
+    {"name": "an_en_002_zero_rows",   "locale": "en", "tags": ["edge"],  "input": {"campaign_id": "camp_new"}, "expected": {"reference_response_contains": "no data yet"}, "notes": "EC-2.36."},
+    {"name": "an_en_003_partial",     "locale": "en", "tags": ["edge"],  "input": {"period_days": 1}, "expected": {"low_confidence_flag": true}},
+    {"name": "an_en_004_yearly",      "locale": "en", "tags": ["happy"], "input": {"period_days": 365}, "expected": {"must_cite_numbers": true}},
+    {"name": "an_en_005_no_hallucinate","locale": "en", "tags": ["adversarial"], "input": {"campaign_id": "camp_no_emails_sent"}, "expected": {"reference_response_contains": "0", "no_invented_numbers": true}},
+    {"name": "an_en_006_currency_locale","locale": "en", "tags": ["edge"], "input": {"force_currency": "KRW"}, "expected": {"currency_in_output": "KRW"}},
+    {"name": "an_ko_007_basic",       "locale": "ko", "tags": ["happy"], "input": {"campaign_id": "camp_ko_001"}, "expected": {"locale_in_output": "ko"}},
+    {"name": "an_ja_008_basic",       "locale": "ja", "tags": ["happy"], "input": {"campaign_id": "camp_ja_001"}, "expected": {"locale_in_output": "ja"}},
+    {"name": "an_zh_009_basic",       "locale": "zh", "tags": ["happy"], "input": {"campaign_id": "camp_zh_001"}, "expected": {"locale_in_output": "zh"}},
+    {"name": "an_en_010_slot_exhaust","locale": "en", "tags": ["infra-fail"], "input": {"inject_fault": "bigquery.slot_exhaustion"}, "expected": {"escalation_expected": true}, "notes": "Chaos DATA-04 trigger from analyst side."}
+  ]
+}

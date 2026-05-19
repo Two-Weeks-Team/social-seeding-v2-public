@@ -1,0 +1,36 @@
+# CHAOS-IDP-02 — Disable prior KMS key version mid re-encrypt; re-enable runbook must fire <60s
+# Source: chaos/SCENARIOS.md catalog
+# Cites: D31 (SLO), D32 (auto-runbook), D37 (TDD layers)
+# Tags: nightly
+
+id: CHAOS-IDP-02
+name: kms-version-restore
+tier: identity
+executor: native_gcp
+tags: [nightly]
+
+description: |
+  Disable prior KMS key version mid re-encrypt; re-enable runbook must fire <60s.
+
+expected_rto_s: 60
+expected_rpo_s: 0
+observed_sli_breach: spanner.read.error_rate.spike
+
+auto_runbook: runbook-kms-version-restore
+auto_runbook_timeout_s: 60
+
+recovery_validation:
+  type: probe
+  steps:
+    - "see chaos/SCENARIOS.md recovery_validation block for CHAOS-IDP-02"
+
+pass_criteria:
+  - "observed_rto_s <= 60"
+  - "observed_rpo_s <= 0"
+  - "auto_runbook fired & succeeded"
+
+stub_override:
+  pass: true
+
+references:
+  - "https://cloud.google.com/kms/docs/key-rotation"

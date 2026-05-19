@@ -1,0 +1,249 @@
+{
+  "eval_set_id": "ss_research_v0_1",
+  "name": "Research agent — 8-case golden set (brand/competitor + locale spread)",
+  "description": "Phase 3 skeleton golden set per research.spec.md §7 + Phase-3 brief. Covers the brand-research surface: grounding off by default, on per opt-in; ko/en/ja/zh-CN locales; escalation when sources < 5 with grounding on. Full 100-case set ships in tests/golden/research/*.json during Phase 4.",
+  "criteria_overrides": {
+    "tool_trajectory_avg_score": 0.0,
+    "final_response_match_v2": 0.7,
+    "hallucinations_v1": 0.05,
+    "coverage": 0.8
+  },
+  "metadata": {
+    "agent_id": "research",
+    "spec": "gcp-research/specs/tier1/research.spec.md",
+    "decisions": ["D5", "D23"],
+    "gemini_models_refs": ["§2.5 grounding pricing", "§6.5 $35/1k caveat"],
+    "locales_covered": ["en", "en", "en", "ko", "ko", "ja", "ja", "zh-CN"],
+    "grounding_split": {"off": 6, "on": 2}
+  },
+  "eval_cases": [
+    {
+      "eval_id": "research_en_01_kbeauty_offline",
+      "metadata": {
+        "locale": "en",
+        "grounding_enabled": false,
+        "expected_competitors_min": 2,
+        "expected_sources_count": 0,
+        "should_escalate": false,
+        "note": "Default path. Grounding OFF per GEMINI-MODELS §6.5 — model parametric knowledge only; sources must be empty."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brandName\":\"Freshly\",\"researchQuestions\":[\"What product categories does Freshly sell?\",\"Who are the top 5 direct competitors in K-beauty serums?\",\"What is Freshly's recent funding or launch history?\"],\"locale\":\"en\",\"groundingEnabled\":false,\"industryHint\":\"K-beauty skincare\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"brandOverview\":\"Freshly is a Seoul-based K-beauty brand focused on Vitamin C serums and post-laser recovery skincare since 2021.\",\"topCompetitors\":[{\"name\":\"Numbuzin\",\"differentiator\":\"Direct K-beauty serum competitor with stronger US TikTok presence.\",\"threat_level\":\"high\"},{\"name\":\"Beauty of Joseon\",\"differentiator\":\"Adjacent serum line with established global retail footprint.\",\"threat_level\":\"medium\"}],\"marketPosition\":\"Freshly occupies the mid-tier price band among K-beauty serums; differentiates via formulation transparency.\",\"recentNews\":[],\"sources\":[],\"groundingUsed\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "research_en_02_saas_offline",
+      "metadata": {
+        "locale": "en",
+        "grounding_enabled": false,
+        "expected_competitors_min": 3,
+        "should_escalate": false,
+        "note": "Global SaaS brand, no grounding. Tests that the agent handles non-beauty verticals."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brandName\":\"Linear\",\"researchQuestions\":[\"What productivity niche does Linear target?\",\"Who are the top 5 competitors in project management for engineering teams?\",\"What is their pricing posture vs. Jira and Asana?\"],\"locale\":\"en\",\"groundingEnabled\":false,\"industryHint\":\"developer tools / project management\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"brandOverview\":\"Linear is a project-management tool aimed at engineering teams, known for keyboard-first UX and an opinionated workflow.\",\"topCompetitors\":[{\"name\":\"Jira\",\"differentiator\":\"Incumbent for enterprise issue tracking with deeper customization.\",\"threat_level\":\"high\"},{\"name\":\"Asana\",\"differentiator\":\"Cross-functional PM platform with broader non-eng audience.\",\"threat_level\":\"medium\"},{\"name\":\"Height\",\"differentiator\":\"Direct competitor on the engineering-PM positioning.\",\"threat_level\":\"medium\"}],\"marketPosition\":\"Linear sits in the premium engineering-PM tier; competes on UX polish rather than feature breadth.\",\"recentNews\":[],\"sources\":[],\"groundingUsed\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "research_en_03_grounded_sources_required",
+      "metadata": {
+        "locale": "en",
+        "grounding_enabled": true,
+        "expected_sources_min": 5,
+        "should_escalate": false,
+        "note": "Operator opted into Google Search grounding — output MUST include ≥5 sources. spec.md §6 escalation if sources count < 5."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brandName\":\"Freshly\",\"researchQuestions\":[\"What did Freshly launch in 2026?\",\"Who funded the latest round?\",\"Which SKU is the bestseller on TikTok Shop?\"],\"locale\":\"en\",\"groundingEnabled\":true,\"industryHint\":\"K-beauty skincare\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"brandOverview\":\"Freshly is a Seoul-based K-beauty brand expanding into Southeast Asia via TikTok Shop since Q4 2025.\",\"topCompetitors\":[{\"name\":\"Numbuzin\",\"differentiator\":\"Direct serum competitor with stronger US TikTok presence.\",\"threat_level\":\"high\"}],\"marketPosition\":\"Mid-tier price band; TikTok-native distribution undercuts Sephora-led retail incumbents.\",\"recentNews\":[{\"headline\":\"Freshly launches retinol line\",\"summary\":\"Brand introduced a 0.3% encapsulated retinol SKU exclusively on TikTok Shop.\",\"publishedAt\":\"2026-04-15\",\"sourceIndex\":0},{\"headline\":\"Series A closed\",\"summary\":\"Disclosed a Series A led by KB Investment in April 2026.\",\"publishedAt\":\"2026-04-22\",\"sourceIndex\":1}],\"sources\":[{\"url\":\"https://example.com/freshly-retinol-launch\",\"title\":\"Freshly Retinol Line — Press Release\"},{\"url\":\"https://example.com/freshly-series-a\",\"title\":\"KB Investment funds Freshly Series A\"},{\"url\":\"https://example.com/tiktok-shop-kbeauty-q1-2026\",\"title\":\"TikTok Shop K-beauty Q1 2026 report\"},{\"url\":\"https://example.com/numbuzin-comparison\",\"title\":\"Numbuzin vs Freshly — Allure review\"},{\"url\":\"https://example.com/freshly-founder-interview\",\"title\":\"Freshly founder interview — Vogue Business\"}],\"groundingUsed\":true}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": [{"name": "web.search"}]}
+        }
+      ]
+    },
+    {
+      "eval_id": "research_ko_01_korean_offline",
+      "metadata": {
+        "locale": "ko",
+        "grounding_enabled": false,
+        "should_escalate": false,
+        "note": "Korean locale — output must be in 한국어 per locale suffix."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brandName\":\"프레시리\",\"researchQuestions\":[\"프레시리의 핵심 제품 카테고리는 무엇인가요?\",\"주요 경쟁사 5곳은 어디인가요?\",\"최근 12개월 출시·투자 이력을 정리해주세요.\"],\"locale\":\"ko\",\"groundingEnabled\":false,\"industryHint\":\"K-beauty 스킨케어\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"brandOverview\":\"프레시리는 비타민C 세럼과 시술 후 회복 스킨케어에 특화된 서울 기반 K-beauty 브랜드입니다.\",\"topCompetitors\":[{\"name\":\"넘버즌\",\"differentiator\":\"세럼 라인에서 직접 경쟁하며 미국 TikTok 시장 점유가 더 큽니다.\",\"threat_level\":\"high\"},{\"name\":\"조선미녀\",\"differentiator\":\"인접 세럼 라인 + 글로벌 리테일 유통망 확보.\",\"threat_level\":\"medium\"}],\"marketPosition\":\"프레시리는 K-beauty 세럼 시장에서 미드티어 가격대를 형성하며, 성분 투명성을 차별점으로 내세웁니다.\",\"recentNews\":[],\"sources\":[],\"groundingUsed\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "research_ko_02_unknown_brand_escalates_empty",
+      "metadata": {
+        "locale": "ko",
+        "grounding_enabled": false,
+        "should_escalate": false,
+        "expected_competitors_min": 0,
+        "note": "Unknown brand, grounding off — agent should return empty arrays rather than invent. Tests `hallucinations_v1 ≤ 0.05`."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brandName\":\"ZZZ_NoSuchBrand_2026\",\"researchQuestions\":[\"이 브랜드의 주요 제품은?\",\"주요 경쟁사는?\",\"최근 출시 이력은?\"],\"locale\":\"ko\",\"groundingEnabled\":false}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"brandOverview\":\"제공된 정보만으로는 ZZZ_NoSuchBrand_2026에 대한 사실 확인이 어렵습니다. 추가 자료 또는 그라운딩 활성화가 필요합니다.\",\"topCompetitors\":[],\"marketPosition\":\"확인된 시장 정보가 없어 포지셔닝을 단정할 수 없습니다.\",\"recentNews\":[],\"sources\":[],\"groundingUsed\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "research_ja_01_japanese_offline",
+      "metadata": {
+        "locale": "ja",
+        "grounding_enabled": false,
+        "should_escalate": false
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brandName\":\"フレッシュリ\",\"researchQuestions\":[\"主力商品カテゴリは?\",\"主要競合5社は?\",\"直近の資金調達は?\"],\"locale\":\"ja\",\"groundingEnabled\":false,\"industryHint\":\"K-beauty スキンケア\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"brandOverview\":\"フレッシュリはソウル拠点のK-beautyブランドで、ビタミンCセラムと施術後リカバリーに特化しています。\",\"topCompetitors\":[{\"name\":\"Numbuzin\",\"differentiator\":\"米国TikTokでの存在感が大きい直接競合。\",\"threat_level\":\"high\"}],\"marketPosition\":\"K-beautyセラム市場のミッドティア価格帯。成分透明性で差別化。\",\"recentNews\":[],\"sources\":[],\"groundingUsed\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "research_ja_02_grounded_min_sources",
+      "metadata": {
+        "locale": "ja",
+        "grounding_enabled": true,
+        "expected_sources_min": 5,
+        "should_escalate": false,
+        "note": "Grounding ON in Japanese — confirms source-count gate applies regardless of locale."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brandName\":\"フレッシュリ\",\"researchQuestions\":[\"2026年の新商品は?\",\"最近の資金調達ラウンドは?\",\"日本市場での展開状況は?\"],\"locale\":\"ja\",\"groundingEnabled\":true}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"brandOverview\":\"フレッシュリは2026年に日本市場へ参入したK-beautyブランドです。\",\"topCompetitors\":[],\"marketPosition\":\"日本市場では中価格帯。TikTok Shopを主な流通チャネルとして使用。\",\"recentNews\":[{\"headline\":\"日本市場参入\",\"summary\":\"2026年Q1に日本のTikTok Shopで販売開始。\",\"publishedAt\":\"2026-02-01\",\"sourceIndex\":0}],\"sources\":[{\"url\":\"https://example.jp/freshly-japan\",\"title\":\"フレッシュリ日本上陸\"},{\"url\":\"https://example.jp/kbeauty-2026\",\"title\":\"2026年K-beautyトレンド\"},{\"url\":\"https://example.jp/tiktok-shop-jp\",\"title\":\"TikTok Shop日本\"},{\"url\":\"https://example.jp/freshly-interview\",\"title\":\"創業者インタビュー\"},{\"url\":\"https://example.jp/freshly-press\",\"title\":\"プレスリリース\"}],\"groundingUsed\":true}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": [{"name": "web.search"}]}
+        }
+      ]
+    },
+    {
+      "eval_id": "research_zh_01_simplified_chinese_offline",
+      "metadata": {
+        "locale": "zh-CN",
+        "grounding_enabled": false,
+        "should_escalate": false
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brandName\":\"Freshly\",\"researchQuestions\":[\"主要产品类别是什么?\",\"前5大直接竞争对手是谁?\",\"最近的融资或新品发布情况?\"],\"locale\":\"zh-CN\",\"groundingEnabled\":false,\"industryHint\":\"韩国美妆 / 护肤\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"brandOverview\":\"Freshly 是一家位于首尔的韩国美妆品牌,专注于维生素C精华和术后修复护肤品,成立于2021年。\",\"topCompetitors\":[{\"name\":\"Numbuzin\",\"differentiator\":\"在美国TikTok市场具有更强存在感的直接精华液竞争对手。\",\"threat_level\":\"high\"},{\"name\":\"Beauty of Joseon\",\"differentiator\":\"邻近的精华产品线,全球零售网络成熟。\",\"threat_level\":\"medium\"}],\"marketPosition\":\"Freshly 在韩国美妆精华液中占据中端价位,以成分透明性作为差异化卖点。\",\"recentNews\":[],\"sources\":[],\"groundingUsed\":false}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    }
+  ]
+}

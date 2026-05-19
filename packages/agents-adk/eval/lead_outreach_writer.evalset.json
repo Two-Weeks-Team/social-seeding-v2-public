@@ -1,0 +1,269 @@
+{
+  "eval_set_id": "ss_lead_outreach_writer_v0_1",
+  "name": "Lead Outreach Writer agent — 8-case golden set (D34 locale spread + B2B angle coverage)",
+  "description": "Phase 3 skeleton golden set per lead_outreach_writer.spec.md §7 and the Phase-3 brief. The full 60-case set (30 per locale × ko/en) lands in tests/golden/lead_outreach_writer/{ko,en}.json during Phase 4. response_match_v2 threshold >= 0.80 per the agent #11 brief (tighter than the spec §7 >= 0.72 baseline because the brief specifies high-fidelity B2B drafting). spam_p95 < 0.3 is the second-tier metric.",
+  "criteria_overrides": {
+    "tool_trajectory_avg_score": 0.0,
+    "final_response_match_v2": 0.8
+  },
+  "metadata": {
+    "agent_id": "lead-outreach-writer",
+    "spec": "gcp-research/specs/tier1/lead_outreach_writer.spec.md",
+    "decisions": ["D5", "D17", "D23", "D27", "D34"],
+    "model": "gemini-2.5-pro",
+    "max_usd": 0.05,
+    "locales_covered": ["en", "en", "ko", "ko", "ja", "zh-CN", "en", "ko"],
+    "angles_covered": ["data_specific", "pain_killer", "mutual_benefit", "authority", "directness", "mutual_benefit", "data_specific", "pain_killer"],
+    "tones_covered": ["consultative", "consultative", "consultative", "formal", "formal", "formal", "direct", "consultative"],
+    "thresholds": {
+      "response_match_v2": 0.80,
+      "spam_score_p95": 0.30,
+      "icp_fit_score_min": 0.50,
+      "grounded_facts_usage": 0.90,
+      "hallucination_rate": 0.0,
+      "revise_rate": 0.35
+    }
+  },
+  "eval_cases": [
+    {
+      "eval_id": "lead_en_01_kbeauty_data_specific",
+      "metadata": {
+        "locale": "en",
+        "angle": "data_specific",
+        "tone": "consultative",
+        "expected_outcome": "ok",
+        "should_escalate": false,
+        "note": "Happy path: K-beauty D2C lead with strong research. Agent picks data_specific angle citing SKU count."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_e1\",\"createdBy\":\"op@ss.test\",\"name\":\"Pitch SS to K-beauty\",\"ourProduct\":{\"name\":\"Social Seeding\",\"pitchSummary\":\"Agent-orchestrated TikTok influencer marketing platform.\",\"keyClaims\":[\"$10 effective CPM\",\"Fully agentized sourcing-to-verify loop\"]},\"targeting\":{\"countries\":[\"KR\"],\"categories\":[\"cosmetics\"]},\"outreach\":{\"maxSendsPerBatch\":20,\"toneNotes\":\"factual + warm\"},\"goals\":{\"targetReplies\":10,\"deadline\":\"2026-07-31T23:59:00Z\"}},\"research\":{\"pitch\":\"K-beauty D2C brand with 40 SKUs on Cafe24 and no TikTok presence.\",\"angles\":[\"data_specific: 40 SKUs on Cafe24 suggests 6-month seeding pilot ROI\",\"mutual_benefit: we drive trial; they share CPM data\"],\"groundedFacts\":[\"Brand operates a Cafe24 storefront with 40+ SKUs\",\"Instagram follower count: 12400\",\"No TikTok official account as of 2026-04\"],\"contactProfile\":\"Marketing Lead\",\"confidence\":72,\"researchedAt\":\"2026-05-01T00:00:00Z\"},\"lead\":{\"companyName\":\"Freshly Cosmetics\",\"country\":\"KR\",\"homepageUrl\":\"https://freshly.example.kr\",\"contactEmail\":\"marketing@freshly.example.kr\"},\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"Cafe24 to TikTok — 6-month seeding pilot for Freshly\",\"body\":\"Hi Marketing team at Freshly Cosmetics,\\n\\nNoticed you run 40+ SKUs on Cafe24 with an active Instagram presence (12.4k followers, growing) but no TikTok official channel yet. K-beauty discovery on TikTok has compounded in the last two quarters and your SKU breadth is well-suited to a 6-month seeding pilot.\\n\\nSocial Seeding is an agent-orchestrated TikTok influencer marketing platform built for K-beauty D2C brands. We deliver around a $10 effective CPM and operate the entire sourcing-to-verify loop without your team in the day-to-day.\\n\\nWould a 15-minute intro call this or next week work to share a pilot simulation tailored to your SKU set?\",\"tone\":\"consultative\",\"angle\":\"data_specific\",\"spamScore\":0.08,\"deliverabilityScore\":0.84,\"icpFitScore\":0.78,\"groundedFacts\":[\"research.groundedFacts[0]\",\"research.groundedFacts[1]\",\"research.groundedFacts[2]\",\"ourProduct.keyClaims[0]\",\"ourProduct.keyClaims[1]\"],\"suggestedNextStep\":\"Book 15-min intro call; if interested send tailored pilot simulation.\"}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "lead_en_02_indie_brand_pain_killer",
+      "metadata": {
+        "locale": "en",
+        "angle": "pain_killer",
+        "tone": "consultative",
+        "expected_outcome": "ok",
+        "should_escalate": false,
+        "note": "Indie brand without in-house ops. Pain_killer angle on lack of influencer ops capacity."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_e2\",\"createdBy\":\"op@ss.test\",\"name\":\"Pitch SS to indie D2C\",\"ourProduct\":{\"name\":\"Social Seeding\",\"pitchSummary\":\"Fully managed TikTok influencer ops for small teams.\",\"keyClaims\":[\"No in-house team required\",\"Average 21-day onboarding\"]},\"targeting\":{\"countries\":[\"US\"],\"categories\":[\"cosmetics\"]},\"outreach\":{\"maxSendsPerBatch\":20,\"toneNotes\":\"empathetic, founder-to-founder\"},\"goals\":{\"targetReplies\":5,\"deadline\":\"2026-07-15T23:59:00Z\"}},\"research\":{\"pitch\":\"Indie clean-beauty D2C with 3-person team, all marketing handled by founder.\",\"angles\":[\"pain_killer: founder is sole marketer, no influencer ops capacity\",\"mutual_benefit: we handle ops, they retain creative direction\"],\"groundedFacts\":[\"Team size: 3 (per LinkedIn)\",\"Founder mentions in podcast: she handles marketing alone\",\"Brand launched 2024-09, 18 months old\"],\"contactProfile\":\"Founder\",\"confidence\":68,\"researchedAt\":\"2026-05-02T00:00:00Z\"},\"lead\":{\"companyName\":\"Bloom Botanicals\",\"country\":\"US\",\"homepageUrl\":\"https://bloombotanicals.example.com\"},\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"Quick note for the Bloom Botanicals founder\",\"body\":\"Hi there,\\n\\nFrom your recent podcast appearance it sounds like marketing at Bloom Botanicals still lands on you personally, alongside the rest of running an 18-month-old brand. That makes influencer ops one of the first things to drop.\\n\\nSocial Seeding handles the entire TikTok influencer loop — sourcing, outreach, sample logistics, post verification — for small teams without an in-house creator manager. Typical onboarding is about 21 days, and you keep full creative direction throughout.\\n\\nOpen to a short reply with the format that works best — async note, 15-min call, or a one-page summary?\",\"tone\":\"consultative\",\"angle\":\"pain_killer\",\"spamScore\":0.07,\"deliverabilityScore\":0.83,\"icpFitScore\":0.71,\"groundedFacts\":[\"research.groundedFacts[1]\",\"research.groundedFacts[2]\",\"ourProduct.keyClaims[0]\",\"ourProduct.keyClaims[1]\"],\"suggestedNextStep\":\"Async note or 15-min intro; emphasize ops-without-team angle.\"}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "lead_ko_01_mutual_benefit_consultative",
+      "metadata": {
+        "locale": "ko",
+        "angle": "mutual_benefit",
+        "tone": "consultative",
+        "expected_outcome": "ok",
+        "should_escalate": false,
+        "note": "Korean lead, consultative tone, mutual_benefit angle (data exchange)."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_e3\",\"createdBy\":\"op@ss.test\",\"name\":\"K-beauty pitch\",\"ourProduct\":{\"name\":\"소셜시딩\",\"pitchSummary\":\"K뷰티 D2C 브랜드를 위한 에이전트 기반 TikTok 시딩 플랫폼\",\"keyClaims\":[\"평균 CPM $10\",\"전 과정 자동화\"]},\"targeting\":{\"countries\":[\"KR\"],\"categories\":[\"cosmetics\"]},\"outreach\":{\"maxSendsPerBatch\":20,\"toneNotes\":\"수치 중심, 정중\"},\"goals\":{\"targetReplies\":10,\"deadline\":\"2026-07-31T23:59:00Z\"}},\"research\":{\"pitch\":\"올리브영 입점 K뷰티 브랜드, TikTok 자체 채널은 부재.\",\"angles\":[\"mutual_benefit: 시딩 시범 + 월간 CPM 리포트 교환\",\"data_specific: 올리브영 매출 데이터와의 상관관계 분석 가능\"],\"groundedFacts\":[\"올리브영 입점 브랜드 (2024년)\",\"인스타그램 팔로워 2.3만명\",\"TikTok 공식 계정 없음\"],\"contactProfile\":\"마케팅 매니저\",\"confidence\":75,\"researchedAt\":\"2026-05-03T00:00:00Z\"},\"lead\":{\"companyName\":\"글로우랩\",\"companyNameEn\":\"GlowLab\",\"country\":\"KR\",\"homepageUrl\":\"https://glowlab.example.kr\"},\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"글로우랩 + 소셜시딩 — 3개월 시딩 파일럿 제안\",\"body\":\"안녕하세요 글로우랩 마케팅팀,\\n\\n올리브영 입점 이후 인스타그램 2.3만 팔로워를 확보하셨지만 TikTok 공식 채널은 아직 없으신 것을 확인했습니다. K뷰티 카테고리는 TikTok 검색 유입이 빠르게 늘고 있는 영역이라 시딩 ROI가 큰 시점입니다.\\n\\n소셜시딩은 K뷰티 D2C 브랜드 전용 에이전트 기반 TikTok 시딩 플랫폼입니다. 평균 CPM은 $10 수준이고, 사용 모델은 시딩 데이터를 월 단위로 공유드리면 글로우랩 측 올리브영 매출 데이터와 매칭해 상관관계를 분석해드리는 양방향 형태입니다.\\n\\n15분 정도 인트로 콜로 파일럿 시뮬레이션을 공유드려도 괜찮을까요?\",\"tone\":\"consultative\",\"angle\":\"mutual_benefit\",\"spamScore\":0.06,\"deliverabilityScore\":0.85,\"icpFitScore\":0.80,\"groundedFacts\":[\"research.groundedFacts[0]\",\"research.groundedFacts[1]\",\"research.groundedFacts[2]\",\"ourProduct.keyClaims[0]\"],\"suggestedNextStep\":\"15분 인트로 콜; 응답시 올리브영 데이터 분석 사례 공유.\"}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "lead_ko_02_jp_recipient_formal_authority",
+      "metadata": {
+        "locale": "ko",
+        "angle": "authority",
+        "tone": "formal",
+        "expected_outcome": "ok",
+        "should_escalate": false,
+        "note": "Spec §8 edge case 6: Korean operator sending Korean-language outreach to a JP-country recipient → tone auto-defaults to formal."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_e4\",\"createdBy\":\"op@ss.test\",\"name\":\"J-beauty pitch\",\"ourProduct\":{\"name\":\"소셜시딩\",\"pitchSummary\":\"K뷰티 + J뷰티 브랜드 대상 TikTok 시딩 플랫폼\",\"keyClaims\":[\"50+ K뷰티 브랜드 사용 중\",\"평균 21일 온보딩\"]},\"targeting\":{\"countries\":[\"JP\"],\"categories\":[\"cosmetics\"]},\"outreach\":{\"maxSendsPerBatch\":10,\"toneNotes\":\"정중, 사례 중심\"},\"goals\":{\"targetReplies\":3,\"deadline\":\"2026-08-31T23:59:00Z\"}},\"research\":{\"pitch\":\"일본 도쿄 기반 J뷰티 브랜드, 한국 시장 진출 검토 중.\",\"angles\":[\"authority: 한국 시장 50개 K뷰티 브랜드 운영 경험\",\"mutual_benefit: 일본 측 데이터와 한국 측 시딩 결합\"],\"groundedFacts\":[\"본사: 일본 도쿄\",\"한국 진출 발표: 2026년 Q3 예정\",\"한국어 사이트 베타 운영중\"],\"contactProfile\":\"해외사업개발 매니저\",\"confidence\":70,\"researchedAt\":\"2026-05-04T00:00:00Z\"},\"lead\":{\"companyName\":\"グロー株式会社\",\"companyNameEn\":\"Glow Co Ltd\",\"country\":\"JP\",\"homepageUrl\":\"https://glow.example.jp\"},\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"글로우 한국 진출 — 소셜시딩 사례 공유 제안\",\"body\":\"グロー株式会社 해외사업개발팀 귀하,\\n\\n글로우의 2026년 Q3 한국 시장 진출 발표를 확인하였습니다. 한국어 베타 사이트도 이미 운영 중이신 것으로 보입니다.\\n\\n저희 소셜시딩은 한국 시장에서 50개 이상의 K뷰티 D2C 브랜드의 TikTok 시딩을 운영하고 있으며, 평균 21일 온보딩으로 신규 진출 브랜드의 초기 3개월 이내 가시화에 집중합니다. 일본 본사의 운영 데이터와 한국 측 시딩 결과를 결합한 리포트 형태도 가능합니다.\\n\\n사례집 PDF를 메일로 보내드려도 될까요. 검토 후 회신 부탁드립니다.\",\"tone\":\"formal\",\"angle\":\"authority\",\"spamScore\":0.05,\"deliverabilityScore\":0.86,\"icpFitScore\":0.72,\"groundedFacts\":[\"research.groundedFacts[0]\",\"research.groundedFacts[1]\",\"research.groundedFacts[2]\",\"ourProduct.keyClaims[0]\",\"ourProduct.keyClaims[1]\"],\"suggestedNextStep\":\"사례집 PDF 송부; 회신시 일본-한국 결합 리포트 제안.\"}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "lead_ja_01_jp_formal_directness_blocked",
+      "metadata": {
+        "locale": "ja",
+        "angle": "directness",
+        "tone": "formal",
+        "expected_outcome": "ok",
+        "should_escalate": false,
+        "note": "Spec §8 edge case 6 reinforcement: JP recipient + research suggesting directness — agent MUST override to formal/authority. Tests cultural adjustment."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_e5\",\"createdBy\":\"op@ss.test\",\"name\":\"J-beauty direct pitch\",\"ourProduct\":{\"name\":\"Social Seeding\",\"pitchSummary\":\"日本のD2Cブランド向けTikTokシーディングプラットフォーム\",\"keyClaims\":[\"日本市場で15ブランド運用中\",\"平均CPM 1,200円\"]},\"targeting\":{\"countries\":[\"JP\"],\"categories\":[\"cosmetics\"]},\"outreach\":{\"maxSendsPerBatch\":10,\"toneNotes\":\"丁寧、データ重視\"},\"goals\":{\"targetReplies\":5,\"deadline\":\"2026-08-31T23:59:00Z\"}},\"research\":{\"pitch\":\"日本のD2Cコスメブランド、TikTok公式チャンネル運営中。\",\"angles\":[\"directness: TikTokアカウントは既に運用中、シーディング即追加可能\",\"authority: 同セグメントで15ブランド運用実績あり\"],\"groundedFacts\":[\"TikTokアカウント運用中（フォロワー8500人）\",\"楽天市場での月商レンジ: 中位\",\"創業3年目\"],\"contactProfile\":\"マーケティング部長\",\"confidence\":74,\"researchedAt\":\"2026-05-05T00:00:00Z\"},\"lead\":{\"companyName\":\"花咲コスメ株式会社\",\"country\":\"JP\",\"homepageUrl\":\"https://hanasaki.example.jp\"},\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"花咲コスメ様のTikTokシーディング拡張のご提案\",\"body\":\"花咲コスメ株式会社 マーケティング部長殿\\n\\nお世話になっております。Social Seedingと申します。\\n\\n御社のTikTok公式アカウント（フォロワー約8500名）を拝見いたしました。すでに自社運用の基盤を構築されているため、シーディングを追加することで短期間でリーチを拡大できる段階にあると考えます。\\n\\n弊社は日本市場のD2Cコスメブランドで15社の運用実績がございます。平均CPMは約1,200円で、創業3年目のブランド様が成長フェーズで導入される事例が多くございます。\\n\\nもしご興味がございましたら、15分のオンラインミーティングにて運用事例をご共有させてください。\",\"tone\":\"formal\",\"angle\":\"authority\",\"spamScore\":0.05,\"deliverabilityScore\":0.88,\"icpFitScore\":0.76,\"groundedFacts\":[\"research.groundedFacts[0]\",\"research.groundedFacts[2]\",\"ourProduct.keyClaims[0]\",\"ourProduct.keyClaims[1]\"],\"suggestedNextStep\":\"15分オンライン面談; 同セグメント15社の運用事例集を送付。\"}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "lead_zh_01_simplified_chinese_formal",
+      "metadata": {
+        "locale": "zh-CN",
+        "angle": "mutual_benefit",
+        "tone": "formal",
+        "expected_outcome": "ok",
+        "should_escalate": false,
+        "note": "Simplified Chinese; CN country code triggers formal default."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_e6\",\"createdBy\":\"op@ss.test\",\"name\":\"CN cosmetics pitch\",\"ourProduct\":{\"name\":\"Social Seeding\",\"pitchSummary\":\"面向中国D2C品牌的TikTok种草营销平台\",\"keyClaims\":[\"已服务30家亚洲D2C品牌\",\"端到端代运营\"]},\"targeting\":{\"countries\":[\"CN\"],\"categories\":[\"cosmetics\"]},\"outreach\":{\"maxSendsPerBatch\":15,\"toneNotes\":\"商务、数据导向\"},\"goals\":{\"targetReplies\":8,\"deadline\":\"2026-08-31T23:59:00Z\"}},\"research\":{\"pitch\":\"上海D2C护肤品牌,海外市场扩张中。\",\"angles\":[\"mutual_benefit: 我方负责海外TikTok运营,贵方专注国内\",\"authority: 30家亚洲D2C品牌已使用\"],\"groundedFacts\":[\"品牌注册地:上海\",\"小红书粉丝5.6万\",\"已发布海外扩张计划(2026年Q3)\"],\"contactProfile\":\"海外事业部总监\",\"confidence\":71,\"researchedAt\":\"2026-05-06T00:00:00Z\"},\"lead\":{\"companyName\":\"沪花生物科技有限公司\",\"companyNameEn\":\"Hua Hua Biotech\",\"country\":\"CN\",\"homepageUrl\":\"https://huahua.example.cn\"},\"locale\":\"zh-CN\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"沪花生物海外扩张 — TikTok种草运营提案\",\"body\":\"沪花生物科技有限公司 海外事业部总监 您好,\\n\\n我们注意到贵司已发布2026年Q3的海外扩张计划,小红书已有5.6万粉丝的国内基础。\\n\\nSocial Seeding是面向D2C品牌的TikTok种草营销平台,目前已服务30家亚洲D2C品牌。可由我方负责海外TikTok端到端代运营,贵方专注国内业务,双方按月共享数据。\\n\\n如有兴趣,可否安排一次15分钟的线上沟通分享同类品牌的运营案例?期待您的回复。\",\"tone\":\"formal\",\"angle\":\"mutual_benefit\",\"spamScore\":0.06,\"deliverabilityScore\":0.84,\"icpFitScore\":0.74,\"groundedFacts\":[\"research.groundedFacts[1]\",\"research.groundedFacts[2]\",\"ourProduct.keyClaims[0]\",\"ourProduct.keyClaims[1]\"],\"suggestedNextStep\":\"15分钟线上沟通; 后续发送同类品牌案例集。\"}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "lead_en_03_high_confidence_direct",
+      "metadata": {
+        "locale": "en",
+        "angle": "data_specific",
+        "tone": "direct",
+        "expected_outcome": "ok",
+        "should_escalate": false,
+        "note": "research.confidence >= 70 + >= 2 grounded facts cited -> tone may be 'direct'. Tests the agent's directness gating rule."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_e7\",\"createdBy\":\"op@ss.test\",\"name\":\"Warm-lead pitch\",\"ourProduct\":{\"name\":\"Social Seeding\",\"pitchSummary\":\"TikTok seeding platform with public-data verification.\",\"keyClaims\":[\"Verified posts in 14 days\",\"Median ROI 4.2x\"]},\"targeting\":{\"countries\":[\"US\"],\"categories\":[\"cosmetics\"]},\"outreach\":{\"maxSendsPerBatch\":20,\"toneNotes\":\"warm but direct; this is a referral\"},\"goals\":{\"targetReplies\":3,\"deadline\":\"2026-06-30T23:59:00Z\"}},\"research\":{\"pitch\":\"Warm referral from existing customer; founder previously inbound at AGE conference.\",\"angles\":[\"directness: inbound history, no need to over-sell\",\"data_specific: 4.2x ROI is comp-set benchmark\"],\"groundedFacts\":[\"Inbound from AGE 2026 conference booth\",\"Referred by Bloom Botanicals (existing customer)\",\"D2C brand founded 2023, 60+ SKUs\",\"Posts a TikTok every 2-3 days under brand account\"],\"contactProfile\":\"Co-founder\",\"confidence\":82,\"researchedAt\":\"2026-05-07T00:00:00Z\"},\"lead\":{\"companyName\":\"Petal & Co\",\"country\":\"US\",\"homepageUrl\":\"https://petalandco.example.com\",\"contactEmail\":\"sasha@petalandco.example.com\"},\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"Following up from AGE 2026 — Petal & Co + seeding\",\"body\":\"Hi Sasha,\\n\\nGood to chat at the AGE 2026 booth, and Bloom Botanicals mentioned they'd already connected us before.\\n\\nGiven Petal's 60+ SKUs and the every-other-day brand cadence, you're already past the point where seeding adds the most lift on top of organic. Our median customer hits 4.2x ROI within 90 days, with verified posts inside the first 14.\\n\\nWant me to send a 1-page pilot proposal sized to your current SKU set?\",\"tone\":\"direct\",\"angle\":\"data_specific\",\"spamScore\":0.05,\"deliverabilityScore\":0.87,\"icpFitScore\":0.88,\"groundedFacts\":[\"research.groundedFacts[0]\",\"research.groundedFacts[1]\",\"research.groundedFacts[2]\",\"research.groundedFacts[3]\",\"ourProduct.keyClaims[0]\",\"ourProduct.keyClaims[1]\"],\"suggestedNextStep\":\"Send 1-page pilot proposal sized to 60-SKU cadence.\"}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    },
+    {
+      "eval_id": "lead_ko_03_low_confidence_escalates",
+      "metadata": {
+        "locale": "ko",
+        "angle": "pain_killer",
+        "tone": "consultative",
+        "expected_outcome": "escalate",
+        "should_escalate": true,
+        "note": "research.confidence = 22 (< 30) -> agent appends HALLUCINATION sentinel to groundedFacts; runtime returns Escalation. Phase-3 brief escalation condition #2."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"brief\":{\"workspaceId\":\"ws_e8\",\"createdBy\":\"op@ss.test\",\"name\":\"Pitch SS to under-researched lead\",\"ourProduct\":{\"name\":\"소셜시딩\",\"pitchSummary\":\"K뷰티 D2C 브랜드를 위한 TikTok 시딩 플랫폼\",\"keyClaims\":[\"평균 CPM $10\"]},\"targeting\":{\"countries\":[\"KR\"],\"categories\":[\"cosmetics\"]},\"outreach\":{\"maxSendsPerBatch\":20,\"toneNotes\":\"\"},\"goals\":{\"targetReplies\":10,\"deadline\":\"2026-07-31T23:59:00Z\"}},\"research\":{\"pitch\":\"리서치 신호가 약한 리드. 카테고리 외 공개 정보 거의 없음.\",\"angles\":[\"pain_killer: 가설 기반 — 검증 필요\"],\"groundedFacts\":[],\"contactProfile\":\"\",\"confidence\":22,\"researchedAt\":\"2026-05-08T00:00:00Z\"},\"lead\":{\"companyName\":\"미지의코스메\",\"country\":\"KR\"},\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"subject\":\"미지의코스메 — 짧은 문의\",\"body\":\"안녕하세요,\\n\\n저희는 K뷰티 D2C 브랜드를 위한 TikTok 시딩 플랫폼을 운영하고 있습니다. 회신 가능 여부만 짧게 알려주시면 추가 정보를 보내드리겠습니다.\\n\\n감사합니다.\",\"tone\":\"consultative\",\"angle\":\"pain_killer\",\"spamScore\":0.12,\"deliverabilityScore\":0.76,\"icpFitScore\":0.22,\"groundedFacts\":[\"HALLUCINATION\",\"LOW_ICP_FIT\"],\"suggestedNextStep\":\"리서치 신호 부족 — 추가 정보 수집 후 재시도 권장.\"}"
+              }
+            ]
+          },
+          "intermediate_data": {"tool_uses": []}
+        }
+      ]
+    }
+  ]
+}

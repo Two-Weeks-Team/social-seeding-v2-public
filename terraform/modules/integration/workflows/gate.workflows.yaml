@@ -1,0 +1,115 @@
+# gate.workflows.yaml
+# Source: INNGEST-MIGRATION.md §3.4 (deploy-ready reusable subworkflow).
+#
+# This is the global, callable-by-any-workflow version of the gate. Other
+# workflows invoke it via `call: gate` (the call resolves by deployed
+# workflow name, not by file). Parameters:
+#   - campaignId       : string
+#   - workspaceId      : string
+#   - kind             : "shortlist" | "outreachSend" | "replyResponse" | …
+#   - recommendation   : any (agent-proposed payload)
+#   - rationale        : string (operator-visible justification text)
+#   - gateConfig       : { mode: "auto" | "auto_unless" | "always_ask",
+#                          escalateIf?: shape-based predicate object }
+#
+# The callback URL itself is the correlation key (replaces Inngest's
+# async.data.X matching). API server resolves an approval by reading
+# v2_approvals.callback_url and POSTing the resolution payload there.
+
+main:
+  params: [args]
+  steps:
+    - bind_args:
+        assign:
+          - campaignId: ${args.campaignId}
+          - workspaceId: ${args.workspaceId}
+          - kind: ${args.kind}
+          - recommendation: ${args.recommendation}
+          - rationale: ${args.rationale}
+          - gateConfig: ${args.gateConfig}
+
+    - fast_path_auto:
+        switch:
+          - condition: ${gateConfig.mode == "auto"}
+            return:
+              decision: "approved"
+              payload: ${recommendation}
+
+    - evaluate_auto_unless:
+        switch:
+          - condition: ${gateConfig.mode == "auto_unless"}
+            steps:
+              - call_predicate_eval:
+                  call: http.post
+                  args:
+                    url: ${sys.get_env("GATE_PREDICATE_URL") + "/evaluate-predicate"}
+                    body:
+                      escalateIf: ${gateConfig.escalateIf}
+                      recommendation: ${recommendation}
+                    auth:
+                      type: OIDC
+                  result: predicate_eval
+              - branch_on_predicate:
+                  switch:
+                    - condition: ${not predicate_eval.body.shouldEscalate}
+                      return:
+                        decision: "approved"
+                        payload: ${recommendation}
+
+    - create_approval_row:
+        call: http.post
+        args:
+          url: ${sys.get_env("APPROVALS_API_URL") + "/create"}
+          body:
+            workspaceId: ${workspaceId}
+            campaignId: ${campaignId}
+            kind: ${kind}
+            recommendation: ${recommendation}
+            rationale: ${rationale}
+          auth:
+            type: OIDC
+        result: approval_create
+
+    - create_callback:
+        call: events.create_callback_endpoint
+        args:
+          http_callback_method: "POST"
+        result: callback_endpoint
+
+    - persist_callback_url:
+        call: http.post
+        args:
+          url: ${sys.get_env("APPROVALS_API_URL") + "/" + approval_create.body.approvalId + "/callback-url"}
+          body:
+            callbackUrl: ${callback_endpoint.url}
+          auth:
+            type: OIDC
+
+    - notify_inbox:
+        call: googleapis.pubsub.v1.projects.topics.publish
+        args:
+          topic: ${"projects/" + sys.get_env("GOOGLE_CLOUD_PROJECT_ID") + "/topics/approval.requested"}
+          body:
+            messages:
+              - data: ${base64.encode(json.encode({"approvalId": approval_create.body.approvalId, "campaignId": campaignId, "workspaceId": workspaceId, "kind": kind}))}
+                attributes:
+                  approvalId: ${approval_create.body.approvalId}
+                  kind: ${kind}
+
+    - await_resolution:
+        try:
+          call: events.await_callback
+          args:
+            callback: ${callback_endpoint}
+            timeout: 604800   # 7 days, matching gate.ts:165 "timeout: '7d'"
+          result: resolution
+        except:
+          as: e
+          steps:
+            - raise_timeout:
+                raise: ${"ApprovalTimeout:" + approval_create.body.approvalId + ":" + kind}
+
+    - return_resolution:
+        return:
+          decision: ${resolution.body.decision}
+          payload: ${default(resolution.body.editedPayload, recommendation)}
