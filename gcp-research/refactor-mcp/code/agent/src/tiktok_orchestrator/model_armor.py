@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Social Seeding Inc.
 """Model Armor sanitization (D21).
 
 Reference: ``gcp-research/model-armor/ARMOR-GATEWAY.md §1.6 path A``

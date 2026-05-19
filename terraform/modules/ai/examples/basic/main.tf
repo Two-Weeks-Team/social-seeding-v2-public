@@ -91,10 +91,10 @@ variable "data_scientist_sa_email" {
 module "ai" {
   source = "../.."
 
-  project_id     = var.project_id
-  project_number = var.project_number
-  region         = var.region
-  environment    = "dev"
+  project_id      = var.project_id
+  project_number  = var.project_number
+  region          = var.region
+  environment     = "dev"
   resource_prefix = "ssv2"
 
   network_self_link                    = var.network_self_link

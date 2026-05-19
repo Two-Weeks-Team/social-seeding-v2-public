@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Social Seeding Inc.
 """ADK Coordinator + searcher + ranker.
 
 Reference: ``REFACTOR-MCP.md §3.2-§3.3``.

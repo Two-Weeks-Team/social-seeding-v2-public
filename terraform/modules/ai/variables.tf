@@ -105,17 +105,17 @@ variable "model_defaults" {
 variable "vector_indexes" {
   description = "Vertex AI Vector Search indexes to provision (D16). Keyed by short name; expanded into google_vertex_ai_index + endpoint + deployed_index per entry."
   type = map(object({
-    display_name                = string
-    dimensions                  = number
-    distance_measure            = string # COSINE_DISTANCE | DOT_PRODUCT_DISTANCE | SQUARED_L2_DISTANCE
-    approximate_neighbors_count = number
-    shard_size                  = string # SHARD_SIZE_SMALL | MEDIUM | LARGE
-    update_method               = string # BATCH_UPDATE | STREAM_UPDATE
-    contents_gcs_uri            = string # gs://bucket/prefix — seed data location (may be empty for empty-index bootstrap)
-    leaf_node_embedding_count   = number
+    display_name                 = string
+    dimensions                   = number
+    distance_measure             = string # COSINE_DISTANCE | DOT_PRODUCT_DISTANCE | SQUARED_L2_DISTANCE
+    approximate_neighbors_count  = number
+    shard_size                   = string # SHARD_SIZE_SMALL | MEDIUM | LARGE
+    update_method                = string # BATCH_UPDATE | STREAM_UPDATE
+    contents_gcs_uri             = string # gs://bucket/prefix — seed data location (may be empty for empty-index bootstrap)
+    leaf_node_embedding_count    = number
     leaf_nodes_to_search_percent = number
-    min_replica_count           = number
-    max_replica_count           = number
+    min_replica_count            = number
+    max_replica_count            = number
   }))
   default = {
     creators_v1 = {
@@ -171,45 +171,45 @@ variable "vector_indexes" {
 variable "agent_registry" {
   description = "The 22-agent fleet — keyed by stable agent id; expanded into Agent Card + Registry registration. Defaults reflect ARCHITECTURE.md §3."
   type = map(object({
-    tier              = number  # 1 = domain, 2 = meta, 3 = watchdog (D23)
+    tier              = number # 1 = domain, 2 = meta, 3 = watchdog (D23)
     display_name      = string
     description       = string
-    model_tier        = string  # judgment | bulk | classifier
+    model_tier        = string # judgment | bulk | classifier
     skills            = list(string)
-    memory_strategy   = string  # session_only | memory_bank | none
+    memory_strategy   = string # session_only | memory_bank | none
     eval_criteria     = string
-    autonomy          = string  # always_ask | ask_on_external_send | autonomous_with_caps
-    usd_cap_per_run   = number  # D23 — every agent has a per-run USD ceiling
-    escalation_target = string  # which agent (or human surface) handles overage
+    autonomy          = string # always_ask | ask_on_external_send | autonomous_with_caps
+    usd_cap_per_run   = number # D23 — every agent has a per-run USD ceiling
+    escalation_target = string # which agent (or human surface) handles overage
   }))
   default = {
     # ----- Tier 1: 16 domain agents -----
-    sourcing                = { tier = 1, display_name = "Sourcing",            description = "Plan + execute creator search across RapidAPI sources",        model_tier = "judgment",   skills = ["rapidapi.tiktok_search", "rapidapi.instagram_search", "blacklist.check", "vector_search.creator"],    memory_strategy = "memory_bank",  eval_criteria = "trajectory_coverage",        autonomy = "autonomous_with_caps",   usd_cap_per_run = 0.50, escalation_target = "critic" }
-    vetting                 = { tier = 1, display_name = "Vetting",             description = "Parallel fan-out scoring of candidate fit",                    model_tier = "judgment",   skills = ["rapidapi.get_user_info", "ranking.score", "vector_search.brand_fit"],                                memory_strategy = "session_only", eval_criteria = "tool_trajectory_avg_score",  autonomy = "autonomous_with_caps",   usd_cap_per_run = 0.30, escalation_target = "critic" }
-    outreach_writer         = { tier = 1, display_name = "Outreach Writer",     description = "5-angle tournament outreach draft + judge → winner",           model_tier = "judgment",   skills = ["templates.list", "outreach.extract_facts", "outreach.render", "outreach.judge"],                     memory_strategy = "memory_bank",  eval_criteria = "response_match_v2_spam",     autonomy = "ask_on_external_send",   usd_cap_per_run = 0.40, escalation_target = "compliance" }
-    conversation            = { tier = 1, display_name = "Conversation",        description = "Classify inbound reply into 8 intent categories",              model_tier = "classifier", skills = ["nlp.classify_intent"],                                                                                memory_strategy = "session_only", eval_criteria = "classification_f1",          autonomy = "autonomous_with_caps",   usd_cap_per_run = 0.05, escalation_target = "conversation_responder" }
-    conversation_responder  = { tier = 1, display_name = "Conversation Reply",  description = "Draft follow-up replies",                                       model_tier = "judgment",   skills = ["templates.list", "outreach.render"],                                                                  memory_strategy = "memory_bank",  eval_criteria = "response_match_v2",          autonomy = "ask_on_external_send",   usd_cap_per_run = 0.20, escalation_target = "compliance" }
-    logistics               = { tier = 1, display_name = "Logistics",           description = "Parse free-text shipping address; create carrier label",       model_tier = "bulk",       skills = ["address.normalize", "carrier.create"],                                                                memory_strategy = "session_only", eval_criteria = "structured_extract_accuracy",autonomy = "autonomous_with_caps",   usd_cap_per_run = 0.10, escalation_target = "customer_success" }
-    content_verify          = { tier = 1, display_name = "Content Verify",      description = "Verify brand-mentioned post matches the campaign brief",       model_tier = "bulk",       skills = ["rapidapi.post_detail", "vision.brand_logo_detect"],                                                   memory_strategy = "none",         eval_criteria = "precision_recall_holdout",   autonomy = "autonomous_with_caps",   usd_cap_per_run = 0.10, escalation_target = "critic" }
-    analyst                 = { tier = 1, display_name = "Analyst",             description = "Final campaign report",                                         model_tier = "judgment",   skills = ["bigquery.query", "view_metrics.aggregate"],                                                           memory_strategy = "memory_bank",  eval_criteria = "accuracy_grounding",         autonomy = "always_ask",             usd_cap_per_run = 0.30, escalation_target = "customer_success" }
-    research                = { tier = 1, display_name = "Research",            description = "Background brand/competitor research with grounding",          model_tier = "judgment",   skills = ["web.search", "vector_search.competitor"],                                                             memory_strategy = "memory_bank",  eval_criteria = "hallucinations_v1",          autonomy = "autonomous_with_caps",   usd_cap_per_run = 0.50, escalation_target = "critic" }
-    intake                  = { tier = 1, display_name = "Intake",              description = "Conversational brand brief intake",                            model_tier = "bulk",       skills = ["forms.upsert"],                                                                                       memory_strategy = "session_only", eval_criteria = "task_completion",            autonomy = "autonomous_with_caps",   usd_cap_per_run = 0.10, escalation_target = "customer_success" }
-    lead_outreach_writer    = { tier = 1, display_name = "Lead Outreach",       description = "B2B lead outreach (sister loop)",                              model_tier = "judgment",   skills = ["templates.list", "outreach.render", "crm.enrich"],                                                    memory_strategy = "memory_bank",  eval_criteria = "response_match_v2",          autonomy = "ask_on_external_send",   usd_cap_per_run = 0.40, escalation_target = "compliance" }
-    payment_mandate         = { tier = 1, display_name = "Payment Mandate",     description = "Compose AP2 Intent Mandate; gate to human approval (D27)",      model_tier = "bulk",       skills = ["ap2.compose_intent_mandate", "gate.approveOutreachSend"],                                            memory_strategy = "session_only", eval_criteria = "mandate_validity",           autonomy = "always_ask",             usd_cap_per_run = 0.05, escalation_target = "human_inbox" }
-    compliance              = { tier = 1, display_name = "Compliance",          description = "PIPA Article 23/24 + CAN-SPAM + DLP pre-send check",           model_tier = "judgment",   skills = ["pipa.check_consent", "canspam.check_unsubscribe", "dlp.inspect"],                                     memory_strategy = "memory_bank",  eval_criteria = "precision_no_false_clear",   autonomy = "always_ask",             usd_cap_per_run = 0.15, escalation_target = "human_inbox" }
-    creative                = { tier = 1, display_name = "Creative",            description = "Brief → moodboard + shot list + sample video (Imagen + Veo)", model_tier = "judgment",   skills = ["imagen.generate", "veo.generate", "lyria.generate", "assets.upload"],                                memory_strategy = "memory_bank",  eval_criteria = "safety_v1_brand_consistency",autonomy = "ask_on_external_send",   usd_cap_per_run = 2.50, escalation_target = "critic" }
-    a11y                    = { tier = 1, display_name = "Accessibility",       description = "Alt-text + caption + transcript per locale (D34)",             model_tier = "bulk",       skills = ["vision.describe", "stt.transcribe", "tts.synthesize", "translation.translate"],                       memory_strategy = "none",         eval_criteria = "a11y_compliance_score",      autonomy = "autonomous_with_caps",   usd_cap_per_run = 0.20, escalation_target = "creative" }
-    customer_success        = { tier = 1, display_name = "Customer Success",    description = "Detect onboarding-friction signals + propose interventions",   model_tier = "judgment",   skills = ["analytics.funnel", "intervention.propose"],                                                           memory_strategy = "memory_bank",  eval_criteria = "activation_lift",            autonomy = "always_ask",             usd_cap_per_run = 0.20, escalation_target = "human_inbox" }
+    sourcing               = { tier = 1, display_name = "Sourcing", description = "Plan + execute creator search across RapidAPI sources", model_tier = "judgment", skills = ["rapidapi.tiktok_search", "rapidapi.instagram_search", "blacklist.check", "vector_search.creator"], memory_strategy = "memory_bank", eval_criteria = "trajectory_coverage", autonomy = "autonomous_with_caps", usd_cap_per_run = 0.50, escalation_target = "critic" }
+    vetting                = { tier = 1, display_name = "Vetting", description = "Parallel fan-out scoring of candidate fit", model_tier = "judgment", skills = ["rapidapi.get_user_info", "ranking.score", "vector_search.brand_fit"], memory_strategy = "session_only", eval_criteria = "tool_trajectory_avg_score", autonomy = "autonomous_with_caps", usd_cap_per_run = 0.30, escalation_target = "critic" }
+    outreach_writer        = { tier = 1, display_name = "Outreach Writer", description = "5-angle tournament outreach draft + judge → winner", model_tier = "judgment", skills = ["templates.list", "outreach.extract_facts", "outreach.render", "outreach.judge"], memory_strategy = "memory_bank", eval_criteria = "response_match_v2_spam", autonomy = "ask_on_external_send", usd_cap_per_run = 0.40, escalation_target = "compliance" }
+    conversation           = { tier = 1, display_name = "Conversation", description = "Classify inbound reply into 8 intent categories", model_tier = "classifier", skills = ["nlp.classify_intent"], memory_strategy = "session_only", eval_criteria = "classification_f1", autonomy = "autonomous_with_caps", usd_cap_per_run = 0.05, escalation_target = "conversation_responder" }
+    conversation_responder = { tier = 1, display_name = "Conversation Reply", description = "Draft follow-up replies", model_tier = "judgment", skills = ["templates.list", "outreach.render"], memory_strategy = "memory_bank", eval_criteria = "response_match_v2", autonomy = "ask_on_external_send", usd_cap_per_run = 0.20, escalation_target = "compliance" }
+    logistics              = { tier = 1, display_name = "Logistics", description = "Parse free-text shipping address; create carrier label", model_tier = "bulk", skills = ["address.normalize", "carrier.create"], memory_strategy = "session_only", eval_criteria = "structured_extract_accuracy", autonomy = "autonomous_with_caps", usd_cap_per_run = 0.10, escalation_target = "customer_success" }
+    content_verify         = { tier = 1, display_name = "Content Verify", description = "Verify brand-mentioned post matches the campaign brief", model_tier = "bulk", skills = ["rapidapi.post_detail", "vision.brand_logo_detect"], memory_strategy = "none", eval_criteria = "precision_recall_holdout", autonomy = "autonomous_with_caps", usd_cap_per_run = 0.10, escalation_target = "critic" }
+    analyst                = { tier = 1, display_name = "Analyst", description = "Final campaign report", model_tier = "judgment", skills = ["bigquery.query", "view_metrics.aggregate"], memory_strategy = "memory_bank", eval_criteria = "accuracy_grounding", autonomy = "always_ask", usd_cap_per_run = 0.30, escalation_target = "customer_success" }
+    research               = { tier = 1, display_name = "Research", description = "Background brand/competitor research with grounding", model_tier = "judgment", skills = ["web.search", "vector_search.competitor"], memory_strategy = "memory_bank", eval_criteria = "hallucinations_v1", autonomy = "autonomous_with_caps", usd_cap_per_run = 0.50, escalation_target = "critic" }
+    intake                 = { tier = 1, display_name = "Intake", description = "Conversational brand brief intake", model_tier = "bulk", skills = ["forms.upsert"], memory_strategy = "session_only", eval_criteria = "task_completion", autonomy = "autonomous_with_caps", usd_cap_per_run = 0.10, escalation_target = "customer_success" }
+    lead_outreach_writer   = { tier = 1, display_name = "Lead Outreach", description = "B2B lead outreach (sister loop)", model_tier = "judgment", skills = ["templates.list", "outreach.render", "crm.enrich"], memory_strategy = "memory_bank", eval_criteria = "response_match_v2", autonomy = "ask_on_external_send", usd_cap_per_run = 0.40, escalation_target = "compliance" }
+    payment_mandate        = { tier = 1, display_name = "Payment Mandate", description = "Compose AP2 Intent Mandate; gate to human approval (D27)", model_tier = "bulk", skills = ["ap2.compose_intent_mandate", "gate.approveOutreachSend"], memory_strategy = "session_only", eval_criteria = "mandate_validity", autonomy = "always_ask", usd_cap_per_run = 0.05, escalation_target = "human_inbox" }
+    compliance             = { tier = 1, display_name = "Compliance", description = "PIPA Article 23/24 + CAN-SPAM + DLP pre-send check", model_tier = "judgment", skills = ["pipa.check_consent", "canspam.check_unsubscribe", "dlp.inspect"], memory_strategy = "memory_bank", eval_criteria = "precision_no_false_clear", autonomy = "always_ask", usd_cap_per_run = 0.15, escalation_target = "human_inbox" }
+    creative               = { tier = 1, display_name = "Creative", description = "Brief → moodboard + shot list + sample video (Imagen + Veo)", model_tier = "judgment", skills = ["imagen.generate", "veo.generate", "lyria.generate", "assets.upload"], memory_strategy = "memory_bank", eval_criteria = "safety_v1_brand_consistency", autonomy = "ask_on_external_send", usd_cap_per_run = 2.50, escalation_target = "critic" }
+    a11y                   = { tier = 1, display_name = "Accessibility", description = "Alt-text + caption + transcript per locale (D34)", model_tier = "bulk", skills = ["vision.describe", "stt.transcribe", "tts.synthesize", "translation.translate"], memory_strategy = "none", eval_criteria = "a11y_compliance_score", autonomy = "autonomous_with_caps", usd_cap_per_run = 0.20, escalation_target = "creative" }
+    customer_success       = { tier = 1, display_name = "Customer Success", description = "Detect onboarding-friction signals + propose interventions", model_tier = "judgment", skills = ["analytics.funnel", "intervention.propose"], memory_strategy = "memory_bank", eval_criteria = "activation_lift", autonomy = "always_ask", usd_cap_per_run = 0.20, escalation_target = "human_inbox" }
 
     # ----- Tier 2: 3 meta agents (D24 — "1→100 coordinators") -----
-    coordinator             = { tier = 2, display_name = "M1 Coordinator",      description = "Pick which Tier-1 (or remote A2A) agent handles a task",      model_tier = "bulk",       skills = ["agent_registry.list", "a2a.invoke"],                                                                  memory_strategy = "session_only", eval_criteria = "routing_accuracy",           autonomy = "autonomous_with_caps",   usd_cap_per_run = 0.10, escalation_target = "critic" }
-    critic                  = { tier = 2, display_name = "M2 Critic",           description = "LLM-as-judge across tier-1 outputs; gates approvals",         model_tier = "judgment",   skills = ["evaluation.score", "gate.escalate"],                                                                  memory_strategy = "none",         eval_criteria = "judge_agreement_v_human",    autonomy = "autonomous_with_caps",   usd_cap_per_run = 0.30, escalation_target = "human_inbox" }
-    optimizer               = { tier = 2, display_name = "M3 Optimizer",        description = "Periodic prompt + tool-budget rewriter via Agent Optimizer",  model_tier = "judgment",   skills = ["agent_optimizer.tune", "prompt_registry.update"],                                                    memory_strategy = "none",         eval_criteria = "offline_eval_lift",          autonomy = "always_ask",             usd_cap_per_run = 1.00, escalation_target = "human_inbox" }
+    coordinator = { tier = 2, display_name = "M1 Coordinator", description = "Pick which Tier-1 (or remote A2A) agent handles a task", model_tier = "bulk", skills = ["agent_registry.list", "a2a.invoke"], memory_strategy = "session_only", eval_criteria = "routing_accuracy", autonomy = "autonomous_with_caps", usd_cap_per_run = 0.10, escalation_target = "critic" }
+    critic      = { tier = 2, display_name = "M2 Critic", description = "LLM-as-judge across tier-1 outputs; gates approvals", model_tier = "judgment", skills = ["evaluation.score", "gate.escalate"], memory_strategy = "none", eval_criteria = "judge_agreement_v_human", autonomy = "autonomous_with_caps", usd_cap_per_run = 0.30, escalation_target = "human_inbox" }
+    optimizer   = { tier = 2, display_name = "M3 Optimizer", description = "Periodic prompt + tool-budget rewriter via Agent Optimizer", model_tier = "judgment", skills = ["agent_optimizer.tune", "prompt_registry.update"], memory_strategy = "none", eval_criteria = "offline_eval_lift", autonomy = "always_ask", usd_cap_per_run = 1.00, escalation_target = "human_inbox" }
 
     # ----- Tier 3: 3 watchdog agents (D23) -----
-    anomaly_watch           = { tier = 3, display_name = "W1 Anomaly Watch",    description = "Monitor token/cost/latency anomalies; trigger auto-runbook",  model_tier = "bulk",       skills = ["metrics.query", "runbook.execute"],                                                                   memory_strategy = "none",         eval_criteria = "precision_alert_vs_false",   autonomy = "autonomous_with_caps",   usd_cap_per_run = 0.05, escalation_target = "human_inbox" }
-    cost_watch              = { tier = 3, display_name = "W2 Cost Watch",       description = "Per-tenant USD/day ceiling; 50/75/90/95 % alerting",         model_tier = "classifier", skills = ["billing.query", "pubsub.alert"],                                                                      memory_strategy = "none",         eval_criteria = "latency_to_alert",           autonomy = "autonomous_with_caps",   usd_cap_per_run = 0.01, escalation_target = "human_inbox" }
-    security_watch          = { tier = 3, display_name = "W3 Security Watch",   description = "Model Armor blocks + Chronicle alerts → tenant quarantine",  model_tier = "bulk",       skills = ["model_armor.query_blocks", "chronicle.query", "tenant.quarantine"],                                  memory_strategy = "none",         eval_criteria = "ttr_remediate",              autonomy = "always_ask",             usd_cap_per_run = 0.10, escalation_target = "human_inbox" }
+    anomaly_watch  = { tier = 3, display_name = "W1 Anomaly Watch", description = "Monitor token/cost/latency anomalies; trigger auto-runbook", model_tier = "bulk", skills = ["metrics.query", "runbook.execute"], memory_strategy = "none", eval_criteria = "precision_alert_vs_false", autonomy = "autonomous_with_caps", usd_cap_per_run = 0.05, escalation_target = "human_inbox" }
+    cost_watch     = { tier = 3, display_name = "W2 Cost Watch", description = "Per-tenant USD/day ceiling; 50/75/90/95 % alerting", model_tier = "classifier", skills = ["billing.query", "pubsub.alert"], memory_strategy = "none", eval_criteria = "latency_to_alert", autonomy = "autonomous_with_caps", usd_cap_per_run = 0.01, escalation_target = "human_inbox" }
+    security_watch = { tier = 3, display_name = "W3 Security Watch", description = "Model Armor blocks + Chronicle alerts → tenant quarantine", model_tier = "bulk", skills = ["model_armor.query_blocks", "chronicle.query", "tenant.quarantine"], memory_strategy = "none", eval_criteria = "ttr_remediate", autonomy = "always_ask", usd_cap_per_run = 0.10, escalation_target = "human_inbox" }
   }
 }
 
@@ -303,11 +303,11 @@ variable "staging_bucket_name" {
 variable "pipelines" {
   description = "Vertex AI Pipelines (Kubeflow) jobs for the D25 learning loop. Each entry is invoked via gcloud as a null_resource (no GA TF resource yet)."
   type = map(object({
-    enabled                = bool
-    template_gcs_path      = string # gs://.../template.yaml
-    cron_schedule          = string # crontab — empty string = run-once on apply
-    description            = string
-    pipeline_parameters    = map(string)
+    enabled             = bool
+    template_gcs_path   = string # gs://.../template.yaml
+    cron_schedule       = string # crontab — empty string = run-once on apply
+    description         = string
+    pipeline_parameters = map(string)
   }))
   default = {
     sft = {

@@ -37,8 +37,8 @@ output "subnetwork_secondary_ranges" {
   value = {
     for region, subnet in google_compute_subnetwork.regional :
     region => {
-      pods     = "pods"
-      services = "services"
+      pods          = "pods"
+      services      = "services"
       pods_cidr     = subnet.secondary_ip_range[0].ip_cidr_range
       services_cidr = subnet.secondary_ip_range[1].ip_cidr_range
     }
@@ -141,8 +141,8 @@ output "public_dns_zones" {
   value = {
     for k, z in google_dns_managed_zone.public :
     k => {
-      name       = z.name
-      dns_name   = z.dns_name
+      name         = z.name
+      dns_name     = z.dns_name
       name_servers = z.name_servers
     }
   }

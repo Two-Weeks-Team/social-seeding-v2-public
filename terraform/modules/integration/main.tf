@@ -114,11 +114,11 @@ locals {
   # well-known mechanical translation; the schemas/*.avsc files are the
   # authoritative deploy artifact.
   pubsub_schemas = {
-    "AgentInvoked"       = "schemas/agent-invoked.avsc"
-    "AgentCompleted"     = "schemas/agent-completed.avsc"
-    "AgentCostRecorded"  = "schemas/agent-cost-recorded.avsc"
-    "ArmorBlock"         = "schemas/armor-block.avsc"
-    "AnomalyDetected"    = "schemas/anomaly-detected.avsc"
+    "AgentInvoked"      = "schemas/agent-invoked.avsc"
+    "AgentCompleted"    = "schemas/agent-completed.avsc"
+    "AgentCostRecorded" = "schemas/agent-cost-recorded.avsc"
+    "ArmorBlock"        = "schemas/armor-block.avsc"
+    "AnomalyDetected"   = "schemas/anomaly-detected.avsc"
   }
 
   # ── Eventarc Advanced enrollments (8) ──
@@ -128,79 +128,79 @@ locals {
   # ATTRIBUTES, not payload bodies — INNGEST-MIGRATION §2 row 3 caveat.
   eventarc_enrollments = {
     "campaign-submitted-to-brand-workflow" = {
-      pubsub_topic    = "campaign.submitted"
+      pubsub_topic         = "campaign.submitted"
       destination_workflow = "brand-campaign"
-      cel_match       = "message.attributes.v2EventType == 'campaign.submitted'"
-      description     = "Eventarc subscription: campaign.submitted → brand-campaign workflow."
+      cel_match            = "message.attributes.v2EventType == 'campaign.submitted'"
+      description          = "Eventarc subscription: campaign.submitted → brand-campaign workflow."
     }
     "creator-track-fanout-to-child-workflow" = {
-      pubsub_topic    = "creator-track.fanout"
+      pubsub_topic         = "creator-track.fanout"
       destination_workflow = "creator-track"
-      cel_match       = "message.attributes.v2EventType == 'creator-track.start'"
-      description     = "Parent → child execution (deterministic executionId per parent:child key)."
+      cel_match            = "message.attributes.v2EventType == 'creator-track.start'"
+      description          = "Parent → child execution (deterministic executionId per parent:child key)."
     }
     "gmail-reply-to-callback-router" = {
-      pubsub_topic    = "gmail.reply.received"
+      pubsub_topic         = "gmail.reply.received"
       destination_workflow = ""
-      cel_match       = "message.attributes.v2EventType == 'gmail.reply.received'"
-      description     = "Gmail replies route through Cloud Run callback router (correlation lookup)."
+      cel_match            = "message.attributes.v2EventType == 'gmail.reply.received'"
+      description          = "Gmail replies route through Cloud Run callback router (correlation lookup)."
     }
     "approval-resolved-to-callback-router" = {
-      pubsub_topic    = "approval.resolved"
+      pubsub_topic         = "approval.resolved"
       destination_workflow = ""
-      cel_match       = "message.attributes.v2EventType == 'approval.resolved'"
-      description     = "Human approval resolution → callback router → durable callback URL."
+      cel_match            = "message.attributes.v2EventType == 'approval.resolved'"
+      description          = "Human approval resolution → callback router → durable callback URL."
     }
     "cost-breach-to-runbook" = {
-      pubsub_topic    = "cost.threshold-breach"
+      pubsub_topic         = "cost.threshold-breach"
       destination_workflow = "cost-runbook"
-      cel_match       = "message.attributes.severity == 'page' || message.attributes.severity == 'critical'"
-      description     = "Cost breach (page severity) → auto-runbook (D32)."
+      cel_match            = "message.attributes.severity == 'page' || message.attributes.severity == 'critical'"
+      description          = "Cost breach (page severity) → auto-runbook (D32)."
     }
     "armor-block-to-security-runbook" = {
-      pubsub_topic    = "armor.block-detected"
+      pubsub_topic         = "armor.block-detected"
       destination_workflow = "security-runbook"
-      cel_match       = "message.attributes.severity == 'high' || message.attributes.severity == 'critical'"
-      description     = "Model Armor high/critical → auto-runbook + SIEM forward (D21 + D32)."
+      cel_match            = "message.attributes.severity == 'high' || message.attributes.severity == 'critical'"
+      description          = "Model Armor high/critical → auto-runbook + SIEM forward (D21 + D32)."
     }
     "anomaly-to-watchdog-runbook" = {
-      pubsub_topic    = "anomaly.detected"
+      pubsub_topic         = "anomaly.detected"
       destination_workflow = "anomaly-runbook"
-      cel_match       = "message.attributes.severity == 'page'"
-      description     = "Page-level anomaly → watchdog auto-runbook (D23)."
+      cel_match            = "message.attributes.severity == 'page'"
+      description          = "Page-level anomaly → watchdog auto-runbook (D23)."
     }
     "campaign-cancelled-to-cancel-service" = {
-      pubsub_topic    = "campaign.submitted"
+      pubsub_topic         = "campaign.submitted"
       destination_workflow = ""
-      cel_match       = "message.attributes.v2EventType == 'campaign.cancelled'"
-      description     = "Cancel-on-event Cloud Run service (R7) — calls executions.cancel."
+      cel_match            = "message.attributes.v2EventType == 'campaign.cancelled'"
+      description          = "Cancel-on-event Cloud Run service (R7) — calls executions.cancel."
     }
   }
 
   # ── Apigee API products (3, per D28 + pricing/MODEL.md §5) ──
   apigee_api_products = {
     "per-view-billing" = {
-      display_name = "Per-View Billing (Starter)"
-      description  = "Pay-as-you-go $0.01 per delivered view (pricing/MODEL.md §5.2)."
-      approval_type = "auto"
-      quota         = "1000000"
-      quota_interval = "1"
+      display_name    = "Per-View Billing (Starter)"
+      description     = "Pay-as-you-go $0.01 per delivered view (pricing/MODEL.md §5.2)."
+      approval_type   = "auto"
+      quota           = "1000000"
+      quota_interval  = "1"
       quota_time_unit = "month"
     }
     "free-tier" = {
-      display_name = "Free Tier (10K views/month)"
-      description  = "First 10,000 views free; per pricing/MODEL.md §5.1."
-      approval_type = "auto"
-      quota         = "10000"
-      quota_interval = "1"
+      display_name    = "Free Tier (10K views/month)"
+      description     = "First 10,000 views free; per pricing/MODEL.md §5.1."
+      approval_type   = "auto"
+      quota           = "10000"
+      quota_interval  = "1"
       quota_time_unit = "month"
     }
     "enterprise" = {
-      display_name = "Enterprise (custom commit)"
-      description  = "Custom-commit $0.006/view + 99.99% SLA + dedicated tenant pool (pricing/MODEL.md §5.4 + D31)."
-      approval_type = "manual"
-      quota         = "100000000"
-      quota_interval = "1"
+      display_name    = "Enterprise (custom commit)"
+      description     = "Custom-commit $0.006/view + 99.99% SLA + dedicated tenant pool (pricing/MODEL.md §5.4 + D31)."
+      approval_type   = "manual"
+      quota           = "100000000"
+      quota_interval  = "1"
       quota_time_unit = "month"
     }
   }

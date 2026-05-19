@@ -109,8 +109,8 @@ resource "google_kms_crypto_key" "cmek" {
   key_ring = google_kms_key_ring.regional[each.value.ring_key].id
   purpose  = "ENCRYPT_DECRYPT"
 
-  rotation_period             = var.cmek_key_rotation_period
-  destroy_scheduled_duration  = var.cmek_destroy_scheduled_duration
+  rotation_period               = var.cmek_key_rotation_period
+  destroy_scheduled_duration    = var.cmek_destroy_scheduled_duration
   skip_initial_version_creation = false
 
   version_template {
@@ -147,8 +147,8 @@ resource "google_kms_crypto_key" "billing_hsm" {
   key_ring = google_kms_key_ring.regional["us"].id
   purpose  = "ENCRYPT_DECRYPT"
 
-  rotation_period             = var.cmek_key_rotation_period
-  destroy_scheduled_duration  = var.cmek_destroy_scheduled_duration
+  rotation_period            = var.cmek_key_rotation_period
+  destroy_scheduled_duration = var.cmek_destroy_scheduled_duration
 
   version_template {
     algorithm        = "GOOGLE_SYMMETRIC_ENCRYPTION"
@@ -235,7 +235,7 @@ resource "google_secret_manager_secret_version" "seeds_placeholder" {
 # ---------------------------------------------------------------------------
 
 resource "google_identity_platform_config" "this" {
-  project                  = var.project_id
+  project                    = var.project_id
   autodelete_anonymous_users = true
 
   sign_in {
@@ -262,11 +262,11 @@ resource "google_identity_platform_config" "this" {
 # exercised in CI without an admin call. Production tenants are created at
 # customer-signup time by the workspace controller.
 resource "google_identity_platform_tenant" "template" {
-  project       = var.project_id
-  display_name  = var.identity_platform_template_tenant_id
-  allow_password_signup = true
+  project                  = var.project_id
+  display_name             = var.identity_platform_template_tenant_id
+  allow_password_signup    = true
   enable_email_link_signin = false
-  disable_auth  = false
+  disable_auth             = false
 
   client {
     permissions {
@@ -762,9 +762,9 @@ resource "google_bigquery_dataset" "chronicle_audit" {
   dataset_id = var.chronicle_export_dataset_id
   location   = local.primary_region
 
-  description                     = "Audit-log mirror destined for Chronicle SecOps ingestion (D32). Per-table expiration enforced by D33."
-  default_table_expiration_ms     = var.audit_log_retention_days * 24 * 3600 * 1000
-  delete_contents_on_destroy      = false
+  description                 = "Audit-log mirror destined for Chronicle SecOps ingestion (D32). Per-table expiration enforced by D33."
+  default_table_expiration_ms = var.audit_log_retention_days * 24 * 3600 * 1000
+  delete_contents_on_destroy  = false
 
   default_encryption_configuration {
     kms_key_name = google_kms_crypto_key.cmek["us-bigquery"].id

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Social Seeding Inc.
 """tiktok-orchestrator — ADK orchestration layer.
 
 Wraps the existing Node MCP server (`tiktok-mcp-server`, 4 read-only tools) as

@@ -117,10 +117,12 @@ resource "google_alloydb_cluster" "primary" {
   cluster_id = "${var.name_prefix}-${local.primary_region}-alloydb"
   location   = var.regions[local.primary_region].location
 
-  database_version    = "POSTGRES_16"
-  cluster_type        = "PRIMARY"
-  deletion_protection = local.deletion_protection
-  labels              = local.effective_labels
+  database_version = "POSTGRES_16"
+  cluster_type     = "PRIMARY"
+  # Provider 6.50 replaced `deletion_protection` with `deletion_policy` on
+  # google_alloydb_cluster. DEFAULT = block destroy, FORCE = allow.
+  deletion_policy = local.deletion_protection ? "DEFAULT" : "FORCE"
+  labels          = local.effective_labels
 
   network_config {
     network = var.vpc_networks[local.primary_region]
@@ -179,7 +181,7 @@ resource "google_alloydb_instance" "primary" {
 
   database_flags = {
     # Required for AlloyDB AI's google_ml_integration + ScaNN extensions.
-    "alloydb.iam_authentication"          = "on"
+    "alloydb.iam_authentication"                 = "on"
     "google_ml_integration.enable_model_support" = "on"
   }
 
@@ -216,11 +218,12 @@ resource "google_alloydb_cluster" "secondary" {
   cluster_id = "${var.name_prefix}-${each.key}-alloydb"
   location   = var.regions[each.key].location
 
-  database_version    = "POSTGRES_16"
-  cluster_type        = "SECONDARY"
-  deletion_protection = local.deletion_protection
-  deletion_policy     = local.deletion_protection ? "DEFAULT" : "FORCE"
-  labels              = local.effective_labels
+  database_version = "POSTGRES_16"
+  cluster_type     = "SECONDARY"
+  # Provider 6.50 dropped `deletion_protection` on google_alloydb_cluster in
+  # favor of `deletion_policy`. DEFAULT = block destroy, FORCE = allow.
+  deletion_policy = local.deletion_protection ? "DEFAULT" : "FORCE"
+  labels          = local.effective_labels
 
   network_config {
     network = var.vpc_networks[each.key]
@@ -353,9 +356,10 @@ resource "google_vertex_ai_index" "regional" {
 
   index_update_method = "STREAM_UPDATE"
 
-  encryption_spec {
-    kms_key_name = var.cmek_keys[each.key]
-  }
+  # CMEK (D20) is intentionally NOT applied here — the `encryption_spec` block
+  # is not exposed on `google_vertex_ai_index` in hashicorp/google-beta v6.50.
+  # Until the provider ships the schema, apply CMEK out-of-band via
+  # `gcloud ai indexes` or the REST API. See BN-11.
 
   labels = local.effective_labels
 }
@@ -377,9 +381,9 @@ resource "google_vertex_ai_index_endpoint" "regional" {
   public_endpoint_enabled = false
   network                 = var.vpc_networks[each.key]
 
-  encryption_spec {
-    kms_key_name = var.cmek_keys[each.key]
-  }
+  # CMEK (D20) is intentionally NOT applied here — the `encryption_spec` block
+  # is not exposed on `google_vertex_ai_index_endpoint` in hashicorp/google-beta
+  # v6.50. Apply out-of-band until the provider catches up. See BN-11.
 
   labels = local.effective_labels
 }
@@ -589,6 +593,9 @@ resource "google_memorystore_instance" "valkey" {
 # can target multiple datasets). Kept in the primary region for simplicity.
 
 resource "google_dataform_repository" "billing" {
+  # google_dataform_repository is only exposed in hashicorp/google-beta v6.50.
+  provider = google-beta
+
   project = var.project_id
   region  = var.regions[local.primary_region].location
   name    = "${var.name_prefix}-billing-transforms"

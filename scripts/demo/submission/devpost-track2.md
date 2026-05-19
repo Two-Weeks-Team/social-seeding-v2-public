@@ -69,15 +69,72 @@ The **learning loop** (D25) is the full GCP stack: **Vertex AI Agent Evaluation*
 
 ## What's next (Devpost field)
 
+- **2026-Q3** — Tier-3 `cost_watch` RLHF tuning. The W2 watchdog is rule-based today (D-ID for agent-shape consistency per D23); next iteration uses Agent Simulation reward signal (D25) to learn tenant-specific budget envelopes and replace the hard 50/75/90/95% threshold ladder with a learned curve.
+- **2026-Q3** — Memorystore Valkey 8 → **Bigtable hot cache** for cross-region creator-embedding lookups (currently considered ⬜ in `SERVICE-INVENTORY.md` §4; promoted to ✅ once production read-volume justifies the migration). Today Vertex AI Vector Search handles all 10 M+ embeddings at p99 < 50 ms; Bigtable adds the per-tenant cache layer once cross-region read-amplification spikes.
 - **2026-Q3** — Carrier adapter (deferred from Phase 6 C3). Auto-track shipments from Shopify / Easypost.
-- **2026-Q4** — Workspace-level autonomy tuning. Owners relax the `always_ask` default per-policy without code changes.
-- **2027-Q1** — SOC2 Type 2 evidence-collection pipeline (Drata / Vanta / Secureframe). Currently PIPA + Marketplace-minimal day-1 (D22).
+- **2026-Q4** — Workspace-level autonomy tuning. Owners relax the `always_ask` default per-policy without code changes (D7).
+- **2027-Q1** — **Marketplace direct listing** post foreign sub-entity (US Delaware C-Corp / Singapore Pte Ltd / Japan KK per D2 / O10). Triggers when listing MRR crosses $1k (the same threshold as the Track 3 escalation path, kept consistent across submissions).
+- **2027-Q1** — SOC 2 Type 2 evidence-collection pipeline (Drata / Vanta / Secureframe per O9). Currently PIPA + Marketplace-minimal day-1 (D22).
 - **2027-Q2** — AP2 Cart Mandate + Payment Mandate. Currently Intent-Mandate-only (D27).
-- **2027-Q3** — Foreign sub-entity for Marketplace listing (D2 / O10).
 
 ## Built With (Devpost field: Built With tags)
 
-See [`built-with-tags.txt`](built-with-tags.txt) for the canonical, copy-paste-ready tag list (one tag per line).
+See [`built-with-tags.txt`](built-with-tags.txt) for the canonical, copy-paste-ready tag list (one tag per line). 95/121 GCP services in scope are actively used (79% coverage; 82% lifetime including Phase-2 commitments). Sourced from `gcp-research/decisions/SERVICE-INVENTORY.md` §1.
+
+## Try it out (Devpost field: Try it out links)
+
+- **Repository**: `https://github.com/Two-Weeks-Team/social-seeding-v2` (BUSL-1.1 + Apache-2.0 dual, per D9)
+- **Demo video (YouTube unlisted, 3 min, 8× speed real-mouse recording per D30)**: `<YOUTUBE_TRACK2_URL>`
+- **Live Mission Control (judging window only)**: `<CLOUD_RUN_WEB_URL>`
+- **Pull Request with the 22-agent fleet + 49 capability tools + 2,668 passing tests**: `https://github.com/Two-Weeks-Team/social-seeding-v2/pull/1`
+- **Demo recording reproduction**: `scripts/run-demo.ts --type=brand` (deterministic, golden-file gated per D43)
+- **Smoke test (exit 0, 22/22 agents, 50/50 tools, 0.15 s)**: `scripts/smoke-test/run-brand-campaign.sh` (D43 canary gate)
+
+## Business case (Devpost field: Business case)
+
+**Pricing model (per D28)**: $0.01 per delivered view, equivalent to a $10 CPM. ROI-linked: customers pay only when the campaign produces measured views. Pricing is metered through Apigee X with view events into Pub/Sub → Dataflow → BigQuery → Apigee meter increments via Dataform SQL.
+
+**Target customer**: brand marketing leads at DTC consumer brands spending $5k–$50k/month on creator marketing; agency campaign managers running 5–20 brand campaigns in parallel.
+
+**MRR target**: **$10,000 MRR within 6 months** of live launch (4–8 paying tenants at $1,250–$2,500 each, blending Pro and Team plans plus per-view overage).
+
+**Napkin TAM/SAM/SOM**:
+- **TAM** — Global creator-marketing software market ≈ $24 B in 2026 (eMarketer / Influencer Marketing Hub baseline). Touches every brand running paid creator campaigns.
+- **SAM** — Brands running 10+ creator campaigns/month with $5k+ monthly creator spend ≈ 80,000 brands worldwide × $1,800 ARPM ≈ **$1.7 B SAM**.
+- **SOM (3-year)** — KR/JP/EN markets, DTC + Shopify Plus ≈ 3,000 reachable brands × $1,500 ARPM × 1% capture ≈ **$540 k ARR Year-3 SOM**, blending Pro plan ($99/mo), Team plan ($499/mo), and per-view overage.
+
+**Unit economics at $0.42 (Claude) → $0.05 (Gemini) per-campaign LLM cost**: gross margin on the $99 Pro plan jumps from 41% → 87% across the port. Per D28's per-view rate-card the cost-per-delivered-view target is **$0.0087** — below the published $0.01.
+
+**Cost envelope per D39 ($1,500 GCP credits)**: Build phase $300–500, pre-submission rehearsal $50–100, judging-window idle (Memorystore + Memory Bank + AlloyDB 24×7) $150–250, post-launch demo $50–100/month. Total budget $700–1,100, comfortably 1.4× under the cap (per `SERVICE-INVENTORY.md` §14).
+
+**Distribution channels day-1**: A2A v0.3 via Agent Registry inside Gemini Enterprise (works around the Korean Marketplace payment-region exclusion, per D2 / D3). Marketplace direct listing is on the roadmap (post foreign sub-entity, per O10).
+
+## Differentiation (Devpost field: Differentiation — three angles per D29)
+
+We are publishing all three differentiation angles (D29) — each with a concrete proof point that judges can verify in the repository, not a marketing claim.
+
+**Angle 1 — Agent-as-function reference implementation.**
+
+The 22 agents are typed functions (curated tool list + Pydantic input/output contract + per-invocation USD ceiling + named escalation policy), never free ReAct loops. Proof: `packages/agents-adk/src/ss_agents/*` plus the 49 capability tools wired via `CAPABILITY_LAYER_MODE=stub|live` (D41). The smoke test exits 0 with 22/22 agents validated and 50/50 tool invocations in 0.15 s (D43). 1,178 new tool-level tests are pinned alongside 354 v2 tests for a total of **2,668 passing pytest cases / 0 failed** (`STATUS-REPORT.md` §2).
+
+**Angle 2 — KR-startup region-gap distribution path.**
+
+The Korean entity cannot directly list on Cloud Marketplace because Korea is excluded from the Marketplace payment region (D2). Rather than skip Track 3, we published the A2A-only distribution pattern that any non-Marketplace-payment-region founder can copy (D3): submit the listing as PENDING with the regional disclosure on the description, make the ADK agent first-class on A2A v0.3 via Agent Registry, meter through Apigee X independent of Marketplace payment plumbing, document the foreign sub-entity escalation path with a triggering threshold (O10 $1k MRR), and dual-license under BUSL-1.1 + Apache-2.0 so the pattern is reusable (D9). The pattern is the contribution.
+
+**Angle 3 — Multimodal + AP2 + Multi-agent.**
+
+The creative agent generates Imagen 4 moodboards + Veo 3 sample videos + Lyria background music from a brand brief. The payment_mandate agent composes AP2 Intent Mandates and gates payment to the human approver (D27 — Intent only; Cart and Payment Mandate deferred). The M1 coordinator dispatches RemoteA2AAgent calls across the fleet over A2A v0.3, with Agent Identity SPIFFE giving every workload a cryptographic identity. The 4-locale i18n (D34: ko · en · ja · zh-Hans) goes through Translation API at runtime fallback for outreach templates and Mission Control next-intl messages.
+
+## Honest gaps (Devpost field: Risks / Known issues)
+
+Per the workspace's professional-honesty rule (`RULES.md §Professional Honesty`), we explicitly note:
+
+- **O1 — Devpost console 10 GAPs unanswered**: team size, license requirement, video length cap, repo visibility, multi-track rules, IP grant clauses pending operator confirmation.
+- **O7 — Agent Gateway Private Preview allowlist pending**: the demo runs through a substitute path (direct Cloud Run + Identity Platform) until the allowlist clears (1-2 week processing window).
+- **O10 — Foreign sub-entity decision pending**: triggers on $1k MRR; until then, distribution is A2A-only (D3).
+- **AP2 v0.2 is early-Preview**, scoped to Intent Mandate only (D27); Cart and Payment Mandate deferred.
+- **Agent Gateway is Private Preview** (disclosed openly here per D32).
+- **Multi-region active-active is provisioned but not stress-tested under real customer traffic** — the SLO claim (99.99%, p99 < 1 s, RTO 1 min, RPO 30 s per D31) is backed by chaos drills and simulation, not yet by long-running production volume.
 
 ---
 
@@ -96,7 +153,9 @@ See [`built-with-tags.txt`](built-with-tags.txt) for the canonical, copy-paste-r
 | What's next                | "What's next"                                 | 80–150      |
 | Built With                 | from `built-with-tags.txt`, comma-separated   | ~80 tags    |
 | Video URL                  | from `v2-youtube-metadata.json` .video_url    | URL only    |
-| Try it out links           | repo URL + `https://v2.socialseed.ing`        | 1 URL each  |
+| Try it out links           | "Try it out" section above                    | 6 URLs      |
+| Business case              | "Business case" section above                 | 250–350     |
+| Differentiation            | "Differentiation" section above (3 angles)    | 250–350     |
 
 After `scripts/demo/post-process/upload-youtube.sh v2 en` writes `v2-youtube-metadata.json`, paste `.video_url` into the Devpost "Video URL" field and submit. The operator should NOT click "Submit" until the YouTube video status is "Unlisted, Processing complete" — Devpost previews the thumbnail and reviewers see a broken player otherwise.
 

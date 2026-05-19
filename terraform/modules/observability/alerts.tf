@@ -19,28 +19,28 @@ locals {
   burn_rate_alerts = merge([
     for slo_name, slo_id in local.burn_rate_slos : {
       "${slo_name}:fast" = {
-        slo_id        = slo_id
-        slo_display   = slo_name
-        window        = "3600s"
-        window_label  = "1h"
-        threshold     = 14.4
-        severity      = "CRITICAL"
-        duration      = "60s"
-        channels      = local.notification_channel_ids
-        auto_close    = "1800s"
-        doc           = "Fast-burn (1h, 14.4×) — pages PagerDuty. Auto-runbook should already be running per D32."
+        slo_id       = slo_id
+        slo_display  = slo_name
+        window       = "3600s"
+        window_label = "1h"
+        threshold    = 14.4
+        severity     = "CRITICAL"
+        duration     = "60s"
+        channels     = local.notification_channel_ids
+        auto_close   = "1800s"
+        doc          = "Fast-burn (1h, 14.4×) — pages PagerDuty. Auto-runbook should already be running per D32."
       }
       "${slo_name}:slow" = {
-        slo_id        = slo_id
-        slo_display   = slo_name
-        window        = "21600s"
-        window_label  = "6h"
-        threshold     = 6
-        severity      = "WARNING"
-        duration      = "300s"
-        channels      = local.cost_channel_ids
-        auto_close    = "604800s"
-        doc           = "Slow-burn (6h, 6×) — investigate within one business day."
+        slo_id       = slo_id
+        slo_display  = slo_name
+        window       = "21600s"
+        window_label = "6h"
+        threshold    = 6
+        severity     = "WARNING"
+        duration     = "300s"
+        channels     = local.cost_channel_ids
+        auto_close   = "604800s"
+        doc          = "Slow-burn (6h, 6×) — investigate within one business day."
       }
     }
   ]...)
@@ -122,7 +122,7 @@ resource "google_monitoring_alert_policy" "model_armor_blocks" {
   }
 
   alert_strategy { auto_close = "3600s" }
-  user_labels    = merge(var.labels, { watchdog = "w3-security" })
+  user_labels = merge(var.labels, { watchdog = "w3-security" })
 
   depends_on = [google_logging_metric.model_armor_block_count]
 }
@@ -165,7 +165,7 @@ resource "google_monitoring_alert_policy" "escalation_surge" {
   }
 
   alert_strategy { auto_close = "3600s" }
-  user_labels    = merge(var.labels, { watchdog = "w1-anomaly" })
+  user_labels = merge(var.labels, { watchdog = "w1-anomaly" })
 
   depends_on = [google_logging_metric.agent_escalation_count]
 }

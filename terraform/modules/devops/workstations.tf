@@ -5,7 +5,7 @@
 #   pool of 2 because workers spawn often (PreviewForge pattern per D38).
 # Both private (no public IP) and use the workstations runtime SA.
 
-resource "google_workstations_cluster" "this" {
+resource "google_workstations_workstation_cluster" "this" {
   provider = google-beta
 
   workstation_cluster_id = "ss-v2-dev-cluster"
@@ -30,7 +30,7 @@ resource "google_workstations_workstation_config" "engineer" {
   workstation_config_id  = "ss-v2-engineer"
   project                = var.project_id
   location               = var.primary_region
-  workstation_cluster_id = google_workstations_cluster.this.workstation_cluster_id
+  workstation_cluster_id = google_workstations_workstation_cluster.this.workstation_cluster_id
 
   idle_timeout    = "${var.workstations_idle_timeout_seconds}s"
   running_timeout = "${var.workstations_running_timeout_seconds}s"
@@ -73,7 +73,7 @@ resource "google_workstations_workstation_config" "engineer" {
 
   labels = merge(local.common_labels, { workstation_persona = "engineer" })
 
-  depends_on = [google_workstations_cluster.this]
+  depends_on = [google_workstations_workstation_cluster.this]
 }
 
 # Tier-3 worker — short-lived, aggressive idle, warm pool of 2.
@@ -83,7 +83,7 @@ resource "google_workstations_workstation_config" "agent_worker" {
   workstation_config_id  = "ss-v2-agent-worker"
   project                = var.project_id
   location               = var.primary_region
-  workstation_cluster_id = google_workstations_cluster.this.workstation_cluster_id
+  workstation_cluster_id = google_workstations_workstation_cluster.this.workstation_cluster_id
 
   idle_timeout    = "${floor(var.workstations_idle_timeout_seconds / 2)}s"
   running_timeout = "${var.workstations_running_timeout_seconds}s"
@@ -117,5 +117,5 @@ resource "google_workstations_workstation_config" "agent_worker" {
 
   labels = merge(local.common_labels, { workstation_persona = "agent-worker" })
 
-  depends_on = [google_workstations_cluster.this]
+  depends_on = [google_workstations_workstation_cluster.this]
 }

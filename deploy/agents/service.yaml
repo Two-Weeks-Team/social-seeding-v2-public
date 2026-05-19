@@ -1,0 +1,133 @@
+###############################################################################
+# deploy/agents/service.yaml — Cloud Run service spec for ss-agents-adk
+#
+# Applied by `gcloud run services replace` from deploy/agents/cloudbuild.yaml.
+#
+# NOTE: Per D17, the *primary* production runtime for the 22-agent fleet is
+# Vertex AI Agent Runtime (managed) — see deploy/agents/agent-runtime-deploy.sh.
+# This Cloud Run service is the SUPPLEMENTARY deployment for:
+#   * tools-only / capability-stub endpoints
+#   * `/invoke` proxy used by integration tests + smoke tests (D43)
+#   * regional fallback if Agent Runtime is unavailable
+#
+# Cites:
+#   D7  — Containerized everywhere
+#   D13 — Multi-region active-active
+#   D17 — Vertex AI Agent Runtime is the primary; this is the fallback host
+#   D23 — 22-agent fleet
+#   D31 — Enterprise SLO; LLM workloads need 4Gi headroom for token contexts
+#   D32 — Cloud Monitoring + alerting
+#
+# Token substitutions filled at deploy time:
+#   __PROJECT__       — GCP project ID
+#   __REGION__        — Region
+#   __SHA__           — Short commit SHA
+#   __REVISION_TAG__  — Traffic-targeting tag
+###############################################################################
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: ss-agents
+  labels:
+    app.kubernetes.io/name: ss-agents
+    app.kubernetes.io/component: agent-runtime-fallback
+    app.kubernetes.io/part-of: social-seeding-v2
+  annotations:
+    run.googleapis.com/launch-stage: GA
+    run.googleapis.com/ingress: internal-and-cloud-load-balancing
+    run.googleapis.com/description: >
+      Social Seeding v2 ADK agent runtime — Cloud Run fallback / tools-proxy
+      surface; primary 22-agent fleet runs on Vertex AI Agent Runtime (D17).
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/execution-environment: gen2
+        # LLM workloads cannot tolerate CPU throttling between requests.
+        run.googleapis.com/cpu-throttling: "false"
+        # Hot warm pool — keep one instance per region warm (D13).
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "100"
+        run.googleapis.com/cmek-key-name: >-
+          projects/__PROJECT__/locations/__REGION__/keyRings/ss-agents/cryptoKeys/cloud-run
+        run.googleapis.com/vpc-access-connector: >-
+          projects/__PROJECT__/locations/__REGION__/connectors/ss-vpc-conn
+        run.googleapis.com/vpc-access-egress: private-ranges-only
+        run.googleapis.com/sla-tier: enterprise-99-99
+    spec:
+      serviceAccountName: agents-runner@__PROJECT__.iam.gserviceaccount.com
+      timeoutSeconds: 60
+      containerConcurrency: 20
+      containers:
+        - name: agents
+          image: __REGION__-docker.pkg.dev/__PROJECT__/ss-agents/agents:__SHA__
+          ports:
+            - name: http1
+              containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: GOOGLE_CLOUD_PROJECT
+              value: "__PROJECT__"
+            - name: GOOGLE_CLOUD_LOCATION
+              value: "__REGION__"
+            - name: GOOGLE_GENAI_USE_VERTEXAI
+              value: "true"
+            # D41 stub/live seam — Cloud Run fallback runs in `live` mode.
+            - name: CAPABILITY_LAYER_MODE
+              value: "live"
+            # D5 model families — adjust per-env via Secret Manager if needed.
+            - name: ADK_FLASH_MODEL
+              value: "gemini-2.5-flash"
+            - name: ADK_PRO_MODEL
+              value: "gemini-2.5-pro"
+            - name: ADK_FLASH_LITE_MODEL
+              value: "gemini-2.5-flash-lite"
+            # Model Armor templates (D21).
+            - name: MODEL_ARMOR_INPUT_TEMPLATE
+              value: "projects/__PROJECT__/locations/__REGION__/templates/ss-input"
+            - name: MODEL_ARMOR_OUTPUT_TEMPLATE
+              value: "projects/__PROJECT__/locations/__REGION__/templates/ss-output"
+            - name: MODEL_ARMOR_FAIL_MODE
+              value: "closed"
+            - name: REVISION_TAG
+              value: "__REVISION_TAG__"
+            # Secrets — refs only.
+            - name: IDENTITY_PLATFORM_TENANT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: identity-platform-tenant-id
+                  key: latest
+            - name: SENTRY_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: agents-sentry-dsn
+                  key: latest
+            - name: LOG_LEVEL
+              value: "INFO"
+          resources:
+            limits:
+              # LLM workloads: 4Gi (per task spec). 2 CPU vCPU for parallel
+              # tool calls + token streaming.
+              cpu: "2"
+              memory: "4Gi"
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 24
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 30
+            timeoutSeconds: 5
+  traffic:
+    - latestRevision: true
+      percent: 100
+      tag: __REVISION_TAG__

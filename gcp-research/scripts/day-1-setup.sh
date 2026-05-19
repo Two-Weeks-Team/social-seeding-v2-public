@@ -310,8 +310,8 @@ verify_project() {
 # ============================================================================
 cmd_init() {
   ensure_gcloud_auth
-  for spec in "${PROJECT_V2}:Social Seeding v2 (Track 2)" \
-              "${PROJECT_MCP}:Social Seeding MCP (Track 3)" \
+  for spec in "${PROJECT_V2}:Social Seeding v2 - Track 2" \
+              "${PROJECT_MCP}:Social Seeding MCP - Track 3" \
               "${PROJECT_SHARED}:Social Seeding shared infra"; do
     local project="${spec%%:*}"
     local label="${spec##*:}"

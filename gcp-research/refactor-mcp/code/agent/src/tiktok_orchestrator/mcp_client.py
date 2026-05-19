@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Social Seeding Inc.
 """Thin async MCP client for the Node `tiktok-mcp-server` sidecar.
 
 In the Cloud Run multi-container deployment (REFACTOR-MCP §5.3), the Node MCP

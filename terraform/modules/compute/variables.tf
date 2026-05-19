@@ -79,9 +79,9 @@ variable "gke_gpu_accelerator" {
   EOT
   type        = map(string)
   default = {
-    "us-central1"      = "nvidia-h100-80gb"
-    "europe-west4"     = "nvidia-l4"
-    "asia-northeast3"  = "nvidia-l4"
+    "us-central1"     = "nvidia-h100-80gb"
+    "europe-west4"    = "nvidia-l4"
+    "asia-northeast3" = "nvidia-l4"
   }
 }
 

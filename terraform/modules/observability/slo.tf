@@ -37,7 +37,7 @@ resource "google_monitoring_slo" "availability" {
 
   request_based_sli {
     good_total_ratio {
-      good_service_filter = <<-EOT
+      good_service_filter  = <<-EOT
         metric.type="logging.googleapis.com/user/agent.run.finish"
         AND resource.type="generic_task"
         AND metric.label.result="success"
@@ -96,7 +96,7 @@ resource "google_monitoring_slo" "error_rate" {
 
   request_based_sli {
     good_total_ratio {
-      bad_service_filter = <<-EOT
+      bad_service_filter   = <<-EOT
         metric.type="loadbalancing.googleapis.com/https/request_count"
         AND resource.type="https_lb_rule"
         AND metric.label.response_code_class="500"

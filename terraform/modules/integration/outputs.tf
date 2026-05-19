@@ -100,22 +100,19 @@ output "apigee_envgroup_hostnames" {
 
 output "apigee_api_product_ids" {
   description = "Map of API product key → Apigee product resource ID."
-  value       = var.apigee_config.enabled ? { for k, v in google_apigee_product.products : k => v.id } : {}
+  value       = var.apigee_config.enabled ? { for k, v in google_apigee_api_product.products : k => v.id } : {}
 }
 
 # ── API Hub ──────────────────────────────────────────────────────────────
 
 output "api_hub_instance_id" {
-  description = "Apigee API Hub instance ID (null if disabled)."
-  value       = var.api_hub_config.enabled ? google_apigee_api_hub_instance.hub[0].id : null
+  description = "Apigee API Hub instance ID. DEFERRED: provider 6.50 lacks the resource — always null until restoration (see api_hub.tf + BN-11)."
+  value       = null
 }
 
 output "api_hub_api_ids" {
-  description = "API IDs registered in the hub catalog."
-  value = var.api_hub_config.enabled ? {
-    shared_rest  = google_apigee_api_hub_api.shared_rest[0].id
-    shared_async = google_apigee_api_hub_api.shared_async[0].id
-  } : {}
+  description = "API IDs registered in the hub catalog. DEFERRED: provider 6.50 lacks the resources — always empty until restoration (see api_hub.tf + BN-11)."
+  value       = {}
 }
 
 # ── Summary ──────────────────────────────────────────────────────────────
@@ -130,8 +127,11 @@ output "integration_summary" {
     workflows            = length(google_workflows_workflow.workflows)
     scheduler_jobs       = length(google_cloud_scheduler_job.crons)
     eventarc_enrollments = length(google_eventarc_enrollment.enrollments)
-    apigee_products      = var.apigee_config.enabled ? length(google_apigee_product.products) : 0
-    api_hub_apis         = var.api_hub_config.enabled ? 2 : 0
-    decisions            = "D18,D28,D38"
+    apigee_products      = var.apigee_config.enabled ? length(google_apigee_api_product.products) : 0
+    # api_hub_apis is 0 until the Apigee API Hub resources ship in the provider
+    # (see api_hub.tf + BN-11). The `enabled` toggle is intentionally ignored
+    # here so callers don't get a misleading non-zero count.
+    api_hub_apis = 0
+    decisions    = "D18,D28,D38"
   }
 }

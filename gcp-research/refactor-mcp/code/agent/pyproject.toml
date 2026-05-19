@@ -30,8 +30,11 @@ version = "1.0.0"
 description = "ADK orchestration layer wrapping the tiktok-mcp-server MCP tools as an A2A-listable Influencer Research Agent for Gemini Enterprise."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
-license = { text = "MIT" }
+license = { text = "Apache-2.0" }
 authors = [{ name = "Social Seeding", email = "support@socialseed.ing" }]
+# License rationale: ancillary code per DECISIONS.md D9 (BUSL-1.1 core +
+# Apache-2.0 ancillary). The package-level LICENSE is at the package root
+# (gcp-research/refactor-mcp/code/LICENSE).
 
 dependencies = [
     # --- ADK + Vertex AI -----------------------------------------------------

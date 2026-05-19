@@ -91,7 +91,7 @@ output "cloud_deploy_target_names" {
 
 output "workstations_cluster_id" {
   description = "ID of the Cloud Workstations cluster. Engineers attach with `gcloud workstations start --cluster=<this>`."
-  value       = google_workstations_cluster.this.workstation_cluster_id
+  value       = google_workstations_workstation_cluster.this.workstation_cluster_id
 }
 
 output "workstations_engineer_config_id" {

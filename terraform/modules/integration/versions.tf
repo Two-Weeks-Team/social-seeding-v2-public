@@ -21,5 +21,11 @@ terraform {
       source  = "hashicorp/google-beta"
       version = ">= 6.10.0, < 7.0.0"
     }
+    # null is required for the message-bus IAM shim until
+    # google_eventarc_message_bus_iam_member ships (see eventarc.tf + BN-11).
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.2"
+    }
   }
 }

@@ -43,12 +43,12 @@ resource "google_apigee_organization" "main" {
 resource "google_apigee_instance" "primary" {
   count = var.apigee_config.enabled ? 1 : 0
 
-  name                     = "ss-v2-${var.apigee_config.analytics_region}"
-  location                 = var.apigee_config.analytics_region
-  description              = "Per-view billing gateway primary instance (D28)."
-  org_id                   = google_apigee_organization.main[0].id
-  consumer_accept_list     = []
-  peering_cidr_range       = "SLASH_22" # required even with VPC peering disabled
+  name                 = "ss-v2-${var.apigee_config.analytics_region}"
+  location             = var.apigee_config.analytics_region
+  description          = "Per-view billing gateway primary instance (D28)."
+  org_id               = google_apigee_organization.main[0].id
+  consumer_accept_list = []
+  peering_cidr_range   = "SLASH_22" # required even with VPC peering disabled
 }
 
 # ── Apigee environment ───────────────────────────────────────────────────
@@ -100,16 +100,16 @@ resource "google_apigee_envgroup_attachment" "billing_prod" {
 #     surface routes; the per-view metering happens via Apigee analytics +
 #     post-processing into BigQuery per pricing/MODEL.md §4.1).
 
-resource "google_apigee_product" "products" {
+resource "google_apigee_api_product" "products" {
   for_each = var.apigee_config.enabled ? local.apigee_api_products : {}
 
-  org_id        = google_apigee_organization.main[0].id
-  name          = each.key
-  display_name  = each.value.display_name
-  description   = each.value.description
-  approval_type = each.value.approval_type
-  quota         = each.value.quota
-  quota_interval = each.value.quota_interval
+  org_id          = google_apigee_organization.main[0].id
+  name            = each.key
+  display_name    = each.value.display_name
+  description     = each.value.description
+  approval_type   = each.value.approval_type
+  quota           = each.value.quota
+  quota_interval  = each.value.quota_interval
   quota_time_unit = each.value.quota_time_unit
 
   environments = [google_apigee_environment.prod[0].name]
@@ -133,8 +133,8 @@ resource "google_apigee_product" "products" {
       }
 
       quota {
-        limit    = each.value.quota
-        interval = each.value.quota_interval
+        limit     = each.value.quota
+        interval  = each.value.quota_interval
         time_unit = each.value.quota_time_unit
       }
     }

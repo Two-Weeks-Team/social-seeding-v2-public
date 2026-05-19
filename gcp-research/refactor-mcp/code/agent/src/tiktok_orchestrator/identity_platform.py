@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Social Seeding Inc.
 """Identity Platform OAuth verification (D19).
 
 Replaces the SQLite-backed OAuth 2.1 server at

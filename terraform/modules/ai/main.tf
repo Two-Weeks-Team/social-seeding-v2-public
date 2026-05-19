@@ -140,14 +140,13 @@ resource "google_vertex_ai_index" "this" {
   index_update_method = each.value.update_method
   labels              = merge(local.base_labels, { index = each.key })
 
-  # D20 CMEK passthrough — only emit the block when the key is provided so
-  # dev environments without KMS bootstrapping still apply cleanly.
-  dynamic "encryption_spec" {
-    for_each = local.use_cmek ? [1] : []
-    content {
-      kms_key_name = var.cmek_key_name
-    }
-  }
+  # D20 CMEK passthrough is intentionally OMITTED here. The `encryption_spec`
+  # block is not exposed on `google_vertex_ai_index` in hashicorp/google v6.50;
+  # CMEK on Vector Search indexes must currently be applied out-of-band (gcloud
+  # ai indexes / REST API) at create time. See BN-11 + D20. Track the provider
+  # gap; restore this block when `encryption_spec` is added to the schema.
+  # var.cmek_key_name / local.use_cmek are retained because callers wire them
+  # in; ignore-this-attribute lint is fine until the schema gains the block.
 
   depends_on = [google_project_service.required]
 }
@@ -293,7 +292,7 @@ resource "google_workbench_instance" "data_science" {
     }
 
     metadata = {
-      idle-timeout-seconds = "3600"          # auto-suspend after 1h idle (D39 cost lever)
+      idle-timeout-seconds = "3600" # auto-suspend after 1h idle (D39 cost lever)
       report-system-health = "TRUE"
     }
 
@@ -329,7 +328,7 @@ resource "google_storage_bucket_object" "agent_cards" {
     defaultInputModes  = ["text/plain", "application/json"]
     defaultOutputModes = ["text/plain", "application/json"]
     capabilities = {
-      streaming    = true
+      streaming         = true
       pushNotifications = each.value.tier == 1
     }
     skills = [
@@ -400,15 +399,15 @@ resource "null_resource" "agent_runtime_deploy" {
   for_each = local.runtime_agents
 
   triggers = {
-    card_hash    = google_storage_bucket_object.agent_cards[each.key].md5hash
-    agent_id     = each.key
-    project      = var.project_id
-    region       = var.region
-    staging_bkt  = var.staging_bucket_name
-    model_id     = local.agent_model_id[each.key]
-    runtime_sa   = var.agent_runtime_service_account_email
-    use_gateway  = local.use_gateway
-    gateway_id   = var.agent_gateway_id
+    card_hash   = google_storage_bucket_object.agent_cards[each.key].md5hash
+    agent_id    = each.key
+    project     = var.project_id
+    region      = var.region
+    staging_bkt = var.staging_bucket_name
+    model_id    = local.agent_model_id[each.key]
+    runtime_sa  = var.agent_runtime_service_account_email
+    use_gateway = local.use_gateway
+    gateway_id  = var.agent_gateway_id
   }
 
   # The actual `vertexai.Client().agent_engines.create(...)` call lives in
@@ -542,10 +541,10 @@ resource "null_resource" "gemini_enterprise_agent_register" {
   ) ? 1 : 0
 
   triggers = {
-    app_id    = var.gemini_enterprise.app_id
-    agent_id  = var.gemini_enterprise.register_default_agent_name
-    region    = var.region
-    project   = var.project_id
+    app_id   = var.gemini_enterprise.app_id
+    agent_id = var.gemini_enterprise.register_default_agent_name
+    region   = var.region
+    project  = var.project_id
   }
 
   provisioner "local-exec" {
@@ -586,12 +585,12 @@ resource "null_resource" "gemini_enterprise_agent_register" {
 resource "google_dialogflow_cx_agent" "support" {
   count = var.feature_flags.enable_dialogflow_cx ? 1 : 0
 
-  project               = var.project_id
-  display_name          = "${local.prefix}-support"
-  location              = var.gemini_enterprise.dialogflow_agent_location
-  default_language_code = var.gemini_enterprise.dialogflow_language
-  time_zone             = var.gemini_enterprise.dialogflow_time_zone
-  description           = "D26 customer-support surface; routes to customer_success agent via webhook."
+  project                    = var.project_id
+  display_name               = "${local.prefix}-support"
+  location                   = var.gemini_enterprise.dialogflow_agent_location
+  default_language_code      = var.gemini_enterprise.dialogflow_language
+  time_zone                  = var.gemini_enterprise.dialogflow_time_zone
+  description                = "D26 customer-support surface; routes to customer_success agent via webhook."
   enable_stackdriver_logging = true
   enable_spell_correction    = true
 

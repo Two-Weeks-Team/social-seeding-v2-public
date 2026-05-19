@@ -1,0 +1,59 @@
+1
+00:00:00,000 --> 00:00:05,000
+Track 3 — tiktok-mcp-server:Gemini Enterprise + A2A v0.3 + 韩国区域差距重塑。
+
+2
+00:00:05,000 --> 00:00:12,500
+场景 1 — 把问题摆在屏幕上。Marketplace 卖家向导没有韩国计费区域,而同一个 Cloud Run 服务正在首尔节点运行。
+
+3
+00:00:12,500 --> 00:00:20,000
+场景 2 — 开放标准的替代方案:/.well-known/agent.json 上的 A2A v0.3 AgentCard。三个技能、三个传输通道、JWS 签名。
+
+4
+00:00:20,000 --> 00:00:33,100
+场景 3 — 将 A2A 端点 URL 粘贴进 Gemini Enterprise 完成导入。发现 → 注册——无需 Marketplace 上架的分发通路。
+
+5
+00:00:33,100 --> 00:00:44,400
+场景 4 — 同一技能通过 MCP 的 tools/call 调用。带类型契约的输入输出,JSON-RPC 信封原样可见。
+
+6
+00:00:44,400 --> 00:00:57,500
+场景 5 — 同一技能通过 A2A 调用。一台服务器、两种协议,两种协议间的 trace 关联完整保留。
+
+7
+00:00:57,500 --> 00:01:06,900
+场景 6 — Model Armor 实时拦截一次注入攻击。Identity Platform 的 OIDC 主体保留在审计日志里。
+
+8
+00:01:06,900 --> 00:01:21,900
+场景 7 — Gemini Enterprise 工作区用自然语言对话调用智能体。Cloud Run 日志同步显示后端被命中。
+
+9
+00:01:21,900 --> 00:01:29,400
+场景 8 — 按技能拆分的 USD 账本。tiktok.lookup $0.094,tiktok.search $0.036,tiktok.profile $0.009。
+
+10
+00:01:29,400 --> 00:01:36,900
+场景 9 — Producer Portal 显示上架仍在挂起。我们通过 A2A 分发的重塑把负面证据转为论点本身。
+
+11
+00:01:36,900 --> 00:01:48,200
+场景 10 — 多区域 active-active:asia-northeast3、us-central1、europe-west1。三个 Identity Platform 租户。起步即企业级。
+
+12
+00:01:48,200 --> 00:01:59,500
+场景 11 — A2A 流式响应在一次往返中返回文本 + 图像 + JSON。不止模型,协议层就是多模态。
+
+13
+00:01:59,500 --> 00:02:03,300
+场景 12 — curl /healthz: ok。pytest: 47 passed in 4.2s。线上 Cloud Run + 本地测试全绿。
+
+14
+00:02:03,300 --> 00:02:55,000
+韩国区域差距本身就是差异化。Gemini Enterprise + A2A 即 Marketplace 之后的分发通道。
+
+15
+00:02:55,000 --> 00:03:00,000
+github.com/ComBba/tiktok-mcp-server — Apache-2.0。

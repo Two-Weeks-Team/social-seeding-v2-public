@@ -130,9 +130,9 @@ resource "google_storage_bucket" "audit_archive" {
 
   dynamic "lifecycle_rule" {
     for_each = {
-      "30"                      = "NEARLINE"
-      "90"                      = "COLDLINE"
-      "365"                     = "ARCHIVE"
+      "30"  = "NEARLINE"
+      "90"  = "COLDLINE"
+      "365" = "ARCHIVE"
     }
     content {
       condition { age = tonumber(lifecycle_rule.key) }
@@ -145,7 +145,7 @@ resource "google_storage_bucket" "audit_archive" {
 
   lifecycle_rule {
     condition { age = var.archive_retention_days }
-    action    { type = "Delete" }
+    action { type = "Delete" }
   }
 
   depends_on = [google_project_service.observability_apis]
@@ -236,9 +236,21 @@ resource "google_logging_metric" "agent_distributions" {
     unit         = "1"
     display_name = each.key
 
-    labels { key = "workspace_id", value_type = "STRING", description = "Tenant id" }
-    labels { key = "agent_name",   value_type = "STRING", description = "Tier-1 agent name" }
-    labels { key = "model",        value_type = "STRING", description = "Model id" }
+    labels {
+      key         = "workspace_id"
+      value_type  = "STRING"
+      description = "Tenant id"
+    }
+    labels {
+      key         = "agent_name"
+      value_type  = "STRING"
+      description = "Tier-1 agent name"
+    }
+    labels {
+      key         = "model"
+      value_type  = "STRING"
+      description = "Model id"
+    }
   }
 
   label_extractors = {
@@ -279,8 +291,16 @@ resource "google_logging_metric" "model_armor_block_count" {
     unit         = "1"
     display_name = "Model Armor blocks"
 
-    labels { key = "workspace_id", value_type = "STRING", description = "Tenant — quarantine threshold applied per tenant." }
-    labels { key = "policy",       value_type = "STRING", description = "Policy name (pi, jb, pii, rai, regex)." }
+    labels {
+      key         = "workspace_id"
+      value_type  = "STRING"
+      description = "Tenant — quarantine threshold applied per tenant."
+    }
+    labels {
+      key         = "policy"
+      value_type  = "STRING"
+      description = "Policy name (pi, jb, pii, rai, regex)."
+    }
   }
 
   label_extractors = {
@@ -303,9 +323,19 @@ resource "google_logging_metric" "agent_escalation_count" {
     unit         = "1"
     display_name = "Agent escalations"
 
-    labels { key = "workspace_id", value_type = "STRING" }
-    labels { key = "agent_name",   value_type = "STRING" }
-    labels { key = "reason",       value_type = "STRING", description = "cost_cap | judge_reject | tool_error | policy_gate" }
+    labels {
+      key        = "workspace_id"
+      value_type = "STRING"
+    }
+    labels {
+      key        = "agent_name"
+      value_type = "STRING"
+    }
+    labels {
+      key         = "reason"
+      value_type  = "STRING"
+      description = "cost_cap | judge_reject | tool_error | policy_gate"
+    }
   }
 
   label_extractors = {

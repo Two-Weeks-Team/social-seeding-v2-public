@@ -84,7 +84,59 @@ The reframing (D3) turns a regional-exclusion gap into a published distribution 
 
 ## Built With (Devpost field: Built With tags)
 
-See [`built-with-tags.txt`](built-with-tags.txt). The track-3 section has the canonical, copy-paste-ready tag list.
+See [`built-with-tags.txt`](built-with-tags.txt). The track-3 section has the canonical, copy-paste-ready tag list (~60 tags). Sourced from `gcp-research/decisions/SERVICE-INVENTORY.md`; identical Govern-pillar policy to Track 2 (Model Armor max + Chronicle SecOps + Agent Identity SPIFFE) so judges see a consistent enterprise posture across both submissions.
+
+## Try it out (Devpost field: Try it out links)
+
+- **Repository**: `https://github.com/Two-Weeks-Team/tiktok-mcp-server` (Apache-2.0 per D9 ancillary code policy; only the agent + Identity Platform glue is BUSL-1.1)
+- **Refactor plan (the Track 3 design doc)**: `gcp-research/refactor-mcp/REFACTOR-MCP.md`
+- **ADK agent code (~200 LOC, Python)**: `gcp-research/refactor-mcp/code/agent/main.py`
+- **Demo video (YouTube unlisted, 3 min, 8× speed real-mouse recording per D30)**: `<YOUTUBE_TRACK3_URL>`
+- **Live MCP endpoint**: `https://mcp.socialseed.ing` (probe `/.well-known/mcp-manifest` and `/.well-known/agent.json`)
+- **Deployed Cloud Run service (judging window)**: `<CLOUD_RUN_MCP_URL>`
+- **Marketplace listing**: PENDING — Producer Portal screenshot in `docs/marketplace-submission.png` with KR payment-region disclosure on the description
+- **Gemini Enterprise A2A integration**: A2A v0.3 surface at `https://mcp.socialseed.ing/.well-known/agent.json`; the v2 `sourcing` agent calls `plan_creator_search` in cross-track integration tests
+
+## Business case (Devpost field: Business case)
+
+**Pricing model (per D28-aligned)**: three published tiers via Apigee X meter — Free 10 calls/day, Starter $49/mo (5 k calls), Pro $299/mo (50 k calls + 99.5% SLA), Enterprise custom (dedicated pool, 99.9% SLA, data-residency pinning).
+
+**Target customer**: platform engineers at marketing-tech companies building agents on Gemini Enterprise who do not want to build TikTok scrapers; internal ML/data teams at brands building private agents inside Gemini Enterprise.
+
+**MRR target**: **$3,000 MRR within 6 months** of live distribution through the A2A path (12–15 Starter tenants at $49 + 3–5 Pro tenants at $299; the Marketplace direct billing rail is closed for Korean entities until O10 is resolved).
+
+**Napkin TAM/SAM/SOM**:
+- **TAM** — MCP/A2A connector market is nascent; using Cloud Marketplace's published 2026 agent-listing transaction volume as a proxy ≈ $200 M GTV in 2026.
+- **SAM** — Gemini Enterprise customers building marketing-tech agents that need TikTok data ≈ 8,000 organizations × $1,200 ARPU ≈ **$9.6 M SAM**.
+- **SOM (3-year)** — APAC + EN markets early-adopter cohort ≈ 600 reachable orgs × $1,200 ARPU × 2% capture ≈ **$144 k ARR Year-3 SOM**. Margins are high because the underlying scraper fleet is already production traffic — the marginal cost per call is the Apigee meter delta + Vertex AI Flash routing, ≈ $0.001/call.
+
+**Cost envelope (per REFACTOR-MCP.md §5.6)**: ~$112/month all-in for the agent layer at ~5 k agent invocations/mo. Pro ranker (Gemini 2.5 Pro) dominates the bill at ~$100; if cost needs to drop, swap ranker → Flash with structured output for ~$15/mo at the price of slightly fuzzier rank reasoning. Free-tier to a single demo reviewer costs ~$0.
+
+**Distribution channels day-1**: A2A v0.3 via Agent Registry (the D3 reframing). Cloud Marketplace listing is PENDING with the KR payment-region disclosure; status check is the bonus, not the requirement.
+
+**The Korean foreign-sub-entity escalation path (O10)**: triggers when listing MRR crosses $1k. US Delaware C-Corp / Singapore Pte Ltd / Japan KK candidates evaluated post-launch with legal counsel; until then, Apigee-rail billing (wire-transfer or Stripe) is fully compliant with Korean tax law and the customer's procurement.
+
+## Differentiation (Devpost field: Differentiation — three angles per D29)
+
+**Angle 1 — KR-startup region-gap distribution path (this submission's headline contribution).**
+
+See "Korean-region gap section" below. The pattern is the 5-step playbook (D3) that any non-Marketplace-payment-region startup can fork.
+
+**Angle 2 — Dual-surface MCP + A2A from one image.**
+
+The same Cloud Run multi-container service (`runtime-node` MCP + `runtime-adk` agent per `REFACTOR-MCP.md §5.2`) emits both surfaces: an MCP path at `/mcp` for standard clients (Claude Desktop, Cursor) and an A2A v0.3 surface at `/.well-known/agent.json` for Gemini Enterprise agent discovery. Standard MCP clients work unmodified with anonymous stdio transport; enterprise clients get bearer-token-over-HTTPS minted by Identity Platform without breaking the MCP spec. Per-call billing flows through the same Apigee meter regardless of which surface the request landed on — billing is by tool call, not by protocol path.
+
+**Angle 3 — Govern-pillar parity with Track 2.**
+
+The Track 3 submission ships the same Model Armor max policy (D21), the same Chronicle SecOps SIEM evidence pack (D32), the same Agent Identity SPIFFE per workload (D19), the same Binary Authorization + SLSA L3 attestation chain (D37) as Track 2. Same enterprise posture, smaller surface — 4 tools + 1 orchestration agent versus 22 agents + 49 capability tools.
+
+## Honest gaps (Devpost field: Risks / Known issues)
+
+- **Marketplace listing is PENDING, not approved.** Producer Portal status as of submission is PENDING per the screenshot — we are filing alongside the Devpost submission, not at month-3. The Devpost deadline can be met without an approved Marketplace listing per `REFACTOR-MCP.md §9.2`.
+- **Korean payment region is the structural gap (D2).** The A2A path is the workaround (D3), not a permanent answer. Foreign-sub-entity escalation is at $1k MRR threshold (O10).
+- **MCP-as-Marketplace-tool listing category** is interpretive — verify category-2 (MCP tool/connector) is live at submission time. If not, the A2A agent listing (category-1) stands on its own.
+- **Watchtower auto-deploy cutover risk (REFACTOR-MCP.md §9.1)** mitigated by manual `:latest` tag pin before DNS cutover and explicit Watchtower pause window.
+- **Backend dependency**: the MCP layer proxies the live Go backend at port 8080; if that backend is down, tools degrade gracefully (`Backend ${res.status}` per `src/backend/client.ts:77`) but rankings return empty. Demo is scheduled at a known-good window.
 
 ---
 
@@ -103,7 +155,10 @@ See [`built-with-tags.txt`](built-with-tags.txt). The track-3 section has the ca
 | What's next                | "What's next"                                 | 80–150      |
 | Built With                 | from `built-with-tags.txt`, Track 3 section   | ~60 tags    |
 | Video URL                  | from `mcp-youtube-metadata.json` .video_url   | URL only    |
-| Try it out links           | repo URL + `https://mcp.socialseed.ing`       | 1 URL each  |
+| Try it out links           | "Try it out" section above                    | 7 URLs      |
+| Business case              | "Business case" section above                 | 250–350     |
+| Differentiation            | "Differentiation" section above (3 angles)    | 200–300     |
+| Innovation framing         | "Korean-region gap section" above (D3)        | 250         |
 
 After `scripts/demo/post-process/upload-youtube.sh mcp en` writes `mcp-youtube-metadata.json`, paste `.video_url` into the Devpost "Video URL" field and submit.
 

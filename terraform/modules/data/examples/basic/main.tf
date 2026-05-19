@@ -63,13 +63,13 @@ module "data" {
 
   regions = {
     us-central1 = {
-      location           = "us-central1"
-      firestore_location = "nam5"
-      alloydb_cpu_count  = 2
-      alloydb_replica_cpu = 2
-      valkey_shard_count = 1
+      location             = "us-central1"
+      firestore_location   = "nam5"
+      alloydb_cpu_count    = 2
+      alloydb_replica_cpu  = 2
+      valkey_shard_count   = 1
       valkey_replica_count = 0
-      valkey_node_type   = "SHARED_CORE_NANO"
+      valkey_node_type     = "SHARED_CORE_NANO"
     }
   }
 

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Social Seeding Inc.
 """FastAPI entrypoint — Cloud Run public surface (port 8200).
 
 Surfaces:

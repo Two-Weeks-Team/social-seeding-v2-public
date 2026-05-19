@@ -50,11 +50,11 @@ variable "regions" {
     `psc_cidr` must not overlap subnet primary or pod/service secondaries.
   EOT
   type = map(object({
-    primary_cidr   = string
-    pods_cidr      = string
-    services_cidr  = string
-    psc_cidr       = string
-    nat_ip_count   = number
+    primary_cidr    = string
+    pods_cidr       = string
+    services_cidr   = string
+    psc_cidr        = string
+    nat_ip_count    = number
     psc_endpoint_ip = string
   }))
   default = {

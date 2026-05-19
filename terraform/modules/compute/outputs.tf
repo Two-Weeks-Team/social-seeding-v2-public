@@ -36,22 +36,20 @@ output "worker_pool_names" {
 output "agent_runtime_endpoints" {
   description = <<-EOT
     Map of "<region>-<index>" → Vertex AI Agent Runtime resource name (D17).
-    For native-resource provisioning this is `projects/.../locations/.../reasoningEngines/...`.
-    For the gcloud fallback, the value is `fallback:<region>-<index>` — callers must
-    resolve via `gcloud beta ai reasoning-engines list` until the native resource is used.
+    Provider 6.50 does not expose `google_vertex_ai_reasoning_engine`, so the
+    value is `fallback:<region>-<index>` — callers must resolve the real
+    resource path via `gcloud beta ai reasoning-engines list` until the
+    native resource ships. See BN-11 + the breadcrumb in main.tf for the
+    restore path.
   EOT
-  value = local.use_native_agent_runtime ? {
-    for k, v in google_vertex_ai_reasoning_engine.runtime : k => v.name
-    } : {
+  value = {
     for k, _ in null_resource.agent_runtime_fallback : k => "fallback:${k}"
   }
 }
 
 output "agent_runtime_display_names" {
-  description = "Map of \"<region>-<index>\" → Agent Runtime display name. Useful for log/alert correlation."
-  value = local.use_native_agent_runtime ? {
-    for k, v in google_vertex_ai_reasoning_engine.runtime : k => v.display_name
-  } : {}
+  description = "Map of \"<region>-<index>\" → Agent Runtime display name. Useful for log/alert correlation. Empty until the native resource ships (see BN-11)."
+  value       = {}
 }
 
 output "gke_cluster_names" {

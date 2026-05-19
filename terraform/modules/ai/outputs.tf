@@ -180,16 +180,16 @@ output "learning_loop_pipelines" {
 output "module_summary" {
   description = "One-screen summary the observability dashboards key off (also handy in CI logs)."
   value = {
-    agents_total                   = length(var.agent_registry)
-    agents_tier_1                  = length(local.tier1_agents)
-    agents_tier_2                  = length(local.tier2_agents)
-    agents_tier_3                  = length(local.tier3_agents)
-    vector_search_indexes_count    = var.feature_flags.enable_vector_search ? length(var.vector_indexes) : 0
-    pipelines_active               = var.feature_flags.enable_pipelines ? length({ for k, v in var.pipelines : k => v if v.enabled }) : 0
-    gateway_routed                 = local.use_gateway
-    cmek_enabled                   = local.use_cmek
-    region                         = var.region
-    environment                    = var.environment
-    preview_resource_strict_mode   = local.fail_on_pp_err
+    agents_total                 = length(var.agent_registry)
+    agents_tier_1                = length(local.tier1_agents)
+    agents_tier_2                = length(local.tier2_agents)
+    agents_tier_3                = length(local.tier3_agents)
+    vector_search_indexes_count  = var.feature_flags.enable_vector_search ? length(var.vector_indexes) : 0
+    pipelines_active             = var.feature_flags.enable_pipelines ? length({ for k, v in var.pipelines : k => v if v.enabled }) : 0
+    gateway_routed               = local.use_gateway
+    cmek_enabled                 = local.use_cmek
+    region                       = var.region
+    environment                  = var.environment
+    preview_resource_strict_mode = local.fail_on_pp_err
   }
 }

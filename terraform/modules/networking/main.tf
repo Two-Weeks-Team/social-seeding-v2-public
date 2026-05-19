@@ -18,9 +18,9 @@ locals {
 
   # Internal-LB endpoint names that IAP guards (Mission Control admin + Dialogflow CX admin).
   iap_protected_endpoints = {
-    "mission-control-admin"  = "Mission Control internal admin surface"
-    "dialogflow-cx-admin"    = "Dialogflow CX admin console proxy"
-    "agent-gateway-debug"    = "Agent Gateway debug + replay surface"
+    "mission-control-admin" = "Mission Control internal admin surface"
+    "dialogflow-cx-admin"   = "Dialogflow CX admin console proxy"
+    "agent-gateway-debug"   = "Agent Gateway debug + replay surface"
   }
 }
 
@@ -164,12 +164,12 @@ resource "google_dns_managed_zone" "public" {
     for k, z in var.dns_zones : k => z if z.visibility == "public"
   }
 
-  project       = var.host_project_id
-  name          = "${var.name_prefix}-dns-${each.key}"
-  dns_name      = each.value.dns_name
-  description   = "Public zone for ${each.value.dns_name} (D26)."
-  visibility    = "public"
-  labels        = var.labels
+  project     = var.host_project_id
+  name        = "${var.name_prefix}-dns-${each.key}"
+  dns_name    = each.value.dns_name
+  description = "Public zone for ${each.value.dns_name} (D26)."
+  visibility  = "public"
+  labels      = var.labels
 
   dynamic "dnssec_config" {
     for_each = each.value.dnssec ? [1] : []
@@ -245,9 +245,9 @@ resource "google_certificate_manager_certificate_map_entry" "domains" {
 ###############################################################################
 
 resource "google_compute_security_policy" "edge" {
-  provider = google-beta
-  project  = var.host_project_id
-  name     = "${var.name_prefix}-armor-edge"
+  provider    = google-beta
+  project     = var.host_project_id
+  name        = "${var.name_prefix}-armor-edge"
   description = "WAF + bot mgmt + rate limit + adaptive protection (D21 max policy)."
 
   # Default rule — Cloud Armor requires the catch-all at max priority.
@@ -325,10 +325,10 @@ resource "google_compute_security_policy" "edge" {
       }
     }
     rate_limit_options {
-      conform_action       = "allow"
-      exceed_action        = "deny(429)"
-      enforce_on_key       = "IP"
-      ban_duration_sec     = 600
+      conform_action   = "allow"
+      exceed_action    = "deny(429)"
+      enforce_on_key   = "IP"
+      ban_duration_sec = 600
       rate_limit_threshold {
         count        = var.armor_rate_limit_threshold
         interval_sec = 60
@@ -357,9 +357,9 @@ resource "google_compute_security_policy" "edge" {
   }
 
   advanced_options_config {
-    log_level                        = "VERBOSE"
-    user_ip_request_headers          = ["True-Client-IP", "X-Forwarded-For"]
-    json_parsing                     = "STANDARD"
+    log_level               = "VERBOSE"
+    user_ip_request_headers = ["True-Client-IP", "X-Forwarded-For"]
+    json_parsing            = "STANDARD"
   }
 }
 
@@ -503,12 +503,12 @@ resource "google_iap_web_iam_binding" "operators" {
 resource "google_compute_global_address" "psc_vertex" {
   for_each = var.regions
 
-  project       = var.host_project_id
-  name          = "${var.name_prefix}-psc-vertex-${each.key}"
-  address_type  = "INTERNAL"
-  purpose       = "PRIVATE_SERVICE_CONNECT"
-  network       = google_compute_network.shared.id
-  address       = each.value.psc_endpoint_ip
+  project      = var.host_project_id
+  name         = "${var.name_prefix}-psc-vertex-${each.key}"
+  address_type = "INTERNAL"
+  purpose      = "PRIVATE_SERVICE_CONNECT"
+  network      = google_compute_network.shared.id
+  address      = each.value.psc_endpoint_ip
 }
 
 resource "google_compute_global_forwarding_rule" "psc_vertex" {
@@ -516,8 +516,8 @@ resource "google_compute_global_forwarding_rule" "psc_vertex" {
 
   for_each = var.regions
 
-  project               = var.host_project_id
-  name                  = "${var.name_prefix}-psc-${each.key}"
+  project = var.host_project_id
+  name    = "${var.name_prefix}-psc-${each.key}"
   # "all-apis" = PSC bundle covering every Google API; pairs with VPC-SC so calls
   # to Vertex/Spanner/Firestore stay on Google's backbone (NETSEC §1.5).
   # Use "vpc-sc" instead only when restricting to perimeter-protected APIs in a
@@ -548,10 +548,10 @@ resource "google_access_context_manager_access_level" "corp_break_glass" {
 resource "google_access_context_manager_service_perimeter" "core" {
   provider = google-beta
 
-  parent         = "accessPolicies/${var.access_policy_id}"
-  name           = "accessPolicies/${var.access_policy_id}/servicePerimeters/${var.name_prefix}_core"
-  title          = "${var.name_prefix} core perimeter (D20)"
-  perimeter_type = "PERIMETER_TYPE_REGULAR"
+  parent                    = "accessPolicies/${var.access_policy_id}"
+  name                      = "accessPolicies/${var.access_policy_id}/servicePerimeters/${var.name_prefix}_core"
+  title                     = "${var.name_prefix} core perimeter (D20)"
+  perimeter_type            = "PERIMETER_TYPE_REGULAR"
   use_explicit_dry_run_spec = var.vpc_sc_dry_run
 
   dynamic "spec" {
@@ -676,9 +676,9 @@ resource "google_compute_firewall" "allow_iap_health" {
 
   # IAP TCP forwarding + GFE health check ranges (NETSEC §1.8 + LB docs).
   source_ranges = [
-    "35.235.240.0/20",  # IAP TCP forwarding
-    "35.191.0.0/16",    # GFE health check
-    "130.211.0.0/22",   # GFE health check
+    "35.235.240.0/20", # IAP TCP forwarding
+    "35.191.0.0/16",   # GFE health check
+    "130.211.0.0/22",  # GFE health check
   ]
 
   allow {

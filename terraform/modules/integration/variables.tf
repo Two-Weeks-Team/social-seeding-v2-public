@@ -221,8 +221,8 @@ variable "apigee_config" {
 variable "api_hub_config" {
   description = "Apigee API Hub (D38) catalog config. The hub indexes OpenAPI + AsyncAPI specs from gcp-research/specs/_common/."
   type = object({
-    enabled     = bool
-    region      = string
+    enabled      = bool
+    region       = string
     display_name = string
   })
   default = {
@@ -252,7 +252,7 @@ variable "agent_urls" {
     `terraform output -json` per environment (D42).
 
     Each YAML workflow resolves its agent endpoint via:
-      ${default(map.get(args.agent_urls, "<id>"), sys.get_env("AGENT_URL_<ID>"))}
+      $${default(map.get(args.agent_urls, "<id>"), sys.get_env("AGENT_URL_<ID>"))}
 
     The map is exposed in two ways inside the workflow runtime:
       1. As `args.agent_urls` when the caller (manual exec, augmented Cloud

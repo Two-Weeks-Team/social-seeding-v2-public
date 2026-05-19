@@ -63,15 +63,17 @@ resource "google_cloud_run_v2_service" "mission_control" {
 
   labels = local.base_labels
 
-  # Service-level scaling (top-level block — "applies to the whole service").
-  # Per-revision scaling can be added inside template.scaling if needed.
-  scaling {
-    min_instance_count = var.mission_control_min_instances
-    max_instance_count = var.mission_control_max_instances
-  }
-
   template {
     service_account = var.service_account_runtime
+
+    # Per-revision scaling (provider 6.50 schema: max_instance_count lives in
+    # template.scaling, not the service-level scaling block. The service-level
+    # `scaling` block in v6.50 only exposes manual_instance_count/min/mode and
+    # would reject `max_instance_count`.)
+    scaling {
+      min_instance_count = var.mission_control_min_instances
+      max_instance_count = var.mission_control_max_instances
+    }
 
     # Direct VPC egress (COMPUTE.md §1: ~2× throughput vs Serverless Connector).
     dynamic "vpc_access" {
@@ -84,6 +86,11 @@ resource "google_cloud_run_v2_service" "mission_control" {
         egress = "PRIVATE_RANGES_ONLY"
       }
     }
+
+    # Apply CMEK if a key is provided for this region (D20).
+    # Provider 6.50 schema: encryption_key is a template-level attribute, not
+    # a service-level attribute (it applies to each revision's containers).
+    encryption_key = lookup(var.cmek_key_ids, each.key, null)
 
     containers {
       image = var.container_image_mission_control
@@ -117,10 +124,6 @@ resource "google_cloud_run_v2_service" "mission_control" {
       }
     }
   }
-
-  # Apply CMEK if a key is provided for this region (D20).
-  # Cloud Run v2 takes encryption_key at the service top-level, not template.
-  encryption_key = lookup(var.cmek_key_ids, each.key, null)
 
   lifecycle {
     ignore_changes = [
@@ -237,7 +240,7 @@ resource "google_cloud_run_v2_worker_pool" "fanout" {
   # CREMA (Cloud Run External Metrics Autoscaler) can be wired externally to
   # scale on Pub/Sub backlog; that controller is deployed separately.
   scaling {
-    scaling_mode        = "MANUAL"
+    scaling_mode          = "MANUAL"
     manual_instance_count = var.worker_pool_instances
   }
 }
@@ -255,54 +258,28 @@ resource "google_cloud_run_v2_worker_pool" "fanout" {
 #    `moved` blocks — keep this comment as the breadcrumb.
 ############################################################
 
-# Native resource path (default).
-resource "google_vertex_ai_reasoning_engine" "runtime" {
-  for_each = local.use_native_agent_runtime ? local.agent_runtime_keys : {}
+# Native resource path is currently NOT AVAILABLE in hashicorp/google-beta
+# v6.50.0 — the `google_vertex_ai_reasoning_engine` resource type has not
+# yet shipped (Vertex AI Agent Runtime Terraform support is still in private
+# preview as of 2026-05). When the provider exposes the resource:
+#
+#   1. Re-introduce `resource "google_vertex_ai_reasoning_engine" "runtime"`
+#      keyed by `local.agent_runtime_keys` with the `encryption_spec`,
+#      `spec.source_code_spec.inline_source`, and `spec.source_code_spec.
+#      python_spec` blocks from this file's git history (revert this fix
+#      commit to recover the template).
+#   2. Gate the two paths via `local.use_native_agent_runtime` so callers
+#      can opt back into the native resource.
+#   3. Update outputs.tf to branch on `local.use_native_agent_runtime`.
+#
+# Until then the fallback below is the only path — it always runs because
+# the native resource cannot validate. See BN-11 in terraform/BUILD-NOTES.md
+# and D17 in gcp-research/decisions/DECISIONS.md.
 
-  provider = google-beta # google-beta keeps lead on optional fields; safe with stable provider too.
-
-  display_name = "agent-runtime-${each.value.region}-${each.value.index}"
-  description  = "Vertex AI Agent Runtime (D17) for region ${each.value.region} — hosts the 22-agent fleet (D23). managed_by=terraform-compute"
-  region       = each.value.region
-
-  labels = local.base_labels
-
-  dynamic "encryption_spec" {
-    for_each = lookup(var.cmek_key_ids, each.value.region, null) != null ? [1] : []
-    content {
-      kms_key_name = var.cmek_key_ids[each.value.region]
-    }
-  }
-
-  spec {
-    # Placeholder source — real ADK agent code is published by the deploy
-    # pipeline (D38 PreviewForge build agents). The module provisions the
-    # endpoint shell; the workflow/agents repo deploys revisions on top.
-    # When the agent bundle exists, swap `inline_source` for a GCS-backed
-    # `package_spec` block (see google-beta docs).
-    source_code_spec {
-      inline_source {
-        # `source_archive` must be base64-encoded tar.gz of the ADK agent.
-        # Provided as a placeholder file path; real wiring lives in CI.
-        source_archive = filebase64("${path.module}/files/agent-placeholder.tar.gz")
-      }
-
-      python_spec {
-        entrypoint_module = "placeholder_agent"
-        entrypoint_object = "root_agent"
-        version           = "3.12"
-      }
-    }
-  }
-}
-
-# Fallback path — gcloud provisioner.
-# When the provider lacks the native resource OR a Preview field we need is
-# missing, we shell out to gcloud. Triggers re-run on a hash of inputs.
-# TODO: remove this null_resource once the native resource fully covers our
-# config surface.
+# Fallback path — gcloud provisioner. Always active in provider 6.50 (see
+# block comment above). Triggers re-run on a hash of inputs.
 resource "null_resource" "agent_runtime_fallback" {
-  for_each = local.use_native_agent_runtime ? {} : local.agent_runtime_keys
+  for_each = local.agent_runtime_keys
 
   triggers = {
     region      = each.value.region
@@ -320,7 +297,7 @@ resource "null_resource" "agent_runtime_fallback" {
         --project=${var.project_id} \
         --region=${each.value.region} \
         --display-name=agent-runtime-${each.value.region}-${each.value.index} \
-        --description="Agent Runtime fallback (D17) provisioned via gcloud — migrate to google_vertex_ai_reasoning_engine when provider supports the missing fields."
+        --description="Agent Runtime fallback (D17) provisioned via gcloud — migrate to google_vertex_ai_reasoning_engine when provider supports the resource."
     EOT
   }
 
@@ -345,7 +322,7 @@ resource "google_container_cluster" "autopilot" {
   name     = "agent-sandbox-${each.key}"
   location = each.key # Regional cluster (COMPUTE.md §5 best-practice).
 
-  enable_autopilot = true
+  enable_autopilot    = true
   deletion_protection = false
 
   release_channel {

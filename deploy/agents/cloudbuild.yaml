@@ -1,0 +1,193 @@
+###############################################################################
+# deploy/agents/cloudbuild.yaml — ss-agents-adk CI/CD pipeline
+#
+# Cites:
+#   D7  — Containerized everywhere
+#   D13 — 3 regions (us-central1, europe-west1, asia-northeast1)
+#   D17 — Vertex AI Agent Runtime (managed) is the primary production host
+#         for the 22-agent fleet; THIS image is the artifact published to
+#         Agent Runtime via `adk deploy agent_engine` (see
+#         deploy/agents/agent-runtime-deploy.sh) AND the fallback / sandbox
+#         deployment to Cloud Run (deploy/agents/service.yaml).
+#   D23 — 22 agents (16 domain + 3 meta + 3 watchdog)
+#   D32 — Cloud Monitoring alerting
+#   D44 — Per-env terraform roots
+#
+# Triggered by:
+#   - Push to `main` affecting `packages/agents-adk/**` or `deploy/agents/**`.
+#   - Manual: `gcloud builds submit --config=deploy/agents/cloudbuild.yaml \
+#       --substitutions=_PROJECT_ID=ss-v2-prod,_REGION=us-central1,_REVISION_TAG=v1`
+#
+# Output:
+#   - us-central1-docker.pkg.dev/${_PROJECT_ID}/ss-agents/agents:${COMMIT_SHA}
+#   - us-central1-docker.pkg.dev/${_PROJECT_ID}/ss-agents/agents:latest
+#   - us-central1-docker.pkg.dev/${_PROJECT_ID}/ss-agents/agents:${_REVISION_TAG}
+#   - Cloud Run service `ss-agents` updated; new revision tagged ${_REVISION_TAG}.
+#
+# Required IAM (on the Cloud Build service account):
+#   - roles/run.developer
+#   - roles/iam.serviceAccountUser
+#   - roles/artifactregistry.writer
+#   - roles/aiplatform.user                          (Agent Runtime deploys)
+#   - roles/cloudkms.cryptoKeyEncrypterDecrypter     (CMEK on AR, per D20)
+###############################################################################
+
+steps:
+  # ---------------------------------------------------------------------------
+  # 1. Build the agents image (multi-stage, BuildKit, layer cache).
+  # ---------------------------------------------------------------------------
+  - id: build-agents
+    name: gcr.io/cloud-builders/docker
+    env:
+      - DOCKER_BUILDKIT=1
+    args:
+      - build
+      - --file=deploy/agents/Dockerfile
+      - --tag=${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-agents/agents:${SHORT_SHA}
+      - --tag=${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-agents/agents:${_REVISION_TAG}
+      - --tag=${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-agents/agents:latest
+      - --label=org.opencontainers.image.revision=${COMMIT_SHA}
+      - --label=org.opencontainers.image.created=${_BUILD_TIMESTAMP}
+      - --cache-from=${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-agents/agents:latest
+      - .
+
+  # ---------------------------------------------------------------------------
+  # 2. Push the image to Artifact Registry (all tags).
+  # ---------------------------------------------------------------------------
+  - id: push-agents
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["build-agents"]
+    args:
+      - push
+      - --all-tags
+      - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-agents/agents
+
+  # ---------------------------------------------------------------------------
+  # 3. CVE scan before promoting.
+  # ---------------------------------------------------------------------------
+  - id: scan-agents
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    waitFor: ["push-agents"]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        gcloud artifacts docker images scan \
+          ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-agents/agents:${SHORT_SHA} \
+          --location=${_REGION} \
+          --format='value(response.scan)' > /workspace/scan-agents.txt
+        echo "Scan ref: $(cat /workspace/scan-agents.txt)"
+
+  # ---------------------------------------------------------------------------
+  # 4. Render Cloud Run service manifest, then `gcloud run services replace`.
+  #    Cloud Run hosts the FastAPI surface; Agent Runtime hosts the 22 agents
+  #    (see step 6 below for the parallel agent-runtime deploy).
+  # ---------------------------------------------------------------------------
+  - id: render-and-deploy-run
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    waitFor: ["scan-agents"]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        sed \
+          -e "s|__PROJECT__|${_PROJECT_ID}|g" \
+          -e "s|__REGION__|${_REGION}|g" \
+          -e "s|__SHA__|${SHORT_SHA}|g" \
+          -e "s|__REVISION_TAG__|${_REVISION_TAG}|g" \
+          deploy/agents/service.yaml > /workspace/service.rendered.yaml
+        cat /workspace/service.rendered.yaml
+        gcloud run services replace /workspace/service.rendered.yaml \
+          --region=${_REGION} \
+          --quiet
+
+  # ---------------------------------------------------------------------------
+  # 5. Smoke test the Cloud Run revision before declaring success.
+  # ---------------------------------------------------------------------------
+  - id: smoke-test-run
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    waitFor: ["render-and-deploy-run"]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        URL=$$(gcloud run services describe ss-agents \
+          --region=${_REGION} --format='value(status.url)')
+        echo "Service URL: $$URL"
+        for i in 1 2 3 4 5; do
+          if curl -fsS "$$URL/healthz" -o /workspace/healthz.json; then
+            echo "healthz OK (attempt $$i)"
+            cat /workspace/healthz.json
+            exit 0
+          fi
+          sleep 5
+        done
+        echo "Smoke test failed after 5 attempts" >&2
+        exit 1
+
+  # ---------------------------------------------------------------------------
+  # 6. Deploy each agent to Vertex AI Agent Runtime (D17).
+  #    The script writes per-agent URLs into Terraform tfvars format so the
+  #    D42 wire-up (terraform output -> Workflows YAML) picks them up.
+  # ---------------------------------------------------------------------------
+  - id: deploy-agent-runtime
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    waitFor: ["smoke-test-run"]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        # Install Python ADK CLI so `adk deploy agent_engine` is available.
+        pip install --quiet "google-cloud-aiplatform[adk,agent_engines]>=1.95" "google-adk>=1.3,<2"
+        export PROJECT_ID=${_PROJECT_ID}
+        export REGION=${_REGION}
+        export REVISION_TAG=${_REVISION_TAG}
+        export IMAGE_URI=${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-agents/agents:${SHORT_SHA}
+        bash deploy/agents/agent-runtime-deploy.sh
+
+  # ---------------------------------------------------------------------------
+  # 7. Upload the generated tfvars artifact (terraform.auto.tfvars) so the
+  #    follow-up `terraform apply` step can wire agent URLs into Workflows.
+  # ---------------------------------------------------------------------------
+  - id: upload-tfvars
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    waitFor: ["deploy-agent-runtime"]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        if [ -f /workspace/agent-urls.auto.tfvars ]; then
+          gsutil cp /workspace/agent-urls.auto.tfvars \
+            gs://${_PROJECT_ID}-tfstate/agent-urls/${SHORT_SHA}.auto.tfvars
+          gsutil cp /workspace/agent-urls.auto.tfvars \
+            gs://${_PROJECT_ID}-tfstate/agent-urls/latest.auto.tfvars
+        else
+          echo "No tfvars produced (deploy-agent-runtime may be in dry-run mode)"
+        fi
+
+# -----------------------------------------------------------------------------
+# Build outputs + options
+# -----------------------------------------------------------------------------
+images:
+  - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-agents/agents:${SHORT_SHA}
+  - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-agents/agents:${_REVISION_TAG}
+  - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-agents/agents:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  dynamicSubstitutions: true
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
+  machineType: E2_HIGHCPU_8
+
+timeout: 3600s
+
+substitutions:
+  _PROJECT_ID: ss-v2-prod
+  _REGION: us-central1
+  _REVISION_TAG: stable
+  _BUILD_TIMESTAMP: "1970-01-01T00:00:00Z"

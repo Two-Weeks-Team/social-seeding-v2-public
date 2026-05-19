@@ -1,0 +1,45 @@
+# =============================================================================
+# terraform.tfvars.example — dev environment safe defaults
+#
+# Copy to `terraform.tfvars` (DO NOT commit the copy; .gitignore covers it),
+# then fill in operator-specific values. None of the placeholders below are
+# secrets — real secrets travel via Secret Manager (created by the security
+# module) and are referenced by short name only.
+#
+# Decision anchors:
+#   - D13: dev defaults to single-region us-central1 (cost).
+#   - D39: keep CMEK + multi-region OFF in dev — saves ~$300/mo.
+#   - D44: this file is per-env; never share with prod.
+# =============================================================================
+
+# --- Identity ---------------------------------------------------------------
+project_id        = "ss-v2-dev-us"
+project_number    = "<DEV_PROJECT_NUMBER>"          # gcloud projects describe ss-v2-dev-us --format='value(projectNumber)'
+org_id            = "<ORG_ID>"                      # gcloud organizations list
+host_project_id   = "ss-v2-dev-us"                  # dev often single-project (host == workload)
+access_policy_id  = "<ACCESS_POLICY_ID>"            # gcloud access-context-manager policies list
+
+# --- Region wiring ----------------------------------------------------------
+primary_region = "us-central1"
+regions        = ["us-central1"]                    # single region in dev; flip to D13 trio for replication smoke tests
+
+# --- GitHub WIF -------------------------------------------------------------
+github_owner      = "ComBba"
+github_repository = "social-seeding-v2"
+
+# --- IAP / Identity Platform ------------------------------------------------
+iap_brand_support_email = "app.2weeks@gmail.com"
+
+# --- Workstations (networking output once available) ------------------------
+# Leave blank to allow the devops module to read its own default; populate
+# with the networking module's `subnetwork_ids["us-central1"]` once apply order
+# is established.
+workstations_network_self_link    = ""
+workstations_subnetwork_self_link = ""
+
+# --- Observability ----------------------------------------------------------
+email_alert_recipients = ["app.2weeks@gmail.com"]
+billing_account_id     = ""                          # leave empty in dev to skip budget alerts
+
+# --- Bootstrap secret -------------------------------------------------------
+alloydb_initial_password_secret = "alloydb-bootstrap"

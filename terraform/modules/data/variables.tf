@@ -44,19 +44,19 @@ variable "regions" {
     The first region in alphabetical order is treated as the AlloyDB cross-region replica primary.
   EOT
   type = map(object({
-    location                 = string                 # GCP region, e.g. us-central1
-    firestore_location       = string                 # nam5/eur3 multi-region OR single-region (asia-northeast3, etc.)
-    alloydb_cpu_count        = optional(number, 4)    # primary instance vCPU
-    alloydb_replica_cpu      = optional(number, 2)    # read replica vCPU
-    valkey_shard_count       = optional(number, 1)
-    valkey_replica_count     = optional(number, 1)
-    valkey_node_type         = optional(string, "HIGHMEM_MEDIUM")
-    valkey_engine_version    = optional(string, "VALKEY_8_0") # Valkey 8 = vector-search GA per DATA.md §10.3
+    location              = string              # GCP region, e.g. us-central1
+    firestore_location    = string              # nam5/eur3 multi-region OR single-region (asia-northeast3, etc.)
+    alloydb_cpu_count     = optional(number, 4) # primary instance vCPU
+    alloydb_replica_cpu   = optional(number, 2) # read replica vCPU
+    valkey_shard_count    = optional(number, 1)
+    valkey_replica_count  = optional(number, 1)
+    valkey_node_type      = optional(string, "HIGHMEM_MEDIUM")
+    valkey_engine_version = optional(string, "VALKEY_8_0") # Valkey 8 = vector-search GA per DATA.md §10.3
 
-    vector_index_dimensions  = optional(number, 768)  # text-embedding-005 default
-    vector_index_shard_size  = optional(string, "SHARD_SIZE_SMALL")
-    vector_distance_measure  = optional(string, "COSINE_DISTANCE")
-    bigquery_location        = optional(string)       # falls back to location
+    vector_index_dimensions = optional(number, 768) # text-embedding-005 default
+    vector_index_shard_size = optional(string, "SHARD_SIZE_SMALL")
+    vector_distance_measure = optional(string, "COSINE_DISTANCE")
+    bigquery_location       = optional(string) # falls back to location
   }))
 
   validation {
@@ -74,7 +74,7 @@ variable "cmek_keys" {
     one is itself a multi-region key — e.g. in `nam-eur-asia1`).
     Provided by the `security` module's KMS keyrings (D20).
   EOT
-  type = map(string)
+  type        = map(string)
 
   validation {
     condition     = contains(keys(var.cmek_keys), "multi_region")
@@ -98,7 +98,7 @@ variable "vpc_networks" {
     AlloyDB private networking and Memorystore service-connect. The
     `networking` module owns provisioning.
   EOT
-  type = map(string)
+  type        = map(string)
 }
 
 variable "alloydb_initial_password_secret" {
@@ -120,7 +120,7 @@ variable "lifecycle_days" {
 }
 
 variable "vector_index_seed_bucket_suffix" {
-  description = "Suffix for the per-region GCS bucket that holds the Vector Search content-delta-uri seed object. The module creates `${name_prefix}-${region}-${suffix}`."
+  description = "Suffix for the per-region GCS bucket that holds the Vector Search content-delta-uri seed object. The module creates `$${name_prefix}-$${region}-$${suffix}`."
   type        = string
   default     = "vector-seed"
 }

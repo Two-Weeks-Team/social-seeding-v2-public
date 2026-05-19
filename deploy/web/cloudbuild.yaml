@@ -1,0 +1,149 @@
+###############################################################################
+# deploy/web/cloudbuild.yaml — Mission Control (Next.js 16) CI/CD pipeline
+#
+# Cites:
+#   D7  — Containerized everywhere
+#   D13 — 3 regions (us-central1, europe-west1, asia-northeast1)
+#   D17 — Vertex AI Agent Runtime (managed) — Mission Control calls into this
+#   D26 — Mission Control as one of the three UI surfaces
+#   D32 — Cloud Monitoring alerting; service tagged with revision for SLOs
+#   D44 — Per-env root configs; `_REVISION_TAG` lets terraform pin the active
+#         revision via traffic split (canary / rollback)
+#
+# Triggered by:
+#   - Push to `main` of social-seeding-v2 affecting `apps/web/**`, `packages/**`,
+#     or `deploy/web/**`.
+#   - Manual: `gcloud builds submit --config=deploy/web/cloudbuild.yaml \
+#       --substitutions=_PROJECT_ID=ss-v2-prod,_REGION=us-central1,_REVISION_TAG=v1`
+#
+# Output:
+#   - us-central1-docker.pkg.dev/${_PROJECT_ID}/ss-web/web:${COMMIT_SHA}
+#   - us-central1-docker.pkg.dev/${_PROJECT_ID}/ss-web/web:latest
+#   - us-central1-docker.pkg.dev/${_PROJECT_ID}/ss-web/web:${_REVISION_TAG}
+#   - Cloud Run service `ss-web` updated; new revision tagged ${_REVISION_TAG}.
+#
+# Required IAM (on the Cloud Build service account):
+#   - roles/run.developer
+#   - roles/iam.serviceAccountUser
+#   - roles/artifactregistry.writer
+#   - roles/cloudkms.cryptoKeyEncrypterDecrypter   (CMEK on AR, per D20)
+###############################################################################
+
+steps:
+  # ---------------------------------------------------------------------------
+  # 1. Build the Mission Control image (multi-stage, BuildKit, layer cache).
+  # ---------------------------------------------------------------------------
+  - id: build-web
+    name: gcr.io/cloud-builders/docker
+    env:
+      - DOCKER_BUILDKIT=1
+    args:
+      - build
+      - --file=deploy/web/Dockerfile
+      - --tag=${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-web/web:${SHORT_SHA}
+      - --tag=${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-web/web:${_REVISION_TAG}
+      - --tag=${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-web/web:latest
+      - --label=org.opencontainers.image.revision=${COMMIT_SHA}
+      - --label=org.opencontainers.image.created=${_BUILD_TIMESTAMP}
+      - --cache-from=${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-web/web:latest
+      - .
+
+  # ---------------------------------------------------------------------------
+  # 2. Push the image to Artifact Registry (all tags).
+  # ---------------------------------------------------------------------------
+  - id: push-web
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["build-web"]
+    args:
+      - push
+      - --all-tags
+      - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-web/web
+
+  # ---------------------------------------------------------------------------
+  # 3. CVE scan before promoting (Phase 5 Enterprise Standards).
+  # ---------------------------------------------------------------------------
+  - id: scan-web
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    waitFor: ["push-web"]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        gcloud artifacts docker images scan \
+          ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-web/web:${SHORT_SHA} \
+          --location=${_REGION} \
+          --format='value(response.scan)' > /workspace/scan-web.txt
+        echo "Scan ref: $(cat /workspace/scan-web.txt)"
+
+  # ---------------------------------------------------------------------------
+  # 4. Render the service manifest with the new digest, then `replace`.
+  #    `gcloud run services replace` makes the YAML the source of truth.
+  # ---------------------------------------------------------------------------
+  - id: render-and-deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    waitFor: ["scan-web"]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        sed \
+          -e "s|__PROJECT__|${_PROJECT_ID}|g" \
+          -e "s|__REGION__|${_REGION}|g" \
+          -e "s|__SHA__|${SHORT_SHA}|g" \
+          -e "s|__REVISION_TAG__|${_REVISION_TAG}|g" \
+          deploy/web/service.yaml > /workspace/service.rendered.yaml
+        cat /workspace/service.rendered.yaml
+        gcloud run services replace /workspace/service.rendered.yaml \
+          --region=${_REGION} \
+          --quiet
+
+  # ---------------------------------------------------------------------------
+  # 5. Smoke test: revision must serve /api/healthz with 200 before we declare
+  #    success. Cloud Run does its own startup probe but this confirms end-to-
+  #    end reachability through the Cloud Run frontends.
+  # ---------------------------------------------------------------------------
+  - id: smoke-test
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    waitFor: ["render-and-deploy"]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        URL=$$(gcloud run services describe ss-web \
+          --region=${_REGION} --format='value(status.url)')
+        echo "Service URL: $$URL"
+        for i in 1 2 3 4 5; do
+          if curl -fsS "$$URL/api/healthz" -o /workspace/healthz.json; then
+            echo "healthz OK (attempt $$i)"
+            cat /workspace/healthz.json
+            exit 0
+          fi
+          sleep 5
+        done
+        echo "Smoke test failed after 5 attempts" >&2
+        exit 1
+
+# -----------------------------------------------------------------------------
+# Build outputs + options
+# -----------------------------------------------------------------------------
+images:
+  - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-web/web:${SHORT_SHA}
+  - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-web/web:${_REVISION_TAG}
+  - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-web/web:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  dynamicSubstitutions: true
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
+  machineType: E2_HIGHCPU_8
+
+timeout: 1800s
+
+substitutions:
+  _PROJECT_ID: ss-v2-prod
+  _REGION: us-central1
+  _REVISION_TAG: stable
+  _BUILD_TIMESTAMP: "1970-01-01T00:00:00Z"

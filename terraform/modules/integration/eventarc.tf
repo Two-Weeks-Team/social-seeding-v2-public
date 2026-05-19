@@ -18,11 +18,11 @@
 # ── Eventarc Advanced bus ────────────────────────────────────────────────
 
 resource "google_eventarc_message_bus" "main" {
-  provider        = google-beta
-  message_bus_id  = "ss-v2-bus"
-  location        = var.primary_region
-  project         = var.project_id
-  display_name    = "Social Seeding v2 system bus (D18)"
+  provider       = google-beta
+  message_bus_id = "ss-v2-bus"
+  location       = var.primary_region
+  project        = var.project_id
+  display_name   = "Social Seeding v2 system bus (D18)"
   logging_config {
     log_severity = "INFO"
   }
@@ -63,9 +63,9 @@ resource "google_eventarc_pipeline" "workflow_destinations" {
   }
 
   retry_policy {
-    max_attempts          = 5
-    min_retry_delay       = "10s"
-    max_retry_delay       = "600s"
+    max_attempts    = 5
+    min_retry_delay = "10s"
+    max_retry_delay = "600s"
   }
 
   logging_config {
@@ -116,12 +116,47 @@ resource "google_eventarc_enrollment" "enrollments" {
 # URL as an output and let the compute module deploy the forwarder.)
 
 # ── IAM: who can publish to the bus ──────────────────────────────────────
+#
+# DEFERRED: hashicorp/google-beta v6.50 does not yet expose
+# `google_eventarc_message_bus_iam_member` / `_iam_binding` / `_iam_policy`.
+# Until the provider ships these resources, the IAM grant is applied via a
+# `null_resource` shim calling `gcloud eventarc message-buses
+# add-iam-policy-binding`. This preserves the original bus-scoped grant
+# (instead of widening to project-level publisher, which would over-grant).
+# See BN-11 + D18. When the IAM resources land, restore the native form via
+# `moved` blocks.
 
-resource "google_eventarc_message_bus_iam_member" "publishers" {
-  provider     = google-beta
-  message_bus_id = google_eventarc_message_bus.main.message_bus_id
-  location     = var.primary_region
-  project      = var.project_id
-  role         = "roles/eventarc.publisher"
-  member       = "serviceAccount:${var.pubsub_publisher_sa_email}"
+resource "null_resource" "message_bus_publisher_iam" {
+  triggers = {
+    project        = var.project_id
+    location       = var.primary_region
+    message_bus_id = google_eventarc_message_bus.main.message_bus_id
+    member         = "serviceAccount:${var.pubsub_publisher_sa_email}"
+    role           = "roles/eventarc.publisher"
+    d_id           = "D18"
+  }
+
+  provisioner "local-exec" {
+    when    = create
+    command = <<-EOT
+      gcloud eventarc message-buses add-iam-policy-binding ${self.triggers.message_bus_id} \
+        --location=${self.triggers.location} \
+        --project=${self.triggers.project} \
+        --member=${self.triggers.member} \
+        --role=${self.triggers.role}
+    EOT
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<-EOT
+      gcloud eventarc message-buses remove-iam-policy-binding ${self.triggers.message_bus_id} \
+        --location=${self.triggers.location} \
+        --project=${self.triggers.project} \
+        --member=${self.triggers.member} \
+        --role=${self.triggers.role} || true
+    EOT
+  }
+
+  depends_on = [google_eventarc_message_bus.main]
 }
