@@ -1,0 +1,108 @@
+{
+  "_meta": {
+    "purpose": "ROI-vs-agency comparison data for the demo's Business 30% scene — renders cost bars + labor-saved. Numbers match scripts/demo/submission/BUSINESS-CASE.md §2.4 exactly.",
+    "authority": "BUSINESS-CASE.md (Track 3 Business 30%); D28 ($0.01/view price), D39/D46 (cost envelope), D3 (A2A distribution), D12 (multi-tenant).",
+    "honesty_note": "agency_cost_usd is the agency MANAGEMENT-FEE line only (creator media spend is identical pass-through in both columns and is excluded from the delta). social_seeding_cost_usd is our GCP compute cost-of-goods (NOT the $0.01/view price, which is revenue). Savings % compares the management layer to machine compute. Agency fees are CITED benchmarks; Social Seeding costs are DERIVED from COST-PLAN.md §2 + committed per-call USD constants. 20x creator fan-out is a labeled assumption. No invented customers/LOIs/signups; design-partner program is open with zero validated signups (pre-launch).",
+    "currency": "USD",
+    "creator_media_spend_passthrough_usd": 12000.0,
+    "creator_media_spend_note": "20 creators x $600 (CITED TikTok micro rate $200-$1,500). Identical in both columns; excluded from savings delta.",
+    "generated_at_utc": "2026-05-20T00:00:00+00:00"
+  },
+  "scenarios": [
+    {
+      "scenario": "20-creator KR skincare (headline, % model)",
+      "headline": true,
+      "agency_cost_usd": 2400.0,
+      "agency_cost_formula": "20% (midpoint of CITED 15-30% of-creator-spend agency model) x $12,000 creator spend",
+      "social_seeding_cost_usd": 7.40,
+      "social_seeding_cost_formula": "$0.62 full loop (COST-PLAN.md §2, Gemini 3.1 Pro) + $6.40 20-creator fan-out + $0.30 capability tool calls (real code constants) + $0.08 amortized infra",
+      "savings_pct": 99.7,
+      "labor_hours_saved": 43,
+      "labor_hours_formula": "45h manual (CITED: 20h find + 10h vet + 15h outreach) -> ~2h human review (AP2 + escalation gates, D27)",
+      "sources": [
+        "https://almcorp.com/blog/influencer-pay-transparency-agency-fees-creator-rates-2026/",
+        "https://digitalagencynetwork.com/influencer-marketing-agency-pricing-guide/",
+        "https://www.shopclawmart.com/blog/automate-influencer-outreach-personalization-ai",
+        "https://influenceflow.io/resources/influencer-marketing-automation-tools-the-complete-2026-guide-7/",
+        "internal: gcp-research/cost-planning/COST-PLAN.md §2"
+      ]
+    },
+    {
+      "scenario": "20-creator (alternate, project-fee model)",
+      "headline": false,
+      "agency_cost_usd": 5000.0,
+      "agency_cost_formula": "CITED project-fee floor for a small campaign ($5,000-$50,000); shown as alternate, not headline (we use the lower % model to avoid inflating the delta)",
+      "social_seeding_cost_usd": 7.40,
+      "social_seeding_cost_formula": "same as headline scenario",
+      "savings_pct": 99.9,
+      "labor_hours_saved": 43,
+      "labor_hours_formula": "same as headline scenario",
+      "sources": [
+        "https://www.favikon.com/blog/how-much-influencer-marketing-agencies-charge",
+        "internal: gcp-research/cost-planning/COST-PLAN.md §2"
+      ]
+    },
+    {
+      "scenario": "5-creator boutique pilot",
+      "headline": false,
+      "agency_cost_usd": 1500.0,
+      "agency_cost_formula": "CITED boutique micro-agency retainer $3,000-$8,000/mo covering 3-5 campaigns -> ~$1,500/campaign",
+      "social_seeding_cost_usd": 2.30,
+      "social_seeding_cost_formula": "$0.62 loop + 5 x $0.32 per-creator fan-out + ~$0.08 infra",
+      "savings_pct": 99.8,
+      "labor_hours_saved": 10,
+      "labor_hours_formula": "CITED 0.5 FTE-hr/creator x 5 + setup ~= 12h -> ~2h review",
+      "sources": [
+        "https://www.favikon.com/blog/how-much-influencer-marketing-agencies-charge",
+        "https://influenceflow.io/resources/influencer-marketing-automation-tools-the-complete-2026-guide-7/",
+        "internal: gcp-research/cost-planning/COST-PLAN.md §2"
+      ]
+    },
+    {
+      "scenario": "50-creator scale program",
+      "headline": false,
+      "agency_cost_usd": 15000.0,
+      "agency_cost_formula": "CITED full-service retainer $15,000/mo for 10-20 creators, applied as the realistic 50-creator-program fee",
+      "social_seeding_cost_usd": 17.10,
+      "social_seeding_cost_formula": "$0.62 loop + 50 x $0.32 per-creator fan-out + ~$0.50 infra/tool calls",
+      "savings_pct": 99.9,
+      "labor_hours_saved": 123,
+      "labor_hours_formula": "CITED 50 x 0.5 FTE-hr + vetting-heavy programs reported at ~100h+ at scale -> ~2h review",
+      "sources": [
+        "https://www.favikon.com/blog/how-much-influencer-marketing-agencies-charge",
+        "https://sproutsocial.com/insights/influencer-vetting-process/",
+        "https://influenceflow.io/resources/influencer-marketing-automation-tools-the-complete-2026-guide-7/",
+        "internal: gcp-research/cost-planning/COST-PLAN.md §2"
+      ]
+    }
+  ],
+  "unit_economics": {
+    "price_per_view_usd": 0.01,
+    "price_per_view_basis": "D28; $10 effective CPM, within CITED TikTok CPM band $4.8-$13.26",
+    "example_views": 1000000,
+    "example_views_basis": "ASSUMPTION: 20 creators x 50k avg views (conservative micro tier)",
+    "example_revenue_usd": 10000.0,
+    "example_cost_of_goods_usd": 7.40,
+    "gross_margin_pct": 99.9,
+    "gross_margin_note": "cost-of-goods margin only; excludes CAC, support, our-side review labor, and creator pay (which is the brand's spend). DERIVED, not net margin.",
+    "cpm_benchmark_sources": [
+      "https://lebesgue.io/tiktok-ads/tiktok-ads-benchmarks-for-ctr-cr-and-cpm",
+      "https://www.triplewhale.com/blog/tiktok-benchmarks",
+      "https://www.scrumball.com/blog/tiktok-cpm-rates"
+    ]
+  },
+  "market_sizing": {
+    "tam_usd": 1150000000,
+    "tam_basis": "CITED influencer-marketing PLATFORM/software segment $1.15B (2026), MarketsandMarkets — conservative vs $27.5B-$37.3B total media spend",
+    "sam_usd": 144000000,
+    "sam_basis": "DERIVED: ~80,000 target brands (ASSUMPTION) x $1,800/yr software ARPM; ~12.5% of platform TAM",
+    "som_3yr_arr_usd": 540000,
+    "som_basis": "DERIVED: 3,000 reachable beachhead brands (KR/JP/EN, ASSUMPTION) x 1% capture x ~$18k blended annual = ~$540k ARR",
+    "validation_status": "pre-launch; zero validated signups; design-partner program open but uncommitted. TAM cited; SAM/SOM brand counts are labeled assumptions (weakest links).",
+    "sources": [
+      "https://www.marketsandmarkets.com/Market-Reports/influencer-marketing-platform-market-294138.html",
+      "https://www.thebusinessresearchcompany.com/report/influencer-marketing-platform-global-market-report",
+      "https://www.statista.com/topics/2496/influence-marketing/"
+    ]
+  }
+}
