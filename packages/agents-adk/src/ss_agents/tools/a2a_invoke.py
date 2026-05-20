@@ -41,8 +41,10 @@ A2A v0.3 wire format (verified via Context7 `/websites/a2a-protocol` —
 """
 from __future__ import annotations
 
+import ipaddress
 import logging
 import os
+import socket
 import time
 from typing import Any
 from urllib.parse import urljoin, urlparse
@@ -77,6 +79,148 @@ Surfaced via `a2a_invoke.usd_cost` for `cost_watch` (D41)."""
 _STUB_ENDPOINT_PREFIX: str = "https://stub.local/agent/"
 """Endpoints under this prefix MUST succeed deterministically in stub mode.
 Anything else raises so tests fail fast on typos."""
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SSRF guard for the LIVE hop (D44 Agent Gateway egress control).
+#
+# `remote_agent_endpoint` ultimately derives from the coordinator's routing
+# decision / workspace config (D23). A compromised, mis-configured, or
+# *hallucinated* endpoint could point the live POST at the GCP metadata server
+# (169.254.169.254), localhost, or an RFC1918 internal host — classic SSRF. We
+# validate the host BEFORE the POST: resolve it, and reject any address that
+# lands in a blocked range unless the host suffix is explicitly allowlisted.
+#
+# Per D44, the Agent Gateway is the eventual egress-control plane; until O7
+# (Private-Preview allowlist) lands, this in-process allow/deny is the live
+# guard. Cite: D44 (Agent Gateway / egress), D23 (coordinator routing source),
+# D32 (Chronicle SIEM — a block is an audit-worthy security signal).
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Default allowlisted host suffixes. `.run.app` is the Cloud Run A2A surface;
+# the explicit ss-mcp Cloud Run host + the prod DNS name are the canonical
+# Track-3 endpoints (deployment/agent.json `additionalInterfaces`). Operators
+# extend / override via the `A2A_ALLOWED_HOSTS` env var (comma-separated
+# suffixes). Matching is case-insensitive suffix matching on the hostname.
+_DEFAULT_ALLOWED_HOST_SUFFIXES: tuple[str, ...] = (
+    ".run.app",
+    "mcp.socialseed.ing",
+    "ss-mcp-server-1049119860518.us-central1.run.app",
+)
+
+
+def _allowed_host_suffixes() -> tuple[str, ...]:
+    """Resolve the effective allowlist of host suffixes.
+
+    `A2A_ALLOWED_HOSTS` (comma-separated) OVERRIDES the default when set to a
+    non-empty value, so an operator can both widen and narrow the surface. An
+    unset / blank var falls back to `_DEFAULT_ALLOWED_HOST_SUFFIXES`.
+    """
+    raw = os.getenv("A2A_ALLOWED_HOSTS", "").strip()
+    if not raw:
+        return _DEFAULT_ALLOWED_HOST_SUFFIXES
+    suffixes = tuple(s.strip().lower() for s in raw.split(",") if s.strip())
+    return suffixes or _DEFAULT_ALLOWED_HOST_SUFFIXES
+
+
+def _host_is_allowlisted(host: str) -> bool:
+    """True when `host` ends with an allowlisted suffix (case-insensitive)."""
+    h = host.lower().rstrip(".")
+    for suffix in _allowed_host_suffixes():
+        s = suffix.lower()
+        if h == s or h.endswith(s if s.startswith(".") else f".{s}") or h == s.lstrip("."):
+            return True
+    return False
+
+
+def _ip_is_blocked(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> str | None:
+    """Return a human reason string when `ip` falls in a blocked range, else None.
+
+    Blocks (SSRF defense): link-local (incl. metadata 169.254.169.254),
+    loopback, RFC1918 / unique-local-IPv6 private, unspecified (0.0.0.0 / ::),
+    and reserved/multicast. These cover the metadata server + internal-host
+    pivots an attacker would aim for.
+    """
+    if ip.is_link_local:  # 169.254.0.0/16 (incl. metadata), fe80::/10
+        return "link_local"
+    if ip.is_loopback:  # 127.0.0.0/8, ::1
+        return "loopback"
+    if ip.is_private:  # 10/8, 172.16/12, 192.168/16, fc00::/7
+        return "private"
+    if ip.is_unspecified:  # 0.0.0.0, ::
+        return "unspecified"
+    if ip.is_multicast or ip.is_reserved:
+        return "reserved"
+    return None
+
+
+def _validate_live_host(endpoint: HttpUrl) -> str | None:
+    """SSRF pre-flight for the live hop. Return a reason string when the
+    endpoint must be blocked, else None (safe to proceed).
+
+    Logic (fail-closed):
+      1. Extract the hostname. Missing host ⇒ block.
+      2. If the host is a raw IP literal: block it UNLESS the host is on the
+         allowlist (an operator can opt a specific IP in via A2A_ALLOWED_HOSTS),
+         AND the IP itself is not in a blocked range.
+      3. For DNS hostnames: the host suffix MUST be on the allowlist (default
+         `.run.app` etc.). Then resolve the name and reject if ANY resolved
+         address is in a blocked range (defends against DNS-rebinding to the
+         extent a single resolution can). Resolution failure ⇒ block (closed).
+    """
+    host = (endpoint.host or "").strip()
+    if not host:
+        return "no_host"
+
+    # Bracketed IPv6 literals arrive without brackets via HttpUrl.host.
+    parsed_ip: ipaddress.IPv4Address | ipaddress.IPv6Address | None = None
+    try:
+        parsed_ip = ipaddress.ip_address(host)
+    except ValueError:
+        parsed_ip = None
+
+    allowlisted = _host_is_allowlisted(host)
+
+    if parsed_ip is not None:
+        # Raw-IP host: a dangerous range (metadata/loopback/private/…) is
+        # ALWAYS blocked with its specific reason — even an allowlist entry can
+        # not opt a metadata IP back in. Otherwise a raw IP is blocked unless
+        # the operator explicitly allowlisted it.
+        blocked = _ip_is_blocked(parsed_ip)
+        if blocked:
+            return f"raw_ip_{blocked}"
+        if not allowlisted:
+            return "raw_ip_not_allowlisted"
+        return None
+
+    # DNS hostname: enforce the suffix allowlist first.
+    if not allowlisted:
+        return "host_not_allowlisted"
+
+    # Resolve and reject if any resolved address is in a blocked range. Fail
+    # closed on resolution failure (an unresolvable allowlisted host is more
+    # likely a misconfig / rebinding attempt than a legitimate target).
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError as exc:
+        logger.warning(
+            "a2a_invoke_ssrf_resolution_failed",
+            extra={"host": host, "error": str(exc)},
+        )
+        return "resolution_failed"
+
+    for info in infos:
+        sockaddr = info[4]
+        addr_str = sockaddr[0]
+        try:
+            resolved = ipaddress.ip_address(addr_str.split("%", 1)[0])
+        except ValueError:
+            continue
+        blocked = _ip_is_blocked(resolved)
+        if blocked:
+            return f"resolved_{blocked}"
+
+    return None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -331,7 +475,28 @@ def _live(payload: A2AInvokeInput) -> A2AInvokeOutput:
       5. Surface transport / 4xx / 5xx failures as `succeeded=False,
          error="<code>: <msg>"` — never raise (the coordinator treats a failed
          hop as a routing signal).
+
+    SSRF guard (D44 Agent Gateway egress / D32 SIEM signal): before any network
+    egress we validate the endpoint host against the allow/deny rules
+    (`_validate_live_host`). A blocked endpoint returns
+    `succeeded=False, error="ssrf_blocked: <reason>"` — we DO NOT raise, so the
+    coordinator sees it as a failed hop / routing signal exactly like a
+    transport error (matching the existing failure convention).
     """
+    start_guard = time.monotonic()
+    ssrf_reason = _validate_live_host(payload.remote_agent_endpoint)
+    if ssrf_reason is not None:
+        logger.warning(
+            "a2a_invoke_ssrf_blocked",
+            extra={
+                "endpoint": str(payload.remote_agent_endpoint),
+                "host": payload.remote_agent_endpoint.host,
+                "reason": ssrf_reason,
+                "correlation_id": payload.correlation_id,
+            },
+        )
+        return _live_failure(start_guard, f"ssrf_blocked: {ssrf_reason}")
+
     base = str(payload.remote_agent_endpoint)
     # urljoin needs a trailing slash on the base to append a relative path
     # without clobbering the last segment.
