@@ -29,7 +29,7 @@
 
 ---
 
-## 2. Decisions of record (49)
+## 2. Decisions of record (51)
 
 Status legend: ✅ active · 🔁 superseded · ⏸ deferred · ❓ outstanding
 
@@ -156,6 +156,16 @@ Status legend: ✅ active · 🔁 superseded · ⏸ deferred · ❓ outstanding
 | ID | Decision | Source | Status | Implication |
 |---|---|---|---|---|
 | **D50** | **Single grand-narrative Track 3 submission targeting the Grand Prize** — do NOT split into two. Fuse Build→Optimize→Refactor into one arc. The Track 2 (Optimize) signature toolchain (Agent Simulation + Observability + Optimizer + measured before/after) is FOLDED IN as the Technical-30% "we hardened it" chapter of the Track 3 entry, NOT a separate Devpost submission. Rationale: each project wins max 1 prize, so one overwhelming entry aimed at the Grand Prize ($15K+$10K, top overall) beats two diluted theme bets. Reaffirms D45, supersedes the dual-submission option explored this session. | official Rules PDF + user 2026-05-20 | ✅ | `GRAND-NARRATIVE-PLAN.md`. Adds G1-G5 (gap-closing from 4-expert review: A2A wiring, Model Garden real, honesty fixes, CI, SSRF/prompt_guard) + H1-H5 (the Optimize "hardening" chapter). Demo's top wow scene = Observability "stall→fix" trace = Technical evidence. |
+
+---
+
+### Round 14 — Grand-narrative gap-closing executed (D51)
+
+> Source: autonomous `/goal` session 2026-05-20 executing `GRAND-NARRATIVE-PLAN.md` G1-G5 + H1-H5. Records the honest scope of what was built so a later session does not over-read the demo's headline metrics.
+
+| ID | Decision | Source | Status | Implication |
+|---|---|---|---|---|
+| **D51** | **G/H-series closed; the Optimize "hardening" before/after is a LOCAL DETERMINISTIC pass, not a live Vertex run.** The 42.3%→100.0% (+57.7pp, 26-case multilingual synthetic set) triage before/after is measured by a committed, re-runnable offline script (`scripts/smoke-test/run-hardening-measure.sh`); the live Vertex AI Agent Optimizer remains stubbed (`agent_optimizer_tune` live = NotImplementedError, W7-deferred) and is disclosed as such everywhere it appears. A2A is now wired into the **brand-campaign Cloud Workflow** orchestration (coordinator routing → transport switch → `a2a_invoke` → tiktok-mcp), validated live (task completed, ~3.7s, 5 creators). Model Garden routing proven by an offline test asserting the publisher path reaches `LlmAgent` (live smoke operator-gated). Honesty corrections: `a2a_invoke._live()` is implemented (doc was stale); mTLS is **declared-not-enforced** on the demo (`x-securityPosture` in `agent.json`); `REQUIRE_AUTH` = code-default `true` / demo `false` / prod `true`. CI restored with an offline pytest gate + a golden-set **holdout** gate (train 100% / holdout 75%, +25% gap left visible as an honest generalization finding). SSRF host-allowlist added to the live A2A hop. | autonomous /goal session (Wave A-E) | ✅ | Implements D45/D47/D48/D49/D50 + D21/D23/D25/D27/D32/D37/D44. No new live GCP capability is claimed beyond what a re-runnable proof demonstrates. |
 
 ---
 
@@ -338,3 +348,4 @@ Per user directive 2026-05-19 ("실제 코드를 적용하기 전에 반드시 �
 | 2026-05-20 | D48 | A2A intents manifest + Agent Identity crypto ID (Track 3 req #6) | designed_guide.pdf + user |
 | 2026-05-20 | D49 | Wow + business reinforcement for Demo 20% + Business 30% | designed_guide.pdf + user |
 | 2026-05-20 | D50 | Single grand-narrative Track 3 (Grand Prize); dual submission rejected; Optimize folded in as Technical evidence | official Rules PDF + user |
+| 2026-05-20 | D51 | G/H-series closed; hardening before/after is local-deterministic (live Optimizer stubbed); A2A wired into Cloud Workflow; honesty fixes; CI+holdout gate; SSRF allowlist | autonomous /goal session |
