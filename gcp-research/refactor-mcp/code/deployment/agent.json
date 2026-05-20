@@ -56,8 +56,25 @@
     },
     "mutualTLS": {
       "type": "mutualTLS",
-      "description": "A2A v0.3 mutual-TLS — peers authenticate by client certificate at the transport layer (no identity in the payload). The agent presents the workload-identity client cert tied to the SPIFFE ID in `identity` below. AGENT identity — proves who this agent is. See AGENT-IDENTITY.md."
+      "description": "A2A v0.3 mutual-TLS — peers authenticate by client certificate at the transport layer (no identity in the payload). The agent presents the workload-identity client cert tied to the SPIFFE ID in `identity` below. AGENT identity — proves who this agent is. DECLARED/INTENDED posture: NOT YET ENFORCED on the demo deployment (the live Cloud Run service runs REQUIRE_AUTH=false and no mTLS); enforcement is pending the O7 Agent Gateway Private-Preview allowlist. See AGENT-IDENTITY.md §7 + x-securityPosture below.",
+      "x-enforcementStatus": "declared-not-enforced"
     }
+  },
+
+  "x-securityPosture": {
+    "_comment": "Honest, non-secret disclosure per RULES.md Professional Honesty + AGENT-IDENTITY.md §7. The mutualTLS scheme and the `identity` block are the DECLARED/INTENDED posture; the demo deployment does not yet enforce them. Authority: DECISIONS.md D44 (Agent Gateway / Agent Identity), D48 (crypto ID), D32 (audit/SIEM), D7 (timeline).",
+    "intendedPosture": "mutualTLS (A2A v0.3 transport-layer client-cert auth) + SPIFFE workload identity + caller OIDC/OAuth",
+    "demoDeployment": {
+      "mtlsEnforced": false,
+      "requireAuth": false,
+      "note": "The Track-3 demo Cloud Run service (ss-mcp-prod, us-central1) intentionally runs REQUIRE_AUTH=false with no mTLS so the open A2A demo is reachable without provisioning the caller/identity plane. Callers reach plan_creator_search without presenting a client cert or bearer token today."
+    },
+    "productionPosture": {
+      "requireAuth": true,
+      "note": "Production sets REQUIRE_AUTH=true (cloud-run-service.yaml) and verifies caller OIDC/OAuth per request; mutualTLS transport enforcement is pending O7 Agent Gateway Private-Preview allowlist (DECISIONS.md §6 O7)."
+    },
+    "enforcementPendingOn": "O7 — Agent Gateway Private-Preview allowlist (DECISIONS.md §6)",
+    "references": ["gcp-research/refactor-mcp/AGENT-IDENTITY.md", "gcp-research/decisions/DECISIONS.md (D44, D48, D32, D7)"]
   },
 
   "security": [

@@ -57,10 +57,16 @@ Three candidate mechanisms, evaluated against the PDF's "unique cryptographic ID
 | **C. Identity Platform OIDC as the agent ID** | Reuse the OIDC the agent already verifies for callers | No new component | OIDC here authenticates *callers/customers* (D19), not the *agent's own* identity — conflating the two breaks the auth segmentation rule | Rejected for *agent* identity (kept for *caller* auth — see §4) |
 
 Option A also composes cleanly with the **Track-2 `a2a_invoke` capability**, whose
-live path already states it will *"Acquire a SPIFFE identity token (D44 Agent
-Identity)"* before posting through Agent Gateway
-(`packages/agents-adk/src/ss_agents/tools/a2a_invoke.py` `_live()`). Picking SPIFFE
-here means caller and callee speak the same identity language end-to-end.
+live path is **implemented** (`packages/agents-adk/src/ss_agents/tools/a2a_invoke.py`
+`_live()` — real `httpx.post` of the A2A v0.3 envelope to `<endpoint>/v1/message:send`,
+bounded retry, task-envelope parsing). Identity-token attachment is **implemented but
+opt-in**: `_identity_token()` acquires a SPIFFE/Agent-Identity workload token only when
+`A2A_IDENTITY_TOKEN` is set or `A2A_FETCH_ID_TOKEN=1` (ADC fetch for the endpoint
+audience); otherwise it returns `None` and the hop proceeds with **no** `Authorization`
+header — because today's Cloud Run demo callee is unauthenticated (transport-layer mTLS
+enforcement is the post-O7 step, D44 Agent Gateway). Picking SPIFFE here means that once
+identity attachment is switched on (opt-in flag) and mTLS is enforced (O7), caller and
+callee already speak the same identity language end-to-end.
 
 ---
 
@@ -167,14 +173,18 @@ cryptographic agent ID + a verifiable, retained trail of who invoked which inten
 | SPIFFE-format ID declared in `agent.json` | **Done (this task)** | `agent.json` `identity` block |
 | `mutualTLS` security scheme in card | **Done (this task)** | `agent.json` `securitySchemes.mutualTLS` |
 | Caller OIDC/OAuth verification | **Shipped** | `identity_platform.py` |
-| `a2a_invoke` presenting the SPIFFE token on egress | **Designed, live-wiring in W7** | `a2a_invoke.py` `_live()` (currently `NotImplementedError` in stub mode) |
+| `a2a_invoke` live A2A egress (POST `/v1/message:send`) | **Implemented** | `a2a_invoke.py` `_live()` — real `httpx.post`, A2A v0.3 envelope, bounded retry, task-envelope parsing (D45) |
+| SPIFFE/identity-token attachment on egress | **Implemented but disabled by default** | `a2a_invoke.py` `_identity_token()` — attaches a `Bearer` token only when `A2A_IDENTITY_TOKEN` is set OR `A2A_FETCH_ID_TOKEN=1` (ADC); otherwise no `Authorization` header (the demo callee is unauthenticated today) |
+| Transport-layer mTLS enforcement (Agent Gateway) | **Pending O7 Private-Preview allowlist** | DECISIONS.md §6 O7; the demo Cloud Run callee accepts unauthenticated requests until then |
 | JWS-signed card (`signatures[]`) | **Optional / deferred** | requires a signing key + JWKS endpoint; the card is structurally ready (field is A2A v0.3-standard) |
-| Agent Gateway mTLS enforcement | **Pending Private-Preview allowlist** | DECISIONS.md §6 O7 |
 
 The cryptographic ID is **assigned and published now** (workload-identity SA +
-SPIFFE string in the card); the transport-layer *enforcement* (Agent Gateway mTLS,
-JWS card signing) lands as the surrounding GCP services come online. No claim of
-"production-enforced mTLS" is made until O7 clears.
+SPIFFE string in the card), and the **live A2A egress hop is implemented** (`_live()`).
+What is *not* yet on by default: the egress hop attaches a SPIFFE/identity token only
+when explicitly opted in (`A2A_IDENTITY_TOKEN` / `A2A_FETCH_ID_TOKEN=1`), and the
+transport-layer *enforcement* (Agent Gateway mTLS, JWS card signing) lands as the
+surrounding GCP services come online (O7, D44). Today the demo Cloud Run callee accepts
+unauthenticated requests. No claim of "production-enforced mTLS" is made until O7 clears.
 
 ---
 

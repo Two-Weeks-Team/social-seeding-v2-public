@@ -96,7 +96,7 @@ MCP_BASE_URL=http://localhost:8100 pytest -q -m integration
 | `MODEL_ARMOR_FAIL_MODE` | no | `closed` | `closed` / `open` (audit toggle only) |
 | `ADK_FLASH_MODEL` | no | `gemini-2.5-flash` | Cheap routing model |
 | `ADK_PRO_MODEL` | no | `gemini-2.5-pro` | Ranker model |
-| `REQUIRE_AUTH` | no | `true` | Disable for local dev / smoke tests |
+| `REQUIRE_AUTH` | no | `true` | Code default is the secure `true` (verify caller OIDC/OAuth per request). The Track-3 **open-demo image** (`Dockerfile`) overrides this to `false` for unauthenticated A2A reachability; production (`deployment/cloud-run-service.yaml`) keeps it `true`. mTLS enforcement pending O7. Single source of truth for the demo-vs-prod posture: `deployment/agent.json` `x-securityPosture` (DECISIONS.md D44, D7). |
 | `IDENTITY_PLATFORM_STUB` | tests | `0` | Stub mode for the verifier |
 | `MODEL_ARMOR_STUB` | tests | `0` | Stub mode for the sanitizer |
 | `ADK_DISABLED` | tests | `0` | Force the heuristic ranker path |
