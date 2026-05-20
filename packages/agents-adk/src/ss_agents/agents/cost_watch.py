@@ -478,6 +478,255 @@ def evaluate_cost_watch(payload: CostWatchInput) -> CostWatchOutput:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# D46 cost-guard wiring — billing.query → threshold ladder → pubsub.alert →
+# (≥90%) runbook_execute("scale_down").
+#
+# `evaluate_cost_watch()` above is the PURE rule layer (no I/O). This section
+# is the ORCHESTRATION the I4 brief asks for: it fetches a live (or stubbed)
+# billing rollup, runs the rule layer, publishes one Pub/Sub alert per banner
+# crossing, and at the 90% threshold auto-triggers the `scale_down` runbook
+# that forces every essential Cloud Run service back to min=0 (D46).
+#
+# The three capabilities are imported lazily inside the function so the pure
+# `evaluate_cost_watch` path keeps zero import-time coupling to the I/O tools
+# (and so a caller that only wants the rule layer never pays the cost of
+# pulling the runbook client into scope).
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+# The threshold at which the cost-guard escalates from "alert only" to
+# "alert + auto scale-down". Per the I4 brief: "90%서 runbook_execute('scale_down')
+# 자동 트리거". Kept as a module constant so the test and the guard agree.
+SCALE_DOWN_TRIGGER_PERCENT: float = 90.0
+
+# pubsub_alert only accepts the 50/75/90/95 banner ladder (not 100/110). The
+# 100+% over-limit case goes on a different topic (watchdog.cost.budget_exceeded)
+# per pubsub_alert.py; the guard maps those crossings to scale_down + an
+# over-limit log, not to a banner alert.
+_BANNER_ALERT_KIND_BY_THRESHOLD: dict[int, str] = {
+    50: "budget_50",
+    75: "budget_75",
+    90: "budget_90",
+    95: "budget_95",
+}
+
+# Operator identity stamped on the auto-triggered runbook's audit trail. The
+# guard fires autonomously (no human in the loop at 90%), so the audit line
+# must make that explicit rather than impersonating a person.
+_GUARD_ACTOR: str = "cost_watch-autoscale-guard@system"
+
+
+class CostGuardResult(BaseModel):
+    """Outcome of one `cost_guard()` tick — what was observed and what fired.
+
+    This is the guard's audit record: the rule output it computed, the
+    Pub/Sub message ids it published (one per banner crossing), and the
+    scale_down runbook execution id when the 90% trigger fired (None when
+    it didn't). Deterministic in stub mode, so the unit test can pin every
+    field.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    evaluation: CostWatchOutput
+    """The full rule-layer output for this tick."""
+
+    alert_message_ids: list[str] = Field(default_factory=list)
+    """One Pub/Sub message id per banner crossing (50/75/90/95) published."""
+
+    scale_down_triggered: bool = False
+    """True iff spend reached SCALE_DOWN_TRIGGER_PERCENT and the scale_down
+    runbook was invoked."""
+
+    scale_down_execution_id: str | None = None
+    """The runbook execution id when scale_down fired; None otherwise."""
+
+
+def cost_guard(
+    payload: CostWatchInput,
+    *,
+    dry_run: bool = True,
+) -> CostGuardResult:
+    """Wire the cost-watch tools into one auto-scale guard tick (D46).
+
+    Pipeline:
+        1. `evaluate_cost_watch(payload)` — deterministic threshold ladder
+           against the pre-fetched `payload.billing_snapshot`. (The caller
+           — or `cost_guard_from_billing` below — does the `billing_query`
+           read; this function takes the snapshot so it stays testable
+           without the BigQuery seam.)
+        2. For each NEWLY-crossed banner threshold (50/75/90/95), publish a
+           `pubsub_alert` onto `watchdog.cost.threshold_crossed`.
+        3. If spend reached `SCALE_DOWN_TRIGGER_PERCENT` (90%) on this tick
+           — i.e. the 90 crossing fired now — invoke
+           `runbook_execute("scale_down")` to force every essential Cloud
+           Run service back to min=0.
+
+    Safety:
+        `dry_run` defaults to True. In stub capability mode the runbook is
+        ALWAYS a dry run regardless (runbook_execute forces it). In live
+        mode the operator must pass `dry_run=False` to actually flip
+        serving capacity — the guard surfaces the flag straight through to
+        `runbook_execute`, which enforces the mutating-kind opt-in.
+
+    Args:
+        payload:  A validated `CostWatchInput` carrying the pre-fetched
+                  billing snapshot (see `cost_guard_from_billing`).
+        dry_run:  When True (default), the scale_down runbook is invoked in
+                  dry-run mode. When False (live + explicit opt-in), the
+                  runbook actually scales the fleet to zero.
+
+    Returns:
+        `CostGuardResult` — the rule output, the published alert ids, and
+        the scale_down execution id (when fired).
+    """
+    # Lazy import keeps the pure rule path free of the I/O tools.
+    from ss_agents.tools.pubsub_alert import PubsubAlertInput, pubsub_alert
+    from ss_agents.tools.runbook_execute import (
+        RunbookExecuteInput,
+        runbook_execute,
+    )
+
+    evaluation = evaluate_cost_watch(payload)
+
+    alert_message_ids: list[str] = []
+    crossed_threshold_at_or_above_trigger = False
+
+    for crossing in evaluation.crossings:
+        threshold = crossing.threshold
+        if threshold >= SCALE_DOWN_TRIGGER_PERCENT:
+            crossed_threshold_at_or_above_trigger = True
+
+        alert_kind = _BANNER_ALERT_KIND_BY_THRESHOLD.get(threshold)
+        if alert_kind is None:
+            # 100/110 over-limit crossings are not banner alerts — they go on
+            # the budget_exceeded topic (handled by the workflow), not here.
+            # The scale_down trigger above still fires for them (>= 90).
+            continue
+
+        # pct_consumed is expressed as a 0..1 ratio for pubsub_alert; the rule
+        # layer carries percent as 0..100. Use the crossing's threshold as the
+        # reported pct so the alert_kind ↔ pct consistency check inside
+        # pubsub_alert passes (it expects pct within ±5% of the threshold).
+        result = pubsub_alert(
+            PubsubAlertInput(
+                workspace_id=payload.workspace_id or payload.tenant_id,
+                current_pct_consumed=threshold / 100.0,
+                alert_kind=alert_kind,  # type: ignore[arg-type]
+                message_body=(
+                    f"cost_watch: {payload.tenant_id} reached {threshold}% of "
+                    f"the {payload.window} budget "
+                    f"(${evaluation.spent_usd:.2f} / ${evaluation.budget_usd:.2f})."
+                ),
+            )
+        )
+        alert_message_ids.append(result.message_id)
+
+    scale_down_triggered = False
+    scale_down_execution_id: str | None = None
+    if crossed_threshold_at_or_above_trigger:
+        logger.warning(
+            "cost_watch_scale_down_trigger",
+            extra={
+                "tenant_id": payload.tenant_id,
+                "workspace_id": payload.workspace_id,
+                "window": payload.window,
+                "percent": evaluation.percent,
+                "dry_run": dry_run,
+            },
+        )
+        runbook_out = runbook_execute(
+            RunbookExecuteInput(
+                runbook_name="rb_scale_down_v1",
+                params={
+                    "reason": "cost_guard_90pct",
+                    "tenant_id": payload.tenant_id,
+                    "window": payload.window,
+                },
+                dry_run=dry_run,
+                executing_user=_GUARD_ACTOR,
+                runbook_kind="scale_down",
+            )
+        )
+        scale_down_triggered = True
+        scale_down_execution_id = runbook_out.execution_id
+
+    return CostGuardResult(
+        evaluation=evaluation,
+        alert_message_ids=alert_message_ids,
+        scale_down_triggered=scale_down_triggered,
+        scale_down_execution_id=scale_down_execution_id,
+    )
+
+
+def cost_guard_from_billing(
+    *,
+    tenant_id: str,
+    window: BudgetWindow,
+    tick_time: dt.datetime,
+    time_range: tuple[dt.date, dt.date],
+    workspace_id: str | None = None,
+    budget_usd: float | None = None,
+    previous_crossings: list[ThresholdPercent] | None = None,
+    dry_run: bool = True,
+) -> CostGuardResult:
+    """End-to-end guard tick: read billing, evaluate, alert, auto-scale-down.
+
+    This is the full I4 wiring — it owns the `billing_query` read that
+    `cost_guard()` deliberately does not, then delegates to `cost_guard()`
+    for the alert + scale_down chain. The split keeps `cost_guard()` unit-
+    testable on a hand-built snapshot while this function exercises the
+    real (stub-or-live) billing seam.
+
+    Budget resolution: when `budget_usd` is None, the guard treats the D39
+    `BUDGET_USD_CAP` ($1500) as the budget — the global judging-window cap —
+    so the 50/75/90/95 ladder is computed against the credits ceiling per
+    UNIFIED-TRACK3-PLAN §3.
+
+    Args:
+        tenant_id:          Tenant the rollup is scoped to.
+        window:             Budget window (per_day, per_month, …).
+        tick_time:          Guard tick timestamp (crossedAt for new events).
+        time_range:         Inclusive (start, end) dates for billing_query.
+        workspace_id:       Optional workspace scope.
+        budget_usd:         Budget to measure against; None → D39 $1500 cap.
+        previous_crossings: Thresholds already emitted this window (dedupe).
+        dry_run:            Forwarded to the scale_down runbook.
+
+    Returns:
+        `CostGuardResult` for this tick.
+    """
+    from ss_agents.tools.billing_query import (
+        BUDGET_USD_CAP,
+        BillingQueryInput,
+        billing_query,
+    )
+
+    billing = billing_query(
+        BillingQueryInput(
+            workspace_id=workspace_id,
+            time_range=time_range,
+            breakdown="total",
+        )
+    )
+
+    resolved_budget = budget_usd if budget_usd is not None else BUDGET_USD_CAP
+
+    payload = CostWatchInput(
+        tenantId=tenant_id,
+        workspaceId=workspace_id,
+        window=window,
+        tickTime=tick_time,
+        billingSnapshot=BillingSnapshot(
+            spentUsd=billing.total_usd,
+            budgetUsd=resolved_budget,
+        ),
+        previousCrossings=previous_crossings or [],  # type: ignore[arg-type]
+    )
+    return cost_guard(payload, dry_run=dry_run)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # AgentDef wrapper — for registry consistency only. Never invoked via run_agent.
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -550,8 +799,10 @@ __all__ = [
     "CANONICAL_THRESHOLDS",
     "COST_WATCH_MODEL_SENTINEL",
     "DEFAULT_FALLBACK_BUDGET_USD",
+    "SCALE_DOWN_TRIGGER_PERCENT",
     "BillingSnapshot",
     "BudgetWindow",
+    "CostGuardResult",
     "CostWatchInput",
     "CostWatchOutput",
     "Crossing",
@@ -559,6 +810,8 @@ __all__ = [
     "ThresholdPercent",
     "Throttle",
     "build_cost_watch_system_prompt",
+    "cost_guard",
+    "cost_guard_from_billing",
     "cost_watch_agent_def",
     "evaluate_cost_watch",
 ]
