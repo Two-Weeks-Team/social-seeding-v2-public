@@ -27,6 +27,10 @@ locals {
       yaml_file   = "brand-campaign.workflows.yaml"
       description = "Brand-campaign parent fan-out (D18; mirrors v2 packages/workflows/src/workflows/brand-campaign.ts)."
     }
+    "brand-campaign-demo" = {
+      yaml_file   = "brand-campaign-demo.workflows.yaml"
+      description = "Wave 3 / Track 3 trimmed demo: coordinate_sourcing → branch_on_route → a2a_invoke_remote (real ss-mcp) → check_a2a_outcome → return RankedCreators. Executable end-to-end multi-agent orchestration take (D23/D24/D45)."
+    }
     "creator-track" = {
       yaml_file   = "creator-track.workflows.yaml"
       description = "Per-creator child workflow with durable callbacks for reply + post-detected (INNGEST-MIGRATION §3.2)."

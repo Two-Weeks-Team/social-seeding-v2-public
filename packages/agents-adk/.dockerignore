@@ -1,0 +1,40 @@
+# Keep the Cloud Run build context small + reproducible (Wave 3 / Track 3).
+# Only src/, serve.py, pyproject.toml, README.md are needed in the image.
+
+# Python caches / build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtualenvs + tool caches (the image builds its own venv via uv)
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+htmlcov/
+
+# Tests + evals are not shipped in the runtime image
+tests/
+eval/
+evals/
+
+# Local env + secrets — NEVER bake into an image
+.env
+.env.*
+!.env.example
+
+# Docs / notes not needed at runtime
+BUILD-NOTES.md
+
+# VCS + editor
+.git/
+.gitignore
+.idea/
+.vscode/
+*.swp

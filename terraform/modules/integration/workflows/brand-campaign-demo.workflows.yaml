@@ -1,0 +1,197 @@
+# brand-campaign-demo.workflows.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+# Wave 3 / Track 3 — the DEMONSTRABLE end-to-end multi-agent orchestration take.
+#
+# This is a TRIMMED sibling of brand-campaign.workflows.yaml. The full workflow
+# has bookkeeping steps (observability/runs, policy load, campaign-repo patches,
+# vetting fan-out, gate, persist, email resolve, pubsub fan-out) that each need
+# their own live Cloud Run backend. For the single-execution demo we keep the
+# LOAD-BEARING multi-agent edges and INLINE / SKIP the bookkeeping so the whole
+# thing runs against just two real services:
+#
+#   1. ss-agents  (POST /coordinator)  — the Tier-2 coordinator (M1) makes the
+#      routing decision. THIS is the "agent decides which agent" hop (D23).
+#   2. ss-mcp     (POST /v1/message:send) — the OSS tiktok-mcp A2A node sources
+#      + ranks creators over a real A2A v0.3 message:send. THIS is the proven
+#      live cross-component edge (D45) — coordinator → a2a_invoke → ss-mcp.
+#
+# What the demo proves: coordinate_sourcing → branch_on_route → a2a_invoke_remote
+# → check_a2a_outcome → return, executed by Cloud Workflows itself (not a Python
+# driver), returning the execution result + the REAL RankedCreators from ss-mcp.
+#
+# D42 (no hardcoded URLs): every endpoint resolves via
+#   ${default(map.get(args.agent_urls, "<id>"), sys.get_env("AGENT_URL_<ID>"))}
+# — runtime args map OR the per-agent env-var fallback. ZERO https:// literals.
+#
+# OIDC-audience note (ss-mcp hop): ss-mcp authenticates Identity Platform Bearer
+# tokens, NOT Cloud Run OIDC. The demo deploys ss-mcp with REQUIRE_AUTH=false
+# (its image default) so the A2A hop is reachable unauthenticated for the open
+# demo — so this step sends NO `auth:` block. See DEPLOY-RUNBOOK.md "OIDC vs
+# Identity Platform" for the production token-exchange path.
+
+main:
+  params: [args]
+  steps:
+    - init:
+        assign:
+          - campaignId: ${args.campaignId}
+          - brief: ${args.brief}
+          - workspaceId: ${brief.workspaceId}
+          # Inlined demo policy (no live policy service). budgetRemainingUsd is
+          # the per-campaign ceiling the coordinator scores candidates against.
+          - budgetRemainingUsd: ${default(map.get(args, "budgetRemainingUsd"), 2.50)}
+          - candidates: []
+
+    # ── D23: ask the coordinator which agent should source creators ──────────
+    # The workflow does NOT hard-wire the source agent — it ASKS the Tier-2
+    # coordinator (M1). Body = CoordinatorInput (coordinator.py, camelCase).
+    - coordinate_sourcing:
+        call: http.post
+        args:
+          url: ${default(map.get(args.agent_urls, "coordinator"), sys.get_env("AGENT_URL_COORDINATOR"))}
+          body:
+            taskDescription: ${"Source creators for brand campaign " + campaignId + " — targeting " + json.encode(brief.targeting)}
+            workspacePolicy:
+              allowedAgents: []
+              budgetRemainingUsd: ${budgetRemainingUsd}
+              slaTargetMs: 4000
+            candidateAgents:
+              # D24: local in-process sourcing agent (0→1 phase).
+              - agentId: "sourcing"
+                capabilities: ["source_creators", "tiktok", "rapidapi"]
+                avgLatencyMs: 2400
+                avgCostUsd: 0.018
+                transport: "in_process"
+              # D24/D45: remote A2A node — the OSS tiktok-mcp-server (1→100).
+              - agentId: "tiktok-mcp-search"
+                capabilities: ["source_creators", "tiktok", "remote", "a2a"]
+                avgLatencyMs: 3100
+                avgCostUsd: 0.012
+                transport: "a2a_grpc"
+            locale: "en"
+            allowRemote: true
+            preferLocal: false
+          auth:
+            type: OIDC
+          timeout: 30
+        retry:
+          predicate: ${http.default_retry_predicate}
+          max_retries: 3
+          backoff: {initial_delay: 2, max_delay: 30, multiplier: 2}
+        result: coordinator_response
+
+    # ── D24/D45: branch on the coordinator's routing decision ────────────────
+    # __escalate__ → surface the (inlined) HITL gate, return early.
+    # ^tiktok-mcp  → the remote A2A path (the demo's headline edge).
+    # default      → local sourcing path (kept minimal: invoke /sourcing).
+    - branch_on_route:
+        switch:
+          - condition: ${coordinator_response.body.chosenAgentId == "__escalate__"}
+            next: gate_escalated_inline
+          - condition: ${text.match_regex(coordinator_response.body.chosenAgentId, "^tiktok-mcp")}
+            next: a2a_invoke_remote
+          - condition: true
+            next: sourcing_local
+
+    # ── INLINED bookkeeping: the gate/email/pubsub steps the full workflow runs
+    #    against live services are represented here as no-op assigns so the demo
+    #    has zero extra service dependencies. A real deploy swaps these back for
+    #    the gate / campaign-repo / pubsub calls in brand-campaign.workflows.yaml.
+    - gate_escalated_inline:
+        return:
+          campaignId: ${campaignId}
+          decision: "escalated"
+          chosenAgentId: ${coordinator_response.body.chosenAgentId}
+          routingRationale: ${coordinator_response.body.routingRationale}
+          rankedCreators: []
+          trackCount: 0
+
+    # ── D45: THE cross-component edge. Cloud Workflows A2A-invokes the OSS
+    #    tiktok-mcp-server's plan_creator_search intent over A2A v0.3
+    #    message:send. Body mirrors a2a_invoke._build_a2a_message exactly.
+    #    NO `auth:` block — ss-mcp runs REQUIRE_AUTH=false on the demo deploy
+    #    (Identity Platform Bearer, not Cloud Run OIDC — see header note). ──────
+    - a2a_invoke_remote:
+        call: http.post
+        args:
+          url: ${default(map.get(args.agent_urls, "tiktok-mcp-search"), sys.get_env("AGENT_URL_TIKTOK_MCP")) + "/v1/message:send"}
+          body:
+            message:
+              role: "user"
+              messageId: ${"a2a-" + campaignId + "-sourcing"}
+              parts:
+                - kind: "text"
+                  text: ${"Source creators for brand campaign " + campaignId + " — targeting " + json.encode(brief.targeting)}
+          headers:
+            Content-Type: "application/json"
+            A2A-Version: "0.3"
+          timeout: 60
+        retry:
+          predicate: ${http.default_retry_predicate}
+          max_retries: 3
+          backoff: {initial_delay: 2, max_delay: 30, multiplier: 2}
+        result: a2a_response
+
+    # Parse the A2A v0.3 `task` envelope. On status.state == "completed", lift
+    # the first artifacts[].parts[].data (RankedCreators) into `candidates` and
+    # return the execution result. Any other state raises (existing error path).
+    - check_a2a_outcome:
+        switch:
+          - condition: ${a2a_response.body.status.state == "completed"}
+            steps:
+              - assign_remote_candidates:
+                  assign:
+                    - candidates: ${a2a_response.body.artifacts[0].parts[0].data.creators}
+              - return_remote_result:
+                  return:
+                    campaignId: ${campaignId}
+                    decision: "completed"
+                    route: "a2a_remote"
+                    chosenAgentId: ${coordinator_response.body.chosenAgentId}
+                    routingRationale: ${coordinator_response.body.routingRationale}
+                    a2aState: ${a2a_response.body.status.state}
+                    a2aTaskId: ${a2a_response.body.id}
+                    # The REAL RankedCreators from ss-mcp.
+                    rankedCreators: ${candidates}
+                    trackCount: ${len(candidates)}
+          - condition: true
+            raise: ${"a2a_sourcing_failed:" + default(a2a_response.body.status.state, "unknown_state")}
+
+    # ── Local route (coordinator preferred in_process). Invoke /sourcing,
+    #    read the Outcome envelope (.kind / .value.candidates), return. ─────────
+    - sourcing_local:
+        call: http.post
+        args:
+          url: ${default(map.get(args.agent_urls, "sourcing"), sys.get_env("AGENT_URL_SOURCING"))}
+          body:
+            brief: ${brief}
+            campaignId: ${campaignId}
+            campaignBudgetUsd: ${budgetRemainingUsd}
+            excludeCreatorIds: []
+          auth:
+            type: OIDC
+          timeout: 120
+        retry:
+          predicate: ${http.default_retry_predicate}
+          max_retries: 3
+          backoff: {initial_delay: 5, max_delay: 60, multiplier: 2}
+        result: sourcing_response
+
+    - check_sourcing_outcome:
+        switch:
+          - condition: ${sourcing_response.body.kind != "ok"}
+            raise: ${"sourcing_escalated:" + default(sourcing_response.body.reason, "unknown")}
+          - condition: true
+            steps:
+              - assign_local_candidates:
+                  assign:
+                    - candidates: ${sourcing_response.body.value.candidates}
+              - return_local_result:
+                  return:
+                    campaignId: ${campaignId}
+                    decision: "completed"
+                    route: "local_sourcing"
+                    chosenAgentId: ${coordinator_response.body.chosenAgentId}
+                    routingRationale: ${coordinator_response.body.routingRationale}
+                    rankedCreators: ${candidates}
+                    trackCount: ${len(candidates)}
