@@ -75,10 +75,11 @@ def _check_gates() -> int | None:
 async def _run_live() -> int:
     # Imports are inside the function so a gate refusal never pays the heavy
     # ADK import cost, and so an import failure maps to exit 4.
-    from ss_agents.agents.intake import (
-        IntakeInput,
-        IntakeMessage,
-        intake_agent_def,
+    from ss_agents.agents.coordinator import (
+        CandidateAgent,
+        CoordinatorInput,
+        WorkspacePolicy,
+        coordinator_agent_def,
     )
     from ss_agents.config import (
         get_settings,
@@ -101,20 +102,41 @@ async def _run_live() -> int:
             "is_offline() is True despite the gates — refusing. Check SS_LIVE.",
         )
 
-    resolved_model = resolve_runtime_model(intake_agent_def.model)
+    resolved_model = resolve_runtime_model(coordinator_agent_def.model)
 
-    print("[model-garden-live] D47 live proof — routing intake reasoning through Model Garden")
+    print("[model-garden-live] D47 live proof — routing coordinator reasoning through Model Garden")
     print(f"[model-garden-live] project        : {settings.google_cloud_project}")
     print(f"[model-garden-live] location       : {settings.google_cloud_location}")
-    print(f"[model-garden-live] declared model : {intake_agent_def.model}")
+    print(f"[model-garden-live] declared model : {coordinator_agent_def.model}")
     print(f"[model-garden-live] resolved model : {resolved_model}")
     print("[model-garden-live] invoking live Vertex AI Model Garden (one turn)…")
 
-    payload = IntakeInput(
-        messages=[IntakeMessage(role="user", content=_DEMO_USER_TEXT)],
-        workspaceId="ws_smoke_modelgarden_01",
-        createdBy="operator@social-seeding.test",
-        locale="ko",
+    # The coordinator is a single-turn STRUCTURED-OUTPUT router (CoordinatorOutput
+    # is a flat schema, not a discriminated union) — the cleanest agent for a
+    # routing proof. It is run tool-less because Gemini controlled generation
+    # (output_schema → responseSchema) is mutually exclusive with function-calling
+    # tools; the workflow path supplies the candidate pool + does the transport
+    # switch, so the coordinator needs no tools (mirrors serve.py).
+    payload = CoordinatorInput(
+        taskDescription=_DEMO_USER_TEXT,
+        workspacePolicy=WorkspacePolicy(
+            allowedAgents=[], budgetRemainingUsd=2.50, slaTargetMs=4000
+        ),
+        candidateAgents=[
+            CandidateAgent(
+                agentId="sourcing",
+                capabilities=["source_creators", "tiktok", "rapidapi"],
+                avgLatencyMs=2400, avgCostUsd=0.018, transport="in_process",
+            ),
+            CandidateAgent(
+                agentId="tiktok-mcp-search",
+                capabilities=["source_creators", "tiktok", "remote", "a2a"],
+                avgLatencyMs=1800, avgCostUsd=0.012, transport="a2a_grpc",
+            ),
+        ],
+        locale="en",
+        allowRemote=True,
+        preferLocal=False,
     )
     ctx = RunContext(
         tenant_id="t_smoke00000000001",
@@ -125,7 +147,8 @@ async def _run_live() -> int:
     )
     assert ctx.model_client is None
 
-    outcome = await run_agent(intake_agent_def, payload, ctx)
+    coordinator_routing_def = coordinator_agent_def.model_copy(update={"tools": []})
+    outcome = await run_agent(coordinator_routing_def, payload, ctx)
 
     print()
     print("=" * 72)
@@ -135,11 +158,18 @@ async def _run_live() -> int:
     print(f"  outcome kind        : {outcome.kind}")
     print(f"  usd_spent           : ${outcome.usd_spent:.6f}")
     print("  response JSON       :")
-    print(
-        json.dumps(
-            outcome.model_dump(by_alias=True), indent=2, default=str, ensure_ascii=False
-        )
-    )
+    # OutcomeOk.value is typed as the base BaseModel, so the outer model_dump
+    # serializes it to {} — dump the concrete value instance directly so the
+    # real routing decision (chosenAgentId, routingRationale, …) is visible.
+    if isinstance(outcome, OutcomeOk):
+        printable = {
+            "kind": "ok",
+            "value": outcome.value.model_dump(by_alias=True, mode="json"),
+            "usdSpent": outcome.usd_spent,
+        }
+    else:
+        printable = outcome.model_dump(by_alias=True)
+    print(json.dumps(printable, indent=2, default=str, ensure_ascii=False))
     print("=" * 72)
 
     if not isinstance(outcome, OutcomeOk):
