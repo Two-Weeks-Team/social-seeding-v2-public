@@ -99,6 +99,17 @@ class AgentMemoryBank:
             created_at=now,
             expires_at=now + dt.timedelta(days=ttl_days),
         )
+        # Managed Vertex AI Memory Bank write path (D15) — env-gated, opt-in.
+        # Best-effort: a managed write failure must not lose the memory, so we
+        # always also persist to the Firestore/in-memory store below.
+        self._maybe_put_vertex(
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
+            agent_id=agent_id,
+            key=key,
+            payload=payload,
+        )
+
         path = self._doc_path(tenant_id, workspace_id, agent_id, key)
         client = self.client
         if client is None:
@@ -170,6 +181,55 @@ class AgentMemoryBank:
         client.document(path).delete()
 
     # ── Internal ────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _maybe_put_vertex(
+        *,
+        tenant_id: str,
+        workspace_id: str,
+        agent_id: str,
+        key: str,
+        payload: dict[str, Any],
+    ) -> None:
+        """Mirror the write into the managed Vertex AI Memory Bank when
+        `MEMORY_BACKEND=vertex` (D15). Best-effort and never raises — Firestore
+        remains the durable store; the managed write is additive.
+
+        The managed Memory Bank stores a single semantic `fact` string per
+        memory, so we serialize the payload to JSON as the fact body and key
+        the memory name on `{agent_id}:{key}` for traceability.
+        """
+        import os
+
+        if os.getenv("MEMORY_BACKEND", "firestore") != "vertex":
+            return
+        try:
+            import json
+
+            from ss_agents.memory.vertex_memory_bank import (
+                VertexMemoryBankUnavailable,
+                new_vertex_memory_bank,
+            )
+
+            bank = new_vertex_memory_bank()
+            bank.create(
+                workspace_id=workspace_id,
+                fact=json.dumps(
+                    {"tenant_id": tenant_id, "agent_id": agent_id,
+                     "key": key, "payload": payload},
+                    ensure_ascii=False,
+                    sort_keys=True,
+                ),
+                memory_name=f"{agent_id}:{key}",
+            )
+        except VertexMemoryBankUnavailable as exc:
+            logger.warning(
+                "managed Memory Bank write skipped (%s) — Firestore remains "
+                "the durable store",
+                exc,
+            )
+        except Exception as exc:  # pragma: no cover — defensive, never lose write
+            logger.warning("managed Memory Bank write errored (%s) — ignored", exc)
 
     @staticmethod
     def _doc_path(tenant_id: str, workspace_id: str, agent_id: str, key: str) -> str:
