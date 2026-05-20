@@ -100,7 +100,7 @@
   <header class="page">
     <div>
       <h1>Social Seeding v2 — Wow + Business</h1>
-      <div class="meta">Track 3 judging · Demo 20% + Business 30% reinforcement · D28 · D29 · D45 · D48 · D49</div>
+      <div class="meta">Build → Optimize → Refactor · Demo 20% + Business 30% + Technical 30% reinforcement · D28 · D29 · D45 · D48 · D49 · D50</div>
     </div>
     <a class="back-link" href="index.html">← 24-scene interactive demo</a>
   </header>
@@ -144,6 +144,100 @@
       The roles map 1:1; promoting <span class="mono">vision.brand_logo_detect</span> to a standalone A2A-addressable
       DAM agent is the Phase-4 step (same lift as the <span class="mono">a2a_invoke</span> live-wiring shown below).
       Source: <span class="mono">gcp-research/refactor-mcp/A2A-INTENTS.md §5</span>.
+    </p>
+  </section>
+
+  <!-- ====================================================================== -->
+  <!-- (e) OPTIMIZE act — the "we hardened it" chapter (stall → repair).      -->
+  <!--     Technical-30 core + Demo-20 wow scene #1. Numbers verbatim from    -->
+  <!--     scripts/demo/assets/hardening-before-after.json (42.3% → 100.0%).  -->
+  <!--     Mirrors index.html's Optimize act; D50 single grand-narrative.     -->
+  <!-- ====================================================================== -->
+  <section class="panel" id="hardening" style="border-color:#3a2a5c; background:#100c20;">
+    <h2><span class="pill pill-purple">Optimize</span> We built it — then we hardened it · <span class="mono" style="font-size:14px;">stall → repair</span></h2>
+    <p class="sub">
+      The middle act of one story (Build → <b>Optimize</b> → Refactor). When a creator reply is ambiguous —
+      <i>interested, but quietly negotiating a rate</i> — the <span class="mono">conversation_responder</span> stalled at the
+      auto-respond ↔ escalate boundary. We made it measurable and fixed it.
+      <span class="pill pill-blue" style="margin-left:4px;">D29-A</span>
+      <span class="pill pill-purple" style="margin-left:4px;">D50</span>
+      <span class="pill pill-red" style="margin-left:4px;">D27</span>
+    </p>
+
+    <!-- stall -> repair, two reasoning paths side by side -->
+    <div class="grid2">
+      <div class="card" style="border-left:3px solid #ea4335;">
+        <div class="k" style="color:#ff8a80;">Before · baseline triage <span class="pill pill-red" style="margin-left:6px;">STALL</span></div>
+        <div class="d" style="margin-top:6px; color:#c2d2e8;">
+          Reply: <i>"Love it! my rate is ~$800, ok?"</i> → classifier rounds to <span class="mono">interested</span>.
+        </div>
+        <ol class="mono" style="font-size:11.5px; color:#cbd5e1; line-height:1.7; margin:10px 0 0; padding-left:18px;">
+          <li>has_minimum_context = true → continue</li>
+          <li>classification == negotiating = false → continue</li>
+          <li style="color:#ff8a80;"><b>(no rate-signal rule)</b> → fallthrough → <b>respond</b></li>
+        </ol>
+        <div style="margin-top:10px; background:#2c1414; border:1px solid #5a2424; border-radius:6px; padding:8px 10px; font-size:11.5px; color:#fecaca;">
+          ✗ <span class="mono">respond</span> · auto-drafts a reply with no rate-handling fact — oscillates at the boundary.
+        </div>
+      </div>
+      <div class="card" style="border-left:3px solid #34a853;">
+        <div class="k" style="color:#6ee7a8;">After · optimized triage (live) <span class="pill pill-green" style="margin-left:6px;">REPAIRED</span></div>
+        <div class="d" style="margin-top:6px; color:#c2d2e8;">
+          Optimizer applies <span class="mono" style="color:#6ee7b7;">rate_signal_on_positive</span>.
+        </div>
+        <ol class="mono" style="font-size:11.5px; color:#cbd5e1; line-height:1.7; margin:10px 0 0; padding-left:18px;">
+          <li>has_minimum_context = true → continue</li>
+          <li>classification in {declined, unsubscribe} = false → continue</li>
+          <li>classification == negotiating = false → continue</li>
+          <li style="color:#6ee7a8;"><b>interested AND proposed_rate_usd ≠ None = true</b> → <b>escalate</b></li>
+        </ol>
+        <div style="margin-top:10px; background:#0f2a1c; border:1px solid #1f5436; border-radius:6px; padding:8px 10px; font-size:11.5px; color:#bbf7d0;">
+          ✓ <span class="mono">escalate → human</span> · a proposed rate = negotiation; never mint a mandate here (D27).
+        </div>
+      </div>
+    </div>
+
+    <!-- before/after bars + headline -->
+    <div class="grid2" style="margin-top:18px;">
+      <div class="card">
+        <div class="k">triage_routing_accuracy · 26 synthetic cases</div>
+        <div style="margin-top:14px;">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+            <span style="width:62px; font-size:12px; color:#cbd5e1;">Before</span>
+            <div style="flex:1; background:#1e293b; border-radius:6px; height:26px; overflow:hidden;">
+              <div style="width:42.3%; height:100%; border-radius:6px; background:linear-gradient(90deg,#b91c1c,#f87171); display:flex; align-items:center; justify-content:flex-end; padding-right:8px; font-size:12px; font-weight:700; color:#fff;">42.3%</div>
+            </div>
+            <span style="width:54px; text-align:right; font-size:12px; color:#94a3b8;">11 / 26</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <span style="width:62px; font-size:12px; color:#cbd5e1;">After</span>
+            <div style="flex:1; background:#1e293b; border-radius:6px; height:26px; overflow:hidden;">
+              <div style="width:100%; height:100%; border-radius:6px; background:linear-gradient(90deg,#15803d,#34d399); display:flex; align-items:center; justify-content:flex-end; padding-right:8px; font-size:12px; font-weight:700; color:#fff;">100.0%</div>
+            </div>
+            <span style="width:54px; text-align:right; font-size:12px; color:#94a3b8;">26 / 26</span>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="display:flex; flex-direction:column; justify-content:center; text-align:center;">
+        <div class="k">Headline</div>
+        <div style="font-size:30px; font-weight:800; letter-spacing:-0.02em; margin-top:6px;">
+          <span style="color:#f87171;">42.3%</span>
+          <span style="color:#64748b; font-size:22px;"> → </span>
+          <span style="color:#34d399;">100.0%</span>
+        </div>
+        <div style="font-size:14px; color:#6ee7a8; font-weight:700; margin-top:4px;">+57.7 pp</div>
+        <div class="d" style="margin-top:8px;">A pass must match <b>both</b> decision and reason tag — no right-answer-for-the-wrong-reason inflation.</div>
+      </div>
+    </div>
+
+    <p class="footnote">
+      <b>Honest scope</b> (RULES.md — no overclaim): the before/after is a <b>local deterministic optimization pass</b> over the
+      synthetic set (<span class="mono">scripts/smoke-test/run-hardening-measure.sh</span>) — <b>not</b> the live Vertex AI
+      Agent Optimizer, which is the <b>production path</b> and is <b>stubbed today</b> (W7-deferred). The harness queues the
+      stub, which returns receipt <span class="mono">opt-conversation-responder-001</span> (status <b>queued</b>), proving the
+      <span class="mono">ObservedFailure</span> input contract is real while the GCP backend connection is staged. The
+      Observability trace is a deterministic offline render of the triage path, not a captured Cloud Trace span (the OTel span
+      shape, D32, is real). Source: <span class="mono">scripts/demo/HARDENING-CHAPTER.md</span> · GRAND-NARRATIVE-PLAN §7.
     </p>
   </section>
 

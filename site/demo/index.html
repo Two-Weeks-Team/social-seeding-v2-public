@@ -450,6 +450,45 @@
     clip: rect(0,0,0,0);
     white-space: nowrap; border: 0;
   }
+  /* ===== OPTIMIZE act — stall→repair trace graph + before/after ===== */
+  .opt-node {
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1.5px solid #2a3b57;
+    background: #11203a;
+    color: #cbd5e1;
+    transition: all 0.5s ease;
+    text-align: center;
+    line-height: 1.35;
+  }
+  .opt-node small { display:block; font-size:10px; font-weight:500; color:#7c93b8; margin-top:2px; }
+  .opt-node.opt-active { border-color: #60a5fa; background: #16335c; color: #e8f0fe; box-shadow: 0 0 0 3px rgba(96,165,250,0.25); }
+  .opt-node.opt-stall  { border-color: #f87171; background: #3a1414; color: #fecaca; animation: optStallPulse 0.9s ease-in-out infinite; }
+  .opt-node.opt-repair { border-color: #34d399; background: #0f3328; color: #bbf7d0; box-shadow: 0 0 0 3px rgba(52,211,153,0.30); }
+  .opt-node.opt-dim    { opacity: 0.35; }
+  @keyframes optStallPulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(248,113,113,0.55); transform: translateX(0); }
+    25%     { transform: translateX(-3px); }
+    50%     { box-shadow: 0 0 0 7px rgba(248,113,113,0); }
+    75%     { transform: translateX(3px); }
+  }
+  .opt-edge {
+    height: 2px; background: #2a3b57; flex: 1; position: relative; transition: background 0.5s ease;
+  }
+  .opt-edge.opt-edge-live { background: #34d399; }
+  .opt-edge.opt-edge-stall { background: #f87171; }
+  .opt-arrow { color:#7c93b8; font-size:14px; transition: color 0.5s ease; }
+  .opt-arrow.live { color:#34d399; }
+  .opt-arrow.stall { color:#f87171; }
+  .opt-bar-track { background:#1e293b; border-radius:6px; height:30px; overflow:hidden; position:relative; }
+  .opt-bar-fill  { height:100%; border-radius:6px; transition: width 1.4s cubic-bezier(0.4,0,0.2,1); display:flex; align-items:center; justify-content:flex-end; padding-right:10px; font-size:13px; font-weight:700; color:#fff; }
+  .opt-honest {
+    margin-top:14px; font-size:11px; line-height:1.55; color:#94a3b8;
+    background:#0b1626; border:1px dashed #334155; border-radius:8px; padding:10px 14px;
+  }
+  .opt-honest b { color:#cbd5e1; }
   /* responsive scale-down to fit narrower windows */
   @media (max-width: 1300px) {
     #stage, #controls, #header-banner, #unified-strip { transform-origin: top center; }
@@ -460,7 +499,7 @@
 <div id="header-banner">
   <div>
     <h1>Social Seeding v2 — Interactive Web Demo</h1>
-    <div class="meta">Track 2 (Mission Control + AP2 + Multi-agent) · Track 3 (tiktok-mcp-server + A2A v0.3) · D27 · D29 · D30 · D34</div>
+    <div class="meta">Build (Mission Control + 22-agent fleet) · Optimize (stall → repair · 42.3% → 100.0%) · Refactor (tiktok-mcp-server + A2A v0.3) · D27 · D29 · D30 · D34 · D50</div>
   </div>
   <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
     <a href="wow-business.html"
@@ -479,24 +518,28 @@
      deep-links to the cross-call climax (the load-bearing edge per A2A-INTENTS §4).
      Source: STORYBOARD-unified.md · gcp-research/refactor-mcp/A2A-INTENTS.md §4-§5.
      ============================================================================ -->
-<div id="unified-strip" role="note" aria-label="Unified single-submission narrative">
+<div id="unified-strip" role="note" aria-label="Unified single-submission narrative: Build, Optimize, Refactor">
   <div class="us-flow" aria-hidden="false">
-    <span class="us-node us-t2">Track 2 flow<small>brand brief → 22-agent fleet</small></span>
+    <span class="us-node us-t2">Build<small>22-agent fleet · full loop</small></span>
+    <span class="us-arrow"><a style="cursor:default;" aria-hidden="true">──&nbsp;harden&nbsp;──▶<small>same fleet, matured</small></a></span>
+    <span class="us-node" style="background:#1a1230; border:1px solid #4a2f78;">Optimize<small style="color:#c4a6ff;">stall → repair · 42.3% → 100.0%</small></span>
     <span class="us-arrow">
       <a href="wow-business.html#a2a-crosscall"
          aria-label="Open the live A2A cross-call climax: coordinator a2a_invoke to the Track 3 MCP server, 318 ms round-trip">
         ──&nbsp;<code>a2a_invoke</code>&nbsp;──▶
-        <small>318 ms · 5 creators · climax</small>
+        <small>318 ms · climax</small>
       </a>
     </span>
-    <span class="us-node us-t3">Track 3 node<small><code>tiktok-mcp-server</code> · A2A v0.3</small></span>
+    <span class="us-node us-t3">Refactor<small><code>tiktok-mcp-server</code> · A2A v0.3</small></span>
   </div>
   <div class="us-note">
-    <b>One submission, one story</b> (D45): the Track-2 <code>coordinator</code> agent A2A-invokes
-    the refactored Track-3 MCP server — that single edge unifies the two tracks. The toggle below
-    drills into either surface; the recommended guided path is in
+    <b>One submission, one story</b> (D45 · D50): a single fleet matures — we <b>built</b> it (22 agents),
+    we <b>hardened</b> it (the Optimize act traces a stalled reply and repairs it, lifting triage accuracy
+    <b>42.3% → 100.0%</b>), then we <b>refactored</b> it for the enterprise — the <code>coordinator</code>
+    A2A-invokes the refactored MCP server. The Act toggle below drills into each surface; guided path in
     <code>scripts/demo/STORYBOARD-unified.md</code>.
-    <a href="wow-business.html#build-example-2" style="margin-left:8px; white-space:nowrap;">Build&nbsp;Example&nbsp;#2 1:1 match (D48) →</a>
+    <a href="wow-business.html#hardening" style="margin-left:8px; white-space:nowrap;">Optimize&nbsp;before/after (D50) →</a>
+    <a href="wow-business.html#build-example-2" style="margin-left:8px; white-space:nowrap;">Build&nbsp;Example&nbsp;#2 (D48) →</a>
   </div>
 </div>
 
@@ -527,9 +570,10 @@
     <span style="margin-left:10px;">Real 90s · 8× 11s</span>
   </div>
   <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-    <span style="font-size:11px;">Track</span>
-    <button id="btn-track-2" class="active">Track 2</button>
-    <button id="btn-track-3">Track 3</button>
+    <span style="font-size:11px;">Act</span>
+    <button id="btn-track-2" class="active">2 · Build</button>
+    <button id="btn-track-optimize">Optimize</button>
+    <button id="btn-track-3">3 · Refactor</button>
     <span style="font-size:11px; margin-left:10px;">Speed</span>
     <button class="speed-btn" data-speed="0.5">0.5×</button>
     <button class="speed-btn active" data-speed="1">1×</button>
@@ -628,6 +672,36 @@ const SUBTITLES = {
     [121100, 175000, "三个差异化角度同时落地: 智能体即函数、把韩国差距重塑为创新、多智能体端到端今日即可运行。"],
     [175000, 180000, "github.com/ComBba/social-seeding-v2 — Apache-2.0 + BUSL-1.1。"],
   ],
+  /* Optimize act -- ko / en / ja / zh-CN. "Build → Optimize → Refactor" 의 가운데 막.
+     숫자는 hardening-before-after.json 과 일치 (42.3% → 100.0%, +57.7pp, 26 cases). */
+  "optimize-ko": [
+    [0, 5000, "Optimize — 우리는 함대를 단련했다. 모호한 답신에서 멈추던 추론을 추적하고 고친다."],
+    [5000, 14400, "씬 1 — Agent Simulation: 협상·거절위장·다국어 합성 엣지케이스 26건. 베이스라인 통과율 42.3%."],
+    [14400, 29400, "씬 2 — Observability: \"관심 있는데 단가 $800\" 답신에서 추론이 auto-respond↔escalate 경계에서 정지. Optimizer가 rate_signal 규칙을 적용하자 escalate 경로로 흐른다."],
+    [29400, 40700, "씬 3 — Optimizer 재측정: 42.3% → 100.0%, +57.7pp. 로컬 결정론적 측정 — 라이브 Vertex AI Agent Optimizer는 프로덕션 경로(현재 stub, 정직 공개)."],
+    [40700, 47000, "단련된 함대 — 이제 엔터프라이즈로 리팩터한다 (Track 3)."],
+  ],
+  "optimize-en": [
+    [0, 5000, "Optimize — we hardened the fleet. We trace the reasoning that stalled on an ambiguous reply, then we fix it."],
+    [5000, 14400, "Scene 1 — Agent Simulation: 26 synthetic edge cases (negotiation, disguised decline, multilingual). Baseline pass rate 42.3%."],
+    [14400, 29400, "Scene 2 — Observability: on \"interested, my rate is $800\" the reasoning stalls at the auto-respond ↔ escalate boundary. The Optimizer applies the rate_signal rule and the graph flows to escalate."],
+    [29400, 40700, "Scene 3 — Optimizer re-measure: 42.3% → 100.0%, +57.7pp. Local deterministic measurement — the live Vertex AI Agent Optimizer is the production path (stubbed today, disclosed)."],
+    [40700, 47000, "A hardened fleet — now we refactor it for the enterprise (Track 3)."],
+  ],
+  "optimize-ja": [
+    [0, 5000, "Optimize — 艦隊を鍛えた。曖昧な返信で停止した推論を追跡し、修正する。"],
+    [5000, 14400, "シーン1 — Agent Simulation: 交渉・偽装拒否・多言語の合成エッジケース 26 件。ベースライン通過率 42.3%。"],
+    [14400, 29400, "シーン2 — Observability: 「興味あり、レートは $800」で推論が auto-respond ↔ escalate の境界で停止。Optimizer が rate_signal ルールを適用すると escalate へ流れる。"],
+    [29400, 40700, "シーン3 — Optimizer 再計測: 42.3% → 100.0%、+57.7pp。ローカル決定論的計測 — ライブ Vertex AI Agent Optimizer が本番経路(現在 stub、正直に開示)。"],
+    [40700, 47000, "鍛えた艦隊 — 次はエンタープライズへリファクタ (Track 3)。"],
+  ],
+  "optimize-zh-CN": [
+    [0, 5000, "Optimize — 我们锤炼了这支舰队。追踪在模糊回复处停滞的推理,然后修复它。"],
+    [5000, 14400, "场景 1 — Agent Simulation:26 个合成边界用例(议价、伪装拒绝、多语言)。基线通过率 42.3%。"],
+    [14400, 29400, "场景 2 — Observability:在“感兴趣,我的报价 $800”上,推理在 auto-respond ↔ escalate 边界处停滞。Optimizer 应用 rate_signal 规则后,推理图流向 escalate。"],
+    [29400, 40700, "场景 3 — Optimizer 复测:42.3% → 100.0%,+57.7pp。本地确定性测量 — 线上 Vertex AI Agent Optimizer 是生产路径(目前为 stub,已如实披露)。"],
+    [40700, 47000, "锤炼后的舰队 — 接着为企业级重构 (Track 3)。"],
+  ],
   /* Track 3 -- ko / en / ja / zh-CN */
   "track3-ko": [
     [0, 5000, "Track 3 — tiktok-mcp-server: Gemini Enterprise + A2A v0.3 + 한국 리전 갭 재정의."],
@@ -716,6 +790,14 @@ const TIMELINE = {
     { i: 10, title: "Dialogflow CX follow-up Q&A",        angle: "D29-C", real: 90,  comp: 11.3 },
     { i: 11, title: "Cost ledger sweep",                  angle: "D29-A", real: 75,  comp:  9.4 },
     { i: 12, title: "System health check (smoke)",        angle: "ALL",  real: 30,  comp:  3.8 },
+  ],
+  /* OPTIMIZE act — the "stall → repair" hardening chapter (Technical-30 core,
+     wow scene #1). Source: HARDENING-CHAPTER.md · hardening-before-after.json ·
+     observability-trace-{stalled,repaired}.json. GRAND-NARRATIVE-PLAN §2 / §4 / §5-1. */
+  optimize: [
+    { i: 1, title: "Agent Simulation — 26 synthetic edge cases", angle: "D29-A", real: 75, comp:  9.4 },
+    { i: 2, title: "Observability — stall → repair trace",       angle: "D29-A+C", real: 120, comp: 15.0 },
+    { i: 3, title: "Optimizer — 42.3% → 100.0% before/after",    angle: "D29-A", real: 90, comp: 11.3 },
   ],
   track3: [
     { i: 1,  title: "Problem framing — Cloud Console",     angle: "D29-B", real: 60,  comp:  7.5 },
@@ -1377,6 +1459,241 @@ function track2Scene12() {
   return `<div style="background:#0b1220; height:100%; padding:0;">${body}</div>`;
 }
 
+/* =========================== OPTIMIZE ACT ==================================*/
+/* The "we hardened it" chapter — Build → Optimize → Refactor middle act.
+   ALL numbers below are copied verbatim from the committed JSON artifacts:
+     scripts/demo/assets/hardening-before-after.json
+     scripts/demo/assets/observability-trace-stalled.json
+     scripts/demo/assets/observability-trace-repaired.json
+   Inlined (no network) per the self-contained-demo convention. Re-run
+   scripts/smoke-test/run-hardening-measure.sh to regenerate the source JSON.
+   Source narrative: scripts/demo/HARDENING-CHAPTER.md · GRAND-NARRATIVE-PLAN §2/§4/§5-1. */
+const HARDENING = {
+  before: { total: 26, passed: 11, pct: 42.3 },
+  after:  { total: 26, passed: 26, pct: 100.0 },
+  deltaPp: 57.7,
+  headline: "42.3% → 100.0%",
+  fixRule: "interested/needs_info + extracted.proposed_rate_usd is not None → escalate (reason=rate_signal_on_positive)",
+  stallCaseId: "rate-positive-en-01",
+  stallMessage: "Love the product! My usual rate for a sponsored video is around 800 — does that work?",
+  observedFailures: [
+    { kind: "misrouted:rate_signal_on_positive", samples: 7, label: "rate signal on a positive reply (the stall)" },
+    { kind: "misrouted:hard_no",                 samples: 4, label: "declined / unsubscribe (hard no)" },
+    { kind: "misrouted:soft_no",                 samples: 2, label: "not-now (soft no)" },
+    { kind: "misrouted:out_of_scope_class",      samples: 2, label: "out_of_office / unrelated" },
+  ],
+  liveOptimizer: { mode: "stub", jobId: "opt-conversation-responder-001", status: "queued", etaMinutes: 30 },
+  // simulation cases for Scene 1 (locales + categories taken from the JSON case ids)
+  simRows: [
+    { id: "rate-positive-en-01",          cat: "interest_with_rate",            loc: "en", base: "respond", baseFail: true },
+    { id: "rate-positive-ko-02",          cat: "interest_with_rate",            loc: "ko", base: "respond", baseFail: true },
+    { id: "rate-positive-needsinfo-ja-03",cat: "interest_with_rate",            loc: "ja", base: "respond", baseFail: true },
+    { id: "rate-positive-zh-04",          cat: "interest_with_rate",            loc: "zh", base: "respond", baseFail: true },
+    { id: "decline-disguised-en-01",      cat: "decline_disguised_as_interest", loc: "en", base: "respond", baseFail: true },
+    { id: "soft-no-en-01",                cat: "soft_no",                       loc: "en", base: "respond", baseFail: true },
+    { id: "out-of-office-en-01",          cat: "out_of_scope",                  loc: "en", base: "respond", baseFail: true },
+    { id: "negotiating-explicit-en-01",   cat: "explicit_negotiation",          loc: "en", base: "escalate", baseFail: false },
+    { id: "missing-context-en-01",        cat: "missing_context",               loc: "en", base: "escalate", baseFail: false },
+    { id: "clean-interest-en-01",         cat: "clean_interest",                loc: "en", base: "respond", baseFail: false },
+  ],
+};
+
+const TRACE_STALLED = {
+  trace_id: "trace-hardening-rate-positive-en-01-baseline",
+  action: "respond", reason_tag: "clean_interested", outcome: "ok",
+  steps: [
+    { n: 1, label: "has_minimum_context", value: "true", branch: "continue" },
+    { n: 2, label: "classification == negotiating", value: "false", branch: "continue" },
+    { n: 3, label: "(no rate-signal rule exists)", value: "—", branch: "fallthrough → respond", stall: true },
+  ],
+  terminal: { label: "respond", note: "auto-draft (STALL)" },
+};
+const TRACE_REPAIRED = {
+  trace_id: "trace-hardening-rate-positive-en-01-optimized",
+  action: "escalate", reason_tag: "rate_signal_on_positive", outcome: "escalate",
+  steps: [
+    { n: 1, label: "has_minimum_context", value: "true", branch: "continue" },
+    { n: 2, label: "classification in {declined, unsubscribe}", value: "false", branch: "continue" },
+    { n: 3, label: "classification == negotiating", value: "false", branch: "continue" },
+    { n: 4, label: "interested/needs_info AND proposed_rate_usd is not None", value: "true", branch: "escalate(rate_signal_on_positive)", repair: true },
+  ],
+  terminal: { label: "escalate → human", note: "rate_signal_on_positive (D27)" },
+};
+
+/* --- Optimize Scene 1 — Agent Simulation (26 synthetic cases, baseline) -----*/
+function optimizeScene1() {
+  const rows = HARDENING.simRows.map(r => `
+    <tr data-cat="${r.cat}">
+      <td><code style="font-size:11px;">${r.id}</code></td>
+      <td><span class="chip" style="background:#16243f;color:#9ab6e8;border-color:#2a4a78;">${r.loc}</span></td>
+      <td style="font-size:11px;color:#94a3b8;">${r.cat}</td>
+      <td class="opt-sim-verdict" style="text-align:right;"></td>
+    </tr>`).join("");
+  const body = `
+    <div style="padding:26px 34px; height:100%; box-sizing:border-box; color:#e2e8f0;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="background:#1a73e8;color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;">OPTIMIZE</span>
+        <h2 style="font-size:22px; font-weight:700; letter-spacing:-0.02em; margin:0;">Agent Simulation — synthetic edge-case set</h2>
+      </div>
+      <p style="font-size:13px; color:#94a3b8; margin-top:4px;">
+        <code>test-harness/hardening/synthetic_cases.json</code> · <b>26 cases</b> across ko / ja / zh-CN / en —
+        negotiation, interest-with-rate, disguised decline, soft/hard no, out-of-scope, mixed-emotion. Run under the <b>baseline</b> triage.
+      </p>
+      <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:18px; margin-top:16px; align-items:start;">
+        <div style="background:#0d1729; border:1px solid #1e2d4a; border-radius:10px; padding:8px 14px;">
+          <table class="data-table" style="color:#cbd5e1;">
+            <thead><tr style="background:transparent;">
+              <th style="color:#94a3b8;background:transparent;border-color:#1e2d4a;">case id</th>
+              <th style="color:#94a3b8;background:transparent;border-color:#1e2d4a;">locale</th>
+              <th style="color:#94a3b8;background:transparent;border-color:#1e2d4a;">category</th>
+              <th style="color:#94a3b8;background:transparent;border-color:#1e2d4a;text-align:right;">baseline triage</th>
+            </tr></thead>
+            <tbody style="font-size:11px;">${rows}</tbody>
+          </table>
+          <div style="font-size:10.5px; color:#64748b; padding:6px 4px 2px;">showing 10 of 26 representative cases</div>
+        </div>
+        <div>
+          <div style="background:#0d1729; border:1px solid #1e2d4a; border-radius:10px; padding:16px;">
+            <div style="font-size:12px; color:#94a3b8;">Baseline pass rate <small>(triage_routing_accuracy)</small></div>
+            <div id="opt-s1-rate" style="font-size:40px; font-weight:800; color:#f87171; line-height:1.1; margin-top:4px;">—</div>
+            <div id="opt-s1-frac" style="font-size:12px; color:#94a3b8;">&nbsp;</div>
+          </div>
+          <div id="opt-s1-fail" style="margin-top:14px; background:#0d1729; border:1px solid #1e2d4a; border-radius:10px; padding:16px; display:none;">
+            <div style="font-size:12px; color:#cbd5e1; font-weight:600; margin-bottom:8px;">15 baseline failures → ObservedFailure families</div>
+            ${HARDENING.observedFailures.map(f => `
+              <div style="display:flex; justify-content:space-between; font-size:11.5px; padding:3px 0; color:#cbd5e1;">
+                <span><code style="font-size:10.5px;color:#fca5a5;">${f.kind}</code></span>
+                <span style="color:#94a3b8;">×${f.samples}</span>
+              </div>`).join("")}
+            <div style="font-size:10.5px; color:#64748b; margin-top:8px; line-height:1.5;">
+              A "pass" must match <b style="color:#94a3b8;">both</b> decision and reason tag — right-answer-for-the-wrong-reason cannot inflate the score.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  return `<div style="background:#0b1220; height:100%;">${body}</div>`;
+}
+
+/* --- Optimize Scene 2 — Observability stall → repair (THE wow scene) --------*/
+function traceColumn(prefix, trace, title, tone) {
+  const accent = tone === "stall" ? "#f87171" : "#34d399";
+  const steps = trace.steps.map(s => `
+    <div class="opt-node ${prefix}-step opt-dim" data-n="${s.n}" data-kind="${s.stall ? 'stall' : (s.repair ? 'repair' : 'step')}"
+         style="text-align:left; padding:7px 11px;">
+      <div style="display:flex; gap:8px; align-items:baseline;">
+        <span style="color:${accent}; font-weight:700;">${s.n}</span>
+        <span style="font-size:11.5px;">${s.label}</span>
+      </div>
+      <small style="margin-top:3px;">${s.value !== "—" ? "= " + s.value + " · " : ""}${s.branch}</small>
+    </div>`).join('<div style="height:6px;"></div>');
+  return `
+    <div style="flex:1; min-width:0;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+        <span style="width:9px;height:9px;border-radius:50%;background:${accent};display:inline-block;"></span>
+        <span style="font-size:13px; font-weight:700; color:#e2e8f0;">${title}</span>
+      </div>
+      <div style="font-size:10.5px; color:#64748b; font-family:ui-monospace,Menlo,monospace; margin-bottom:10px;">
+        agent.trace_id = ${trace.trace_id}
+      </div>
+      ${steps}
+      <div style="height:8px;"></div>
+      <div class="opt-node ${prefix}-terminal opt-dim" data-kind="${tone}" style="border-style:dashed;">
+        ${trace.terminal.label}
+        <small>${trace.terminal.note}</small>
+      </div>
+    </div>`;
+}
+function optimizeScene2() {
+  const body = `
+    <div style="padding:24px 30px; height:100%; box-sizing:border-box; color:#e2e8f0; overflow:hidden;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="background:#1a73e8;color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;">OPTIMIZE</span>
+        <h2 style="font-size:21px; font-weight:700; letter-spacing:-0.02em; margin:0;">Agent Observability — stall → repair</h2>
+      </div>
+      <div style="margin-top:8px; background:#0d1729; border:1px solid #1e2d4a; border-radius:8px; padding:10px 14px; font-size:12.5px; color:#cbd5e1;">
+        <span style="color:#94a3b8;">incoming reply · case</span> <code style="color:#9ab6e8;">${HARDENING.stallCaseId}</code> ·
+        <span class="chip" style="background:#16243f;color:#9ab6e8;border-color:#2a4a78;">classified: interested</span>
+        <span class="chip" style="background:#3a2a14;color:#fbbf24;border-color:#5a4420;">proposed_rate_usd: 800</span>
+        <div style="margin-top:5px; font-style:italic; color:#94a3b8;">“${HARDENING.stallMessage}”</div>
+      </div>
+      <div style="display:flex; gap:26px; margin-top:16px; align-items:flex-start;">
+        ${traceColumn("opt-s2-st", TRACE_STALLED, "BEFORE · baseline triage", "stall")}
+        <div style="align-self:center; text-align:center; padding-top:30px;">
+          <div id="opt-s2-applyrule" style="opacity:0; transition:opacity 0.6s ease; background:#11203a; border:1px solid #2a4a78; border-radius:8px; padding:8px 10px; max-width:150px;">
+            <div style="font-size:10px; color:#7c93b8; font-weight:600;">Optimizer applies</div>
+            <code style="font-size:10px; color:#6ee7b7; display:block; margin-top:3px; line-height:1.4;">rate_signal_on_positive</code>
+          </div>
+          <div style="font-size:22px; color:#7c93b8; margin-top:10px;">→</div>
+        </div>
+        ${traceColumn("opt-s2-rp", TRACE_REPAIRED, "AFTER · optimized triage (live)", "repair")}
+      </div>
+      <div class="opt-honest" style="margin-top:14px;">
+        <b>Honest scope:</b> deterministic, <b>offline</b> rendering of the pure triage decision path — not captured live
+        Cloud Trace spans. The OTel span shape (<code>ss_agents.observability.agent_span</code>, D32) is real; live export is
+        the production path. The fix escalates per <b>D27</b> (this agent never mints mandates).
+      </div>
+    </div>`;
+  return `<div style="background:#0b1220; height:100%;">${body}</div>`;
+}
+
+/* --- Optimize Scene 3 — Optimizer before/after (42.3% → 100.0%) -------------*/
+function optimizeScene3() {
+  const body = `
+    <div style="padding:26px 36px; height:100%; box-sizing:border-box; color:#e2e8f0;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="background:#1a73e8;color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;">OPTIMIZE</span>
+        <h2 style="font-size:22px; font-weight:700; letter-spacing:-0.02em; margin:0;">Agent Optimizer — re-measured</h2>
+      </div>
+      <p style="font-size:13px; color:#94a3b8; margin-top:4px;">
+        <code>triage_routing_accuracy</code> over the same 26-case set, before vs. after the rule the Optimizer applied.
+      </p>
+
+      <div style="background:#0d1729; border:1px solid #1e2d4a; border-radius:12px; padding:22px 26px; margin-top:14px;">
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom:18px;">
+          <div style="font-size:13px; width:150px; color:#cbd5e1;">Before <small style="color:#7c93b8;">(_baseline_triage)</small></div>
+          <div class="opt-bar-track" style="flex:1;">
+            <div id="opt-s3-bar-before" class="opt-bar-fill" style="width:0%; background:linear-gradient(90deg,#b91c1c,#f87171);">0%</div>
+          </div>
+          <div style="width:70px; text-align:right; font-size:13px; color:#94a3b8;">11 / 26</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div style="font-size:13px; width:150px; color:#cbd5e1;">After <small style="color:#7c93b8;">(_optimized_triage, live)</small></div>
+          <div class="opt-bar-track" style="flex:1;">
+            <div id="opt-s3-bar-after" class="opt-bar-fill" style="width:0%; background:linear-gradient(90deg,#15803d,#34d399);">0%</div>
+          </div>
+          <div style="width:70px; text-align:right; font-size:13px; color:#94a3b8;">26 / 26</div>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:18px; margin-top:18px;">
+        <div style="background:#0d1729; border:1px solid #1e2d4a; border-radius:12px; padding:18px 22px; text-align:center;">
+          <div style="font-size:12px; color:#94a3b8;">Headline</div>
+          <div id="opt-s3-headline" style="font-size:34px; font-weight:800; letter-spacing:-0.02em; margin-top:4px;">
+            <span style="color:#f87171;">42.3%</span>
+            <span style="color:#64748b; font-size:24px;"> → </span>
+            <span style="color:#34d399;">100.0%</span>
+          </div>
+          <div style="font-size:14px; color:#6ee7b7; font-weight:700; margin-top:4px;">+57.7 pp</div>
+        </div>
+        <div style="background:#0d1729; border:1px solid #1e2d4a; border-radius:12px; padding:16px 20px;">
+          <div style="font-size:12px; color:#94a3b8; margin-bottom:6px;">The rule that closed the stall</div>
+          <code style="font-size:11px; color:#6ee7b7; line-height:1.5; display:block;">${HARDENING.fixRule}</code>
+        </div>
+      </div>
+
+      <div class="opt-honest">
+        <b>Honest scope:</b> the before/after is produced by a <b>local deterministic optimization pass</b> over the
+        synthetic set (<code>scripts/smoke-test/run-hardening-measure.sh</code>) — <b>not</b> by the live Vertex AI Agent
+        Optimizer. That live optimizer is the <b>production path</b> and is <b>stubbed today</b> (W7-deferred): the harness
+        queues the stub, which returns receipt <code style="color:#cbd5e1;">${HARDENING.liveOptimizer.jobId}</code>
+        (status <b>${HARDENING.liveOptimizer.status}</b>), proving the input contract is real while the GCP backend
+        connection is staged. Disclosed per RULES.md + GRAND-NARRATIVE-PLAN §7.
+      </div>
+    </div>`;
+  return `<div style="background:#0b1220; height:100%;">${body}</div>`;
+}
+
 /* =========================== TRACK 3 SCENES =================================*/
 /* Cloud Console-flavored UI (different chrome from Mission Control) ----------*/
 function gcpShell(title, breadcrumbs, body) {
@@ -1688,6 +2005,7 @@ function track3Scene12() {
 const SCENE_BUILDERS = {
   track2: [track2Scene1, track2Scene2, track2Scene3, track2Scene4, track2Scene5, track2Scene6,
            track2Scene7, track2Scene8, track2Scene9, track2Scene10, track2Scene11, track2Scene12],
+  optimize: [optimizeScene1, optimizeScene2, optimizeScene3],
   track3: [track3Scene1, track3Scene2, track3Scene3, track3Scene4, track3Scene5, track3Scene6,
            track3Scene7, track3Scene8, track3Scene9, track3Scene10, track3Scene11, track3Scene12],
 };
@@ -1860,6 +2178,28 @@ const KEYFRAMES = {
       { at: 0.90, fn: () => appendTerm(sc, "#t2s12-term",
         '\n\n<span class="ok">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>\n' +
         '<span class="ok">PASS — 22/22 agents · 0 failures · total $1.34 · runtime 18.4s</span>') },
+    ],
+  ],
+
+  /* OPTIMIZE act keyframes — stall → repair animation + before/after */
+  optimize: [
+    /* SCENE 1 — Agent Simulation: reveal verdicts, count baseline pass rate to 42.3% */
+    (sc) => [
+      { at: 0.12, fn: () => revealSimVerdicts(sc) },
+      { at: 0.45, fn: () => animatePct(sc, "#opt-s1-rate", "#opt-s1-frac",
+        HARDENING.before.pct, HARDENING.before.total, HARDENING.before.passed, "#f87171") },
+      { at: 0.66, fn: () => { findEl(sc, "#opt-s1-fail").style.display = "block"; } },
+    ],
+    /* SCENE 2 — Observability: stalled graph halts, optimizer applies rule, repaired graph flows */
+    (sc) => [
+      { at: 0.06, fn: () => activateTrace(sc, "opt-s2-st", { tone: "stall" }) },
+      { at: 0.46, fn: () => { findEl(sc, "#opt-s2-applyrule").style.opacity = "1"; } },
+      { at: 0.58, fn: () => activateTrace(sc, "opt-s2-rp", { tone: "repair" }) },
+    ],
+    /* SCENE 3 — Optimizer: fill before (42.3%) then after (100.0%) bars */
+    (sc) => [
+      { at: 0.10, fn: () => fillOptBar(sc, "#opt-s3-bar-before", HARDENING.before.pct) },
+      { at: 0.45, fn: () => fillOptBar(sc, "#opt-s3-bar-after", HARDENING.after.pct) },
     ],
   ],
 
@@ -2071,11 +2411,95 @@ function appendChat(sceneEl, sel, role, text) {
   el.scrollTop = el.scrollHeight;
 }
 
+/* --- OPTIMIZE-act action helpers -------------------------------------------*/
+function animatePct(sceneEl, sel, fracSel, to, total, passed, color) {
+  const el = sceneEl.querySelector(sel);
+  if (!el) return;
+  const start = performance.now();
+  function step(ts) {
+    if (!el.isConnected) return;
+    const t = Math.min(1, (ts - start) / 1400);
+    const v = (to * t);
+    el.textContent = v.toFixed(1) + "%";
+    if (color) el.style.color = color;
+    if (t < 1) requestAnimationFrame(step);
+    else {
+      el.textContent = to.toFixed(1) + "%";
+      const f = sceneEl.querySelector(fracSel);
+      if (f) f.textContent = passed + " / " + total + " cases passed";
+    }
+  }
+  requestAnimationFrame(step);
+}
+function revealSimVerdicts(sceneEl) {
+  const rows = sceneEl.querySelectorAll("tbody tr[data-cat]");
+  rows.forEach((tr, i) => {
+    const cell = tr.querySelector(".opt-sim-verdict");
+    if (!cell) return;
+    const row = HARDENING.simRows[i];
+    setTimeout(() => {
+      if (!cell.isConnected) return;
+      const pass = !row.baseFail;
+      cell.innerHTML = pass
+        ? `<span class="chip" style="background:#0f3328;color:#6ee7b7;border-color:#1f5436;">✓ ${row.base}</span>`
+        : `<span class="chip" style="background:#3a1414;color:#fca5a5;border-color:#5a2020;">✗ ${row.base}</span>`;
+    }, i * 110);
+  });
+}
+function activateTrace(sceneEl, prefix, opts = {}) {
+  // sequentially light up the reasoning steps, then the terminal node.
+  const steps = sceneEl.querySelectorAll("." + prefix + "-step");
+  const term = sceneEl.querySelector("." + prefix + "-terminal");
+  steps.forEach((node, i) => {
+    setTimeout(() => {
+      if (!node.isConnected) return;
+      node.classList.remove("opt-dim");
+      const kind = node.dataset.kind;
+      if (kind === "stall") node.classList.add("opt-stall");
+      else if (kind === "repair") node.classList.add("opt-repair");
+      else node.classList.add("opt-active");
+    }, i * 420);
+  });
+  if (term) {
+    setTimeout(() => {
+      if (!term.isConnected) return;
+      term.classList.remove("opt-dim");
+      term.classList.add(opts.tone === "repair" ? "opt-repair" : (opts.tone === "stall" ? "opt-stall" : "opt-active"));
+    }, steps.length * 420 + 200);
+  }
+}
+function fillOptBar(sceneEl, sel, pct) {
+  const el = sceneEl.querySelector(sel);
+  if (!el) return;
+  el.style.width = pct + "%";
+  el.textContent = (pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(1)) + "%";
+}
+
+/* --- Track metadata (generalised so the engine is not hard-wired to 12) -----*/
+const TRACK_LABEL = {
+  track2: "Track 2 · Build",
+  optimize: "Optimize · Harden",
+  track3: "Track 3 · Refactor",
+};
+
+function populateSceneJump(track) {
+  const jump = document.getElementById("scene-jump");
+  if (!jump) return;
+  jump.innerHTML = "";
+  const count = TIMELINE[track].length;
+  for (let i = 0; i < count; i++) {
+    const opt = document.createElement("option");
+    opt.value = String(i);
+    opt.textContent = `Scene ${i + 1}`;
+    jump.appendChild(opt);
+  }
+}
+
 /* --- Scene + locale switching ---------------------------------------------*/
 function buildScenes() {
   const host = document.getElementById("scene-host");
   host.innerHTML = "";
-  const tracks = ["track2", "track3"];
+  const tracks = ["track2", "optimize", "track3"];
   for (const t of tracks) {
     const builders = SCENE_BUILDERS[t];
     for (let i = 0; i < builders.length; i++) {
@@ -2100,9 +2524,10 @@ function setActiveScene(track, idx) {
   moveCursor(640, 400);
   // angle badge + scene info
   const info = TIMELINE[track][idx];
+  const sceneCount = TIMELINE[track].length;
   document.getElementById("angle-badge").textContent = info.angle + " · " + info.title;
   document.getElementById("scene-info").innerHTML =
-    `<b>${track === 'track2' ? 'Track 2' : 'Track 3'} · Scene ${idx+1} / 12</b> — ${info.title} ` +
+    `<b>${TRACK_LABEL[track]} · Scene ${idx+1} / ${sceneCount}</b> — ${info.title} ` +
     `<span class="chip chip-blue" style="margin-left:6px;">${info.angle}</span>` +
     `<span style="margin-left:10px;">Real ${info.real}s · 8× ${info.comp.toFixed(1)}s</span>`;
 }
@@ -2208,16 +2633,12 @@ function setupControls() {
     });
   });
   document.getElementById("btn-track-2").addEventListener("click", () => switchTrack("track2"));
+  document.getElementById("btn-track-optimize").addEventListener("click", () => switchTrack("optimize"));
   document.getElementById("btn-track-3").addEventListener("click", () => switchTrack("track3"));
 
-  // populate scene jump
+  // populate scene jump (track-aware count)
   const jump = document.getElementById("scene-jump");
-  for (let i = 0; i < 12; i++) {
-    const opt = document.createElement("option");
-    opt.value = String(i);
-    opt.textContent = `Scene ${i+1}`;
-    jump.appendChild(opt);
-  }
+  populateSceneJump(state.track);
   jump.addEventListener("change", () => {
     const idx = parseInt(jump.value, 10);
     const { starts } = cumStarts(state.track);
@@ -2233,7 +2654,7 @@ function setupControls() {
     if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
     if (e.code === "Space") { e.preventDefault(); btnPlay.click(); }
     else if (e.code === "ArrowRight") {
-      const next = Math.min(11, state.sceneIdx + 1);
+      const next = Math.min(TIMELINE[state.track].length - 1, state.sceneIdx + 1);
       jump.value = String(next);
       jump.dispatchEvent(new Event("change"));
     } else if (e.code === "ArrowLeft") {
@@ -2252,8 +2673,11 @@ function switchTrack(track) {
   state.elapsedMs = 0;
   state.sceneIdx = -1;
   state.firedActions = new Set();
+  state.totalMs = cumStarts(track).endOfScenes * 1000 + 5000; // scenes + closing card
   document.getElementById("btn-track-2").classList.toggle("active", track === "track2");
+  document.getElementById("btn-track-optimize").classList.toggle("active", track === "optimize");
   document.getElementById("btn-track-3").classList.toggle("active", track === "track3");
+  populateSceneJump(track);
   buildScenes();
   setActiveScene(track, 0);
   state.lastTs = null;
@@ -2263,6 +2687,7 @@ function switchTrack(track) {
 /* --- Boot ------------------------------------------------------------------*/
 window.addEventListener("DOMContentLoaded", () => {
   state.cursor = document.getElementById("cursor");
+  state.totalMs = cumStarts("track2").endOfScenes * 1000 + 5000;
   buildScenes();
   setActiveScene("track2", 0);
   setupControls();
