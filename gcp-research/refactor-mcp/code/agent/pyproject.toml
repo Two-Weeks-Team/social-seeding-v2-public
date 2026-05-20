@@ -44,6 +44,8 @@ dependencies = [
     # --- Identity Platform (D19) ---------------------------------------------
     "firebase-admin>=7.0.0,<8.0.0",              # verify_id_token for ID Platform
     "google-auth>=2.40.0,<3.0.0",
+    # --- Agent-card JWS signing (A2A v0.3 signatures[]) ----------------------
+    "cryptography>=43.0.0,<49.0.0",              # ES256 sign/verify for card_signer (RFC 7515)
     # --- Model Armor (D21) ---------------------------------------------------
     "google-cloud-modelarmor>=0.3.0,<1.0.0",     # sanitizeUserPrompt + sanitizeModelResponse
     # --- HTTP server ---------------------------------------------------------

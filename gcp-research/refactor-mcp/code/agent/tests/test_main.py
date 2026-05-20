@@ -27,7 +27,11 @@ def client() -> TestClient:
 def test_healthz(client: TestClient) -> None:
     r = client.get("/healthz")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok"}
+    body = r.json()
+    assert body["status"] == "ok"
+    # The handler also reports service identity for ops dashboards.
+    assert body["service"] == "tiktok-orchestrator"
+    assert "version" in body
 
 
 def test_well_known_agent_card_required_fields(client: TestClient) -> None:
@@ -129,3 +133,38 @@ def test_chat_endpoint_alias(client: TestClient) -> None:
     assert r.status_code == 200
     body = r.json()
     assert "creators" in body and body["source_attribution"].startswith("Source: Social Seeding")
+
+
+def test_served_card_carries_verifiable_signature(client: TestClient) -> None:
+    """The served /.well-known/agent.json must carry an A2A v0.3 signatures[]
+    JWS that verifies against the JWKS the same service publishes."""
+    from tiktok_orchestrator.card_signer import b64url_decode, verify_card_with_jwks
+
+    card = client.get("/.well-known/agent.json").json()
+    jwks = client.get("/.well-known/jwks.json").json()
+
+    assert card.get("signatures"), "served card has no signatures[]"
+    entry = card["signatures"][0]
+    assert {"protected", "signature"} <= set(entry)
+
+    import json as _json
+
+    protected = _json.loads(b64url_decode(entry["protected"]))
+    assert protected["alg"] == "ES256"
+    assert protected["kid"] and protected["jku"].endswith("/.well-known/jwks.json")
+
+    # JWKS publishes the matching EC/P-256 public key, and the card verifies.
+    assert jwks["keys"] and jwks["keys"][0]["kty"] == "EC"
+    assert verify_card_with_jwks(card, jwks) is True
+
+
+def test_jwks_endpoint_shape(client: TestClient) -> None:
+    r = client.get("/.well-known/jwks.json")
+    assert r.status_code == 200
+    body = r.json()
+    assert isinstance(body["keys"], list) and body["keys"]
+    jwk = body["keys"][0]
+    for field in ("kty", "crv", "x", "y", "kid", "use"):
+        assert field in jwk
+    # Only the public half is ever published — no private scalar 'd'.
+    assert "d" not in jwk

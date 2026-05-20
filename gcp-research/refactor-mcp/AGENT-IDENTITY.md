@@ -78,7 +78,7 @@ callee already speak the same identity language end-to-end.
 | Agent card | `identity.trustDomain` | `ss-mcp-prod.svc.id.goog` |
 | Agent card | `identity.workloadIdentityProvider` | `cloud-run-service-account` |
 | Agent card | `securitySchemes.mutualTLS` | A2A v0.3 `mutualTLS` scheme (peers authenticate by client cert at the transport layer) |
-| Agent card | `signatures[]` | OPTIONAL JWS over the card (RFC 7515), `kid` = the agent key, `jku` = the public JWKS URL — lets any client verify card authorship |
+| Agent card | `signatures[]` | **IMPLEMENTED** — JWS over the card (RFC 7515, A2A v0.3 §"Signing and Verifying the AgentCard"): `alg`=ES256, `kid`=the agent key, `jku`=the public JWKS URL. Lets any client verify card authorship. Signer: `code/agent/src/tiktok_orchestrator/card_signer.py`; served at `/.well-known/agent.json` + JWKS at `/.well-known/jwks.json` |
 | Cloud Run | `serviceAccountName` | `tiktok-mcp-runner@ss-mcp-prod.iam.gserviceaccount.com` (the cryptographic anchor) |
 | Agent Registry (D23) | registration record | the same SPIFFE ID, so discovery + identity agree |
 
@@ -87,6 +87,48 @@ intended to be public in the discovery document. The *private key* is never in t
 card or repo; it lives in the GCP-managed workload-identity credential and never
 touches disk (consistent with `cloud-run-service.yaml`'s "secrets via Secret
 Manager only; no `ENV` injection" stance).
+
+### 3.1 `signatures[]` — the JWS that proves card authorship (implemented)
+
+The A2A v0.3 spec defines an **`AgentCardSignature`** (`{protected, signature,
+header?}`) — an RFC 7515 JWS over the card so any client can cryptographically
+verify *who published this card*. The recipe (confirmed against
+[the v0.3 spec](https://a2a-protocol.org/v0.3.0/specification/) §"Signing and
+Verifying the AgentCard"):
+
+1. Take the card with its `signatures` key **removed** (a signature can't cover
+   itself), then **canonicalize** with **JCS (RFC 8785)** so signer and verifier
+   compute identical bytes.
+2. Build a protected header `{"alg":"ES256","kid":…,"jku":…}` (`jku` → the public
+   JWKS URL), base64url-encode it.
+3. JWS Signing Input = `BASE64URL(protected) + "." + BASE64URL(JCS(card))`; sign
+   with the agent's private key (ES256 / ECDSA P-256); base64url the signature.
+4. Append `{protected, signature}` to `signatures[]`.
+
+Implementation:
+
+| Piece | Where |
+|---|---|
+| Signer + verifier + JCS + JWKS builder | `code/agent/src/tiktok_orchestrator/card_signer.py` |
+| Offline sign/verify CLI | `code/deployment/sign_agent_card.py` |
+| Serve the signed card | `GET /.well-known/agent.json` (signs on first read, caches) |
+| Publish the public key | `GET /.well-known/jwks.json` (the `jku` target; public half only) |
+| Tests (sign/verify/tamper/JWKS) | `code/agent/tests/test_card_signer.py` + `test_main.py` |
+
+**ES256** (ECDSA P-256) is chosen so the card-signing key is the same key *shape*
+as the SPIFFE/X.509 workload-identity anchor — one EC-key story end to end.
+
+**Dev-key vs prod-key (honest scope):**
+
+- **Dev / self-managed key** (default): an ES256 keypair auto-generated on first
+  use under `code/deployment/keys/` (git-ignored via `*.key`/`*.pem`, mode `0600`).
+  This is what signs the **open Track-3 demo** card (`REQUIRE_AUTH=false`), the
+  smoke tests, and CI. It proves the *mechanism* end-to-end without needing GCP.
+- **Production key**: operator/**Secret-Manager-provisioned**, supplied via
+  `AGENT_CARD_SIGNING_KEY_PEM` (or `AGENT_CARD_SIGNING_KEY_FILE`) and never written
+  to disk in the container — same "secrets via Secret Manager only" stance as the
+  workload-identity credential. **No production private key lives in this repo.**
+  The published JWKS (`jku`) is the only place the *public* key appears.
 
 ---
 
@@ -176,15 +218,21 @@ cryptographic agent ID + a verifiable, retained trail of who invoked which inten
 | `a2a_invoke` live A2A egress (POST `/v1/message:send`) | **Implemented** | `a2a_invoke.py` `_live()` — real `httpx.post`, A2A v0.3 envelope, bounded retry, task-envelope parsing (D45) |
 | SPIFFE/identity-token attachment on egress | **Implemented but disabled by default** | `a2a_invoke.py` `_identity_token()` — attaches a `Bearer` token only when `A2A_IDENTITY_TOKEN` is set OR `A2A_FETCH_ID_TOKEN=1` (ADC); otherwise no `Authorization` header (the demo callee is unauthenticated today) |
 | Transport-layer mTLS enforcement (Agent Gateway) | **Pending O7 Private-Preview allowlist** | DECISIONS.md §6 O7; the demo Cloud Run callee accepts unauthenticated requests until then |
-| JWS-signed card (`signatures[]`) | **Optional / deferred** | requires a signing key + JWKS endpoint; the card is structurally ready (field is A2A v0.3-standard) |
+| JWS-signed card (`signatures[]`) | **Implemented (dev key)** | `card_signer.py` signs the card (ES256, JCS/RFC 8785, RFC 7515) + serves JWKS at `/.well-known/jwks.json`; demo uses the git-ignored dev key, prod key is Secret-Manager-provisioned (`AGENT_CARD_SIGNING_KEY_PEM`). See §3.1 |
 
 The cryptographic ID is **assigned and published now** (workload-identity SA +
-SPIFFE string in the card), and the **live A2A egress hop is implemented** (`_live()`).
-What is *not* yet on by default: the egress hop attaches a SPIFFE/identity token only
-when explicitly opted in (`A2A_IDENTITY_TOKEN` / `A2A_FETCH_ID_TOKEN=1`), and the
-transport-layer *enforcement* (Agent Gateway mTLS, JWS card signing) lands as the
-surrounding GCP services come online (O7, D44). Today the demo Cloud Run callee accepts
-unauthenticated requests. No claim of "production-enforced mTLS" is made until O7 clears.
+SPIFFE string in the card), the **live A2A egress hop is implemented** (`_live()`),
+and the card is now **JWS-signed** (`signatures[]`, §3.1) so any client can verify
+its authorship against the published JWKS. What is *not* yet on by default: the
+egress hop attaches a SPIFFE/identity token only when explicitly opted in
+(`A2A_IDENTITY_TOKEN` / `A2A_FETCH_ID_TOKEN=1`), and the transport-layer
+*enforcement* (Agent Gateway mTLS) lands as the surrounding GCP services come
+online (O7, D44). The demo card is signed with a **self-managed dev key**; the
+**production** signing key is operator/Secret-Manager-provisioned and is not in
+this repo — so no claim of "production-key-signed card" or "production-enforced
+mTLS" is made until those operator steps clear. Today the demo Cloud Run callee
+accepts unauthenticated requests (the signature proves *authorship*, not caller
+authorization).
 
 ---
 
