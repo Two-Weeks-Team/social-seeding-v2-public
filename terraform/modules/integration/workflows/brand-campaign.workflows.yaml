@@ -18,6 +18,19 @@
 #        by terraform/modules/integration/workflows.tf from the same
 #        `agent_urls` map). `default()` selects whichever is present.
 #   No hardcoded `https://…` literals remain in this YAML (D42 anchor).
+#
+# Multi-agent orchestration + A2A cross-call (G1 / D23 / D24 / D45):
+#   `coordinate_sourcing` asks the coordinator agent (M1) which agent should
+#   source creators — a LOCAL in-process `sourcing` agent or the REMOTE A2A
+#   `tiktok-mcp-search` node (the OSS tiktok-mcp-server). `branch_on_route`
+#   then performs the transport switch the coordinator's contract delegates to
+#   the workflow; the remote branch (`a2a_invoke_remote`) issues an A2A v0.3
+#   `message:send` to tiktok-mcp-server's `plan_creator_search` intent
+#   (A2A-INTENTS.md §2.1). Both routes converge on the same `candidates`
+#   variable, so `vetting_fanout` and everything downstream is unchanged.
+#   The coordinator URL resolves via `AGENT_URL_COORDINATOR` and the remote
+#   node via `AGENT_URL_TIKTOK_MCP` — same D42 env-var/args mechanism, still
+#   zero hardcoded hostnames.
 
 main:
   params: [args]
@@ -54,6 +67,138 @@ main:
     - assign_policy:
         assign:
           - policy: ${policy_response.body}
+
+    # ── A2A wiring (G1) ──────────────────────────────────────────────────────
+    # D23: the coordinator (M1) is the workflow's "lead picker" — the workflow
+    #   does NOT hard-wire which agent sources creators; it ASKS the coordinator.
+    # D24: phased coordination — the candidate pool offers BOTH a local in-process
+    #   `sourcing` agent (0→1) and a remote A2A `tiktok-mcp-search` node (1→100).
+    # D45: when the coordinator routes to the remote node, the workflow performs
+    #   the actual transport switch and A2A-invokes the OSS tiktok-mcp-server —
+    #   the load-bearing cross-component edge for the single-Track-3 narrative.
+    # Per coordinator.py: "Cloud Workflows performs the actual transport switch
+    #   after the routing decision lands" — the workflow, NOT the agent, A2A-POSTs.
+    - coordinate_sourcing:
+        call: http.post
+        args:
+          # D42: agent URL resolved via args.agent_urls map OR AGENT_URL_<ID>
+          # env-var fallback — never a hardcoded https:// literal.
+          url: ${default(map.get(args.agent_urls, "coordinator"), sys.get_env("AGENT_URL_COORDINATOR"))}
+          body:
+            # CoordinatorInput (coordinator.py): taskDescription + workspacePolicy
+            # + candidateAgents pool. The brief text drives the routing decision.
+            taskDescription: ${"Source creators for brand campaign " + campaignId + " — targeting " + json.encode(brief.targeting)}
+            workspacePolicy:
+              # Empty allowedAgents = all candidates allowed; budget/SLA advisory.
+              allowedAgents: []
+              budgetRemainingUsd: ${policy.budgets.maxUsdPerCampaign}
+              slaTargetMs: 4000
+            candidateAgents:
+              # D24: local in-process sourcing agent (0→1 phase).
+              - agentId: "sourcing"
+                capabilities: ["source_creators", "tiktok", "rapidapi"]
+                avgLatencyMs: 2400
+                avgCostUsd: 0.018
+                transport: "in_process"
+              # D24/D45: remote A2A node — the OSS tiktok-mcp-server (1→100 phase).
+              - agentId: "tiktok-mcp-search"
+                capabilities: ["source_creators", "tiktok", "remote", "a2a"]
+                avgLatencyMs: 3100
+                avgCostUsd: 0.012
+                transport: "a2a_grpc"
+            locale: "en"
+            allowRemote: true
+            preferLocal: true
+          auth:
+            type: OIDC
+          timeout: 30
+        retry:
+          predicate: ${http.default_retry_predicate}
+          max_retries: 3
+          backoff: {initial_delay: 2, max_delay: 30, multiplier: 2}
+        result: coordinator_response
+
+    # D24/D45: branch on the coordinator's routing decision. If it picked the
+    # remote A2A node, perform the transport switch (a2a_invoke_remote). The
+    # __escalate__ sentinel (coordinator.py ESCALATE_AGENT_ID) routes to the
+    # human gate, never crashes. Any local pick falls through to sourcing_agent.
+    - branch_on_route:
+        switch:
+          # Coordinator self-escalated: skip remote A2A, let the existing gate
+          # / HITL path handle it (local sourcing still runs as the safe default).
+          - condition: ${coordinator_response.body.chosenAgentId == "__escalate__"}
+            next: patch_stage_sourcing
+          # Remote / A2A route: chosen id names the tiktok-mcp node.
+          - condition: ${text.match_regex(coordinator_response.body.chosenAgentId, "^tiktok-mcp")}
+            next: patch_stage_sourcing_remote
+          # Default: local in-process sourcing — unchanged legacy behavior.
+          - condition: true
+            next: patch_stage_sourcing
+
+    # Remote A2A sourcing path (D45). Mirrors the local patch_stage_sourcing
+    # bookkeeping so downstream stages see identical campaign state, then does
+    # the cross-component A2A v0.3 message:send hop.
+    - patch_stage_sourcing_remote:
+        call: http.post
+        args:
+          url: ${sys.get_env("CAMPAIGN_REPO_URL") + "/patch-stage"}
+          body:
+            campaignId: ${campaignId}
+            stage: "sourcing"
+            state: "running"
+          auth:
+            type: OIDC
+        next: a2a_invoke_remote
+
+    # D45: THE cross-component edge. The workflow A2A-invokes the OSS
+    # tiktok-mcp-server's `plan_creator_search` intent (A2A-INTENTS.md §2.1)
+    # over A2A v0.3 `message:send`. Body mirrors a2a_invoke._build_a2a_message
+    # exactly: {"message":{"role":"user","messageId":<corr>,"parts":[{"kind":"text","text":<brief>}]}}.
+    - a2a_invoke_remote:
+        call: http.post
+        args:
+          # D42: remote endpoint resolved via args.agent_urls OR AGENT_URL_TIKTOK_MCP
+          # env-var fallback; "/v1/message:send" appended (A2A v0.3 REST binding).
+          # No hardcoded https:// literal.
+          url: ${default(map.get(args.agent_urls, "tiktok-mcp-search"), sys.get_env("AGENT_URL_TIKTOK_MCP")) + "/v1/message:send"}
+          body:
+            message:
+              role: "user"
+              # Correlation id derived from campaignId (echoed back for trace pairing).
+              messageId: ${"a2a-" + campaignId + "-sourcing"}
+              parts:
+                - kind: "text"
+                  text: ${"Source creators for brand campaign " + campaignId + " — targeting " + json.encode(brief.targeting)}
+          headers:
+            Content-Type: "application/json"
+            A2A-Version: "0.3"
+          auth:
+            type: OIDC
+          timeout: 60
+        retry:
+          predicate: ${http.default_retry_predicate}
+          max_retries: 3
+          backoff: {initial_delay: 2, max_delay: 30, multiplier: 2}
+        result: a2a_response
+
+    # Parse the A2A v0.3 `task` envelope (A2A-INTENTS.md §2.1 / a2a_invoke
+    # ._extract_response_payload). On status.state == "completed", lift the
+    # first artifacts[].parts[].data (RankedCreators) into the SAME `candidates`
+    # variable the existing vetting_fanout consumes — so the rest of the workflow
+    # is unchanged. Any other state raises so the existing error path handles it.
+    - check_a2a_outcome:
+        switch:
+          - condition: ${a2a_response.body.status.state == "completed"}
+            steps:
+              - assign_remote_candidates:
+                  assign:
+                    # RankedCreators.creators[] is the candidate list. The first
+                    # data artifact part carries the structured result.
+                    - candidates: ${a2a_response.body.artifacts[0].parts[0].data.creators}
+              - jump_to_vetting:
+                  next: vetting_fanout
+          - condition: true
+            raise: ${"a2a_sourcing_failed:" + default(a2a_response.body.status.state, "unknown_state")}
 
     - patch_stage_sourcing:
         call: http.post
