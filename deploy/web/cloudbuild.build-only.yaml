@@ -1,0 +1,41 @@
+###############################################################################
+# deploy/web/cloudbuild.build-only.yaml
+#
+# Minimal build+push pipeline for bringing ss-v2-prod online without the full
+# enterprise wiring (CMEK / VPC connector / Secret Manager / CVE scan) that the
+# canonical deploy/web/cloudbuild.yaml + service.yaml require.
+#
+# The canonical pipeline `gcloud run services replace`s service.yaml, which
+# references resources not yet provisioned in ss-v2-prod (KMS keyring `ss-web`,
+# Serverless VPC connector `ss-vpc-conn`, `web-runner` SA, Secret Manager
+# secrets, minScale=1). This config only builds the image from the monorepo
+# root context using deploy/web/Dockerfile and pushes it to Artifact Registry;
+# the deploy is done separately via `gcloud run deploy` with min-instances=0
+# (D46 scale-to-zero).
+###############################################################################
+steps:
+  - id: build-web
+    name: gcr.io/cloud-builders/docker
+    env:
+      - DOCKER_BUILDKIT=1
+    args:
+      - build
+      - --file=deploy/web/Dockerfile
+      - --tag=${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-web/web:${_TAG}
+      - --tag=${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-web/web:latest
+      - .
+
+images:
+  - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-web/web:${_TAG}
+  - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/ss-web/web:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+timeout: 1800s
+
+substitutions:
+  _PROJECT_ID: ss-v2-prod
+  _REGION: us-central1
+  _TAG: manual

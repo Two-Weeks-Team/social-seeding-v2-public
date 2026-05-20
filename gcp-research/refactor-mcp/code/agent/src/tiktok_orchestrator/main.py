@@ -134,9 +134,16 @@ async def require_identity(authorization: str | None = Header(default=None)) -> 
 # ---------------------------------------------------------------------------
 
 
+@app.get("/", include_in_schema=False)
 @app.get("/healthz", include_in_schema=False)
+@app.get("/livez", include_in_schema=False)
 def healthz() -> dict[str, str]:
-    return {"status": "ok"}
+    # Aliased onto "/" and "/livez" as well: Google Cloud Run's HTTP frontend
+    # reserves and intercepts the literal "/healthz" path before it reaches the
+    # container, so a root-level liveness route is the reachable signal there.
+    # Behind a custom domain / proxy that does not reserve "/healthz"
+    # (e.g. mcp.socialseed.ing) the original path keeps working.
+    return {"status": "ok", "service": "tiktok-orchestrator", "version": __version__}
 
 
 @app.get("/readyz", include_in_schema=False)
