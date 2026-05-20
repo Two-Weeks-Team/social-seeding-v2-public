@@ -112,6 +112,24 @@
       "_output_schema_ref": "#/definitions/RankedCreators",
       "_typical_duration_ms": 15000,
       "_long_running": true
+    },
+    {
+      "id": "get_brand_assets",
+      "name": "Get approved brand assets (DAM)",
+      "description": "DAM-style skill (designed_guide.pdf Build Example #2): returns a brand's approved logos / product imagery + an on-brand compliance verdict for a supplied post media URI. Invoked over A2A by the content_verify marketing agent to keep creator posts on-brand. DEMO DAM stand-in for a customer's real Digital Asset Manager; the A2A transport is genuine.",
+      "tags": ["dam", "brand-assets", "compliance", "on-brand", "build-example-2"],
+      "examples": [
+        "Return approved logos for 'Freshly' and verify the post thumbnail is on-brand.",
+        "Get the brand-asset catalog + compliance verdict for a detected creator post."
+      ],
+      "inputModes":  ["application/json"],
+      "outputModes": ["application/json"],
+      "security": [{ "oidc": [] }, { "oauth": ["tiktok:read"] }],
+      "_output_schema_ref": "#/definitions/BrandAssets",
+      "_typical_duration_ms": 800,
+      "_long_running": false,
+      "_a2a_binding": "POST /v1/message:send with a data part {skill:'get_brand_assets', brand_name, post_media_url}; direct alias POST /a2a/skills/get_brand_assets",
+      "_build_example_2": "Consumed by content_verify (Track-2 Tier-1 agent #7) via ss_agents.tools.dam_get_brand_assets -> a2a_invoke. Honest scope: demo DAM stand-in; transport real."
     }
   ],
 
@@ -170,32 +188,62 @@
         },
         "trace": { "type": "object" }
       }
+    },
+    "BrandAssets": {
+      "type": "object",
+      "required": ["brand_name", "brand_assets", "on_brand", "source_attribution"],
+      "properties": {
+        "brand_name": { "type": "string" },
+        "brand_assets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["asset_id", "kind", "uri"],
+            "properties": {
+              "asset_id": { "type": "string" },
+              "kind": { "type": "string", "description": "logo | product_image | wordmark" },
+              "uri": { "type": "string", "description": "gs:// or https:// URI of the approved asset" }
+            }
+          }
+        },
+        "logo_detected": { "type": "boolean" },
+        "confidence_0_1": { "type": "number", "minimum": 0, "maximum": 1 },
+        "on_brand": { "type": "boolean" },
+        "compliance_notes": { "type": "string" },
+        "source_attribution": {
+          "type": "string",
+          "default": "Source: Social Seeding DAM (demo) — https://socialseed.ing"
+        }
+      }
     }
   },
 
   "_a2a_intents": {
     "_comment": "Track 3 official requirement #6 (designed_guide.pdf p.6) — the A2A intents this agent EXPOSES and CONSUMES. Human-readable manifest: A2A-INTENTS.md. Per DECISIONS.md D48.",
     "exposed": {
-      "a2a_skills": ["plan_creator_search"],
+      "a2a_skills": ["plan_creator_search", "get_brand_assets"],
       "mcp_tools": ["tiktok_search", "tiktok_user_info", "tiktok_user_posts", "tiktok_post_detail"]
     },
     "consumed": {
       "a2a_intents": [],
       "internal_dependencies": ["mcp.tiktok_toolset (loopback :8100)", "identity_platform.verify_id_token (D19)"]
     },
-    "cross_call_proof": "Track-2 coordinator (M1) A2A-invokes this agent's plan_creator_search via ss_agents.tools.a2a_invoke (D45 single-narrative edge).",
+    "cross_call_proof": "Two real A2A cross-component edges: (1) Track-2 coordinator (M1) A2A-invokes plan_creator_search via ss_agents.tools.a2a_invoke (D45). (2) Track-2 content_verify A2A-invokes the DAM-style get_brand_assets skill via ss_agents.tools.dam_get_brand_assets -> a2a_invoke (Build Example #2, transport-exact).",
     "manifest": "gcp-research/refactor-mcp/A2A-INTENTS.md"
   },
 
   "_build_example_2_match": {
-    "_comment": "designed_guide.pdf p.7 Build Example #2 (Gemini multimodal marketing agent → A2A → DAM Agent for approved brand logos, staying on-brand/compliant) maps 1:1 to Social Seeding's content_verify agent + vision.brand_logo_detect. Per DECISIONS.md D48. Honest scope: today the brand-asset check is an in-process ADK FunctionTool, not yet a separately-deployed A2A DAM agent — see A2A-INTENTS.md §5.",
+    "_comment": "designed_guide.pdf p.7 Build Example #2 (Gemini multimodal marketing agent → A2A → DAM Agent for approved brand logos, staying on-brand/compliant) maps 1:1 to Social Seeding's content_verify agent. As of W3/Seam-C the brand-asset check crosses a REAL A2A v0.3 hop (content_verify → dam_get_brand_assets → a2a_invoke → this server's get_brand_assets DAM skill) — transport-exact, not an in-process call. Per DECISIONS.md D45 + D48. Honest scope: the A2A transport is genuine; the DAM endpoint is a demo stand-in for a customer's real Digital Asset Manager; live endpoint deploy is operator-gated. See A2A-INTENTS.md §5.",
     "pdf_role": "marketing agent + multimodal + A2A → internal DAM Agent (approved brand logos / product imagery) for on-brand compliance",
+    "transport": "a2a-v0.3 (real) — content_verify → ss_agents.tools.dam_get_brand_assets → a2a_invoke (message/send) → get_brand_assets DAM skill",
     "our_implementation": {
-      "agent": "content_verify (Track-2 Tier-1 agent #7)",
+      "marketing_agent": "content_verify (Track-2 Tier-1 agent #7)",
       "model": "gemini-2.5-flash (multimodal: text + image + video)",
-      "brand_asset_capability": "vision.brand_logo_detect (Cloud Vision LOGO_DETECTION)",
+      "a2a_brand_asset_tool": "ss_agents.tools.dam_get_brand_assets (composes the A2A v0.3 envelope, invokes a2a_invoke)",
+      "dam_agent_endpoint": "env-configured DAM_AGENT_ENDPOINT (D42); demo target is this server's get_brand_assets skill",
+      "dam_skill": "get_brand_assets (returns BrandAssets {brand_assets, logo_detected, confidence_0_1, on_brand, compliance_notes})",
       "compliance_output": "ContentVerifyOutput {matches, mentionsBrand, logoDetected, performanceScore, flags[8], rationale}",
-      "source": "packages/agents-adk/src/ss_agents/agents/content_verify.py"
+      "source": "packages/agents-adk/src/ss_agents/agents/content_verify.py + packages/agents-adk/src/ss_agents/tools/dam_get_brand_assets.py"
     }
   },
 

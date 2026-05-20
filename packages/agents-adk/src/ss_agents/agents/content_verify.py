@@ -55,13 +55,30 @@ Phase 3 ↔ Phase 4 boundary:
       stubbed tools=[]. The agent reasons over text + the **declared**
       visual signals (logoDetected / watermark) coming from the workflow's
       pre-call `vision.brand_logo_detect` capability.
-    - Phase 4: Wire `rapidapi.post_detail` + `vision.brand_logo_detect` as
+    - Phase 4: Wire `rapidapi.post_detail` + brand-asset retrieval as
       ADK FunctionTools the agent CALLS, then drop the workflow-pre-call
       pattern. The visual context shifts from "input field" to "tool result".
 
       Until then we keep the visual signals declarable in the input so the
       offline tests + golden eval set cover the logo-only / watermark-only
       branches deterministically.
+
+W3 / Seam-C (D45 + D48) — Build Example #2 made transport-exact:
+    `designed_guide.pdf` p.7 Build Example #2 is *"marketing agent → A2A →
+    internal DAM Agent for approved brand logos, staying on-brand/compliant."*
+    content_verify IS that Gemini multimodal marketing agent. Its brand-asset
+    retrieval tool is now `dam_get_brand_assets`, which reaches the DAM over a
+    REAL A2A v0.3 hop (via `a2a_invoke`, the same proven live transport as the
+    coordinator → ss-mcp edge) instead of the previous in-process
+    `vision.brand_logo_detect` FunctionTool. The DAM returns approved brand
+    logos/assets + an on-brand compliance verdict; content_verify consumes that
+    to decide whether the creator post is on-brand. See A2A-INTENTS.md §5.
+
+    Honest scope: the A2A TRANSPORT is genuine; the DAM endpoint is a demo
+    stand-in for a customer's real Digital Asset Manager (the live ss-mcp A2A
+    server exposes a `get_brand_assets` DAM-style skill so the hop is reachable
+    end-to-end). The live endpoint deploy is operator-gated; stub mode keeps the
+    whole path deterministic + offline.
 """
 from __future__ import annotations
 
@@ -73,7 +90,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ss_agents.agents.intake import CampaignBrief
 from ss_agents.runtime import AgentDef
-from ss_agents.tools.vision_brand_logo_detect import vision_brand_logo_detect
+from ss_agents.tools.dam_get_brand_assets import dam_get_brand_assets
 
 logger = logging.getLogger(__name__)
 
@@ -401,6 +418,17 @@ def build_content_verify_system_prompt(payload: BaseModel) -> str:
             "",
             visual_signals,
             "",
+            "## Brand-asset / DAM check (A2A — Build Example #2)",
+            "Call the `dam_get_brand_assets` tool with the brand name + the "
+            "post thumbnail URI to retrieve the brand's APPROVED logos/assets "
+            "and the DAM's on-brand compliance verdict. This tool reaches the "
+            "company's Digital Asset Manager over a real A2A v0.3 hop. Use its "
+            "result as the authority on `logoDetected` (the DAM matched an "
+            "approved logo on the post media) and on whether the post is "
+            "on-brand. If the tool reports `transport=fallback` / "
+            "`a2a_succeeded=false`, the DAM was unreachable — DO NOT assume "
+            "the post is on-brand; lean conservative (set `ambiguous`).",
+            "",
             competitor_block,
             "",
             "## Decide",
@@ -483,21 +511,27 @@ content_verify_agent_def: AgentDef[ContentVerifyInput, ContentVerifyOutput] = Ag
         "Score a detected TikTok post against the brand brief. Returns "
         "{matches, mentionsBrand, logoDetected, performanceScore (0-100), "
         "flags[8 codes], rationale}. Multimodal — reads desc + hashtags + "
-        "optional thumbnail/video URIs plus pre-computed vision signals "
-        "(logoDetected / watermarkPresent). Per content_verify.spec.md "
-        "(D23 Tier-1 agent #7, D5 Gemini 2.5 Flash multimodal)."
+        "optional thumbnail/video URIs. Retrieves approved brand assets + an "
+        "on-brand verdict from the DAM Agent over a real A2A v0.3 hop "
+        "(dam_get_brand_assets → a2a_invoke). Per content_verify.spec.md "
+        "(D23 Tier-1 #7, D5 Flash multimodal; D45/D48 Build Example #2)."
     ),
     model="gemini-2.5-flash",  # D5 — multimodal Flash, not Pro
     max_usd=0.05,  # content_verify.spec.md §6: $0.05 per post (Flash mm + 1-2 tools)
     input_schema=ContentVerifyInput,
     output_schema=ContentVerifyOutput,
     system_prompt=build_content_verify_system_prompt,
-    # W2-A5 (D41): capability-layer wire — vision.brand_logo_detect is now an
-    # ADK FunctionTool the agent can call directly. Stub vs live is selected
-    # via CAPABILITY_LAYER_MODE env var; stub returns deterministic canned
-    # data so golden-set evals + CI workflow runs stay reproducible.
+    # W3 / Seam-C (D45 + D48): Build Example #2 made transport-exact. The
+    # brand-asset retrieval tool is now `dam_get_brand_assets`, which reaches
+    # the DAM Agent over a REAL A2A v0.3 hop (via `a2a_invoke`, the same proven
+    # live transport as the coordinator → ss-mcp edge) instead of the previous
+    # in-process `vision.brand_logo_detect` FunctionTool. The DAM returns
+    # approved brand logos/assets + an on-brand compliance verdict; the agent
+    # consumes that to decide whether the post is on-brand. Stub vs live is
+    # selected via CAPABILITY_LAYER_MODE; the DAM endpoint is env-configured
+    # (DAM_AGENT_ENDPOINT, D42), never hard-coded. See A2A-INTENTS.md §5.
     # rapidapi.post_detail still runs PRE-call in the workflow (W2-A* later).
-    tools=[vision_brand_logo_detect],
+    tools=[dam_get_brand_assets],
     max_turns=2,  # Spec: single turn (+ ≤ 1 tool call). Cap = 2 for safety.
 )
 

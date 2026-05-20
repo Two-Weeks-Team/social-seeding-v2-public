@@ -855,12 +855,30 @@ class TestContentVerifyEscalation:
         """Spec: single turn (+ ≤ 1 tool call). Cap = 2 for safety."""
         assert content_verify_agent_def.max_turns <= 2
 
-    def test_agent_def_has_vision_brand_logo_detect_tool(self) -> None:
-        """W2-A5 (D41): capability-layer wire promotes vision.brand_logo_detect
-        from workflow pre-call to an ADK FunctionTool the agent calls itself.
-        Stub vs live is selected via CAPABILITY_LAYER_MODE env var."""
+    def test_agent_def_has_dam_get_brand_assets_tool(self) -> None:
+        """W3 / Seam-C (D45 + D48): Build Example #2 made transport-exact. The
+        brand-asset retrieval tool is `dam_get_brand_assets`, which reaches the
+        DAM Agent over a REAL A2A v0.3 hop (via `a2a_invoke`) — NOT the prior
+        in-process `vision.brand_logo_detect` FunctionTool."""
+        from ss_agents.tools.dam_get_brand_assets import dam_get_brand_assets
+
+        assert content_verify_agent_def.tools == [dam_get_brand_assets]
+
+    def test_agent_def_no_longer_uses_in_process_vision_tool(self) -> None:
+        """The brand-asset check is no longer an in-process vision FunctionTool;
+        it crosses a real A2A boundary now (the credibility gap W3/Seam-C closes)."""
         from ss_agents.tools.vision_brand_logo_detect import (
             vision_brand_logo_detect,
         )
 
-        assert content_verify_agent_def.tools == [vision_brand_logo_detect]
+        assert vision_brand_logo_detect not in content_verify_agent_def.tools
+
+    def test_system_prompt_directs_dam_a2a_call(
+        self, cv_input_ko: ContentVerifyInput
+    ) -> None:
+        """The system prompt tells the agent to call the DAM over A2A for the
+        approved-brand-asset / on-brand check (Build Example #2)."""
+        rendered = build_content_verify_system_prompt(cv_input_ko)
+        assert "dam_get_brand_assets" in rendered
+        assert "A2A" in rendered
+        assert "Digital Asset Manager" in rendered

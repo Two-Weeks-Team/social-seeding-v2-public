@@ -12,8 +12,11 @@ Surfaces:
     * ``GET  /.well-known/oauth-protected-resource``
                                                    — Identity Platform OAuth metadata
     * ``POST /a2a/skills/plan_creator_search``    — A2A skill invocation
+    * ``POST /a2a/skills/get_brand_assets``       — DAM-style A2A skill (Build Example #2)
     * ``POST /chat``                              — conversational alias used by the demo video
-    * ``POST /v1/message:send``                   — A2A v0.3 REST binding (PROTOCOLS.md §1.2)
+    * ``POST /v1/message:send``                   — A2A v0.3 REST binding (PROTOCOLS.md §1.2);
+                                                     routes to get_brand_assets when a `data`
+                                                     part declares `skill="get_brand_assets"`
 
 The HTTP layer is intentionally thin. Anything that talks to Gemini, Model
 Armor, or Identity Platform lives in dedicated modules so each can be unit
@@ -38,7 +41,12 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from . import __version__
-from .agent import plan_creator_search, serialize
+from .agent import (
+    get_brand_assets,
+    plan_creator_search,
+    serialize,
+    serialize_brand_assets,
+)
 from .card_signer import build_jwks, load_signing_key, sign_card
 from .identity_platform import (
     IdentityClaims,
@@ -309,6 +317,9 @@ async def a2a_plan(
 class A2AMessagePart(BaseModel):
     kind: str = Field(default="text")
     text: str | None = None
+    # A2A v0.3 `data` part — carries a structured payload (e.g. the DAM
+    # `get_brand_assets` request: {skill, brand_name, post_media_url}).
+    data: dict[str, Any] | None = None
 
 
 class A2AMessage(BaseModel):
@@ -334,21 +345,56 @@ async def a2a_message_send(
     """A2A v0.3 ``message/send`` REST binding (PROTOCOLS.md §1.2 table).
 
     The minimal binding we ship here is non-streaming (PROTOCOLS.md §1.4
-    streaming is a v1.1 follow-up). Returns a ``task`` envelope with a
-    single completed artifact whose ``data`` is a ``RankedCreators`` blob.
+    streaming is a v1.1 follow-up). Returns a ``task`` envelope with a single
+    completed artifact whose ``data`` is the skill output blob.
+
+    Skill routing: a `data` part declaring ``skill="get_brand_assets"`` routes
+    to the DAM-style Build-Example-#2 skill (approved brand assets + on-brand
+    verdict). Otherwise the message routes to ``plan_creator_search`` (the
+    default) with the first `text` part as the brief.
     """
     text = ""
+    data_part: dict[str, Any] | None = None
     for part in payload.message.parts:
-        if part.kind == "text" and part.text:
+        if part.kind == "text" and part.text and not text:
             text = part.text
-            break
+        if part.kind == "data" and isinstance(part.data, dict) and data_part is None:
+            data_part = part.data
+
+    task_id = payload.message.message_id or f"task-{int(time.time() * 1000)}"
+    context_id = payload.message.context_id or f"ctx-{int(time.time() * 1000)}"
+
+    # ── DAM skill route (Build Example #2) ─────────────────────────────────
+    if data_part is not None and data_part.get("skill") == "get_brand_assets":
+        brand_name = str(data_part.get("brand_name") or "").strip()
+        if not brand_name:
+            raise HTTPException(
+                status_code=400,
+                detail="get_brand_assets requires a non-empty data.brand_name",
+            )
+        assets = get_brand_assets(
+            brand_name, post_media_url=data_part.get("post_media_url")
+        )
+        artifact = serialize_brand_assets(assets)
+        return {
+            "kind": "task",
+            "id": task_id,
+            "contextId": context_id,
+            "status": {"state": "completed", "timestamp": _now_iso()},
+            "artifacts": [
+                {
+                    "artifactId": f"{task_id}-result",
+                    "parts": [{"kind": "data", "data": artifact}],
+                }
+            ],
+        }
+
+    # ── Default route: plan_creator_search ─────────────────────────────────
     if not text:
         raise HTTPException(status_code=400, detail="message.parts[0] must be a text part")
 
     ranked = await plan_creator_search(text, uid=identity.uid)
     artifact = serialize(ranked)
-    task_id = payload.message.message_id or f"task-{int(time.time() * 1000)}"
-    context_id = payload.message.context_id or f"ctx-{int(time.time() * 1000)}"
 
     return {
         "kind": "task",
@@ -362,6 +408,47 @@ async def a2a_message_send(
             }
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# DAM-style A2A skill — get_brand_assets (Build Example #2, exposed half)
+# ---------------------------------------------------------------------------
+
+
+class BrandAssetsIn(BaseModel):
+    """Input for the DAM `get_brand_assets` skill (Build Example #2)."""
+
+    brand_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=200,
+        description="The seeded brand whose approved assets the DAM should return.",
+    )
+    post_media_url: str | None = Field(
+        default=None,
+        max_length=2048,
+        description="Optional gs:///https:// URI the on-brand verdict is computed against.",
+    )
+
+
+@app.post("/a2a/skills/get_brand_assets")
+async def a2a_get_brand_assets(
+    payload: BrandAssetsIn,
+    identity: IdentityClaims = Depends(require_identity),
+) -> dict[str, Any]:
+    """Direct A2A skill alias for the DAM `get_brand_assets` skill.
+
+    `designed_guide.pdf` p.7 Build Example #2 (exposed half): a marketing agent
+    A2A-invokes the company's internal Digital Asset Manager (DAM) Agent to
+    retrieve approved brand logos / product imagery and an on-brand compliance
+    verdict. Social Seeding's `content_verify` agent is that marketing agent; it
+    reaches this skill via `ss_agents.tools.dam_get_brand_assets` → `a2a_invoke`.
+
+    Honest scope: DEMO DAM stand-in for a customer's real DAM; the A2A transport
+    is genuine (A2A-INTENTS.md §5).
+    """
+    assets = get_brand_assets(payload.brand_name, post_media_url=payload.post_media_url)
+    return serialize_brand_assets(assets)
 
 
 # ---------------------------------------------------------------------------
