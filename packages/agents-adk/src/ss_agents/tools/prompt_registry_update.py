@@ -72,8 +72,9 @@ class PromptRegistryUpdateInput(BaseModel):
         version_label: Operator-readable label (e.g. `"tournament-2026Q2"`,
             `"locale-ko-rev3"`). Free-form ≤ 80 chars; surfaced in the PR
             review UI.
-        optimizer_job_id: Provenance: which Agent Optimizer job produced this
-            prompt. Foreign key into Vertex AI's job log.
+        optimizer_job_id: Provenance: which Vertex AI Prompt Optimizer
+            (data-driven) job produced this prompt. Foreign key into Vertex
+            AI's job log.
         performance_delta_0_1: Simulation lift vs the previous version,
             normalized to [0.0, 1.0]. The PR review UI shows this prominently.
     """

@@ -27,7 +27,11 @@ def client() -> TestClient:
 def test_healthz(client: TestClient) -> None:
     r = client.get("/healthz")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok"}
+    body = r.json()
+    assert body["status"] == "ok"
+    # The handler also reports service identity for ops dashboards.
+    assert body["service"] == "tiktok-orchestrator"
+    assert "version" in body
 
 
 def test_well_known_agent_card_required_fields(client: TestClient) -> None:
@@ -129,3 +133,179 @@ def test_chat_endpoint_alias(client: TestClient) -> None:
     assert r.status_code == 200
     body = r.json()
     assert "creators" in body and body["source_attribution"].startswith("Source: Social Seeding")
+
+
+def test_served_card_carries_verifiable_signature(client: TestClient) -> None:
+    """The served /.well-known/agent.json must carry an A2A v0.3 signatures[]
+    JWS that verifies against the JWKS the same service publishes."""
+    from tiktok_orchestrator.card_signer import b64url_decode, verify_card_with_jwks
+
+    card = client.get("/.well-known/agent.json").json()
+    jwks = client.get("/.well-known/jwks.json").json()
+
+    assert card.get("signatures"), "served card has no signatures[]"
+    entry = card["signatures"][0]
+    assert {"protected", "signature"} <= set(entry)
+
+    import json as _json
+
+    protected = _json.loads(b64url_decode(entry["protected"]))
+    assert protected["alg"] == "ES256"
+    assert protected["kid"] and protected["jku"].endswith("/.well-known/jwks.json")
+
+    # JWKS publishes the matching EC/P-256 public key, and the card verifies.
+    assert jwks["keys"] and jwks["keys"][0]["kty"] == "EC"
+    assert verify_card_with_jwks(card, jwks) is True
+
+
+def test_jwks_endpoint_shape(client: TestClient) -> None:
+    r = client.get("/.well-known/jwks.json")
+    assert r.status_code == 200
+    body = r.json()
+    assert isinstance(body["keys"], list) and body["keys"]
+    jwk = body["keys"][0]
+    for field in ("kty", "crv", "x", "y", "kid", "use"):
+        assert field in jwk
+    # Only the public half is ever published — no private scalar 'd'.
+    assert "d" not in jwk
+
+
+# ---------------------------------------------------------------------------
+# DAM-style A2A skill — get_brand_assets (Build Example #2, exposed half)
+# ---------------------------------------------------------------------------
+
+
+def test_agent_card_advertises_get_brand_assets_skill(client: TestClient) -> None:
+    """The DAM-style skill must be discoverable on the agent card so the
+    content_verify marketing agent can reach it over A2A (Build Example #2)."""
+    card = client.get("/.well-known/agent.json").json()
+    skill_ids = {s["id"] for s in card["skills"]}
+    assert "plan_creator_search" in skill_ids
+    assert "get_brand_assets" in skill_ids
+    dam = next(s for s in card["skills"] if s["id"] == "get_brand_assets")
+    for field in ("id", "name", "description", "tags"):
+        assert field in dam
+
+
+def test_a2a_get_brand_assets_alias_returns_brand_assets(client: TestClient) -> None:
+    r = client.post(
+        "/a2a/skills/get_brand_assets",
+        json={
+            "brand_name": "Freshly",
+            "post_media_url": "gs://ss-v2-media/posts/p1/thumb.jpg",
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["brand_name"] == "Freshly"
+    assert isinstance(body["brand_assets"], list) and body["brand_assets"]
+    asset = body["brand_assets"][0]
+    assert {"asset_id", "kind", "uri"} <= set(asset.keys())
+    assert body["on_brand"] is True
+    assert body["logo_detected"] is True  # post media supplied
+    assert 0.0 <= body["confidence_0_1"] <= 1.0
+    assert "Source: Social Seeding" in body["source_attribution"]
+
+
+def test_a2a_get_brand_assets_alias_rejects_empty_brand(client: TestClient) -> None:
+    r = client.post("/a2a/skills/get_brand_assets", json={"brand_name": ""})
+    assert r.status_code == 422  # Pydantic min_length=1
+
+
+def test_v1_message_send_routes_to_get_brand_assets(client: TestClient) -> None:
+    """A data part declaring skill=get_brand_assets routes to the DAM skill and
+    returns a valid A2A task envelope whose data artifact is a BrandAssets blob.
+    This is the exact shape ss_agents.tools.dam_get_brand_assets posts + parses."""
+    r = client.post(
+        "/v1/message:send",
+        json={
+            "message": {
+                "kind": "message",
+                "messageId": "msg-dam-1",
+                "role": "user",
+                "contextId": "ctx-dam-1",
+                "parts": [
+                    {
+                        "kind": "text",
+                        "text": "Retrieve approved brand assets for 'Freshly'.",
+                    },
+                    {
+                        "kind": "data",
+                        "data": {
+                            "skill": "get_brand_assets",
+                            "brand_name": "Freshly",
+                            "post_media_url": "gs://ss-v2-media/posts/p1/thumb.jpg",
+                        },
+                    },
+                ],
+            }
+        },
+    )
+    assert r.status_code == 200, r.text
+    task = r.json()
+    assert task["kind"] == "task"
+    assert task["status"]["state"] == "completed"
+    assert task["id"] == "msg-dam-1"
+    data_part = task["artifacts"][0]["parts"][0]
+    assert data_part["kind"] == "data"
+    assets = data_part["data"]
+    assert assets["brand_name"] == "Freshly"
+    assert assets["on_brand"] is True
+    assert assets["brand_assets"]
+
+
+def test_v1_message_send_get_brand_assets_requires_brand_name(client: TestClient) -> None:
+    r = client.post(
+        "/v1/message:send",
+        json={
+            "message": {
+                "kind": "message",
+                "role": "user",
+                "parts": [{"kind": "data", "data": {"skill": "get_brand_assets"}}],
+            }
+        },
+    )
+    assert r.status_code == 400
+
+
+def test_v1_message_send_default_route_unaffected_by_data_part(client: TestClient) -> None:
+    """A data part WITHOUT the DAM skill marker must not hijack the default
+    plan_creator_search route — the text part still drives the creator search."""
+    r = client.post(
+        "/v1/message:send",
+        json={
+            "message": {
+                "kind": "message",
+                "role": "user",
+                "parts": [
+                    {"kind": "text", "text": "Find KR fitness creators 50-200k followers."},
+                    {"kind": "data", "data": {"some": "unrelated"}},
+                ],
+            }
+        },
+    )
+    assert r.status_code == 200, r.text
+    task = r.json()
+    artifact = task["artifacts"][0]["parts"][0]["data"]
+    # plan_creator_search shape, not BrandAssets.
+    assert "creators" in artifact
+
+
+def test_get_brand_assets_unit_blank_brand_not_on_brand() -> None:
+    """A blank brand name yields an empty, NOT-on-brand verdict so a mis-routed
+    call can never pass as compliant."""
+    from tiktok_orchestrator.agent import get_brand_assets
+
+    out = get_brand_assets("   ")
+    assert out.on_brand is False
+    assert out.brand_assets == []
+
+
+def test_get_brand_assets_unit_with_media_detects_logo() -> None:
+    from tiktok_orchestrator.agent import get_brand_assets
+
+    out = get_brand_assets("Freshly", post_media_url="gs://b/p.jpg")
+    assert out.on_brand is True
+    assert out.logo_detected is True
+    assert out.confidence_0_1 > 0.0
+    assert out.brand_assets and out.brand_assets[0].kind == "logo"

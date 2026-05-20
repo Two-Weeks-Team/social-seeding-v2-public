@@ -39,6 +39,7 @@ The flag is **gated, not always-on**, precisely so the offline stub path (`SS_LI
 | `packages/agents-adk/src/ss_agents/config.py` | `MODEL_GARDEN_ROUTING` setting + `model_garden_model_path()` + `resolve_runtime_model()` + `canonical_model_id()` (so pricing resolves whichever model-string form). | D47 |
 | `packages/agents-adk/src/ss_agents/runtime.py` | `_run_with_adk` calls `resolve_runtime_model(agent_def.model)` and hands the result to `LlmAgent(model=…)`. Cost accounting still keys off the **declared short id** (`model_pricing(agent_def.model)`), so the USD budget guard is byte-for-byte unchanged by the rewrite. | D47 |
 | `packages/agents-adk/tests/test_model_garden.py` | 20 unit tests proving the gate default, the publisher-path construction, the env-gated resolve, pricing invariance, the intake-agent end-to-end, and the open-source-endpoint pass-through. | D47 |
+| `packages/agents-adk/tests/runtime/test_run_with_adk_integration.py` | The wiring proof: drives `runtime._run_with_adk` (the one place an `LlmAgent` is constructed) with the ADK layer mocked, and **asserts the `model=` kwarg the `LlmAgent` constructor receives equals the Model Garden publisher path** — proving the D47 rewrite reaches the model layer, not just `resolve_runtime_model` in isolation. Also covers the routing-off branch (short id passed through) and that cost accounting still keys off the short id. Offline, no credentials, no billing. | D47 (closes review gaps G2+G3) |
 
 The seam is deliberately at the single `LlmAgent` construction site in `runtime.py` — *the one place an LLM is called* — so there is exactly one routing decision for all 22 agents.
 
@@ -131,32 +132,56 @@ SS_LIVE=1
 
 ## 6. Verify
 
-### Offline (default, no cost) — the config proof
+There are two proofs, by design (honest scoping — see the box below):
+
+1. an **always-on, offline** autonomous proof that runs in CI on every commit and proves the *wiring*, and
+2. an **operator-gated, one-take live** proof that observes a real Model Garden 200 and bills ~$0.01.
+
+> **Honest scoping (RULES.md / GRAND-NARRATIVE-PLAN.md §7).** The offline tests prove the wiring — that the Model Garden publisher path is the string handed to `LlmAgent(model=…)`, and that cost accounting still keys off the short id — **without billing or any GCP call**. They do **not** make a live Model Garden call. Live Model Garden routing is verified only by the operator-run smoke in §6.2. Do not claim a live Model Garden call was made unless the operator actually ran §6.2.
+
+### 6.1 Offline (default, no cost, runs in CI) — the autonomous proof
 
 ```bash
 cd packages/agents-adk
-uv run pytest tests/test_model_garden.py -q
+
+# (a) the config seam: routing string, env gate, pricing invariance.
+uv run --extra dev pytest tests/test_model_garden.py -q
 # → 20 passed
+
+# (b) the wiring proof: the Model Garden publisher path actually reaches the
+#     LlmAgent the live runtime constructs (D47), with the ADK layer mocked so
+#     no Vertex call / credentials / network are needed. Closes G2 + G3.
+uv run --extra dev pytest tests/runtime/test_run_with_adk_integration.py -q
+# → 2 passed
 ```
 
-This proves the routing string, the env gate, and pricing invariance without any GCP call. It is the gating evidence for D47.
+`test_run_with_adk_integration.py` drives `runtime._run_with_adk` itself (by overriding the offline pin from `tests/conftest.py` so `is_offline()` is False and `ctx.model_client is None`), mocks `google.adk.agents.LlmAgent` / `google.adk.runners.InMemoryRunner` / `google.genai.types`, and asserts:
 
-### Live (one call, ~$0.01) — optional, operator-run
+```python
+assert captured["llm_agent_kwargs"]["model"] == model_garden_model_path(
+    intake_agent_def.model, project="ss-v2-prod", location="us-central1"
+)
+# == "projects/ss-v2-prod/locations/us-central1/publishers/google/models/gemini-2.5-flash"
+```
 
-A single live invocation confirms the publisher-model path actually serves a 200. Run it with the gate on; the intake agent is the cheapest (Flash, one short turn):
+That is the gating evidence for D47's "reasoning is routed through Model Garden": the publisher path is the string that reaches the one place an `LlmAgent` is built. It also exercises the real `_run_with_adk` reasoning path end-to-end (closing the G3 "real-reasoning coverage 0%" gap) and proves `usd_spent > 0` is tallied off the short-id pricing.
+
+### 6.2 Live (one call, ~$0.01) — operator-gated, NOT in CI
+
+A single live invocation confirms the publisher-model path actually serves a 200. The script **refuses to run** (exit 1, no billing) unless `SS_LIVE=1` **and** `MODEL_GARDEN_ROUTING=true`, so it can never fire accidentally. The intake agent is the cheapest (Flash, one short turn). Requires `gcloud auth application-default login` first.
 
 ```bash
-cd packages/agents-adk
+gcloud auth application-default login   # one-time, operator machine
+
+SS_LIVE=1 \
 MODEL_GARDEN_ROUTING=true \
 GOOGLE_GENAI_USE_VERTEXAI=TRUE \
 GOOGLE_CLOUD_PROJECT=ss-v2-prod \
 GOOGLE_CLOUD_LOCATION=us-central1 \
-SS_LIVE=1 \
-uv run python -m ss_agents.agents.intake "Run a Korean skincare campaign with 20 creators."
-# → prints the agent outcome JSON; requires `gcloud auth application-default login`.
+  bash scripts/smoke-test/run-model-garden-live.sh
 ```
 
-Expected: a JSON outcome (`status:"asking"` or `status:"done"`) and a non-zero `usdSpent` (~$0.005–0.01 for one Flash turn). A 200 from the Vertex Model Garden plane is what the run depends on; a routing failure surfaces as an `Escalation` outcome with a transport error reason. This call is **not** part of CI (it is the `integration`-marked path, skipped unless `SS_LIVE=1`).
+It prints the resolved Model Garden model path (`projects/ss-v2-prod/locations/us-central1/publishers/google/models/gemini-2.5-flash`), the response JSON (`status:"asking"` or `"done"`), and `usd_spent` (~$0.005–0.01 for one Flash turn). A routing/auth failure surfaces as exit 3 with the `Escalation` reason. This call is **not** part of CI; the offline §6.1 tests are.
 
 ---
 

@@ -62,6 +62,14 @@ spec:
               value: "http://127.0.0.1:8100"
             - name: PUBLIC_BASE_URL
               value: "https://mcp.socialseed.ing"
+            # Production posture: REQUIRE_AUTH=true — verify caller OIDC/OAuth
+            # per request (matches the code default in
+            # agent/src/tiktok_orchestrator/main.py). The Track-3 OPEN DEMO image
+            # ships REQUIRE_AUTH=false (Dockerfile) for unauthenticated A2A
+            # reachability; transport-layer mTLS enforcement is pending O7
+            # (Agent Gateway Private-Preview allowlist). Single source of truth
+            # for the demo-vs-prod posture: deployment/agent.json
+            # `x-securityPosture` (DECISIONS.md D44 Agent Gateway/Identity, D7).
             - name: REQUIRE_AUTH
               value: "true"
             - name: IDENTITY_PLATFORM_TENANT_ID

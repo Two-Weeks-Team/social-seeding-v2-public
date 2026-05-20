@@ -1,0 +1,66 @@
+{
+  "_meta": {
+    "purpose": "H3 Observability trace (repaired) — conversation_responder triage on the stall case under the optimized rule set.",
+    "authority": "GRAND-NARRATIVE-PLAN.md §5-1 (H3) + §4 wow scene #1; D32.",
+    "honesty_note": "Span attributes mirror ss_agents.observability.agent_span (D32). This is a deterministic, offline trace of the pure triage decision path — not a captured live Cloud Trace span.",
+    "rule_set": "optimized",
+    "status": "repaired",
+    "generated_at_utc": "2026-05-20T11:07:36.779433+00:00"
+  },
+  "span": {
+    "name": "agent:conversation-responder",
+    "attributes": {
+      "agent.id": "conversation-responder",
+      "agent.model": "gemini-2.5-pro",
+      "agent.trace_id": "trace-hardening-rate-positive-en-01-optimized",
+      "agent.outcome": "escalate",
+      "triage.action": "escalate",
+      "triage.reason_tag": "rate_signal_on_positive",
+      "triage.detail": "classified interested but a rate (USD 800.0) was proposed — negotiation; escalate per D27 (agent does not mint mandates)",
+      "triage.rule_set": "optimized",
+      "turn.classification": "interested",
+      "turn.proposed_rate_usd": 800.0,
+      "facts.has_minimum_context": true
+    }
+  },
+  "reasoning_path": [
+    {
+      "n": 1,
+      "check": "facts.has_minimum_context",
+      "value": true,
+      "branch": "continue"
+    },
+    {
+      "n": 2,
+      "check": "classification in {declined, unsubscribe}",
+      "value": false,
+      "branch": "continue"
+    },
+    {
+      "n": 3,
+      "check": "classification == 'negotiating'",
+      "value": false,
+      "branch": "continue"
+    },
+    {
+      "n": 4,
+      "check": "classification in {interested, needs_info} AND proposed_rate_usd is not None",
+      "value": true,
+      "branch": "escalate(rate_signal_on_positive)",
+      "repaired": true,
+      "repaired_note": "REPAIRED: the new rate-signal rule reads proposed_rate_usd=USD 800.0 on an interested turn and escalates as a negotiation (D27) — no Pro draft is spent, no stall."
+    },
+    {
+      "n": 5,
+      "check": "fallthrough → respond / soft_no / out_of_scope",
+      "value": "rate_signal_on_positive",
+      "branch": "escalate"
+    }
+  ],
+  "case": {
+    "id": "rate-positive-en-01",
+    "category": "interest_with_rate",
+    "locale": "en",
+    "incoming_message": "Love the product! My usual rate for a sponsored video is around 800 — does that work?"
+  }
+}

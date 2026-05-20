@@ -450,6 +450,207 @@
     clip: rect(0,0,0,0);
     white-space: nowrap; border: 0;
   }
+  /* ===== OPTIMIZE act — stall→repair trace graph + before/after ===== */
+  .opt-node {
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1.5px solid #2a3b57;
+    background: #11203a;
+    color: #cbd5e1;
+    transition: all 0.5s ease;
+    text-align: center;
+    line-height: 1.35;
+  }
+  .opt-node small { display:block; font-size:10px; font-weight:500; color:#7c93b8; margin-top:2px; }
+  .opt-node.opt-active { border-color: #60a5fa; background: #16335c; color: #e8f0fe; box-shadow: 0 0 0 3px rgba(96,165,250,0.25); }
+  .opt-node.opt-stall  { border-color: #f87171; background: #3a1414; color: #fecaca; animation: optStallPulse 0.9s ease-in-out infinite; }
+  .opt-node.opt-repair { border-color: #34d399; background: #0f3328; color: #bbf7d0; box-shadow: 0 0 0 3px rgba(52,211,153,0.30); }
+  .opt-node.opt-dim    { opacity: 0.35; }
+  @keyframes optStallPulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(248,113,113,0.55); transform: translateX(0); }
+    25%     { transform: translateX(-3px); }
+    50%     { box-shadow: 0 0 0 7px rgba(248,113,113,0); }
+    75%     { transform: translateX(3px); }
+  }
+  .opt-edge {
+    height: 2px; background: #2a3b57; flex: 1; position: relative; transition: background 0.5s ease;
+  }
+  .opt-edge.opt-edge-live { background: #34d399; }
+  .opt-edge.opt-edge-stall { background: #f87171; }
+  .opt-arrow { color:#7c93b8; font-size:14px; transition: color 0.5s ease; }
+  .opt-arrow.live { color:#34d399; }
+  .opt-arrow.stall { color:#f87171; }
+  .opt-bar-track { background:#1e293b; border-radius:6px; height:30px; overflow:hidden; position:relative; }
+  .opt-bar-fill  { height:100%; border-radius:6px; transition: width 1.4s cubic-bezier(0.4,0,0.2,1); display:flex; align-items:center; justify-content:flex-end; padding-right:10px; font-size:13px; font-weight:700; color:#fff; }
+  .opt-honest {
+    margin-top:14px; font-size:11px; line-height:1.55; color:#94a3b8;
+    background:#0b1626; border:1px dashed #334155; border-radius:8px; padding:10px 14px;
+  }
+  .opt-honest b { color:#cbd5e1; }
+
+  /* ========================================================================
+     CAMPAIGN CANVAS — 1:1 transcription of
+     apps/web/components/mission-control/campaign-canvas.tsx buildGraph().
+     Renders the product's REAL React-Flow node graph as a static WHITE
+     editorial board sitting on the dark (#0b1220) stage — same node visual
+     vocabulary (border-l-4 tone, kind badge, status dot) as production.
+     ======================================================================== */
+  #campaign-canvas-layer {
+    position: absolute; inset: 0; z-index: 5;
+    background: #0b1220;
+    display: none;                 /* engine toggles per-act */
+    padding: 18px 22px 14px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  #campaign-canvas-layer.cc-on { display: block; }
+  .cc-head {
+    display: flex; align-items: center; gap: 10px;
+    color: #e2e8f0; margin-bottom: 10px;
+  }
+  .cc-head .cc-tag {
+    background:#1a73e8; color:#fff; padding:3px 8px; border-radius:4px;
+    font-size:10px; font-weight:700; letter-spacing:0.03em;
+  }
+  .cc-head h2 { font-size:17px; font-weight:700; letter-spacing:-0.02em; margin:0; }
+  .cc-head .cc-sub { font-size:11px; color:#94a3b8; margin-left:auto; }
+  /* board scaler — fits the fixed-size board (CC_BOARD_W × CC_BOARD_H px) into
+     the stage width so nodes (px) and SVG edges (same px viewBox) align 1:1. */
+  .cc-board-scale {
+    position:absolute; left:22px; top:46px; right:22px; bottom:14px;
+    overflow:hidden;
+  }
+  /* the white board — fixed pixel canvas, scaled by JS to fit. */
+  .cc-board {
+    position: absolute; left:0; top:0;
+    width: 1460px; height: 470px;
+    transform-origin: top left;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+    /* faint dotted "React Flow Background gap=16" texture */
+    background-image: radial-gradient(#cbd5e1 0.6px, transparent 0.6px);
+    background-size: 16px 16px;
+  }
+  /* OPTIMIZE focus — applied to the inner content wrapper so it composes with
+     the fit-scale on .cc-board. */
+  .cc-board-inner {
+    position:absolute; inset:0;
+    transition: transform 0.9s cubic-bezier(0.4,0,0.2,1);
+    transform-origin: 760px 230px;
+  }
+  .cc-board-inner.cc-focus-outreach { transform: scale(1.5) translate(-340px,-60px); }
+  /* stage lanes — dashed vertical bands, exact STAGE_LABEL text */
+  .cc-lane {
+    position:absolute; top:0; bottom:0;
+    border-right:1px dashed #e2e8f0;
+  }
+  .cc-lane.cc-lane-current { border-right-color:#bfdbfe; background:rgba(239,246,255,0.5); }
+  .cc-lane .cc-lane-label {
+    position:absolute; top:8px; left:10px;
+    font-size:9px; text-transform:uppercase; letter-spacing:0.08em;
+    color:#94a3b8; font-weight:600;
+  }
+  /* edges layer (SVG sits above lanes, below nodes) */
+  .cc-edges { position:absolute; inset:0; z-index:1; pointer-events:none; }
+  .cc-edge { stroke:#cbd5e1; stroke-width:1.4; fill:none; transition: stroke 0.5s ease, stroke-width 0.5s ease; }
+  .cc-edge.cc-edge-live  { stroke:#10b981; stroke-width:1.8; }
+  .cc-edge.cc-edge-stall { stroke:#94a3b8; stroke-width:1.4; stroke-dasharray:5 4; }
+  .cc-edge.cc-edge-wait  { stroke-dasharray:4 4; }
+  /* nodes */
+  .cc-node {
+    position:absolute; width:150px; z-index:2;
+    background:#fff; border:1px solid #e2e8f0; border-left-width:4px;
+    border-radius:6px; padding:8px 10px;
+    box-shadow:0 1px 2px rgba(15,23,42,0.05);
+    color:#0f172a;
+    transition: box-shadow 0.4s ease, border-color 0.4s ease, opacity 0.5s ease;
+  }
+  .cc-node.cc-pending { opacity:0.45; }
+  .cc-node.cc-gate    { background:rgba(255,251,235,0.5); }
+  .cc-node.cc-wait    { background:#f8fafc; border-style:dashed; }
+  .cc-node.cc-errored { box-shadow:0 0 0 3px rgba(244,63,94,0.30); border-color:#fb7185; }
+  /* tone left-border (TONE_BORDER) */
+  .cc-tone-slate   { border-left-color:#64748b; }
+  .cc-tone-blue    { border-left-color:#3b82f6; }
+  .cc-tone-emerald { border-left-color:#10b981; }
+  .cc-tone-amber   { border-left-color:#f59e0b; }
+  .cc-tone-rose    { border-left-color:#f43f5e; }
+  .cc-tone-violet  { border-left-color:#8b5cf6; }
+  .cc-tone-cyan    { border-left-color:#06b6d4; }
+  .cc-node .cc-dot {
+    position:absolute; top:7px; right:7px;
+    width:6px; height:6px; border-radius:50%;
+    transition: background 0.4s ease;
+  }
+  /* STATUS_DOT */
+  .cc-dot.cc-st-done    { background:#10b981; }
+  .cc-dot.cc-st-running { background:#3b82f6; animation:ccPulse 1.2s ease-in-out infinite; }
+  .cc-dot.cc-st-waiting { background:#f59e0b; animation:ccPulse 1.2s ease-in-out infinite; }
+  .cc-dot.cc-st-pending { background:#cbd5e1; }
+  .cc-dot.cc-st-errored { background:#f43f5e; animation:ccPulse 0.7s ease-in-out infinite; }
+  @keyframes ccPulse { 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+  .cc-badge {
+    display:inline-block; font-size:8.5px; font-weight:600; line-height:1.4;
+    padding:0 5px; border-radius:9999px; border:1px solid transparent;
+  }
+  .cc-badge.cc-tone-slate   { background:#f1f5f9; color:#475569; border-color:#e2e8f0; }
+  .cc-badge.cc-tone-blue    { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+  .cc-badge.cc-tone-emerald { background:#ecfdf5; color:#047857; border-color:#a7f3d0; }
+  .cc-badge.cc-tone-amber   { background:#fffbeb; color:#b45309; border-color:#fde68a; }
+  .cc-badge.cc-tone-rose    { background:#fff1f2; color:#be123c; border-color:#fecdd3; }
+  .cc-badge.cc-tone-violet  { background:#f5f3ff; color:#6d28d9; border-color:#ddd6fe; }
+  .cc-badge.cc-tone-cyan    { background:#ecfeff; color:#0e7490; border-color:#a5f3fc; }
+  .cc-badge.cc-mono { font-family:ui-monospace,"SF Mono",Menlo,monospace; }
+  .cc-node .cc-label { margin-top:3px; font-size:12px; font-weight:600; line-height:1.15; color:#0f172a; }
+  .cc-node .cc-attrs { margin-top:5px; display:flex; flex-wrap:wrap; gap:3px; }
+  .cc-node .cc-hint  { margin-top:5px; font-size:9px; color:#64748b; line-height:1.35; }
+  .cc-node .cc-chip-action {
+    display:inline-block; margin-top:6px; font-size:9.5px; font-weight:700;
+    background:#f59e0b; color:#fff; padding:2px 8px; border-radius:5px;
+  }
+  /* outreach-anchored stall→repair INSET overlay (OPTIMIZE act) */
+  #cc-inset {
+    position:absolute; z-index:8; right:18px; top:64px;
+    width:430px; max-height:calc(100% - 84px);
+    background:#0d1729; border:1px solid #2a4a78; border-radius:10px;
+    box-shadow:0 18px 50px rgba(0,0,0,0.55);
+    padding:13px 15px; color:#e2e8f0; overflow:auto;
+    opacity:0; transform:translateY(8px) scale(0.98); transition:opacity 0.5s ease, transform 0.5s ease;
+    pointer-events:none;
+  }
+  #cc-inset.cc-inset-on { opacity:1; transform:translateY(0) scale(1); }
+  #cc-inset .cc-inset-tie {
+    position:absolute; left:-14px; top:30px; width:14px; height:2px; background:#f43f5e;
+  }
+  /* A2A node living OUTSIDE the white board, in the dark stage zone (right) */
+  #cc-a2a-zone {
+    position:absolute; right:18px; top:128px; width:172px; z-index:7;
+    opacity:0; transition:opacity 0.6s ease;
+  }
+  #cc-a2a-zone.cc-a2a-on { opacity:1; }
+  #cc-a2a-zone .cc-a2a-node {
+    background:#0f2a1c; border:1.5px solid #1f5436; border-radius:10px;
+    padding:10px 12px; color:#d6ffe6; text-align:center;
+  }
+  #cc-a2a-zone .cc-a2a-node b { font-size:12.5px; }
+  #cc-a2a-zone .cc-a2a-node small { display:block; font-size:9.5px; color:#6ee7a8; margin-top:2px; }
+  /* the crosscall SVG bridges the board's right edge (sourcing/coordinator)
+     into the dark zone where tiktok-mcp lives. */
+  .cc-a2a-svg { position:absolute; right:190px; top:120px; z-index:6; pointer-events:none; }
+  /* persistent honesty watermark badge */
+  #cc-watermark {
+    position:absolute; left:14px; bottom:36px; z-index:120;
+    background:rgba(15,23,42,0.82); color:#cbd5e1;
+    border:1px solid rgba(148,163,184,0.35); border-radius:6px;
+    padding:4px 9px; font-size:10px; font-weight:600; letter-spacing:0.01em;
+    pointer-events:none; line-height:1.3;
+  }
+  #cc-watermark code { font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:9.5px; color:#93c5fd; }
   /* responsive scale-down to fit narrower windows */
   @media (max-width: 1300px) {
     #stage, #controls, #header-banner, #unified-strip { transform-origin: top center; }
@@ -460,7 +661,7 @@
 <div id="header-banner">
   <div>
     <h1>Social Seeding v2 — Interactive Web Demo</h1>
-    <div class="meta">Track 2 (Mission Control + AP2 + Multi-agent) · Track 3 (tiktok-mcp-server + A2A v0.3) · D27 · D29 · D30 · D34</div>
+    <div class="meta">Build (Mission Control + 22-agent fleet) · Optimize (stall → repair · train 40.5% → 100.0% · holdout 71.4%) · Refactor (tiktok-mcp-server + A2A v0.3) · D27 · D29 · D30 · D34 · D50</div>
   </div>
   <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
     <a href="wow-business.html"
@@ -479,24 +680,28 @@
      deep-links to the cross-call climax (the load-bearing edge per A2A-INTENTS §4).
      Source: STORYBOARD-unified.md · gcp-research/refactor-mcp/A2A-INTENTS.md §4-§5.
      ============================================================================ -->
-<div id="unified-strip" role="note" aria-label="Unified single-submission narrative">
+<div id="unified-strip" role="note" aria-label="Unified single-submission narrative: Build, Optimize, Refactor">
   <div class="us-flow" aria-hidden="false">
-    <span class="us-node us-t2">Track 2 flow<small>brand brief → 22-agent fleet</small></span>
+    <span class="us-node us-t2">Build<small>22-agent fleet · full loop</small></span>
+    <span class="us-arrow"><a style="cursor:default;" aria-hidden="true">──&nbsp;harden&nbsp;──▶<small>same fleet, matured</small></a></span>
+    <span class="us-node" style="background:#1a1230; border:1px solid #4a2f78;">Optimize<small style="color:#c4a6ff;">stall → repair · train 40.5% → 100.0% · holdout 71.4%</small></span>
     <span class="us-arrow">
       <a href="wow-business.html#a2a-crosscall"
          aria-label="Open the live A2A cross-call climax: coordinator a2a_invoke to the Track 3 MCP server, 318 ms round-trip">
         ──&nbsp;<code>a2a_invoke</code>&nbsp;──▶
-        <small>318 ms · 5 creators · climax</small>
+        <small>318 ms · climax</small>
       </a>
     </span>
-    <span class="us-node us-t3">Track 3 node<small><code>tiktok-mcp-server</code> · A2A v0.3</small></span>
+    <span class="us-node us-t3">Refactor<small><code>tiktok-mcp-server</code> · A2A v0.3</small></span>
   </div>
   <div class="us-note">
-    <b>One submission, one story</b> (D45): the Track-2 <code>coordinator</code> agent A2A-invokes
-    the refactored Track-3 MCP server — that single edge unifies the two tracks. The toggle below
-    drills into either surface; the recommended guided path is in
+    <b>One submission, one story</b> (D45 · D50): a single fleet matures — we <b>built</b> it (22 agents),
+    we <b>hardened</b> it (the Optimize act traces a stalled reply and repairs it, lifting triage accuracy
+    <b>train 40.5% → 100.0%</b>, <b>holdout 71.4%</b> on unseen adversarial cases), then we <b>refactored</b> it for the enterprise — the <code>coordinator</code>
+    A2A-invokes the refactored MCP server. The Act toggle below drills into each surface; guided path in
     <code>scripts/demo/STORYBOARD-unified.md</code>.
-    <a href="wow-business.html#build-example-2" style="margin-left:8px; white-space:nowrap;">Build&nbsp;Example&nbsp;#2 1:1 match (D48) →</a>
+    <a href="wow-business.html#hardening" style="margin-left:8px; white-space:nowrap;">Optimize&nbsp;before/after (D50) →</a>
+    <a href="wow-business.html#build-example-2" style="margin-left:8px; white-space:nowrap;">Build&nbsp;Example&nbsp;#2 (D48) →</a>
   </div>
 </div>
 
@@ -510,6 +715,18 @@
 
   <!-- All scenes injected here -->
   <div id="scene-host" style="position:absolute;inset:0;"></div>
+
+  <!-- Persistent campaign canvas (the product's REAL flowchart). The engine
+       (cc* drivers) shows/hides + drives it per act. Injected at runtime by
+       buildCampaignCanvas() so the markup stays close to its driver code. -->
+  <div id="campaign-canvas-layer" aria-label="Campaign canvas — the product's real workflow graph"></div>
+
+  <!-- Honesty watermark — the demo is illustrative mock data (per its README);
+       state that on-screen, not just in the README, so figures are never
+       mistaken for live capture. Live proof path is the smoke harness. -->
+  <div id="cc-watermark" role="note">
+    Illustrative mock · live proof via <code>/scripts/smoke-test</code>
+  </div>
 
   <!-- Subtitle overlay -->
   <div id="subtitle-band" aria-live="polite" aria-atomic="true">
@@ -527,9 +744,10 @@
     <span style="margin-left:10px;">Real 90s · 8× 11s</span>
   </div>
   <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-    <span style="font-size:11px;">Track</span>
-    <button id="btn-track-2" class="active">Track 2</button>
-    <button id="btn-track-3">Track 3</button>
+    <span style="font-size:11px;">Act</span>
+    <button id="btn-track-2" class="active">2 · Build</button>
+    <button id="btn-track-optimize">Optimize</button>
+    <button id="btn-track-3">3 · Refactor</button>
     <span style="font-size:11px; margin-left:10px;">Speed</span>
     <button class="speed-btn" data-speed="0.5">0.5×</button>
     <button class="speed-btn active" data-speed="1">1×</button>
@@ -628,6 +846,36 @@ const SUBTITLES = {
     [121100, 175000, "三个差异化角度同时落地: 智能体即函数、把韩国差距重塑为创新、多智能体端到端今日即可运行。"],
     [175000, 180000, "github.com/ComBba/social-seeding-v2 — Apache-2.0 + BUSL-1.1。"],
   ],
+  /* Optimize act -- ko / en / ja / zh-CN. "Build → Optimize → Refactor" 의 가운데 막.
+     숫자는 hardening-before-after.json 과 일치 (train 40.5% → 100.0%, +59.5pp; holdout 71.4%; 56 cases = 42 train / 14 holdout). */
+  "optimize-ko": [
+    [0, 5000, "Optimize — 우리는 함대를 단련했다. 모호한 답신에서 멈추던 추론을 추적하고 고친다."],
+    [5000, 14400, "씬 1 — Agent Simulation: 협상·거절위장·다국어 합성 엣지케이스 56건 (train 42 / holdout 14). 베이스라인(train) 통과율 40.5%."],
+    [14400, 29400, "씬 2 — Observability: \"관심 있는데 단가 $800\" 답신에서 추론이 auto-respond↔escalate 경계에서 정지. Optimizer가 rate_signal 규칙을 적용하자 escalate 경로로 흐른다."],
+    [29400, 40700, "씬 3 — Optimizer 재측정: train 40.5% → 100.0%, +59.5pp; holdout(미학습 적대 케이스) 71.4% — 28.6pp 격차를 숨기지 않고 정직하게 표기. 로컬 결정론적 측정 — 라이브 Vertex AI Agent Optimizer는 프로덕션 경로(현재 stub, 정직 공개)."],
+    [40700, 47000, "단련된 함대 — 이제 엔터프라이즈로 리팩터한다 (Track 3)."],
+  ],
+  "optimize-en": [
+    [0, 5000, "Optimize — we hardened the fleet. We trace the reasoning that stalled on an ambiguous reply, then we fix it."],
+    [5000, 14400, "Scene 1 — Agent Simulation: 56 synthetic edge cases (42 train / 14 holdout; negotiation, disguised decline, multilingual). Baseline (train) pass rate 40.5%."],
+    [14400, 29400, "Scene 2 — Observability: on \"interested, my rate is $800\" the reasoning stalls at the auto-respond ↔ escalate boundary. The Optimizer applies the rate_signal rule and the graph flows to escalate."],
+    [29400, 40700, "Scene 3 — Optimizer re-measure: train 40.5% → 100.0%, +59.5pp; holdout (unseen adversarial) 71.4% — the 28.6pp gap shown honestly, not tuned away. Local deterministic measurement — the live Vertex AI Agent Optimizer is the production path (stubbed today, disclosed)."],
+    [40700, 47000, "A hardened fleet — now we refactor it for the enterprise (Track 3)."],
+  ],
+  "optimize-ja": [
+    [0, 5000, "Optimize — 艦隊を鍛えた。曖昧な返信で停止した推論を追跡し、修正する。"],
+    [5000, 14400, "シーン1 — Agent Simulation: 交渉・偽装拒否・多言語の合成エッジケース 56 件(train 42 / holdout 14)。ベースライン(train)通過率 40.5%。"],
+    [14400, 29400, "シーン2 — Observability: 「興味あり、レートは $800」で推論が auto-respond ↔ escalate の境界で停止。Optimizer が rate_signal ルールを適用すると escalate へ流れる。"],
+    [29400, 40700, "シーン3 — Optimizer 再計測: train 40.5% → 100.0%、+59.5pp;holdout(未学習の敵対ケース)71.4% — 28.6pp の差を隠さず正直に表示。ローカル決定論的計測 — ライブ Vertex AI Agent Optimizer が本番経路(現在 stub、正直に開示)。"],
+    [40700, 47000, "鍛えた艦隊 — 次はエンタープライズへリファクタ (Track 3)。"],
+  ],
+  "optimize-zh-CN": [
+    [0, 5000, "Optimize — 我们锤炼了这支舰队。追踪在模糊回复处停滞的推理,然后修复它。"],
+    [5000, 14400, "场景 1 — Agent Simulation:56 个合成边界用例(train 42 / holdout 14;议价、伪装拒绝、多语言)。基线(train)通过率 40.5%。"],
+    [14400, 29400, "场景 2 — Observability:在“感兴趣,我的报价 $800”上,推理在 auto-respond ↔ escalate 边界处停滞。Optimizer 应用 rate_signal 规则后,推理图流向 escalate。"],
+    [29400, 40700, "场景 3 — Optimizer 复测:train 40.5% → 100.0%,+59.5pp;holdout(未见过的对抗用例)71.4% — 28.6pp 差距如实展示,未做针对性微调。本地确定性测量 — 线上 Vertex AI Agent Optimizer 是生产路径(目前为 stub,已如实披露)。"],
+    [40700, 47000, "锤炼后的舰队 — 接着为企业级重构 (Track 3)。"],
+  ],
   /* Track 3 -- ko / en / ja / zh-CN */
   "track3-ko": [
     [0, 5000, "Track 3 — tiktok-mcp-server: Gemini Enterprise + A2A v0.3 + 한국 리전 갭 재정의."],
@@ -716,6 +964,14 @@ const TIMELINE = {
     { i: 10, title: "Dialogflow CX follow-up Q&A",        angle: "D29-C", real: 90,  comp: 11.3 },
     { i: 11, title: "Cost ledger sweep",                  angle: "D29-A", real: 75,  comp:  9.4 },
     { i: 12, title: "System health check (smoke)",        angle: "ALL",  real: 30,  comp:  3.8 },
+  ],
+  /* OPTIMIZE act — the "stall → repair" hardening chapter (Technical-30 core,
+     wow scene #1). Source: HARDENING-CHAPTER.md · hardening-before-after.json ·
+     observability-trace-{stalled,repaired}.json. GRAND-NARRATIVE-PLAN §2 / §4 / §5-1. */
+  optimize: [
+    { i: 1, title: "Agent Simulation — 26 synthetic edge cases", angle: "D29-A", real: 75, comp:  9.4 },
+    { i: 2, title: "Observability — stall → repair trace",       angle: "D29-A+C", real: 120, comp: 15.0 },
+    { i: 3, title: "Optimizer — train 40.5% → 100.0% · holdout 71.4%",    angle: "D29-A", real: 90, comp: 11.3 },
   ],
   track3: [
     { i: 1,  title: "Problem framing — Cloud Console",     angle: "D29-B", real: 60,  comp:  7.5 },
@@ -1377,6 +1633,262 @@ function track2Scene12() {
   return `<div style="background:#0b1220; height:100%; padding:0;">${body}</div>`;
 }
 
+/* =========================== OPTIMIZE ACT ==================================*/
+/* The "we hardened it" chapter — Build → Optimize → Refactor middle act.
+   ALL numbers below are copied verbatim from the committed JSON artifacts:
+     scripts/demo/assets/hardening-before-after.json
+     scripts/demo/assets/observability-trace-stalled.json
+     scripts/demo/assets/observability-trace-repaired.json
+   Inlined (no network) per the self-contained-demo convention. Re-run
+   scripts/smoke-test/run-hardening-measure.sh to regenerate the source JSON.
+   Source narrative: scripts/demo/HARDENING-CHAPTER.md · GRAND-NARRATIVE-PLAN §2/§4/§5-1. */
+const HARDENING = {
+  // train = the cases the optimized rules were authored against; holdout = an adversarial
+  // slice carved out AFTER the rules were written (never used to design them — measures
+  // generalization, not memorization). Numbers match hardening-before-after.json exactly.
+  before:  { total: 42, passed: 17, pct: 40.5 },   // baseline, train subset
+  after:   { total: 42, passed: 42, pct: 100.0 },  // optimized, train subset
+  holdout: { total: 14, passed: 10, pct: 71.4 },   // optimized, unseen adversarial holdout
+  deltaPp: 59.5,
+  gapPp: 28.6,                                      // train ↔ holdout generalization gap
+  headline: "40.5% → 100.0% (train); holdout 71.4%",
+  fixRule: "interested/needs_info + extracted.proposed_rate_usd is not None → escalate (reason=rate_signal_on_positive)",
+  stallCaseId: "rate-positive-en-01",
+  stallMessage: "Love the product! My usual rate for a sponsored video is around 800 — does that work?",
+  observedFailures: [
+    { kind: "misrouted:rate_signal_on_positive", samples: 13, label: "rate signal on a positive reply (the stall)" },
+    { kind: "misrouted:hard_no",                 samples: 5,  label: "declined / unsubscribe (hard no)" },
+    { kind: "misrouted:out_of_scope_class",      samples: 4,  label: "out_of_office / unrelated" },
+    { kind: "misrouted:soft_no",                 samples: 3,  label: "not-now (soft no)" },
+  ],
+  liveOptimizer: { mode: "stub", jobId: "opt-conversation-responder-001", status: "queued", etaMinutes: 30 },
+  // simulation cases for Scene 1 (locales + categories taken from the JSON case ids)
+  simRows: [
+    { id: "rate-positive-en-01",          cat: "interest_with_rate",            loc: "en", base: "respond", baseFail: true },
+    { id: "rate-positive-ko-02",          cat: "interest_with_rate",            loc: "ko", base: "respond", baseFail: true },
+    { id: "rate-positive-needsinfo-ja-03",cat: "interest_with_rate",            loc: "ja", base: "respond", baseFail: true },
+    { id: "rate-positive-zh-04",          cat: "interest_with_rate",            loc: "zh", base: "respond", baseFail: true },
+    { id: "decline-disguised-en-01",      cat: "decline_disguised_as_interest", loc: "en", base: "respond", baseFail: true },
+    { id: "soft-no-en-01",                cat: "soft_no",                       loc: "en", base: "respond", baseFail: true },
+    { id: "out-of-office-en-01",          cat: "out_of_scope",                  loc: "en", base: "respond", baseFail: true },
+    { id: "negotiating-explicit-en-01",   cat: "explicit_negotiation",          loc: "en", base: "escalate", baseFail: false },
+    { id: "missing-context-en-01",        cat: "missing_context",               loc: "en", base: "escalate", baseFail: false },
+    { id: "clean-interest-en-01",         cat: "clean_interest",                loc: "en", base: "respond", baseFail: false },
+  ],
+};
+
+const TRACE_STALLED = {
+  trace_id: "trace-hardening-rate-positive-en-01-baseline",
+  action: "respond", reason_tag: "clean_interested", outcome: "ok",
+  steps: [
+    { n: 1, label: "has_minimum_context", value: "true", branch: "continue" },
+    { n: 2, label: "classification == negotiating", value: "false", branch: "continue" },
+    { n: 3, label: "(no rate-signal rule exists)", value: "—", branch: "fallthrough → respond", stall: true },
+  ],
+  terminal: { label: "respond", note: "auto-draft (STALL)" },
+};
+const TRACE_REPAIRED = {
+  trace_id: "trace-hardening-rate-positive-en-01-optimized",
+  action: "escalate", reason_tag: "rate_signal_on_positive", outcome: "escalate",
+  steps: [
+    { n: 1, label: "has_minimum_context", value: "true", branch: "continue" },
+    { n: 2, label: "classification in {declined, unsubscribe}", value: "false", branch: "continue" },
+    { n: 3, label: "classification == negotiating", value: "false", branch: "continue" },
+    { n: 4, label: "interested/needs_info AND proposed_rate_usd is not None", value: "true", branch: "escalate(rate_signal_on_positive)", repair: true },
+  ],
+  terminal: { label: "escalate → human", note: "rate_signal_on_positive (D27)" },
+};
+
+/* --- Optimize Scene 1 — Agent Simulation (26 synthetic cases, baseline) -----*/
+function optimizeScene1() {
+  const rows = HARDENING.simRows.map(r => `
+    <tr data-cat="${r.cat}">
+      <td><code style="font-size:11px;">${r.id}</code></td>
+      <td><span class="chip" style="background:#16243f;color:#9ab6e8;border-color:#2a4a78;">${r.loc}</span></td>
+      <td style="font-size:11px;color:#94a3b8;">${r.cat}</td>
+      <td class="opt-sim-verdict" style="text-align:right;"></td>
+    </tr>`).join("");
+  const body = `
+    <div style="padding:26px 34px; height:100%; box-sizing:border-box; color:#e2e8f0;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="background:#1a73e8;color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;">OPTIMIZE</span>
+        <h2 style="font-size:22px; font-weight:700; letter-spacing:-0.02em; margin:0;">Agent Simulation — synthetic edge-case set</h2>
+      </div>
+      <p style="font-size:13px; color:#94a3b8; margin-top:4px;">
+        <code>test-harness/hardening/synthetic_cases.json</code> · <b>56 cases</b> (42 train / 14 holdout) across ko / ja / zh-CN / en —
+        negotiation, interest-with-rate, disguised decline, soft/hard no, out-of-scope, mixed-emotion. The <b>42 train</b> cases run under the <b>baseline</b> triage here.
+      </p>
+      <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:18px; margin-top:16px; align-items:start;">
+        <div style="background:#0d1729; border:1px solid #1e2d4a; border-radius:10px; padding:8px 14px;">
+          <table class="data-table" style="color:#cbd5e1;">
+            <thead><tr style="background:transparent;">
+              <th style="color:#94a3b8;background:transparent;border-color:#1e2d4a;">case id</th>
+              <th style="color:#94a3b8;background:transparent;border-color:#1e2d4a;">locale</th>
+              <th style="color:#94a3b8;background:transparent;border-color:#1e2d4a;">category</th>
+              <th style="color:#94a3b8;background:transparent;border-color:#1e2d4a;text-align:right;">baseline triage</th>
+            </tr></thead>
+            <tbody style="font-size:11px;">${rows}</tbody>
+          </table>
+          <div style="font-size:10.5px; color:#64748b; padding:6px 4px 2px;">showing 10 of 42 representative train cases</div>
+        </div>
+        <div>
+          <div style="background:#0d1729; border:1px solid #1e2d4a; border-radius:10px; padding:16px;">
+            <div style="font-size:12px; color:#94a3b8;">Baseline pass rate <small>(triage_routing_accuracy · train)</small></div>
+            <div id="opt-s1-rate" style="font-size:40px; font-weight:800; color:#f87171; line-height:1.1; margin-top:4px;">—</div>
+            <div id="opt-s1-frac" style="font-size:12px; color:#94a3b8;">&nbsp;</div>
+          </div>
+          <div id="opt-s1-fail" style="margin-top:14px; background:#0d1729; border:1px solid #1e2d4a; border-radius:10px; padding:16px; display:none;">
+            <div style="font-size:12px; color:#cbd5e1; font-weight:600; margin-bottom:8px;">25 baseline (train) failures → ObservedFailure families</div>
+            ${HARDENING.observedFailures.map(f => `
+              <div style="display:flex; justify-content:space-between; font-size:11.5px; padding:3px 0; color:#cbd5e1;">
+                <span><code style="font-size:10.5px;color:#fca5a5;">${f.kind}</code></span>
+                <span style="color:#94a3b8;">×${f.samples}</span>
+              </div>`).join("")}
+            <div style="font-size:10.5px; color:#64748b; margin-top:8px; line-height:1.5;">
+              A "pass" must match <b style="color:#94a3b8;">both</b> decision and reason tag — right-answer-for-the-wrong-reason cannot inflate the score.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  return `<div style="background:#0b1220; height:100%;">${body}</div>`;
+}
+
+/* --- Optimize Scene 2 — Observability stall → repair (THE wow scene) --------*/
+function traceColumn(prefix, trace, title, tone) {
+  const accent = tone === "stall" ? "#f87171" : "#34d399";
+  const steps = trace.steps.map(s => `
+    <div class="opt-node ${prefix}-step opt-dim" data-n="${s.n}" data-kind="${s.stall ? 'stall' : (s.repair ? 'repair' : 'step')}"
+         style="text-align:left; padding:7px 11px;">
+      <div style="display:flex; gap:8px; align-items:baseline;">
+        <span style="color:${accent}; font-weight:700;">${s.n}</span>
+        <span style="font-size:11.5px;">${s.label}</span>
+      </div>
+      <small style="margin-top:3px;">${s.value !== "—" ? "= " + s.value + " · " : ""}${s.branch}</small>
+    </div>`).join('<div style="height:6px;"></div>');
+  return `
+    <div style="flex:1; min-width:0;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+        <span style="width:9px;height:9px;border-radius:50%;background:${accent};display:inline-block;"></span>
+        <span style="font-size:13px; font-weight:700; color:#e2e8f0;">${title}</span>
+      </div>
+      <div style="font-size:10.5px; color:#64748b; font-family:ui-monospace,Menlo,monospace; margin-bottom:10px;">
+        agent.trace_id = ${trace.trace_id}
+      </div>
+      ${steps}
+      <div style="height:8px;"></div>
+      <div class="opt-node ${prefix}-terminal opt-dim" data-kind="${tone}" style="border-style:dashed;">
+        ${trace.terminal.label}
+        <small>${trace.terminal.note}</small>
+      </div>
+    </div>`;
+}
+function optimizeScene2() {
+  const body = `
+    <div style="padding:24px 30px; height:100%; box-sizing:border-box; color:#e2e8f0; overflow:hidden;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="background:#1a73e8;color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;">OPTIMIZE</span>
+        <h2 style="font-size:21px; font-weight:700; letter-spacing:-0.02em; margin:0;">Agent Observability — stall → repair</h2>
+      </div>
+      <div style="margin-top:8px; background:#0d1729; border:1px solid #1e2d4a; border-radius:8px; padding:10px 14px; font-size:12.5px; color:#cbd5e1;">
+        <span style="color:#94a3b8;">incoming reply · case</span> <code style="color:#9ab6e8;">${HARDENING.stallCaseId}</code> ·
+        <span class="chip" style="background:#16243f;color:#9ab6e8;border-color:#2a4a78;">classified: interested</span>
+        <span class="chip" style="background:#3a2a14;color:#fbbf24;border-color:#5a4420;">proposed_rate_usd: 800</span>
+        <div style="margin-top:5px; font-style:italic; color:#94a3b8;">“${HARDENING.stallMessage}”</div>
+      </div>
+      <div style="display:flex; gap:26px; margin-top:16px; align-items:flex-start;">
+        ${traceColumn("opt-s2-st", TRACE_STALLED, "BEFORE · baseline triage", "stall")}
+        <div style="align-self:center; text-align:center; padding-top:30px;">
+          <div id="opt-s2-applyrule" style="opacity:0; transition:opacity 0.6s ease; background:#11203a; border:1px solid #2a4a78; border-radius:8px; padding:8px 10px; max-width:150px;">
+            <div style="font-size:10px; color:#7c93b8; font-weight:600;">Optimizer applies</div>
+            <code style="font-size:10px; color:#6ee7b7; display:block; margin-top:3px; line-height:1.4;">rate_signal_on_positive</code>
+          </div>
+          <div style="font-size:22px; color:#7c93b8; margin-top:10px;">→</div>
+        </div>
+        ${traceColumn("opt-s2-rp", TRACE_REPAIRED, "AFTER · optimized triage (live)", "repair")}
+      </div>
+      <div class="opt-honest" style="margin-top:14px;">
+        <b>Honest scope:</b> deterministic, <b>offline</b> rendering of the pure triage decision path — not captured live
+        Cloud Trace spans. The OTel span shape (<code>ss_agents.observability.agent_span</code>, D32) is real; live export is
+        the production path. The fix escalates per <b>D27</b> (this agent never mints mandates).
+      </div>
+    </div>`;
+  return `<div style="background:#0b1220; height:100%;">${body}</div>`;
+}
+
+/* --- Optimize Scene 3 — Optimizer before/after (train 40.5% → 100.0%; holdout 71.4%) */
+function optimizeScene3() {
+  const body = `
+    <div style="padding:26px 36px; height:100%; box-sizing:border-box; color:#e2e8f0;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="background:#1a73e8;color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;">OPTIMIZE</span>
+        <h2 style="font-size:22px; font-weight:700; letter-spacing:-0.02em; margin:0;">Agent Optimizer — re-measured</h2>
+      </div>
+      <p style="font-size:13px; color:#94a3b8; margin-top:4px;">
+        <code>triage_routing_accuracy</code> over the 42 train cases, before vs. after the rule the Optimizer applied —
+        then re-scored on the 14-case unseen <b>holdout</b> to report generalization honestly.
+      </p>
+
+      <div style="background:#0d1729; border:1px solid #1e2d4a; border-radius:12px; padding:22px 26px; margin-top:14px;">
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom:18px;">
+          <div style="font-size:13px; width:188px; color:#cbd5e1;">Before <small style="color:#7c93b8;">(baseline · train)</small></div>
+          <div class="opt-bar-track" style="flex:1;">
+            <div id="opt-s3-bar-before" class="opt-bar-fill" style="width:0%; background:linear-gradient(90deg,#b91c1c,#f87171);">0%</div>
+          </div>
+          <div style="width:70px; text-align:right; font-size:13px; color:#94a3b8;">17 / 42</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom:18px;">
+          <div style="font-size:13px; width:188px; color:#cbd5e1;">After <small style="color:#7c93b8;">(optimized · train, live)</small></div>
+          <div class="opt-bar-track" style="flex:1;">
+            <div id="opt-s3-bar-after" class="opt-bar-fill" style="width:0%; background:linear-gradient(90deg,#15803d,#34d399);">0%</div>
+          </div>
+          <div style="width:70px; text-align:right; font-size:13px; color:#94a3b8;">42 / 42</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div style="font-size:13px; width:188px; color:#cbd5e1;">Holdout <small style="color:#7c93b8;">(optimized · unseen)</small></div>
+          <div class="opt-bar-track" style="flex:1;">
+            <div id="opt-s3-bar-holdout" class="opt-bar-fill" style="width:0%; background:linear-gradient(90deg,#b45309,#fbbf24); color:#1a1205;">0%</div>
+          </div>
+          <div style="width:70px; text-align:right; font-size:13px; color:#94a3b8;">10 / 14</div>
+        </div>
+        <div style="font-size:10.5px; color:#94a3b8; margin-top:12px; line-height:1.5; border-top:1px solid #1e2d4a; padding-top:10px;">
+          <b style="color:#fbbf24;">Holdout</b> = 14 unseen adversarial cases (obfuscated “comp”, rate only in free text, mid-thread rate,
+          sarcasm) carved out <i>after</i> the rules were written. The <b>28.6 pp</b> train↔holdout gap is shown
+          honestly, <b>not tuned away</b> — that would defeat the holdout.
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:18px; margin-top:18px;">
+        <div style="background:#0d1729; border:1px solid #1e2d4a; border-radius:12px; padding:18px 22px; text-align:center;">
+          <div style="font-size:12px; color:#94a3b8;">Headline <small style="color:#7c93b8;">(train)</small></div>
+          <div id="opt-s3-headline" style="font-size:30px; font-weight:800; letter-spacing:-0.02em; margin-top:4px;">
+            <span style="color:#f87171;">40.5%</span>
+            <span style="color:#64748b; font-size:22px;"> → </span>
+            <span style="color:#34d399;">100.0%</span>
+          </div>
+          <div style="font-size:14px; color:#6ee7b7; font-weight:700; margin-top:4px;">+59.5 pp</div>
+          <div style="font-size:13px; color:#fbbf24; font-weight:700; margin-top:8px; border-top:1px solid #1e2d4a; padding-top:8px;">
+            holdout 71.4% <small style="color:#94a3b8; font-weight:600;">(unseen · honest)</small>
+          </div>
+        </div>
+        <div style="background:#0d1729; border:1px solid #1e2d4a; border-radius:12px; padding:16px 20px;">
+          <div style="font-size:12px; color:#94a3b8; margin-bottom:6px;">The rule that closed the stall</div>
+          <code style="font-size:11px; color:#6ee7b7; line-height:1.5; display:block;">${HARDENING.fixRule}</code>
+        </div>
+      </div>
+
+      <div class="opt-honest">
+        <b>Honest scope:</b> the before/after is produced by a <b>local deterministic optimization pass</b> over the
+        synthetic set (<code>scripts/smoke-test/run-hardening-measure.sh</code>) — <b>not</b> by the live Vertex AI Agent
+        Optimizer. That live optimizer is the <b>production path</b> and is <b>stubbed today</b> (W7-deferred): the harness
+        queues the stub, which returns receipt <code style="color:#cbd5e1;">${HARDENING.liveOptimizer.jobId}</code>
+        (status <b>${HARDENING.liveOptimizer.status}</b>), proving the input contract is real while the GCP backend
+        connection is staged. Disclosed per RULES.md + GRAND-NARRATIVE-PLAN §7.
+      </div>
+    </div>`;
+  return `<div style="background:#0b1220; height:100%;">${body}</div>`;
+}
+
 /* =========================== TRACK 3 SCENES =================================*/
 /* Cloud Console-flavored UI (different chrome from Mission Control) ----------*/
 function gcpShell(title, breadcrumbs, body) {
@@ -1688,9 +2200,409 @@ function track3Scene12() {
 const SCENE_BUILDERS = {
   track2: [track2Scene1, track2Scene2, track2Scene3, track2Scene4, track2Scene5, track2Scene6,
            track2Scene7, track2Scene8, track2Scene9, track2Scene10, track2Scene11, track2Scene12],
+  optimize: [optimizeScene1, optimizeScene2, optimizeScene3],
   track3: [track3Scene1, track3Scene2, track3Scene3, track3Scene4, track3Scene5, track3Scene6,
            track3Scene7, track3Scene8, track3Scene9, track3Scene10, track3Scene11, track3Scene12],
 };
+
+/* ============================================================================
+   CAMPAIGN CANVAS — 1:1 transcription of buildGraph() from
+   apps/web/components/mission-control/campaign-canvas.tsx.
+   Node ids/labels/kind/tone/attrs and the 8 edges are copied verbatim. The
+   product positions (STAGE_X 0..1580, node x up to 1360) are linearly mapped
+   into this board's pixel box. The same status vocabulary (done/running/
+   waiting/pending/errored) drives the dots; the same TONE_BORDER colors the
+   left border. This is the persistent BUILD/OPTIMIZE/REFACTOR backdrop —
+   driven left-to-right from the existing scene-ratio keyframe system.
+   ============================================================================ */
+
+// 6 stage lanes — EXACT labels from STAGE_LABEL. Board geometry maps the
+// product STAGE_X domain [0,1580] onto a ~1460px board.
+const CC_BOARD_W = 1460, CC_BOARD_H = 470;
+const CC_SX = CC_BOARD_W / 1580;             // domain→board x scale
+const CC_LANES = [
+  { stage: "overview",       label: "1 · overview",        x0: 0,    x1: 140  },
+  { stage: "sourcing",       label: "2 · sourcing",        x0: 140,  x1: 680  },
+  { stage: "outreach",       label: "3 · outreach",        x0: 680,  x1: 960  },
+  { stage: "shipping",       label: "4 · shipping",        x0: 960,  x1: 1160 },
+  { stage: "content_review", label: "5 · content_review",  x0: 1160, x1: 1360 },
+  { stage: "performance",    label: "6 · performance",     x0: 1360, x1: 1580 },
+];
+
+// Nodes — ids/labels/kind/tone/attrs verbatim from buildGraph(). Positions are
+// the production node x/y rescaled to fit the board. `stage` records which lane
+// the node belongs to (for the "current lane" highlight during BUILD).
+const CC_NODES = [
+  { id:"brief",          stage:"overview", kind:"brief", tone:"slate",  label:"Brand WS 42",
+    x:8,    y:150, hint:"40 creators · $400 cap" },
+  { id:"sourcing",       stage:"sourcing", kind:"agent", tone:"violet", label:"sourcing",
+    x:175,  y:150, attrs:[["opus-4.7","violet",1],["tiktok.search","cyan",0],["blacklist.check","cyan",0]] },
+  { id:"vetting",        stage:"sourcing", kind:"group", tone:"violet", label:"vetting × 38",
+    x:355,  y:248, attrs:[["haiku-4.5","violet",1]], hint:"38 candidates evaluated" },
+  { id:"shortlist",      stage:"sourcing", kind:"tool",  tone:"cyan",   label:"pickShortlist",
+    x:425,  y:150, attrs:[["→ 12","slate",1]] },
+  { id:"gate-shortlist", stage:"sourcing", kind:"gate",  tone:"amber",  label:"approveShortlist",
+    x:600,  y:150, hint:"policy gate" },
+  { id:"outreach",       stage:"outreach", kind:"agent", tone:"violet", label:"outreach-writer",
+    x:760,  y:165, attrs:[["opus-4.7","violet",1],["gmail.send","cyan",0]] },
+  { id:"wait-reply",     stage:"outreach", kind:"wait",  tone:"slate",  label:"reply · 3d",
+    x:760,  y:280, hint:"step.waitForEvent" },
+  { id:"shipping",       stage:"shipping", kind:"agent", tone:"violet", label:"logistics",
+    x:935,  y:165, attrs:[["shipment.create","cyan",0]] },
+  { id:"content",        stage:"content_review", kind:"agent", tone:"violet", label:"content-verify",
+    x:1100, y:165, attrs:[["tiktok.getCreator","cyan",0]] },
+];
+
+// Edges — verbatim source→target list from buildGraph().edges[].
+const CC_EDGES = [
+  ["brief","sourcing"], ["sourcing","vetting"], ["vetting","shortlist"],
+  ["shortlist","gate-shortlist"], ["gate-shortlist","outreach"],
+  ["outreach","wait-reply"], ["outreach","shipping"], ["shipping","content"],
+];
+
+function ccNodeById(id) { return CC_NODES.find(n => n.id === id); }
+
+function ccBadge(label, tone, mono) {
+  return `<span class="cc-badge cc-tone-${tone}${mono ? " cc-mono" : ""}">${label}</span>`;
+}
+
+function ccNodeHtml(n) {
+  const attrs = (n.attrs || []).map(([l,t,m]) => ccBadge(l, t, m)).join("");
+  return `
+    <div class="cc-node cc-pending cc-tone-${n.tone} cc-${n.kind}"
+         id="cc-node-${n.id}" data-id="${n.id}"
+         style="left:${Math.round(n.x * CC_SX)}px; top:${n.y}px;">
+      <span class="cc-dot cc-st-pending"></span>
+      ${ccBadge(n.kind, n.tone, 0)}
+      <div class="cc-label">${n.label}</div>
+      ${attrs ? `<div class="cc-attrs">${attrs}</div>` : ""}
+      ${n.hint ? `<div class="cc-hint">${n.hint}</div>` : ""}
+      <div class="cc-chip-action" id="cc-chip-${n.id}" style="display:none;">검토 →</div>
+    </div>`;
+}
+
+// SVG edge path: right side of source node → left side of target node, with a
+// gentle bezier (mirrors React Flow's default edge feel).
+function ccEdgePath(srcId, tgtId) {
+  const s = ccNodeById(srcId), t = ccNodeById(tgtId);
+  const NW = 150, approxH = 56;
+  const sx = Math.round(s.x * CC_SX) + NW, sy = s.y + approxH / 2;
+  const tx = Math.round(t.x * CC_SX),      ty = t.y + approxH / 2;
+  const dx = Math.max(30, (tx - sx) / 2);
+  return `M${sx},${sy} C${sx + dx},${sy} ${tx - dx},${ty} ${tx},${ty}`;
+}
+
+function buildCampaignCanvas() {
+  const layer = document.getElementById("campaign-canvas-layer");
+  if (!layer) return;
+
+  const lanes = CC_LANES.map(l => `
+    <div class="cc-lane" data-stage="${l.stage}"
+         style="left:${Math.round(l.x0 * CC_SX)}px; width:${Math.round((l.x1 - l.x0) * CC_SX)}px;">
+      <span class="cc-lane-label">${l.label}</span>
+    </div>`).join("");
+
+  const edges = CC_EDGES.map(([s,t]) => {
+    const dashed = (s === "outreach" && t === "wait-reply"); // wait edge
+    return `<path class="cc-edge${dashed ? " cc-edge-wait" : ""}" id="cc-edge-${s}-${t}" d="${ccEdgePath(s,t)}"></path>`;
+  }).join("");
+
+  const nodes = CC_NODES.map(ccNodeHtml).join("");
+
+  layer.innerHTML = `
+    <div class="cc-head">
+      <span class="cc-tag" id="cc-act-tag">BUILD</span>
+      <h2 id="cc-act-title">Mission Control — brand-campaign workflow</h2>
+      <span class="cc-sub" id="cc-act-sub">React Flow node graph · same shape as <code style="font-family:ui-monospace,Menlo,monospace;">/campaigns/[id]</code></span>
+    </div>
+    <div class="cc-board-scale">
+      <div class="cc-board" id="cc-board">
+        <div class="cc-board-inner" id="cc-board-inner">
+          ${lanes}
+          <svg class="cc-edges" viewBox="0 0 ${CC_BOARD_W} ${CC_BOARD_H}" preserveAspectRatio="none">${edges}</svg>
+          ${nodes}
+        </div>
+      </div>
+    </div>
+
+    <!-- A2A node + crosscall, OUTSIDE the white board, in the dark stage zone -->
+    <div id="cc-a2a-zone">
+      <div class="cc-a2a-node">
+        <b>tiktok-mcp</b>
+        <small>A2A v0.3 · Cloud Run</small>
+      </div>
+    </div>
+    <svg class="cc-a2a-svg" id="cc-a2a-svg" width="200" height="124" viewBox="0 0 200 124" style="display:none;">
+      <defs>
+        <marker id="cc-arrow" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 Z" fill="#3a5a8c"/>
+        </marker>
+        <marker id="cc-arrow-g" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 Z" fill="#1f5436"/>
+        </marker>
+      </defs>
+      <text x="2" y="18" fill="#c4a6ff" font-size="9" font-weight="700" font-family="ui-monospace,monospace">sourcing · a2a_invoke</text>
+      <!-- request wire (coordinator/sourcing → tiktok-mcp) -->
+      <line x1="0" y1="34" x2="190" y2="34" stroke="#3a5a8c" stroke-width="2" marker-end="url(#cc-arrow)"/>
+      <!-- return wire (tiktok-mcp → coordinator) -->
+      <line x1="190" y1="80" x2="0" y2="80" stroke="#1f5436" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#cc-arrow-g)"/>
+      <g>
+        <rect x="-26" y="26" width="44" height="15" rx="4" fill="#1a73e8">
+          <animate attributeName="x" values="0;176" dur="1.7s" begin="0s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.85;1" dur="1.7s" repeatCount="indefinite"/>
+        </rect>
+        <text y="37" text-anchor="middle" fill="#fff" font-size="8" font-weight="700" font-family="ui-monospace,monospace">task
+          <animate attributeName="x" values="22;198" dur="1.7s" begin="0s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.85;1" dur="1.7s" repeatCount="indefinite"/>
+        </text>
+      </g>
+      <g>
+        <rect x="176" y="72" width="60" height="15" rx="4" fill="#34a853">
+          <animate attributeName="x" values="176;-40" dur="1.7s" begin="0.85s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.85;1" dur="1.7s" begin="0.85s" repeatCount="indefinite"/>
+        </rect>
+        <text y="83" text-anchor="middle" fill="#062" font-size="7.5" font-weight="700" font-family="ui-monospace,monospace">5 creators
+          <animate attributeName="x" values="206;-10" dur="1.7s" begin="0.85s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.85;1" dur="1.7s" begin="0.85s" repeatCount="indefinite"/>
+        </text>
+      </g>
+      <text x="100" y="110" text-anchor="middle" fill="#6ee7a8" font-size="9" font-weight="700" font-family="ui-monospace,monospace" id="cc-a2a-timing" opacity="0">task/completed · 318 ms</text>
+    </svg>
+
+    <!-- stall→repair INSET overlay — anchored to the outreach node (OPTIMIZE) -->
+    <div id="cc-inset" role="note" aria-label="Outreach reasoning trace — stall then repair">
+      <div class="cc-inset-tie"></div>
+      <div style="display:flex; align-items:center; gap:7px;">
+        <span style="background:#1a73e8;color:#fff;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;">OPTIMIZE</span>
+        <span style="font-size:12px;font-weight:700;color:#e2e8f0;">outreach · reasoning trace</span>
+      </div>
+      <div style="margin-top:7px;font-size:10.5px;color:#cbd5e1;line-height:1.5;">
+        reply <code style="color:#9ab6e8;font-family:ui-monospace,Menlo,monospace;">rate-positive-en-01</code> ·
+        <span style="color:#fbbf24;">proposed_rate_usd: 800</span><br>
+        <span style="font-style:italic;color:#94a3b8;">“Love the product! My usual rate … around 800 — does that work?”</span>
+      </div>
+      <div style="display:flex; gap:14px; margin-top:10px; align-items:flex-start;">
+        ${ccTraceColumn("cc-tr-st", TRACE_STALLED, "BEFORE", "stall")}
+        ${ccTraceColumn("cc-tr-rp", TRACE_REPAIRED, "AFTER · live", "repair")}
+      </div>
+      <div style="margin-top:10px;background:#0b1626;border:1px dashed #334155;border-radius:7px;padding:8px 11px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="font-size:10px;color:#94a3b8;width:54px;">Before</div>
+          <div class="opt-bar-track" style="flex:1;height:22px;">
+            <div id="cc-bar-before" class="opt-bar-fill" style="width:0%;background:linear-gradient(90deg,#b91c1c,#f87171);font-size:11px;">0%</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+          <div style="font-size:10px;color:#94a3b8;width:54px;">After</div>
+          <div class="opt-bar-track" style="flex:1;height:22px;">
+            <div id="cc-bar-after" class="opt-bar-fill" style="width:0%;background:linear-gradient(90deg,#15803d,#34d399);font-size:11px;">0%</div>
+          </div>
+        </div>
+        <div style="text-align:center;margin-top:7px;font-size:14px;font-weight:800;">
+          <span style="color:#94a3b8;font-size:10px;font-weight:600;">train </span>
+          <span style="color:#f87171;">40.5%</span>
+          <span style="color:#64748b;font-size:11px;"> → </span>
+          <span style="color:#34d399;">100.0%</span>
+          <span style="color:#6ee7b7;font-size:11px;font-weight:700;margin-left:6px;">+59.5 pp</span>
+        </div>
+        <div style="text-align:center;margin-top:3px;font-size:10px;color:#fbbf24;font-weight:700;">
+          holdout 71.4% <span style="color:#94a3b8;font-weight:600;">· 14 unseen adversarial · 28.6pp gap shown honestly</span>
+        </div>
+      </div>
+      <button id="cc-apply-fix" style="margin-top:10px;width:100%;background:#15803d;color:#fff;border:none;border-radius:7px;padding:7px;font-size:11px;font-weight:700;cursor:default;">apply optimized triage</button>
+    </div>`;
+
+  ccFitBoard();
+}
+
+// Scale the fixed-size board (CC_BOARD_W × CC_BOARD_H px) to fit its scaler box,
+// so node pixel positions and the SVG edge viewBox stay 1:1.
+function ccFitBoard() {
+  const scaler = ccLayer()?.querySelector(".cc-board-scale");
+  const board = document.getElementById("cc-board");
+  if (!scaler || !board) return;
+  const avail = scaler.clientWidth || (1280 - 44 - 44);
+  const s = Math.min(1, avail / CC_BOARD_W);
+  board.style.transform = `scale(${s})`;
+  // height of the scaled board so the scaler clips correctly
+  board.style.transformOrigin = "top left";
+}
+
+// reuse the OPTIMIZE-act trace styling (opt-node), compacted for the inset.
+function ccTraceColumn(prefix, trace, title, tone) {
+  const accent = tone === "stall" ? "#f87171" : "#34d399";
+  const steps = trace.steps.map(s => `
+    <div class="opt-node ${prefix}-step opt-dim" data-kind="${s.stall ? 'stall' : (s.repair ? 'repair' : 'step')}"
+         style="text-align:left;padding:5px 8px;font-size:10px;">
+      <span style="color:${accent};font-weight:700;">${s.n}</span> ${s.label}
+    </div>`).join('<div style="height:4px;"></div>');
+  return `
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:11px;font-weight:700;color:#e2e8f0;margin-bottom:6px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:${accent};display:inline-block;"></span> ${title}
+      </div>
+      ${steps}
+      <div style="height:5px;"></div>
+      <div class="opt-node ${prefix}-terminal opt-dim" data-kind="${tone}" style="border-style:dashed;font-size:10px;padding:5px 8px;">
+        ${trace.terminal.label}
+      </div>
+    </div>`;
+}
+
+/* --- Campaign-canvas drivers (called from keyframes) -----------------------*/
+function ccLayer() { return document.getElementById("campaign-canvas-layer"); }
+
+// show/hide the canvas + set the act header. mode: "build" | "optimize" | "refactor" | null
+function ccShow(mode) {
+  const layer = ccLayer();
+  if (!layer) return;
+  if (!mode) { layer.classList.remove("cc-on"); return; }
+  layer.classList.add("cc-on");
+  const tag = layer.querySelector("#cc-act-tag");
+  const title = layer.querySelector("#cc-act-title");
+  if (mode === "build")    { tag.textContent = "BUILD";    title.textContent = "Mission Control — brand-campaign workflow"; }
+  if (mode === "optimize") { tag.textContent = "OPTIMIZE"; title.textContent = "Mission Control — outreach reasoning hardened"; }
+  if (mode === "refactor") { tag.textContent = "REFACTOR"; title.textContent = "Mission Control — sourcing A2A-invokes tiktok-mcp"; }
+}
+
+function ccSetStatus(id, status) {
+  const node = document.getElementById("cc-node-" + id);
+  if (!node) return;
+  const dot = node.querySelector(".cc-dot");
+  if (dot) dot.className = "cc-dot cc-st-" + status;
+  node.classList.toggle("cc-pending", status === "pending");
+  node.classList.toggle("cc-errored", status === "errored");
+}
+
+function ccSetEdge(src, tgt, mode) { // mode: "live" | "stall" | null
+  const e = document.getElementById(`cc-edge-${src}-${tgt}`);
+  if (!e) return;
+  e.classList.remove("cc-edge-live", "cc-edge-stall");
+  if (mode) e.classList.add("cc-edge-" + mode);
+}
+
+function ccGateWaiting() {
+  ccSetStatus("gate-shortlist", "waiting");
+  const chip = document.getElementById("cc-chip-gate-shortlist");
+  if (chip) chip.style.display = "inline-block";
+}
+
+// BUILD fill: drive node status left→right at a given ratio in [0,1].
+function ccBuildFill(ratio) {
+  // brief done immediately, then sourcing/vetting/shortlist/gate progress.
+  if (ratio >= 0.02) { ccSetStatus("brief", "done"); ccSetEdge("brief","sourcing","live"); }
+  if (ratio >= 0.14) { ccSetStatus("sourcing", "running"); }
+  if (ratio >= 0.30) { ccSetStatus("sourcing", "done"); ccSetEdge("sourcing","vetting","live"); ccSetStatus("vetting","running"); }
+  if (ratio >= 0.48) { ccSetStatus("vetting","done"); ccSetEdge("vetting","shortlist","live"); ccSetStatus("shortlist","running"); }
+  if (ratio >= 0.64) { ccSetStatus("shortlist","done"); ccSetEdge("shortlist","gate-shortlist","live"); }
+  if (ratio >= 0.80) { ccGateWaiting(); }
+}
+
+// reset canvas to a clean BUILD baseline (so re-entering the act replays cleanly)
+function ccReset() {
+  CC_NODES.forEach(n => ccSetStatus(n.id, "pending"));
+  CC_EDGES.forEach(([s,t]) => ccSetEdge(s, t, null));
+  const chip = document.getElementById("cc-chip-gate-shortlist");
+  if (chip) chip.style.display = "none";
+  const inset = document.getElementById("cc-inset");
+  if (inset) inset.classList.remove("cc-inset-on");
+  const boardInner = document.getElementById("cc-board-inner");
+  if (boardInner) boardInner.classList.remove("cc-focus-outreach");
+  const a2az = document.getElementById("cc-a2a-zone");
+  if (a2az) a2az.classList.remove("cc-a2a-on");
+  const a2asvg = document.getElementById("cc-a2a-svg");
+  if (a2asvg) a2asvg.style.display = "none";
+  // re-dim inset trace steps
+  ccLayer()?.querySelectorAll("#cc-inset .opt-node").forEach(el => {
+    el.classList.remove("opt-stall","opt-repair","opt-active");
+    el.classList.add("opt-dim");
+  });
+  ccFillBar("#cc-bar-before", 0); ccFillBar("#cc-bar-after", 0);
+}
+
+// put the canvas into the "BUILD complete" steady state (used as OPTIMIZE/
+// REFACTOR backdrop so the graph is already filled when we drill in).
+function ccBuildComplete() {
+  ["brief","sourcing","vetting","shortlist"].forEach(id => ccSetStatus(id, "done"));
+  ["brief-sourcing","sourcing-vetting","vetting-shortlist","shortlist-gate-shortlist"]
+    .forEach(() => {});
+  ccSetEdge("brief","sourcing","live"); ccSetEdge("sourcing","vetting","live");
+  ccSetEdge("vetting","shortlist","live"); ccSetEdge("shortlist","gate-shortlist","live");
+  ccSetEdge("gate-shortlist","outreach","live");
+  ccSetStatus("gate-shortlist","done");
+  ccSetStatus("outreach","running"); ccSetStatus("wait-reply","waiting");
+}
+
+function ccFillBar(sel, pct) {
+  const el = ccLayer()?.querySelector(sel);
+  if (!el) return;
+  el.style.width = pct + "%";
+  // one decimal to match hardening-before-after.json exactly (train 40.5% / 100.0%)
+  el.textContent = pct.toFixed(1) + "%";
+}
+
+// OPTIMIZE: focus the outreach→wait-reply pair, flip outreach to errored,
+// stall the outreach→shipping edge, expand the inset trace.
+function ccFocusOutreach() {
+  ccBuildComplete();
+  const boardInner = document.getElementById("cc-board-inner");
+  if (boardInner) boardInner.classList.add("cc-focus-outreach");
+}
+function ccStallOutreach() {
+  ccSetStatus("outreach", "errored");
+  ccSetEdge("outreach","shipping","stall");
+  const inset = document.getElementById("cc-inset");
+  if (inset) inset.classList.add("cc-inset-on");
+}
+function ccActivateInsetTrace(prefix, tone) {
+  const steps = ccLayer()?.querySelectorAll("#cc-inset ." + prefix + "-step") || [];
+  const term = ccLayer()?.querySelector("#cc-inset ." + prefix + "-terminal");
+  steps.forEach((node, i) => setTimeout(() => {
+    if (!node.isConnected) return;
+    node.classList.remove("opt-dim");
+    const kind = node.dataset.kind;
+    node.classList.add(kind === "stall" ? "opt-stall" : kind === "repair" ? "opt-repair" : "opt-active");
+  }, i * 360));
+  if (term) setTimeout(() => {
+    if (!term.isConnected) return;
+    term.classList.remove("opt-dim");
+    term.classList.add(tone === "repair" ? "opt-repair" : "opt-stall");
+  }, steps.length * 360 + 150);
+}
+// "apply optimized triage": outreach dot blue→emerald, edge flows.
+function ccRepairOutreach() {
+  ccSetStatus("outreach", "running");
+  setTimeout(() => {
+    ccSetStatus("outreach", "done");
+    ccSetEdge("outreach","shipping","live");
+  }, 700);
+}
+
+// REFACTOR: reveal tiktok-mcp node + animate the A2A cross-call packet, then
+// pop the Imagen artifact chip on the content node.
+function ccRevealA2A() {
+  ccBuildComplete();
+  const z = document.getElementById("cc-a2a-zone");
+  if (z) z.classList.add("cc-a2a-on");
+}
+function ccFireA2A() {
+  const svg = document.getElementById("cc-a2a-svg");
+  if (svg) svg.style.display = "block";
+  setTimeout(() => {
+    const t = document.getElementById("cc-a2a-timing");
+    if (t) t.setAttribute("opacity", "1");
+  }, 1400);
+}
+function ccPopImagenArtifact() {
+  ccSetStatus("content", "running");
+  const node = document.getElementById("cc-node-content");
+  if (!node || node.querySelector(".cc-artifact-chip")) return;
+  const chip = document.createElement("div");
+  chip.className = "cc-artifact-chip";
+  chip.style.cssText = "margin-top:6px;display:flex;align-items:center;gap:5px;font-size:8.5px;color:#475569;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:5px;padding:2px 5px;";
+  chip.innerHTML = `<img src="assets/generated-sample.png" alt="Imagen 4 generated artifact" style="width:18px;height:18px;border-radius:3px;object-fit:cover;"> Imagen 4 artifact`;
+  node.appendChild(chip);
+}
 
 /* For each scene, a function that returns an array of "actions" — keyframes the
    engine triggers at t/duration ratios in [0,1]. Each action has:
@@ -1711,20 +2623,10 @@ function setCursorToEl(scene, sel, opts={}) {
 
 const KEYFRAMES = {
   track2: [
-    /* SCENE 1 — Brand brief intake */
+    /* SCENE 1 — Brand brief intake. Canvas backdrop: brief node flips to done. */
     (sc) => [
-      { at: 0.02, fn: () => setCursorToEl(sc, "#t2s1-textarea") },
-      { at: 0.06, fn: () => { clickCursor(); findEl(sc, "#t2s1-textarea").classList.add("ring-focus"); } },
-      { at: 0.10, fn: () => typeInto(sc, "#t2s1-textarea",
-        "40명의 TikTok 크리에이터를 60일 동안 — 멕시코, 뷰티/라이프스타일, 젠Z, 뷰당 $0.01.", 0.10, 0.55) },
-      { at: 0.58, fn: () => setCursorToEl(sc, "#t2s1-submit") },
-      { at: 0.62, fn: () => { clickCursor(); appendTerm(sc, "#t2s1-term",
-        '\n<span class="dim">[22:51:08]</span> <span class="info">[intake-agent]</span> exec() start\n' +
-        '<span class="dim">[22:51:09]</span> <span class="info">[intake-agent]</span> BrandBriefSchema.parse() ok\n' +
-        '<span class="dim">[22:51:09]</span> <span class="ok">[intake-agent]</span> CampaignDraft@2.1.0 emitted (USD $0.010 · 1840ms)'); } },
-      { at: 0.68, fn: () => { findEl(sc, "#t2s1-result").style.display = "block"; } },
-      { at: 0.80, fn: () => setCursorToEl(sc, "#t2s1-chip-cost") },
-      { at: 0.90, fn: () => setCursorToEl(sc, "#t2s1-chip-agent") },
+      { at: 0.62, fn: () => { ccSetStatus("brief", "done"); ccSetEdge("brief","sourcing","live"); } },
+      { at: 0.80, fn: () => ccSetStatus("sourcing", "running") },
     ],
     /* SCENE 2 — AP2 Intent Mandate */
     (sc) => [
@@ -1742,28 +2644,18 @@ const KEYFRAMES = {
       } },
       { at: 0.92, fn: () => setCursorToEl(sc, "#t2s2-ap2-chip") },
     ],
-    /* SCENE 3 — Bulk approve */
+    /* SCENE 3 — Bulk approve. Canvas backdrop is the FOREGROUND here: the real
+       graph fills itself left→right (sourcing → vetting → pickShortlist →
+       approveShortlist flips amber WAITING with a 검토 → chip). Same status
+       vocabulary as production. The original approval table still drives behind
+       the board for continuity but the board is what the audience sees. */
     (sc) => [
-      { at: 0.05, fn: () => setCursorToEl(sc, "#t2s3-filter") },
-      { at: 0.15, fn: () => setCursorToEl(sc, "#t2s3-master") },
-      { at: 0.20, fn: () => {
-        clickCursor();
-        sc.querySelectorAll(".t2s3-cb").forEach(cb => cb.checked = true);
-        findEl(sc, "#t2s3-master").checked = true;
-        findEl(sc, "#t2s3-count").textContent = "⚙ 40 selected";
-        findEl(sc, "#t2s3-toolbar").style.display = "block";
-      } },
-      { at: 0.36, fn: () => setCursorToEl(sc, "#t2s3-approve-btn") },
-      { at: 0.42, fn: () => {
-        clickCursor();
-        findEl(sc, "#t2s3-progress").style.display = "block";
-      } },
-      { at: 0.55, fn: () => fillProgress(sc, "#t2s3-prog-bar", "#t2s3-prog-text", 25) },
-      { at: 0.70, fn: () => fillProgress(sc, "#t2s3-prog-bar", "#t2s3-prog-text", 60) },
-      { at: 0.86, fn: () => {
-        fillProgress(sc, "#t2s3-prog-bar", "#t2s3-prog-text", 100);
-        sc.querySelectorAll(".t2s3-status").forEach(el => { el.textContent = "approved"; el.className = "chip chip-green t2s3-status"; });
-      } },
+      { at: 0.06, fn: () => ccBuildFill(0.14) },   // sourcing running
+      { at: 0.22, fn: () => ccBuildFill(0.30) },   // sourcing done → vetting running
+      { at: 0.40, fn: () => ccBuildFill(0.48) },   // vetting done → pickShortlist running
+      { at: 0.58, fn: () => ccBuildFill(0.64) },   // pickShortlist done
+      { at: 0.74, fn: () => ccBuildFill(0.64) },
+      { at: 0.86, fn: () => ccBuildFill(0.80) },   // approveShortlist → WAITING + 검토 chip
     ],
     /* SCENE 4 — Outreach drafts */
     (sc) => [
@@ -1863,6 +2755,38 @@ const KEYFRAMES = {
     ],
   ],
 
+  /* OPTIMIZE act keyframes — stall → repair animation + before/after */
+  optimize: [
+    /* SCENE 1 — Agent Simulation: reveal verdicts, count baseline (train) pass rate to 40.5% */
+    (sc) => [
+      { at: 0.12, fn: () => revealSimVerdicts(sc) },
+      { at: 0.45, fn: () => animatePct(sc, "#opt-s1-rate", "#opt-s1-frac",
+        HARDENING.before.pct, HARDENING.before.total, HARDENING.before.passed, "#f87171") },
+      { at: 0.66, fn: () => { findEl(sc, "#opt-s1-fail").style.display = "block"; } },
+    ],
+    /* SCENE 2 — Observability stall→repair, re-anchored ONTO the real canvas.
+       The bespoke graph is now a DRILL-DOWN into the outreach node: zoom/focus
+       the outreach→wait-reply pair, the ambiguous "$800" reply flips outreach to
+       ROSE errored + stalls the outreach→shipping edge, the trace expands as an
+       INSET tied to that node, before/after bars fill (train 40.5% → 100.0%), then
+       "apply optimized triage" returns outreach blue→emerald and the edge flows. */
+    (sc) => [
+      { at: 0.06, fn: () => ccFocusOutreach() },                       // zoom onto outreach pair
+      { at: 0.14, fn: () => ccStallOutreach() },                       // rose errored + stalled edge + inset opens
+      { at: 0.20, fn: () => ccActivateInsetTrace("cc-tr-st", "stall") },// BEFORE trace stalls
+      { at: 0.46, fn: () => ccActivateInsetTrace("cc-tr-rp", "repair") },// AFTER trace flows to escalate
+      { at: 0.60, fn: () => { ccFillBar("#cc-bar-before", HARDENING.before.pct); } }, // 40.5% (train)
+      { at: 0.74, fn: () => { ccFillBar("#cc-bar-after", HARDENING.after.pct); } },   // 100.0% (train)
+      { at: 0.88, fn: () => ccRepairOutreach() },                      // apply fix → emerald, edge flows
+    ],
+    /* SCENE 3 — Optimizer: fill before (40.5%), after (100.0%), then holdout (71.4%) bars */
+    (sc) => [
+      { at: 0.10, fn: () => fillOptBar(sc, "#opt-s3-bar-before", HARDENING.before.pct) },
+      { at: 0.40, fn: () => fillOptBar(sc, "#opt-s3-bar-after", HARDENING.after.pct) },
+      { at: 0.62, fn: () => fillOptBar(sc, "#opt-s3-bar-holdout", HARDENING.holdout.pct) },
+    ],
+  ],
+
   track3: [
     /* SCENE 1 — Marketplace KR gap + Cloud Run live */
     (sc) => [
@@ -1906,20 +2830,15 @@ const KEYFRAMES = {
         '  ]\n' +
         '}') },
     ],
-    /* SCENE 5 — A2A client */
+    /* SCENE 5 — A2A client. Canvas backdrop is the FOREGROUND: the REFACTOR act
+       shows the tiktok-mcp node OUTSIDE the white board (dark stage zone). An
+       A2A packet leaves the sourcing/coordinator node, crosses into the dark
+       zone to tiktok-mcp, and a "5 creators · task/completed · 318 ms" packet
+       returns. The real Imagen artifact pops as a chip on the content node. */
     (sc) => [
-      { at: 0.05, fn: () => typeInto(sc, "#t3s5-cmd",
-        "a2a-client --target https://tiktok-mcp-server-abc-uc.a.run.app/a2a --skill tiktok.lookup --input '{\"username\":\"khaby.lame\"}'",
-        0.05, 0.45) },
-      { at: 0.48, fn: () => appendTerm(sc, "#t3s5-termC",
-        '\n<span class="dim">→</span> <span class="info">message.send</span> <span class="dim">a2a/0.3</span>\n' +
-        '<span class="dim">→</span> <span class="info">task.created</span> <span class="dim">task_19f3a1b2 actor=oidc:sub_42</span>\n' +
-        '<span class="dim">→</span> <span class="ok">task.completed</span> <span class="dim">latency=342ms</span>\n' +
-        '<span class="dim">{ "follower_count": 162400000, "recent_posts": [...] }</span>') },
-      { at: 0.60, fn: () => appendTerm(sc, "#t3s5-termB",
-        '\n<span class="dim">[2026-05-19T22:55:08Z]</span> <span class="info">[a2a]</span> task_created task_id=task_19f3a1b2 actor=oidc:sub_42\n' +
-        '<span class="dim">[2026-05-19T22:55:08Z]</span> <span class="info">[scraper]</span> tiktok.lookup khaby.lame (cached, ttl=300s)\n' +
-        '<span class="dim">[2026-05-19T22:55:08Z]</span> <span class="ok">[a2a]</span> task_completed latency_ms=342 trace=<u>open in Cloud Trace</u>') },
+      { at: 0.06, fn: () => ccRevealA2A() },          // tiktok-mcp node appears in the dark zone
+      { at: 0.22, fn: () => ccFireA2A() },            // A2A packet animates out + 5 creators back · 318 ms
+      { at: 0.72, fn: () => ccPopImagenArtifact() },  // real Imagen image → artifact chip on content node
     ],
     /* SCENE 6 — Model Armor blocks injection */
     (sc) => [
@@ -2071,11 +2990,95 @@ function appendChat(sceneEl, sel, role, text) {
   el.scrollTop = el.scrollHeight;
 }
 
+/* --- OPTIMIZE-act action helpers -------------------------------------------*/
+function animatePct(sceneEl, sel, fracSel, to, total, passed, color) {
+  const el = sceneEl.querySelector(sel);
+  if (!el) return;
+  const start = performance.now();
+  function step(ts) {
+    if (!el.isConnected) return;
+    const t = Math.min(1, (ts - start) / 1400);
+    const v = (to * t);
+    el.textContent = v.toFixed(1) + "%";
+    if (color) el.style.color = color;
+    if (t < 1) requestAnimationFrame(step);
+    else {
+      el.textContent = to.toFixed(1) + "%";
+      const f = sceneEl.querySelector(fracSel);
+      if (f) f.textContent = passed + " / " + total + " cases passed";
+    }
+  }
+  requestAnimationFrame(step);
+}
+function revealSimVerdicts(sceneEl) {
+  const rows = sceneEl.querySelectorAll("tbody tr[data-cat]");
+  rows.forEach((tr, i) => {
+    const cell = tr.querySelector(".opt-sim-verdict");
+    if (!cell) return;
+    const row = HARDENING.simRows[i];
+    setTimeout(() => {
+      if (!cell.isConnected) return;
+      const pass = !row.baseFail;
+      cell.innerHTML = pass
+        ? `<span class="chip" style="background:#0f3328;color:#6ee7b7;border-color:#1f5436;">✓ ${row.base}</span>`
+        : `<span class="chip" style="background:#3a1414;color:#fca5a5;border-color:#5a2020;">✗ ${row.base}</span>`;
+    }, i * 110);
+  });
+}
+function activateTrace(sceneEl, prefix, opts = {}) {
+  // sequentially light up the reasoning steps, then the terminal node.
+  const steps = sceneEl.querySelectorAll("." + prefix + "-step");
+  const term = sceneEl.querySelector("." + prefix + "-terminal");
+  steps.forEach((node, i) => {
+    setTimeout(() => {
+      if (!node.isConnected) return;
+      node.classList.remove("opt-dim");
+      const kind = node.dataset.kind;
+      if (kind === "stall") node.classList.add("opt-stall");
+      else if (kind === "repair") node.classList.add("opt-repair");
+      else node.classList.add("opt-active");
+    }, i * 420);
+  });
+  if (term) {
+    setTimeout(() => {
+      if (!term.isConnected) return;
+      term.classList.remove("opt-dim");
+      term.classList.add(opts.tone === "repair" ? "opt-repair" : (opts.tone === "stall" ? "opt-stall" : "opt-active"));
+    }, steps.length * 420 + 200);
+  }
+}
+function fillOptBar(sceneEl, sel, pct) {
+  const el = sceneEl.querySelector(sel);
+  if (!el) return;
+  el.style.width = pct + "%";
+  el.textContent = (pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(1)) + "%";
+}
+
+/* --- Track metadata (generalised so the engine is not hard-wired to 12) -----*/
+const TRACK_LABEL = {
+  track2: "Track 2 · Build",
+  optimize: "Optimize · Harden",
+  track3: "Track 3 · Refactor",
+};
+
+function populateSceneJump(track) {
+  const jump = document.getElementById("scene-jump");
+  if (!jump) return;
+  jump.innerHTML = "";
+  const count = TIMELINE[track].length;
+  for (let i = 0; i < count; i++) {
+    const opt = document.createElement("option");
+    opt.value = String(i);
+    opt.textContent = `Scene ${i + 1}`;
+    jump.appendChild(opt);
+  }
+}
+
 /* --- Scene + locale switching ---------------------------------------------*/
 function buildScenes() {
   const host = document.getElementById("scene-host");
   host.innerHTML = "";
-  const tracks = ["track2", "track3"];
+  const tracks = ["track2", "optimize", "track3"];
   for (const t of tracks) {
     const builders = SCENE_BUILDERS[t];
     for (let i = 0; i < builders.length; i++) {
@@ -2087,6 +3090,41 @@ function buildScenes() {
       host.appendChild(wrap);
     }
   }
+  // (Re)build the persistent campaign-canvas backdrop so its node/edge state is
+  // fresh whenever scenes rebuild (restart / scene-jump).
+  buildCampaignCanvas();
+}
+
+/* --- Campaign-canvas act mapping -------------------------------------------
+   The canvas is a PERSISTENT backdrop. It is the foreground board during the
+   BUILD scenes that establish the workflow (track2 scenes 1+3), the focused
+   backdrop for the OPTIMIZE scene 2 (stall→repair on the outreach node), and
+   the A2A backdrop for the REFACTOR scene 5 (sourcing → tiktok-mcp). Other
+   scenes keep their bespoke detail views, so the canvas hides there. */
+const CC_ACT_SCENES = {
+  track2:   { 0: "build", 2: "build" },     // scene 1 (intake) + scene 3 (sourcing/approve)
+  optimize: { 1: "optimize" },              // scene 2 — observability stall→repair
+  track3:   { 4: "refactor" },              // scene 5 — A2A client → Cloud Run
+};
+
+function ccManageForScene(track, idx) {
+  const mode = (CC_ACT_SCENES[track] || {})[idx] || null;
+  ccShow(mode);
+  if (!mode) return;
+  ccReset();
+  if (mode === "build") {
+    // current-lane highlight follows the BUILD scene
+    const stage = idx === 0 ? "overview" : "sourcing";
+    ccLayer()?.querySelectorAll(".cc-lane").forEach(l =>
+      l.classList.toggle("cc-lane-current", l.dataset.stage === stage));
+    if (idx === 2) ccBuildFill(0.13); // entering sourcing scene → brief already done
+  } else if (mode === "optimize") {
+    ccLayer()?.querySelectorAll(".cc-lane").forEach(l =>
+      l.classList.toggle("cc-lane-current", l.dataset.stage === "outreach"));
+  } else if (mode === "refactor") {
+    ccLayer()?.querySelectorAll(".cc-lane").forEach(l =>
+      l.classList.toggle("cc-lane-current", l.dataset.stage === "sourcing"));
+  }
 }
 
 function setActiveScene(track, idx) {
@@ -2096,13 +3134,16 @@ function setActiveScene(track, idx) {
   if (target) target.classList.add("active");
   state.activeSceneEl = target;
   state.firedActions = new Set();
+  // persistent campaign-canvas backdrop: show/reset for this scene's act
+  ccManageForScene(track, idx);
   // reset cursor to neutral spot
   moveCursor(640, 400);
   // angle badge + scene info
   const info = TIMELINE[track][idx];
+  const sceneCount = TIMELINE[track].length;
   document.getElementById("angle-badge").textContent = info.angle + " · " + info.title;
   document.getElementById("scene-info").innerHTML =
-    `<b>${track === 'track2' ? 'Track 2' : 'Track 3'} · Scene ${idx+1} / 12</b> — ${info.title} ` +
+    `<b>${TRACK_LABEL[track]} · Scene ${idx+1} / ${sceneCount}</b> — ${info.title} ` +
     `<span class="chip chip-blue" style="margin-left:6px;">${info.angle}</span>` +
     `<span style="margin-left:10px;">Real ${info.real}s · 8× ${info.comp.toFixed(1)}s</span>`;
 }
@@ -2208,16 +3249,12 @@ function setupControls() {
     });
   });
   document.getElementById("btn-track-2").addEventListener("click", () => switchTrack("track2"));
+  document.getElementById("btn-track-optimize").addEventListener("click", () => switchTrack("optimize"));
   document.getElementById("btn-track-3").addEventListener("click", () => switchTrack("track3"));
 
-  // populate scene jump
+  // populate scene jump (track-aware count)
   const jump = document.getElementById("scene-jump");
-  for (let i = 0; i < 12; i++) {
-    const opt = document.createElement("option");
-    opt.value = String(i);
-    opt.textContent = `Scene ${i+1}`;
-    jump.appendChild(opt);
-  }
+  populateSceneJump(state.track);
   jump.addEventListener("change", () => {
     const idx = parseInt(jump.value, 10);
     const { starts } = cumStarts(state.track);
@@ -2233,7 +3270,7 @@ function setupControls() {
     if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
     if (e.code === "Space") { e.preventDefault(); btnPlay.click(); }
     else if (e.code === "ArrowRight") {
-      const next = Math.min(11, state.sceneIdx + 1);
+      const next = Math.min(TIMELINE[state.track].length - 1, state.sceneIdx + 1);
       jump.value = String(next);
       jump.dispatchEvent(new Event("change"));
     } else if (e.code === "ArrowLeft") {
@@ -2252,8 +3289,11 @@ function switchTrack(track) {
   state.elapsedMs = 0;
   state.sceneIdx = -1;
   state.firedActions = new Set();
+  state.totalMs = cumStarts(track).endOfScenes * 1000 + 5000; // scenes + closing card
   document.getElementById("btn-track-2").classList.toggle("active", track === "track2");
+  document.getElementById("btn-track-optimize").classList.toggle("active", track === "optimize");
   document.getElementById("btn-track-3").classList.toggle("active", track === "track3");
+  populateSceneJump(track);
   buildScenes();
   setActiveScene(track, 0);
   state.lastTs = null;
@@ -2263,9 +3303,11 @@ function switchTrack(track) {
 /* --- Boot ------------------------------------------------------------------*/
 window.addEventListener("DOMContentLoaded", () => {
   state.cursor = document.getElementById("cursor");
+  state.totalMs = cumStarts("track2").endOfScenes * 1000 + 5000;
   buildScenes();
   setActiveScene("track2", 0);
   setupControls();
+  window.addEventListener("resize", ccFitBoard);
   state.playing = true;
   document.getElementById("btn-play").textContent = "⏸ Pause";
   requestAnimationFrame(step);

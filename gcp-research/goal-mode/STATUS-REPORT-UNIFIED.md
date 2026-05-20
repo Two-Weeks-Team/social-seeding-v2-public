@@ -1,6 +1,30 @@
 # STATUS-REPORT-UNIFIED.md — 단일 Track 3 제출 통합 진행 보고
 
-> 자율 `/goal` 세션 (I1~I9). 갱신: 2026-05-20. 상태: **✅ GOAL ACHIEVED** (I1~I9 전부 완료 · Track 3 6요건 충족 · 운영자 잔여만 남음).
+> 자율 `/goal` 세션. 갱신: 2026-05-20. 상태: **✅ GOAL ACHIEVED** — I1~I9 + 대서사 갭클로징 G1~G5·H1~H5 + **시너지 완성 W1~W5** 전부 완료 · Track 3 6요건 충족 · Grand Prize 정조준 · 운영자 잔여만 남음.
+>
+> **시너지 완성 W1-W5 (SYNERGY-COMPLETION-PLAN, 2026-05-20)**: W1 데모가 실 campaign-canvas(React-Flow) 구동 + 워터마크 · W2 GA agent 기능 5종 실연결(Observability→Cloud Trace · Model Armor sanitize · GA Prompt Optimizer 재배선 · 관리형 Memory Bank · A2A signed card JWS) · W3 content_verify→DAM 진짜 A2A hop(Build Example #2 transport-exact) + holdout 71.4%(56케이스/14 adversarial, 28.6pp gap, 미튜닝) + 라이브 배포 아티팩트(serve.py+demo workflow+RUNBOOK) · W4 ROI-vs-agency(99.7% 절감, TAM $1.15B 인용) + OSS A2A-only 분배 템플릿(verify.sh pass) · W5 HONEST-SCOPE 표(16행: 9 GA-real / 4 operator-deploy / 2 Google-gated). pytest **2925** green · verify-build green · GCP ~$1-5/mo. 모든 real 주장 = 재실행 가능 증거; Google-gated는 신청+공개(미조작).
+
+---
+
+## 0. 대서사 웨이브 (D50/D51 — Grand Prize 정조준 G/H-series)
+
+`GRAND-NARRATIVE-PLAN.md`의 갭클로징을 자율 `/goal`로 실행 완료. 모든 수치는 재실행 가능한 증거에서 나옴(날조 없음, RULES.md §honesty).
+
+| ID | 작업 | 상태 | 증거 (재실행 가능) |
+|---|---|---|---|
+| G1 | A2A를 brand-campaign Cloud Workflow에 실배선 | ✅ | coordinate_sourcing→branch_on_route→a2a_invoke_remote 추가, hardcoded URL 0, `terraform validate` clean |
+| G2 | Model Garden ≥1 에이전트 라우팅 증명 | ✅ | offline test가 `publishers/google/models/...` 가 LlmAgent에 전달됨을 assert; live smoke는 운영자 게이트 |
+| G3 | `_run_with_adk` 실추론 경로 테스트 | ✅ | conftest SS_OFFLINE 우회 + ADK mock; 실추론 커버리지 0%→커버 |
+| G4 | 정직성 3종 + CI 게이트 복원 | ✅ | AGENT-IDENTITY a2a행 정정, agent.json `x-securityPosture`(mTLS declared-not-enforced), REQUIRE_AUTH 단일화, ci.yml `pytest-agents` 잡 |
+| G5 | SSRF allowlist + prompt_guard 확장 | ✅ | `_validate_live_host`(metadata/RFC1918/loopback 차단 + DNS rebinding 방어), ko/ja/zh 인젝션 패턴 추가 |
+| H1-H4 | 단련 챕터 (stall→repair before/after) | ✅ | **42.3% → 100.0% (+57.7pp)**, 26-case 합성셋, `bash scripts/smoke-test/run-hardening-measure.sh`; stall/repair trace 아티팩트 |
+| H5 | golden-set 러너 + 홀드아웃 | ✅ | train 100% / **holdout 75% ≥ 70% floor**, +25% gap 정직 노출, CI 게이트 배선 |
+
+**라이브 cross-component A2A 재증명 (이 세션)**: `coordinator → a2a_invoke → ss-mcp.plan_creator_search`, A2A v0.3 message/send, **task completed, 3667ms, 5 creators**, exit 0.
+
+**정직 스코프 (D51)**: 단련 before/after는 **로컬 결정론적 패스**(라이브 Vertex AI Agent Optimizer는 stub/W7-deferred). mTLS는 declared-not-enforced. prompt_guard는 우회 가능(Model Armor는 stub). 전부 데모·제출문에 디스클로저.
+
+**게이트**: pytest **2832 passed** · `pnpm run verify-build` exit 0 · GCP 비용 ~$1-5/mo (min=0).
 
 ---
 

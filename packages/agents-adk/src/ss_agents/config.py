@@ -127,6 +127,29 @@ class Settings(BaseSettings):
     # ── Firestore (Memory Bank backing per D15) ───────────────────────
     firestore_database: str = Field(default="(default)", alias="FIRESTORE_DATABASE")
 
+    # ── Agent Memory Bank backend selection (D15) ─────────────────────
+    memory_backend: Literal["stub", "firestore", "vertex"] = Field(
+        default="firestore", alias="MEMORY_BACKEND"
+    )
+    """Which backend powers the Agent Memory Bank (D15).
+
+    * ``firestore`` (default) — the Firestore key→payload store with the
+      in-memory fallback. Offline/CI safe; this is what every existing test and
+      `/goal` run uses.
+    * ``stub`` — force the deterministic capability stub regardless of
+      `CAPABILITY_LAYER_MODE`.
+    * ``vertex`` — the REAL managed Vertex AI Agent Engine **Memory Bank** (GA).
+      Operator-gated: requires `VERTEX_AGENT_ENGINE` + ADC (see the runbook in
+      `memory/vertex_memory_bank.py`). When the managed backend is unreachable
+      the read path falls back to the existing capability dispatch so a
+      misconfigured prod never hard-fails an agent run."""
+
+    vertex_agent_engine: str | None = Field(default=None, alias="VERTEX_AGENT_ENGINE")
+    """Agent Engine (reasoning engine) resource owning the managed Memory Bank.
+    Bare id (`1234567890`) or full
+    `projects/{p}/locations/{l}/reasoningEngines/{id}`. Required only when
+    `MEMORY_BACKEND=vertex`."""
+
     @property
     def vertex_init_kwargs(self) -> dict[str, str]:
         """Args for google.cloud.aiplatform.init() / vertexai.init()."""

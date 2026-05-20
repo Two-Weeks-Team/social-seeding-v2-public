@@ -37,6 +37,23 @@ Optional flags forwarded to the Python driver:
 | 2 | At least one tool failed stub invocation (input rejected, output drifted from schema). |
 | 3 | `expected-output.json` drift. Either a stub changed (review + `--update-golden`) or a regression slipped in. |
 
+## Sibling smokes
+
+- `run-integration-a2a.sh` / `integration_a2a_smoke.py` — cross-component A2A
+  live hop (coordinator → `a2a_invoke` → ss-mcp-server). Makes ONE real outbound
+  HTTPS call; coordinator LLM stubbed.
+- `run-model-garden-live.sh` / `model_garden_live_smoke.py` — Model Garden
+  routing live proof (G2).
+- **`run-golden-eval.sh` — OFFLINE golden-eval runner (H5).** Drives a chosen
+  agent's deterministic predictor against its `.evalset.json`, scores it against
+  the golden `metadata`, and reports a **train/dev/holdout** split so overfit is
+  detectable. Fully offline ($0, no Vertex/creds). Full docs:
+  `packages/agents-adk/evals/README.md`. D-IDs: D25, D37, D5.
+
+  ```bash
+  bash scripts/smoke-test/run-golden-eval.sh --agent coordinator
+  ```
+
 ## Files
 
 - `run-brand-campaign.sh` — bash entry point, sets stub-mode env, pre-flight check, dispatches to Python.

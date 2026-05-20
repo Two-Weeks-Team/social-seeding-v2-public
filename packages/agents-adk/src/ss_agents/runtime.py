@@ -56,6 +56,7 @@ from ss_agents.config import (
     model_pricing,
     resolve_runtime_model,
 )
+from ss_agents.observability import agent_span, llm_child_span, record_outcome
 
 logger = logging.getLogger(__name__)
 
@@ -357,61 +358,88 @@ async def run_agent(
             usdSpent=0.0,
         )
 
-    # 4. Build the system prompt.
-    try:
-        system_prompt = agent_def.system_prompt(validated_input)
-    except Exception as exc:  # pragma: no cover — only happens on programmer error
-        return Escalation(
-            reason=f"system_prompt builder raised: {type(exc).__name__}: {exc}",
-            partial={},
-            usdSpent=0.0,
-        )
-
-    # 5. Dispatch to either the stub (tests) or the live ADK Runner.
+    # 4-6. Build the system prompt, dispatch to the model, validate the output —
+    #       all inside one OTel span (`agent:{id}`) so every invocation is
+    #       Cloud-Trace-exportable per D31 (SLO) + D32 (Cloud Monitoring +
+    #       Chronicle SIEM). `agent_span` yields None when SS_OTEL_ENABLED=false
+    #       (the test/dev default), so the no-op path adds zero overhead and
+    #       `record_outcome(None, ...)` is a no-op. Live export happens only when
+    #       the operator flips SS_OTEL_ENABLED=true with ADC present (see
+    #       observability.py + README.md "Capturing a LIVE trace").
     usd_spent = 0.0
-    try:
-        if ctx.model_client is not None or is_offline():
-            output, usd_spent = await _run_with_stub(
-                agent_def=agent_def,
-                input_payload=validated_input,
-                system_prompt=system_prompt,
-                ctx=ctx,
+    with agent_span(
+        agent_id=agent_def.id,
+        tenant_id=ctx.tenant_id,
+        workspace_id=ctx.workspace_id,
+        trace_id=ctx.trace_id,
+        model=agent_def.model,
+    ) as span:
+        # 4. Build the system prompt.
+        try:
+            system_prompt = agent_def.system_prompt(validated_input)
+        except Exception as exc:  # pragma: no cover — only happens on programmer error
+            record_outcome(span, kind="escalate", usd_spent=0.0)
+            return Escalation(
+                reason=f"system_prompt builder raised: {type(exc).__name__}: {exc}",
+                partial={},
+                usdSpent=0.0,
             )
-        else:
-            output, usd_spent = await _run_with_adk(
-                agent_def=agent_def,
-                input_payload=validated_input,
-                system_prompt=system_prompt,
-                ctx=ctx,
+
+        # 5. Dispatch to either the stub (tests) or the live ADK Runner. Both
+        #    paths emit child spans (`llm:{model}` / `tool:{name}`) into the
+        #    active `agent:{id}` span — the stub via `_record_llm_child_span`,
+        #    the live path via ADK's own callback-driven instrumentation that
+        #    inherits this provider's context.
+        try:
+            if ctx.model_client is not None or is_offline():
+                output, usd_spent = await _run_with_stub(
+                    agent_def=agent_def,
+                    input_payload=validated_input,
+                    system_prompt=system_prompt,
+                    ctx=ctx,
+                )
+            else:
+                output, usd_spent = await _run_with_adk(
+                    agent_def=agent_def,
+                    input_payload=validated_input,
+                    system_prompt=system_prompt,
+                    ctx=ctx,
+                )
+        except BudgetExceeded as exc:
+            record_outcome(span, kind="escalate", usd_spent=exc.spent_usd)
+            return Escalation(
+                reason=str(exc),
+                partial={"max_usd": exc.max_usd},
+                usdSpent=exc.spent_usd,
             )
-    except BudgetExceeded as exc:
-        return Escalation(
-            reason=str(exc),
-            partial={"max_usd": exc.max_usd},
-            usdSpent=exc.spent_usd,
-        )
-    except EscalateToHuman as exc:
-        return Escalation(
-            reason=exc.reason,
-            partial=exc.partial,
-            usdSpent=usd_spent,
-        )
-    except ValidationError as exc:
-        return Escalation(
-            reason=f"output validation failed: {_first_validation_message(exc)}",
-            partial={},
-            usdSpent=usd_spent,
-        )
-    except Exception as exc:  # pragma: no cover — defense in depth
-        logger.exception(
-            "agent_runtime_unexpected",
-            extra={"agent_id": agent_def.id, "trace_id": ctx.trace_id},
-        )
-        return Escalation(
-            reason=f"unexpected runtime error: {type(exc).__name__}: {exc}",
-            partial={},
-            usdSpent=usd_spent,
-        )
+        except EscalateToHuman as exc:
+            record_outcome(span, kind="escalate", usd_spent=usd_spent)
+            return Escalation(
+                reason=exc.reason,
+                partial=exc.partial,
+                usdSpent=usd_spent,
+            )
+        except ValidationError as exc:
+            record_outcome(span, kind="escalate", usd_spent=usd_spent)
+            return Escalation(
+                reason=f"output validation failed: {_first_validation_message(exc)}",
+                partial={},
+                usdSpent=usd_spent,
+            )
+        except Exception as exc:  # pragma: no cover — defense in depth
+            logger.exception(
+                "agent_runtime_unexpected",
+                extra={"agent_id": agent_def.id, "trace_id": ctx.trace_id},
+            )
+            record_outcome(span, kind="escalate", usd_spent=usd_spent)
+            return Escalation(
+                reason=f"unexpected runtime error: {type(exc).__name__}: {exc}",
+                partial={},
+                usdSpent=usd_spent,
+            )
+
+        # 6. Success — stamp the outcome onto the span before it closes.
+        record_outcome(span, kind="ok", usd_spent=usd_spent)
 
     elapsed_ms = int((time.monotonic() - start) * 1000)
     logger.info(
@@ -445,12 +473,16 @@ async def _run_with_stub(
     validation gates so tests cover the same code paths as production.
     """
     assert ctx.model_client is not None, "stub path entered with no model_client"
-    output_obj = await ctx.model_client.generate(
-        agent_id=agent_def.id,
-        system_prompt=system_prompt,
-        input_payload=input_payload,
-        output_schema=agent_def.output_schema,
-    )
+    # Wrap the (stubbed) model call in a child `llm:{model}` span so the offline
+    # path produces the same minimal span tree the live ADK path does. No-op
+    # when tracing is disabled.
+    with llm_child_span(model=agent_def.model, agent_id=agent_def.id):
+        output_obj = await ctx.model_client.generate(
+            agent_id=agent_def.id,
+            system_prompt=system_prompt,
+            input_payload=input_payload,
+            output_schema=agent_def.output_schema,
+        )
 
     # Cost: stubs declare their own cost via a `_stub_usd` attribute (test
     # fixture sets this), defaulting to 0 for free runs.

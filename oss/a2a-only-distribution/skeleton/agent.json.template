@@ -1,0 +1,76 @@
+{
+  "$schema": "https://a2a-protocol.org/schemas/v0.3/agent-card.json",
+  "_comment": "A2A v0.3 Agent Card TEMPLATE. Replace every <PLACEHOLDER>. This is the machine-readable manifest a Gemini-Enterprise / any A2A client fetches from /.well-known/agent.json to discover and call your agent — WITHOUT a Marketplace listing. Spec: https://a2a-protocol.org/specification/0.3.0",
+
+  "protocolVersion": "0.3.0",
+
+  "name": "<YOUR_AGENT_NAME>",
+  "description": "<ONE_OR_TWO_SENTENCES: what the agent does, what it returns, where the data comes from>",
+
+  "url": "<https://your-agent.example.run.app>",
+  "preferredTransport": "HTTP+JSON",
+  "additionalInterfaces": [
+    { "url": "<https://your-agent.example.run.app/v1>", "transport": "HTTP+JSON" }
+  ],
+
+  "iconUrl": "<https://cdn.example.com/icon-256.png>",
+  "version": "1.0.0",
+  "documentationUrl": "<https://docs.example.com/agents/your-agent>",
+
+  "provider": {
+    "organization": "<YOUR_ORG>",
+    "url": "<https://example.com>"
+  },
+
+  "capabilities": {
+    "streaming": false,
+    "pushNotifications": false,
+    "stateTransitionHistory": false
+  },
+
+  "securitySchemes": {
+    "oidc": {
+      "type": "openIdConnect",
+      "openIdConnectUrl": "<https://your-idp/.well-known/openid-configuration>",
+      "_comment": "CALLER identity — who may invoke. Swap for your IdP (Google Identity Platform, Auth0, Cognito, Okta). The skeleton runs open by default (REQUIRE_AUTH=false) so the template is reachable without provisioning an IdP; turn this on for production."
+    }
+  },
+
+  "security": [
+    { "oidc": [] }
+  ],
+
+  "defaultInputModes":  ["text/plain", "application/json"],
+  "defaultOutputModes": ["application/json"],
+
+  "skills": [
+    {
+      "id": "<your_skill_id>",
+      "name": "<Human-readable skill name>",
+      "description": "<What this skill does. Honors any quotas you declare.>",
+      "tags": ["<tag1>", "<tag2>"],
+      "examples": [
+        "<An example prompt a caller might send>",
+        "<Another example>"
+      ],
+      "inputModes":  ["text/plain", "application/json"],
+      "outputModes": ["application/json"]
+    }
+  ],
+
+  "supportsAuthenticatedExtendedCard": false,
+
+  "_a2a_intents": {
+    "_comment": "Human/judge-readable manifest of what this agent EXPOSES and CONSUMES (A2A spec calls these skills/intents). Keep in sync with skills[] above.",
+    "exposed": { "a2a_skills": ["<your_skill_id>"] },
+    "consumed": { "a2a_intents": [] }
+  },
+
+  "_distribution": {
+    "_comment": "A2A-only distribution disclosure. This agent is discoverable via this card + JWKS today; a Marketplace/Agentspace listing is an OPERATOR/Google-gated step that does NOT block A2A discovery. See README.md and PROVENANCE.md.",
+    "path": "a2a-only",
+    "marketplace_listing_status": "<not-listed | submitted-when-foreign-sub-ready | listed>",
+    "billing_rails": ["<stripe>", "<toss>", "<invoice>", "<free>"],
+    "pattern_repo": "<https://github.com/your-org/your-a2a-agent>"
+  }
+}

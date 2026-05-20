@@ -27,6 +27,10 @@ locals {
       yaml_file   = "brand-campaign.workflows.yaml"
       description = "Brand-campaign parent fan-out (D18; mirrors v2 packages/workflows/src/workflows/brand-campaign.ts)."
     }
+    "brand-campaign-demo" = {
+      yaml_file   = "brand-campaign-demo.workflows.yaml"
+      description = "Wave 3 / Track 3 trimmed demo: coordinate_sourcing → branch_on_route → a2a_invoke_remote (real ss-mcp) → check_a2a_outcome → return RankedCreators. Executable end-to-end multi-agent orchestration take (D23/D24/D45)."
+    }
     "creator-track" = {
       yaml_file   = "creator-track.workflows.yaml"
       description = "Per-creator child workflow with durable callbacks for reply + post-detected (INNGEST-MIGRATION §3.2)."
@@ -70,12 +74,34 @@ locals {
   # `${sys.get_env("AGENT_URL_SOURCING")}` as the fallback branch of the
   # `default(map.get(args.agent_urls, "<id>"), …)` pattern. See
   # terraform/modules/integration/WIRE-NOTES.md for the full contract.
+  #
+  # Note: `coordinator` is one of the 22 registry agents, so when it is present
+  # in var.agent_urls this loop already emits AGENT_URL_COORDINATOR — the
+  # env-var fallback brand-campaign.workflows.yaml's coordinate_sourcing step
+  # relies on (G1 / D23). `tiktok-mcp-search`, if injected at runtime, would map
+  # to AGENT_URL_TIKTOK_MCP_SEARCH here; the dedicated AGENT_URL_TIKTOK_MCP
+  # below is the canonical name the YAML's a2a_invoke_remote step reads.
   workflow_agent_env_vars = {
     for agent_id, url in var.agent_urls :
     format("AGENT_URL_%s", upper(replace(agent_id, "-", "_"))) => url
   }
 
-  workflow_env_vars = merge(local.workflow_base_env_vars, local.workflow_agent_env_vars)
+  # Remote A2A node env-var fallback (G1 / D45). The OSS tiktok-mcp-server is a
+  # Cloud Run A2A endpoint (var.tiktok_mcp_endpoint), not a Vertex Agent Runtime
+  # agent, so it is wired explicitly here rather than via the agent_urls loop.
+  # brand-campaign.workflows.yaml's a2a_invoke_remote step resolves it as
+  # `default(map.get(args.agent_urls, "tiktok-mcp-search"),
+  # sys.get_env("AGENT_URL_TIKTOK_MCP"))` — same D42 args/env layering, still
+  # zero hardcoded hostnames in the YAML.
+  workflow_a2a_env_vars = var.tiktok_mcp_endpoint == "" ? {} : {
+    AGENT_URL_TIKTOK_MCP = var.tiktok_mcp_endpoint
+  }
+
+  workflow_env_vars = merge(
+    local.workflow_base_env_vars,
+    local.workflow_agent_env_vars,
+    local.workflow_a2a_env_vars,
+  )
 }
 
 resource "google_workflows_workflow" "workflows" {

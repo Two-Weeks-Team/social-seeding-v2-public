@@ -11,9 +11,17 @@ Covers:
 The live tests mock `httpx.post` so the suite stays offline + deterministic.
 The REAL cross-component hop (coordinator → a2a_invoke → ss-mcp-server) is
 exercised by `scripts/smoke-test/run-integration-a2a.sh` (D45 proof).
+
+The SSRF guard (`_validate_live_host`, D44 Agent Gateway egress / D32 SIEM)
+resolves the endpoint host via `socket.getaddrinfo`. To keep the suite
+hermetic (no live DNS), the `_no_live_dns` autouse fixture patches resolution
+to a fixed PUBLIC IP for the default-allowlisted `.run.app` test host; the
+dedicated SSRF tests patch resolution per-case to assert block/allow logic.
 """
 from __future__ import annotations
 
+import socket
+from collections.abc import Iterator
 from typing import Any
 
 import httpx
@@ -26,8 +34,28 @@ from ss_agents.tools.a2a_invoke import (
     A2AInvokeOutput,
     _build_a2a_message,
     _extract_response_payload,
+    _validate_live_host,
     a2a_invoke,
 )
+
+
+def _addrinfo(ip: str) -> list[tuple[Any, ...]]:
+    """Build a minimal getaddrinfo() result for a single address."""
+    return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, 0))]
+
+
+@pytest.fixture(autouse=True)
+def _no_live_dns(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Default: resolve any allowlisted DNS host to a fixed PUBLIC IP so the
+    SSRF guard passes WITHOUT hitting the network. SSRF tests override this by
+    monkeypatching `socket.getaddrinfo` again inside the test body.
+    """
+    # 34.143.72.2 is a real Google public IP (the live ss-mcp Cloud Run host
+    # resolves into this range) — `is_private`/`is_global` classify it as a
+    # safe public target. (TEST-NET ranges like 203.0.113.0/24 are flagged
+    # private by Python's `ipaddress`, so they are unsuitable for the OK path.)
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: _addrinfo("34.143.72.2"))
+    yield
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. Stub happy path — deterministic success
@@ -455,6 +483,257 @@ def test_extract_response_payload_tolerates_malformed_envelope() -> None:
     parsed = _extract_response_payload({"unexpected": True})
     assert parsed["kind"] is None
     assert "data" not in parsed
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4c. SSRF guard — live host allow/deny (D44 Agent Gateway egress / D32 SIEM)
+#
+# The live hop must never reach the GCP metadata server, loopback, RFC1918, or
+# arbitrary raw-IP hosts. A blocked endpoint returns succeeded=False with an
+# `ssrf_blocked: <reason>` error (NOT a raise — matches the failed-hop routing
+# convention). httpx.post is patched to detect any (forbidden) network egress.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def _explode_on_post(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make httpx.post fail loudly — a blocked endpoint must NEVER egress."""
+
+    def _boom(url: str, **kwargs: Any) -> httpx.Response:  # pragma: no cover
+        raise AssertionError(f"SSRF guard let a blocked endpoint egress to {url!r}")
+
+    monkeypatch.setattr(httpx, "post", _boom)
+
+
+def test_live_blocks_gcp_metadata_ip(
+    monkeypatch: pytest.MonkeyPatch, _explode_on_post: None
+) -> None:
+    """169.254.169.254 (GCP/AWS metadata) is blocked — even though it is a raw
+    IP, the allowlist + link-local range both reject it."""
+    monkeypatch.setenv("CAPABILITY_LAYER_MODE", "live")
+    out = a2a_invoke(
+        A2AInvokeInput(
+            remoteAgentEndpoint="https://169.254.169.254",
+            taskPayload={"brand_brief": "brief"},
+            timeoutS=10,
+            correlationId="trace-ssrf-metadata",
+        )
+    )
+    assert out.succeeded is False
+    assert out.error is not None
+    assert out.error.startswith("ssrf_blocked:")
+
+
+def test_live_blocks_localhost(
+    monkeypatch: pytest.MonkeyPatch, _explode_on_post: None
+) -> None:
+    """`localhost` resolves to loopback ⇒ blocked (and not allowlisted)."""
+    monkeypatch.setenv("CAPABILITY_LAYER_MODE", "live")
+    out = a2a_invoke(
+        A2AInvokeInput(
+            remoteAgentEndpoint="https://localhost",
+            taskPayload={"brand_brief": "brief"},
+            timeoutS=10,
+            correlationId="trace-ssrf-localhost",
+        )
+    )
+    assert out.succeeded is False
+    assert out.error is not None
+    assert out.error.startswith("ssrf_blocked:")
+
+
+def test_live_blocks_loopback_ip(
+    monkeypatch: pytest.MonkeyPatch, _explode_on_post: None
+) -> None:
+    """127.0.0.1 raw IP ⇒ blocked."""
+    monkeypatch.setenv("CAPABILITY_LAYER_MODE", "live")
+    out = a2a_invoke(
+        A2AInvokeInput(
+            remoteAgentEndpoint="https://127.0.0.1:8100",
+            taskPayload={"brand_brief": "brief"},
+            timeoutS=10,
+            correlationId="trace-ssrf-loopback",
+        )
+    )
+    assert out.succeeded is False
+    assert out.error is not None and out.error.startswith("ssrf_blocked:")
+
+
+def test_live_blocks_rfc1918_private_ip(
+    monkeypatch: pytest.MonkeyPatch, _explode_on_post: None
+) -> None:
+    """10.0.0.5 (RFC1918 private) raw IP ⇒ blocked."""
+    monkeypatch.setenv("CAPABILITY_LAYER_MODE", "live")
+    out = a2a_invoke(
+        A2AInvokeInput(
+            remoteAgentEndpoint="https://10.0.0.5",
+            taskPayload={"brand_brief": "brief"},
+            timeoutS=10,
+            correlationId="trace-ssrf-rfc1918",
+        )
+    )
+    assert out.succeeded is False
+    assert out.error is not None and out.error.startswith("ssrf_blocked:")
+
+
+def test_live_blocks_raw_public_ip_not_allowlisted(
+    monkeypatch: pytest.MonkeyPatch, _explode_on_post: None
+) -> None:
+    """A raw PUBLIC IP is still blocked unless explicitly allowlisted — raw-IP
+    targets are not a normal A2A routing shape."""
+    monkeypatch.setenv("CAPABILITY_LAYER_MODE", "live")
+    out = a2a_invoke(
+        A2AInvokeInput(
+            remoteAgentEndpoint="https://8.8.8.8",
+            taskPayload={"brand_brief": "brief"},
+            timeoutS=10,
+            correlationId="trace-ssrf-rawpublic",
+        )
+    )
+    assert out.succeeded is False
+    assert out.error == "ssrf_blocked: raw_ip_not_allowlisted"
+
+
+def test_live_blocks_non_allowlisted_host(
+    monkeypatch: pytest.MonkeyPatch, _explode_on_post: None
+) -> None:
+    """A DNS host outside the suffix allowlist is blocked before resolution."""
+    monkeypatch.setenv("CAPABILITY_LAYER_MODE", "live")
+    out = a2a_invoke(
+        A2AInvokeInput(
+            remoteAgentEndpoint="https://evil.attacker.example.com",
+            taskPayload={"brand_brief": "brief"},
+            timeoutS=10,
+            correlationId="trace-ssrf-evilhost",
+        )
+    )
+    assert out.succeeded is False
+    assert out.error == "ssrf_blocked: host_not_allowlisted"
+
+
+def test_live_blocks_allowlisted_host_resolving_to_private(
+    monkeypatch: pytest.MonkeyPatch, _explode_on_post: None
+) -> None:
+    """DNS-rebinding defense: an allowlisted `.run.app` host whose name resolves
+    to an RFC1918 address is still blocked."""
+    monkeypatch.setenv("CAPABILITY_LAYER_MODE", "live")
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: _addrinfo("192.168.1.20"))
+    out = a2a_invoke(
+        A2AInvokeInput(
+            remoteAgentEndpoint="https://rebind.example.run.app",
+            taskPayload={"brand_brief": "brief"},
+            timeoutS=10,
+            correlationId="trace-ssrf-rebind",
+        )
+    )
+    assert out.succeeded is False
+    assert out.error == "ssrf_blocked: resolved_private"
+
+
+def test_live_blocks_on_resolution_failure(
+    monkeypatch: pytest.MonkeyPatch, _explode_on_post: None
+) -> None:
+    """Fail closed: an allowlisted host that does not resolve is blocked."""
+    monkeypatch.setenv("CAPABILITY_LAYER_MODE", "live")
+
+    def _no_resolve(*a: Any, **k: Any) -> list[tuple[Any, ...]]:
+        raise OSError("Name or service not known")
+
+    monkeypatch.setattr(socket, "getaddrinfo", _no_resolve)
+    out = a2a_invoke(
+        A2AInvokeInput(
+            remoteAgentEndpoint="https://nxdomain.example.run.app",
+            taskPayload={"brand_brief": "brief"},
+            timeoutS=10,
+            correlationId="trace-ssrf-nxdomain",
+        )
+    )
+    assert out.succeeded is False
+    assert out.error == "ssrf_blocked: resolution_failed"
+
+
+def test_live_allows_run_app_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An allowlisted `.run.app` host resolving to a PUBLIC IP passes the guard
+    and the (mocked) hop proceeds normally."""
+    monkeypatch.setenv("CAPABILITY_LAYER_MODE", "live")
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: _addrinfo("34.143.72.2"))
+    transport = _CapturingTransport()
+    monkeypatch.setattr(httpx, "post", transport)
+
+    out = a2a_invoke(
+        A2AInvokeInput(
+            remoteAgentEndpoint="https://ss-mcp-server-1049119860518.us-central1.run.app",
+            taskPayload={"brand_brief": "brief"},
+            timeoutS=10,
+            correlationId="trace-ssrf-ok",
+        )
+    )
+    assert out.succeeded is True
+    assert len(transport.calls) == 1
+    assert "ssrf" not in (out.error or "")
+
+
+def test_live_allows_raw_ip_when_explicitly_allowlisted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A raw PUBLIC IP passes ONLY when the operator opts it in via
+    A2A_ALLOWED_HOSTS (and the IP is not in a blocked range)."""
+    monkeypatch.setenv("CAPABILITY_LAYER_MODE", "live")
+    monkeypatch.setenv("A2A_ALLOWED_HOSTS", "34.143.72.9")
+    transport = _CapturingTransport()
+    monkeypatch.setattr(httpx, "post", transport)
+
+    out = a2a_invoke(
+        A2AInvokeInput(
+            remoteAgentEndpoint="https://34.143.72.9",
+            taskPayload={"brand_brief": "brief"},
+            timeoutS=10,
+            correlationId="trace-ssrf-allowedip",
+        )
+    )
+    assert out.succeeded is True
+    assert len(transport.calls) == 1
+
+
+def test_live_allowlist_env_override_narrows_surface(
+    monkeypatch: pytest.MonkeyPatch, _explode_on_post: None
+) -> None:
+    """When A2A_ALLOWED_HOSTS is set, it OVERRIDES the default — a `.run.app`
+    host no longer on the (narrowed) list is blocked."""
+    monkeypatch.setenv("CAPABILITY_LAYER_MODE", "live")
+    monkeypatch.setenv("A2A_ALLOWED_HOSTS", "only-this.example.com")
+    out = a2a_invoke(
+        A2AInvokeInput(
+            remoteAgentEndpoint="https://ss-mcp.example.run.app",
+            taskPayload={"brand_brief": "brief"},
+            timeoutS=10,
+            correlationId="trace-ssrf-narrow",
+        )
+    )
+    assert out.succeeded is False
+    assert out.error == "ssrf_blocked: host_not_allowlisted"
+
+
+def test_validate_live_host_unit() -> None:
+    """Direct unit coverage of the pure validator for the common cases."""
+    # Blocked.
+    assert _validate_live_host(  # type: ignore[arg-type]
+        A2AInvokeInput(
+            remoteAgentEndpoint="https://169.254.169.254",
+            taskPayload={},
+            timeoutS=5,
+            correlationId="c",
+        ).remote_agent_endpoint
+    ) == "raw_ip_link_local"  # dangerous range reported before allowlist check
+    # Allowed suffix (resolution is exercised in the integration-style tests).
+    assert _validate_live_host(  # type: ignore[arg-type]
+        A2AInvokeInput(
+            remoteAgentEndpoint="https://x.run.app",
+            taskPayload={},
+            timeoutS=5,
+            correlationId="c",
+        ).remote_agent_endpoint
+    ) in (None, "resolved_link_local", "resolved_private", "resolution_failed")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

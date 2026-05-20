@@ -13,10 +13,20 @@ from ss_agents.memory.firestore import (
     MemoryNotFound,
     new_memory_bank,
 )
+from ss_agents.memory.vertex_memory_bank import (
+    RetrievedMemory,
+    VertexMemoryBank,
+    VertexMemoryBankUnavailable,
+    new_vertex_memory_bank,
+)
 
 __all__ = [
     "AgentMemoryBank",
     "MemoryEntry",
     "MemoryNotFound",
+    "RetrievedMemory",
+    "VertexMemoryBank",
+    "VertexMemoryBankUnavailable",
     "new_memory_bank",
+    "new_vertex_memory_bank",
 ]

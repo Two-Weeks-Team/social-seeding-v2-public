@@ -300,6 +300,122 @@ async def plan_creator_search(brand_brief: str, *, uid: str | None = None) -> Ra
 
 
 # ---------------------------------------------------------------------------
+# DAM-style A2A skill — get_brand_assets (Build Example #2, exposed half)
+# ---------------------------------------------------------------------------
+#
+# `designed_guide.pdf` p.7 Build Example #2: a Gemini-powered multimodal
+# marketing agent uses A2A to reach a company's internal Digital Asset Manager
+# (DAM) Agent for *approved brand logos / product imagery*, keeping output
+# on-brand and compliant. Social Seeding's `content_verify` agent is the
+# marketing agent; it A2A-invokes THIS skill (via `ss_agents.tools.
+# dam_get_brand_assets` → `a2a_invoke`) to retrieve approved assets + an
+# on-brand verdict.
+#
+# Honest scope: this is a DEMO DAM stand-in for a customer's real Digital Asset
+# Manager. The A2A TRANSPORT is genuine (this skill is reached over the live
+# A2A v0.3 `message/send` binding, same as `plan_creator_search`); the asset
+# store is a small in-memory catalog so the cross-component hop is reachable
+# end-to-end without provisioning a real DAM. A2A-INTENTS.md §5.
+
+
+class BrandAsset(BaseModel):
+    """One approved brand asset the DAM returns (logo / product imagery)."""
+
+    asset_id: str = Field(..., description="Stable DAM asset id")
+    kind: str = Field(default="logo", description="logo | product_image | wordmark")
+    uri: str = Field(..., description="gs:// or https:// URI of the approved asset")
+
+
+class BrandAssets(BaseModel):
+    """DAM `get_brand_assets` skill output — approved assets + on-brand verdict."""
+
+    brand_name: str
+    brand_assets: list[BrandAsset] = Field(default_factory=list)
+    logo_detected: bool = Field(
+        default=False,
+        description="DAM matched an approved logo on the supplied post media.",
+    )
+    confidence_0_1: float = Field(default=0.0, ge=0.0, le=1.0)
+    on_brand: bool = Field(
+        default=False, description="DAM on-brand / compliance verdict."
+    )
+    compliance_notes: str = Field(default="", description="Short operator note.")
+    source_attribution: str = Field(
+        default="Source: Social Seeding DAM (demo) — https://socialseed.ing",
+        description="MANDATORY attribution — mirrors the MCP licence terms.",
+    )
+
+
+# Demo DAM catalog — a tiny set of "approved" assets keyed by brand name. A real
+# DAM Agent would back this with the customer's asset store; the demo keeps it
+# in-memory so the A2A hop is reachable without external infra.
+_DAM_CATALOG: dict[str, list[dict[str, str]]] = {
+    "_default": [
+        {
+            "asset_id": "dam-logo-primary",
+            "kind": "logo",
+            "uri": "gs://ss-v2-dam/approved/_default/logo-primary.png",
+        },
+    ],
+}
+
+
+def get_brand_assets(
+    brand_name: str, post_media_url: str | None = None
+) -> BrandAssets:
+    """A2A-callable DAM skill — return approved brand assets + an on-brand verdict.
+
+    Input:
+        brand_name      — the seeded brand whose approved assets to return.
+        post_media_url  — optional gs:///https:// URI of the creator post media
+                          the on-brand verdict is computed against.
+
+    Output:
+        ``BrandAssets`` — approved assets + logo_detected / confidence / on_brand
+        / compliance_notes + the mandatory source attribution.
+
+    Deterministic (demo): when `brand_name` is non-empty we return the catalog's
+    `_default` approved logo and an on-brand verdict (the demo DAM trusts the
+    seeded brand). A blank brand name yields an empty, NOT-on-brand result so a
+    mis-routed call cannot pass as compliant.
+    """
+    name = (brand_name or "").strip()
+    if not name:
+        return BrandAssets(
+            brand_name="",
+            brand_assets=[],
+            logo_detected=False,
+            confidence_0_1=0.0,
+            on_brand=False,
+            compliance_notes="No brand name supplied; cannot verify on-brand compliance.",
+        )
+
+    catalog = _DAM_CATALOG.get(name, _DAM_CATALOG["_default"])
+    assets = [BrandAsset(**a) for a in catalog]
+    has_media = bool(post_media_url and str(post_media_url).strip())
+    return BrandAssets(
+        brand_name=name,
+        brand_assets=assets,
+        logo_detected=has_media,
+        confidence_0_1=0.88 if has_media else 0.0,
+        on_brand=True,
+        compliance_notes=(
+            f"DAM returned {len(assets)} approved asset(s) for '{name}'; "
+            + (
+                "post media matches the primary approved logo."
+                if has_media
+                else "no post media supplied — asset list returned only."
+            )
+        ),
+    )
+
+
+def serialize_brand_assets(assets: BrandAssets) -> dict[str, Any]:
+    """Stable serialization for HTTP responses + A2A artifacts."""
+    return json.loads(assets.model_dump_json())
+
+
+# ---------------------------------------------------------------------------
 # ADK runner glue
 # ---------------------------------------------------------------------------
 
@@ -633,10 +749,14 @@ def serialize(ranked: RankedCreators) -> dict[str, Any]:
 
 
 __all__ = [
+    "BrandAsset",
+    "BrandAssets",
     "CreatorRank",
     "RankedCreators",
     "build_coordinator",
     "coordinator",
+    "get_brand_assets",
     "plan_creator_search",
     "serialize",
+    "serialize_brand_assets",
 ]

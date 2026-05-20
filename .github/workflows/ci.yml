@@ -18,4 +18,33 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run verify-build   # turbo: lint + type-check + build, all packages
       # - run: pnpm run test          # enable once packages/agents has tests
-      # - run: pnpm run test:eval     # golden-set evals for the agents (Phase 1+)
+
+  # Python agent suite (packages/agents-adk). Runs in parallel with `verify`.
+  # Offline by design: tests/conftest.py forces SS_OFFLINE=1 / SS_LIVE=0 (autouse),
+  # so no GCP creds are needed. Authority: DECISIONS.md D37 (TDD gate), D7 (timeline).
+  pytest-agents:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"   # pyproject requires-python = ">=3.12,<3.13"
+      - uses: astral-sh/setup-uv@v3
+      - name: Install agents-adk (dev extra)
+        working-directory: packages/agents-adk
+        run: uv pip install --system -e ".[dev]"
+      - name: pytest (offline)
+        working-directory: packages/agents-adk
+        run: pytest -q
+      # H5 (GRAND-NARRATIVE-PLAN.md §5-1): offline golden-eval gate. Drives the
+      # coordinator's deterministic predictor against its .evalset.json with a
+      # train/dev/holdout split; exits non-zero if the HOLDOUT slice misses the
+      # floor (overfit / regression). Fully offline ($0, no Vertex/creds) — the
+      # live Vertex Agent Evaluation path stays a nightly/operator job.
+      # Authority: D25 (Agent-Evaluation rung), D37 (Layer-1 TDD gate), D5.
+      - name: golden-eval gate (offline, coordinator)
+        working-directory: packages/agents-adk
+        env:
+          SS_OFFLINE: "1"
+          SS_LIVE: "0"
+        run: python -m evals --agent coordinator --holdout-floor 0.7

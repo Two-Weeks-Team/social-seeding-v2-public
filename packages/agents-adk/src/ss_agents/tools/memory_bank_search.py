@@ -21,6 +21,17 @@ Stub mode (CAPABILITY_LAYER_MODE=stub, default in dev/CI):
     validated, not actually filtered against — the stub memories are
     always "1-3 days ago" by construction).
 
+Vertex mode (MEMORY_BACKEND=vertex):
+    The REAL managed Vertex AI Agent Engine **Memory Bank** (GA, 2026). This
+    gate is independent of `CAPABILITY_LAYER_MODE` and takes precedence: when
+    set, the search composes a managed `memories.retrieve` similarity request
+    (scope = workspace_id, top_k = max_results) and maps the response onto the
+    tool's `MemoryBankSearchOutput` contract. Operator-gated — needs an Agent
+    Engine instance + ADC (`memory/vertex_memory_bank.py` runbook). If the
+    managed backend is unreachable/unconfigured we fall back to the existing
+    `CAPABILITY_LAYER_MODE` dispatch so a misconfigured prod never hard-fails
+    an agent run. Default `MEMORY_BACKEND=firestore` leaves this path off.
+
 Live mode (CAPABILITY_LAYER_MODE=live):
     Wired in W7 deploy phase — will run the v2 Memory Bank query on
     Firestore (vector search via Vertex AI Matching Engine for similarity,
@@ -152,8 +163,13 @@ def memory_bank_search(
 ) -> MemoryBankSearchOutput:
     """Search the workspace's Agent Memory Bank.
 
-    Capability-layer dispatch (D41): stub by default, live when
-    `CAPABILITY_LAYER_MODE=live`.
+    Backend dispatch (D15) takes precedence over the capability-layer mode:
+
+    * `MEMORY_BACKEND=vertex` → the REAL managed Vertex AI Agent Engine Memory
+      Bank `memories.retrieve` (operator-gated). Falls back to the
+      `CAPABILITY_LAYER_MODE` dispatch when the managed backend is unreachable.
+    * otherwise → the capability-layer dispatch (D41): stub by default, live
+      when `CAPABILITY_LAYER_MODE=live`.
 
     Args:
         payload: Validated `MemoryBankSearchInput`. Pydantic enforces
@@ -164,10 +180,15 @@ def memory_bank_search(
         by descending similarity.
 
     Raises:
-        NotImplementedError: when `CAPABILITY_LAYER_MODE=live` — until W7
-            wires the real Firestore + Matching Engine client. The
-            runtime converts to a typed `EscalateToHuman`.
+        NotImplementedError: when `CAPABILITY_LAYER_MODE=live` (and
+            `MEMORY_BACKEND` is not `vertex`) — until W7 wires the real
+            Firestore + Matching Engine client. The runtime converts to a typed
+            `EscalateToHuman`.
     """
+    backend = os.getenv("MEMORY_BACKEND", "firestore")
+    if backend == "vertex":
+        return _vertex(payload)
+
     mode = os.getenv("CAPABILITY_LAYER_MODE", "stub")
     if mode == "stub":
         return _stub(payload)
@@ -294,10 +315,92 @@ def _live(payload: MemoryBankSearchInput) -> MemoryBankSearchOutput:
     )
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Vertex — REAL managed Vertex AI Agent Engine Memory Bank (GA, 2026).
+#
+# Wired now (code real; live = operator-gated). Composes the managed
+# `memories.retrieve` similarity request and maps the response onto the tool's
+# existing output contract — callers are unchanged. On any unavailability we
+# fall back to the `CAPABILITY_LAYER_MODE` dispatch so a misconfigured prod
+# degrades to the stub instead of crashing an agent run.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _vertex(payload: MemoryBankSearchInput) -> MemoryBankSearchOutput:
+    """Managed Memory Bank retrieve → `MemoryBankSearchOutput`.
+
+    Steps:
+      1. Build the managed backend from settings/env (`VERTEX_AGENT_ENGINE`).
+      2. `memories.retrieve(scope={"workspace_id": ...},
+         similarity_search_params={"search_query": query, "top_k": max_results})`.
+      3. Map each retrieved memory's `distance` → `similarity_0_1`, `fact` →
+         `content_summary` (truncated to the 500-char contract bound), `name`
+         → `memory_id`, `create_time` → `created_at` (defaulting to "now" when
+         the service omits it — every field is Optional per the SDK).
+      4. Trim/sort to honor the descending-similarity + `max_results` contract.
+
+    Falls back to the capability dispatch when the managed backend is
+    unconfigured or unreachable (`VertexMemoryBankUnavailable`).
+    """
+    from ss_agents.memory.vertex_memory_bank import (
+        VertexMemoryBankUnavailable,
+        new_vertex_memory_bank,
+    )
+
+    try:
+        bank = new_vertex_memory_bank()
+        rows = bank.retrieve(
+            workspace_id=payload.workspace_id,
+            query=payload.query,
+            top_k=payload.max_results,
+        )
+    except VertexMemoryBankUnavailable as exc:
+        logger.warning(
+            "memory_bank_search vertex backend unavailable (%s) — "
+            "falling back to capability dispatch",
+            exc,
+        )
+        mode = os.getenv("CAPABILITY_LAYER_MODE", "stub")
+        return _stub(payload) if mode == "stub" else _live(payload)
+
+    now = datetime.now(tz=UTC)
+    memories: list[Memory] = []
+    for row in rows:
+        summary = (row.fact or "(empty memory)")[:500]
+        memories.append(
+            Memory(
+                memory_id=row.memory_id[:120] or "mem_unknown",
+                content_summary=summary,
+                created_at=row.created_at or now,
+                similarity_0_1=max(0.0, min(1.0, row.similarity_0_1)),
+            )
+        )
+
+    # `bank.retrieve` already sorts closest-first; re-sort defensively so the
+    # output contract (descending similarity) holds regardless of upstream order.
+    memories.sort(key=lambda m: m.similarity_0_1, reverse=True)
+    total_found = len(memories)
+    trimmed = memories[: payload.max_results]
+
+    logger.debug(
+        "memory_bank_search_vertex",
+        extra={
+            "workspace_id": payload.workspace_id,
+            "query_len": len(payload.query),
+            "max_results": payload.max_results,
+            "max_age_days": payload.max_age_days,
+            "returned_count": len(trimmed),
+            "total_found": total_found,
+        },
+    )
+
+    return MemoryBankSearchOutput(memories=trimmed, total_found=total_found)
+
+
 __all__ = [
+    "USD_COST",
     "Memory",
     "MemoryBankSearchInput",
     "MemoryBankSearchOutput",
-    "USD_COST",
     "memory_bank_search",
 ]

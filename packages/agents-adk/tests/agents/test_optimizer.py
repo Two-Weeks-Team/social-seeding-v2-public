@@ -563,11 +563,12 @@ class TestInputContract:
 class TestPlumbing:
     """Mocked-LLM scripted-tool-sequence tests per MATRIX.md §4.2 row 2.
 
-    The optimizer has no tools (Vertex AI Agent Optimizer integration sits
-    UPSTREAM of this agent; the actual `prompt_registry.update` happens
-    AFTER human PR merge, not inside the agent body). 'Plumbing' here
-    means: the workflow invokes run_agent once, the stub returns the
-    canonical OptimizerOutput, and the runtime threads cost / validation.
+    The optimizer carries the `agent_optimizer.tune` tool (which submits a
+    Vertex AI Prompt Optimizer (data-driven) job) + `prompt_registry.update`;
+    the actual registry write happens AFTER human PR merge, not inside the
+    agent body. 'Plumbing' here means: the workflow invokes run_agent once,
+    the stub returns the canonical OptimizerOutput, and the runtime threads
+    cost / validation.
     """
 
     async def test_single_turn_healthy_proposal(

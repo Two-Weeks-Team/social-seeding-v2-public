@@ -287,9 +287,14 @@ variable "agent_urls" {
         "anomaly_watch", "cost_watch", "security_watch",
         # Sub-route synonyms used in creator-track.workflows.yaml
         "extract_facts", "classify_reply",
+        # Remote A2A node (G1 / D45): the OSS tiktok-mcp-server reached over
+        # A2A v0.3 by brand-campaign.workflows.yaml's a2a_invoke_remote step.
+        # Not a Vertex Agent Runtime agent — see var.tiktok_mcp_endpoint, which
+        # also feeds the AGENT_URL_TIKTOK_MCP env-var fallback.
+        "tiktok-mcp-search",
       ], k)
     ])
-    error_message = "agent_urls keys must be a subset of the 22 registry agent_ids plus the 2 documented sub-route synonyms (extract_facts, classify_reply). See WIRE-NOTES.md §3."
+    error_message = "agent_urls keys must be a subset of the 22 registry agent_ids plus the 2 documented sub-route synonyms (extract_facts, classify_reply) plus the remote A2A node tiktok-mcp-search (D45). See WIRE-NOTES.md §3."
   }
 
   validation {
@@ -298,5 +303,33 @@ variable "agent_urls" {
       can(regex("^https?://", url))
     ])
     error_message = "Every agent_urls value must start with http:// or https:// (stub URLs of the form https://stub.local/<id> are acceptable during Phase 0)."
+  }
+}
+
+variable "tiktok_mcp_endpoint" {
+  description = <<-EOT
+    Base URL of the remote OSS tiktok-mcp-server A2A v0.3 endpoint (G1 / D45).
+    This is the cross-component callee for brand-campaign.workflows.yaml's
+    `a2a_invoke_remote` step, which appends "/v1/message:send" and POSTs the
+    A2A v0.3 message envelope to invoke the `plan_creator_search` intent
+    (A2A-INTENTS.md §2.1).
+
+    Exposed to the workflow runtime exactly like the other agent endpoints
+    (D42): as the user_env_var AGENT_URL_TIKTOK_MCP fallback, OR injected at
+    runtime under `args.agent_urls["tiktok-mcp-search"]`. The YAML resolves it
+    via `default(map.get(args.agent_urls, "tiktok-mcp-search"),
+    sys.get_env("AGENT_URL_TIKTOK_MCP"))` — no hardcoded hostname in the YAML.
+
+    Distinct from var.agent_urls because the MCP server is a Cloud Run A2A node
+    (D17/D45), not one of the 22 Vertex AI Agent Runtime agents. During Phase 0
+    a stub URL of the form "https://stub.local/tiktok-mcp-search" keeps
+    terraform validate passing; W7 fills in the real Cloud Run URL.
+  EOT
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.tiktok_mcp_endpoint == "" || can(regex("^https?://", var.tiktok_mcp_endpoint))
+    error_message = "tiktok_mcp_endpoint must be empty or start with http:// or https://."
   }
 }

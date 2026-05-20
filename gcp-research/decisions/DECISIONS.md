@@ -6,7 +6,7 @@
 >
 > **Audience**: (1) the 13 background agents queued for SDD/TDD/architecture work, (2) future code authors, (3) judges (a sanitized subset).
 >
-> **Status as of 2026-05-20**: 49 decisions recorded across 12 rounds. D1 (dual submission) superseded by D45 (single Track 3 submission). D47-D49 added after extracting the official designed_guide.pdf and gap-analyzing Track 3's 6 official requirements (operator-approved). No code may be written until each decision has either an entry below or an explicit "Outstanding" line in §6.
+> **Status as of 2026-05-20**: 50 decisions recorded across 13 rounds. D1 (dual submission) superseded by D45; **D50 reaffirms the single grand-narrative Track 3 submission after verifying the official Rules PDF** (a dual Track 2+3 option was explored this session and rejected by the operator). D47-D49 added after extracting the official designed_guide.pdf and gap-analyzing Track 3's 6 official requirements (operator-approved). No code may be written until each decision has either an entry below or an explicit "Outstanding" line in §6.
 
 ---
 
@@ -29,7 +29,7 @@
 
 ---
 
-## 2. Decisions of record (49)
+## 2. Decisions of record (52)
 
 Status legend: ✅ active · 🔁 superseded · ⏸ deferred · ❓ outstanding
 
@@ -148,6 +148,25 @@ Status legend: ✅ active · 🔁 superseded · ⏸ deferred · ❓ outstanding
 | **D47** | **Route LLM reasoning through Model Garden** (Track 3 PDF requirement #3) — Gemini calls go through a Model Garden-deployed endpoint, not direct Vertex AI `generateContent`. "Strict data security" framing. Documented in deploy/model-garden + agent runtime config. | designed_guide.pdf p.6 · user-approved 2026-05-20 | ✅ | I7. Closes Technical 30% gap. Affects `packages/agents-adk` model config + deploy IAM. |
 | **D48** | **A2A intents manifest + Agent Identity crypto ID** (Track 3 PDF requirement #6 + p.7) — author `gcp-research/refactor-mcp/A2A-INTENTS.md` mapping every A2A intent the agent *exposes* and *consumes*; harden `agent.json`; assign each agent a unique cryptographic identity (SPIFFE/SPIRE or Agent Identity workload cert) per the PDF's "secure by design" mandate. | designed_guide.pdf p.6-7 · user-approved 2026-05-20 | ✅ | I8. Closes the documentation + Agent Identity gap. The PDF Build Example #2 (marketing agent + multimodal + A2A→DAM brand-logo) maps 1:1 to our `content_verify` agent — call this out explicitly. |
 | **D49** | **Wow + business reinforcement for Demo 20% + Business 30%** — (a) one REAL Imagen/Veo generation in the demo (not stub), (b) animated A2A cross-call diagram, (c) ROI/TAM visualization scene proving the $0.01/view model (D28), (d) explicit on-screen match to PDF Build Example #2. Business is co-#1 rubric weight (30%) yet was absent from the demo surface. | designed_guide.pdf p.7-8 rubric · user-approved 2026-05-20 | ✅ | I9. Lifts Demo 70%→95% and Business 60%→90% in self-assessment. Requires `CAPABILITY_LAYER_MODE=live` for imagen_generate/veo_generate during one demo take. |
+
+### Round 13 — Single grand-narrative reaffirmed after official-rules verification (D50)
+
+> Source: official **Rules PDF** (`https://s3.amazonaws.com/devpost-public/Google/DfT/Google for Startups AI Agents Challenge Rules.pdf`, retrieved 2026-05-20) — closes the `CHALLENGE-RULES.md` §8/§9 GAPs. Confirmed: multiple submissions allowed but each must be "unique and substantially different"; **each project wins max one prize**; prizes = Grand $15K+$10K (top overall) · Best of Each Theme $10K+$7.5K (×3) · Regional $5K+$2.5K (×2 APAC/EMEA); **South Korea eligible** (only North Korea excluded), KR = APAC. During this session a dual-submission (Track 2 + Track 3) option was explored, then **rejected by the operator** in favor of one concentrated entry.
+
+| ID | Decision | Source | Status | Implication |
+|---|---|---|---|---|
+| **D50** | **Single grand-narrative Track 3 submission targeting the Grand Prize** — do NOT split into two. Fuse Build→Optimize→Refactor into one arc. The Track 2 (Optimize) signature toolchain (Agent Simulation + Observability + Optimizer + measured before/after) is FOLDED IN as the Technical-30% "we hardened it" chapter of the Track 3 entry, NOT a separate Devpost submission. Rationale: each project wins max 1 prize, so one overwhelming entry aimed at the Grand Prize ($15K+$10K, top overall) beats two diluted theme bets. Reaffirms D45, supersedes the dual-submission option explored this session. | official Rules PDF + user 2026-05-20 | ✅ | `GRAND-NARRATIVE-PLAN.md`. Adds G1-G5 (gap-closing from 4-expert review: A2A wiring, Model Garden real, honesty fixes, CI, SSRF/prompt_guard) + H1-H5 (the Optimize "hardening" chapter). Demo's top wow scene = Observability "stall→fix" trace = Technical evidence. |
+
+---
+
+### Round 14 — Grand-narrative gap-closing executed (D51)
+
+> Source: autonomous `/goal` session 2026-05-20 executing `GRAND-NARRATIVE-PLAN.md` G1-G5 + H1-H5. Records the honest scope of what was built so a later session does not over-read the demo's headline metrics.
+
+| ID | Decision | Source | Status | Implication |
+|---|---|---|---|---|
+| **D51** | **G/H-series closed; the Optimize "hardening" before/after is a LOCAL DETERMINISTIC pass, not a live Vertex run.** The 40.5%→100.0% (+59.5pp, TRAIN slice) triage before/after — on a 56-case multilingual synthetic set (42 train / 14 adversarial holdout) — is measured by a committed, re-runnable offline script (`scripts/smoke-test/run-hardening-measure.sh`); the live **Vertex AI Prompt Optimizer (data-driven)** is the production path and is **wired (operator-gated — ADC + a GCS bucket; not run in CI)**, with `agent_optimizer_tune` defaulting to a deterministic stub receipt — disclosed as such everywhere it appears. A2A is now wired into the **brand-campaign Cloud Workflow** orchestration (coordinator routing → transport switch → `a2a_invoke` → tiktok-mcp), validated live (task completed, ~3.7s, 5 creators). Model Garden routing proven by an offline test asserting the publisher path reaches `LlmAgent` (live smoke operator-gated). Honesty corrections: `a2a_invoke._live()` is implemented (doc was stale); mTLS is **declared-not-enforced** on the demo (`x-securityPosture` in `agent.json`); `REQUIRE_AUTH` = code-default `true` / demo `false` / prod `true`. CI restored with an offline pytest gate + a golden-set **holdout** gate. | autonomous /goal session (Wave A-E) | ✅ | Implements D45/D47/D48/D49/D50 + D21/D23/D25/D27/D32/D37/D44. No new live GCP capability is claimed beyond what a re-runnable proof demonstrates. |
+| **D52** | **Anti-overfit holdout made real (Wave 3 / Seam B; closes the overfit-theater seam in D51).** The old "42.3% → 100.0% on 26 hand-authored cases" read as theater (a perfect round number on a tiny self-authored set). Fixed by (1) expanding the synthetic set to **56 cases** with genuinely adversarial variants (obfuscated rate "discuss the comp?", rate only in free text the extractor missed, mid-thread rate, sarcasm, accept+negotiate, follower-count false-positive bait, code-switching, non-USD locale rate forms), and (2) carving out a **14-case holdout** (`split=holdout`) NOT used to author the `_optimized_triage` rules. Honest re-measure: **train 40.5% → 100.0%; holdout 71.4%** (10/14), a **28.6pp** train↔holdout gap left visible. The 4 holdout misses are negotiation intents with NO structured `proposed_rate_usd` (the rate-signal rule keys on the structured field) — kept as misses, **NOT tuned away** (tuning to ace the holdout would defeat it). The submission now leads with the holdout 71.4% as the honest headline. | Wave 3 / Seam B (Quality) | ✅ | Implements D25 (learning loop) + D37 (anti-overfit holdout). The holdout mitigates but does not eliminate self-authoring risk; the real next step is scoring against labeled production threads. |
 
 ---
 
@@ -329,3 +348,6 @@ Per user directive 2026-05-19 ("실제 코드를 적용하기 전에 반드시 �
 | 2026-05-20 | D47 | Route LLM reasoning through Model Garden (Track 3 req #3) | designed_guide.pdf + user |
 | 2026-05-20 | D48 | A2A intents manifest + Agent Identity crypto ID (Track 3 req #6) | designed_guide.pdf + user |
 | 2026-05-20 | D49 | Wow + business reinforcement for Demo 20% + Business 30% | designed_guide.pdf + user |
+| 2026-05-20 | D50 | Single grand-narrative Track 3 (Grand Prize); dual submission rejected; Optimize folded in as Technical evidence | official Rules PDF + user |
+| 2026-05-20 | D51 | G/H-series closed; hardening before/after is local-deterministic (live Optimizer stubbed); A2A wired into Cloud Workflow; honesty fixes; CI+holdout gate; SSRF allowlist | autonomous /goal session |
+| 2026-05-20 | D52 | Anti-overfit holdout made real: 56-case set + 14-case adversarial holdout; train 40.5%→100%, holdout 71.4% (non-round, 28.6pp gap, 4 misses not tuned away) | autonomous /goal session (Wave 3 / Seam B) |

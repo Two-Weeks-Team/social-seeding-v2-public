@@ -47,7 +47,14 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONPATH=/app/src \
     PORT=8080 \
     HOST=0.0.0.0 \
-    # --- Stub mode (no external GCP services needed for the A2A surface) -----
+    # --- Demo / stub posture (no external GCP services needed for the A2A surface) ---
+    # Demo posture: this image default is OPEN (REQUIRE_AUTH=false) for A2A
+    # reachability in the Track-3 open demo. The CODE default is the secure
+    # `true` (agent/src/tiktok_orchestrator/main.py); production overrides this
+    # back to `true` via cloud-run-service.yaml. Enforcement of mTLS is pending
+    # O7 (Agent Gateway Private-Preview allowlist). Single source of truth for
+    # the demo-vs-prod posture: deployment/agent.json `x-securityPosture`
+    # (DECISIONS.md D44 Agent Gateway/Identity, D7 timeline).
     REQUIRE_AUTH=false \
     ADK_DISABLED=1 \
     MODEL_ARMOR_STUB=1 \
