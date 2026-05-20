@@ -21,13 +21,34 @@ Why a separate agent (not part of conversation #4):
 Citations:
     D5  — Gemini 2.5 Pro (judgment-heavy creative drafting).
     D17 — Vertex AI Agent Runtime.
-    D23 — Tier-1 agent #5.
+    D23 — Tier-1 agent #5 (Tier-1 #5 in the §4 fleet inventory).
+    D25 — Learning loop: the `_OPTIMIZED` triage below is the deterministic,
+          locally-runnable analogue of the prompt-rewrite half of D25's loop.
+          The live Vertex AI Agent Optimizer (`agent_optimizer_tune` live mode)
+          is the production path; it is stubbed today (W7-deferred), so the
+          measured before/after in `scripts/demo/HARDENING-CHAPTER.md` comes
+          from this in-process pass over the synthetic set, not from Vertex.
     D27 — Drafted reply may carry AP2 Intent Mandate disclosure when a
           rate is proposed (escalation path; agent does NOT mint mandates).
+    D32 — Observability: `triage_inbound` returns a structured `TriageDecision`
+          so the stall→repair path is a span attribute, not buried in prose.
     D34 — Replies in the inbound's locale (ko/en/ja/zh-CN).
     ARCHITECTURE.md §3 row 5:
         conversation_responder | 1 | Gemini 2.5 Pro | templates.list,
                                   outreach.render | Memory Bank | response_match_v2
+
+Hardening chapter (H1, GRAND-NARRATIVE-PLAN §5-1):
+    The pre-LLM `triage_inbound` decides respond-vs-escalate BEFORE the
+    expensive Pro draft. Two rule sets are kept so before/after is measurable
+    on the SAME function:
+      · `_baseline_triage` — the prompt-only era. Escalates on the literal
+        `negotiating` class and on `has_minimum_context=False`, but MISSES the
+        "interested/needs_info + proposed_rate_usd present" case → wrongly
+        routes it to `respond`. THAT is the stall the chapter narrates.
+      · `_optimized_triage` — adds the rate-signal rule (a proposed rate on an
+        otherwise-positive class IS a negotiation → escalate), plus the soft-no
+        and hallucination-prone classes. `triage_inbound` (the agent's live
+        behavior) delegates to `_optimized_triage`, so this is real hardening.
 """
 from __future__ import annotations
 
@@ -214,6 +235,195 @@ class ConversationResponderOutput(BaseModel):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# H1 — pre-LLM triage. Decides respond vs escalate BEFORE the Pro draft.
+#
+# This is the "hardening chapter" core (GRAND-NARRATIVE-PLAN §5-1, D50). The
+# function is pure + deterministic + offline (conftest SS_OFFLINE-safe): no LLM,
+# no I/O. The agent calls `triage_inbound` (which delegates to the OPTIMIZED
+# rule set) as its live, real behavior; the BASELINE rule set is retained only
+# so the before/after pass-rate is measured on the SAME function surface.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+TriageAction = Literal["respond", "escalate"]
+"""What the responder should do with an inbound BEFORE spending a Pro draft.
+
+  · respond  → the inbound is a clean drafting case; proceed to the LLM.
+  · escalate → route to the human queue (rate/terms, soft/hard no, missing
+    context, or a class the responder has no business drafting for).
+"""
+
+
+TriageReasonTag = Literal[
+    "clean_interested",          # interested/needs_info, no escalation trigger → respond
+    "negotiation_class",         # classifier already tagged it `negotiating`
+    "rate_signal_on_positive",   # interested/needs_info BUT a rate was proposed → negotiation
+    "missing_context",           # facts.has_minimum_context == False
+    "soft_no",                   # not_now — don't auto-nudge; a human decides cadence
+    "hard_no",                   # declined / unsubscribe — never auto-reply
+    "out_of_scope_class",        # out_of_office / unrelated — not a drafting case
+]
+"""Stable machine-readable reason for a TriageDecision. Surfaced as the
+`triage.reason_tag` span attribute (D32) so the dashboard renders WHY a turn
+stalled/escalated without re-deriving it from prose."""
+
+
+class TriageDecision(BaseModel):
+    """Result of the pre-LLM triage. Deterministic + content-blind enough to
+    drive an OTel span attribute (D32) and the synthetic-set pass/fail check.
+
+    Per GRAND-NARRATIVE-PLAN §5-1 (H1) the decision is `respond` or `escalate`
+    with an explicit machine-readable `reason` tag — that tag is what the
+    Observability "stall→repair" trace renders, and what the synthetic case set
+    asserts against (`expected_reason_tag`)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    action: TriageAction
+    reason: TriageReasonTag
+    detail: str = Field(default="", max_length=240)
+    """Human-readable one-liner for the operator queue / trace overlay."""
+
+
+# Classes that must NEVER be auto-drafted (they are not a "draft a reply" case).
+# Mirrors conversation_responder system-prompt step 7 + spec §6 escalation list.
+_HARD_NO_CLASSES: frozenset[ReplyClass] = frozenset({"declined", "unsubscribe"})
+_SOFT_NO_CLASSES: frozenset[ReplyClass] = frozenset({"not_now"})
+_OUT_OF_SCOPE_CLASSES: frozenset[ReplyClass] = frozenset({"out_of_office", "unrelated"})
+_DRAFTABLE_CLASSES: frozenset[ReplyClass] = frozenset({"interested", "needs_info"})
+
+
+def _baseline_triage(
+    turn: ConversationTurnInput, facts: OutreachFacts
+) -> TriageDecision:
+    """The prompt-only-era triage — DELIBERATELY under-powered.
+
+    This reproduces the stall the chapter narrates. It escalates on:
+      · the literal `negotiating` class (the classifier already labeled it),
+      · `has_minimum_context == False`.
+    It does NOT inspect `extracted.proposed_rate_usd`, so an `interested` or
+    `needs_info` turn that carries a proposed rate — i.e. the creator IS
+    negotiating but the classifier rounded them to "interested" — is wrongly
+    routed to `respond`. The Pro drafter then stalls at the auto-respond ↔
+    escalate boundary (it is told in step 7 to escalate negotiations, but the
+    triage already sent it down the drafting path with no rate-handling fact).
+
+    Kept ONLY for the before/after measurement; never wired as live behavior.
+    """
+    if not facts.has_minimum_context:
+        return TriageDecision(
+            action="escalate",
+            reason="missing_context",
+            detail="no signature and no recent post themes — nothing concrete to cite",
+        )
+    if turn.classification == "negotiating":
+        return TriageDecision(
+            action="escalate",
+            reason="negotiation_class",
+            detail="classifier tagged the turn as negotiating",
+        )
+    # BUG (the stall): everything else — including interested/needs_info that
+    # carry a proposed rate — falls through to respond.
+    return TriageDecision(
+        action="respond",
+        reason="clean_interested",
+        detail=f"classified as {turn.classification}; drafting a reply",
+    )
+
+
+def _optimized_triage(
+    turn: ConversationTurnInput, facts: OutreachFacts
+) -> TriageDecision:
+    """The hardened triage — the fix the Optimizer pass produces (H4).
+
+    Adds, in priority order, the rules the baseline failures revealed:
+      1. missing context  → escalate (unchanged from baseline).
+      2. hard no (declined/unsubscribe) → escalate; never auto-reply.
+      3. explicit `negotiating` class → escalate (unchanged).
+      4. NEW — rate signal on a positive class: an `interested`/`needs_info`
+         turn carrying `extracted.proposed_rate_usd` IS a negotiation that the
+         classifier rounded down. Escalate as a negotiation. THIS closes the
+         stall.
+      5. soft no (not_now) → escalate; a human owns re-engagement cadence.
+      6. out-of-scope classes (out_of_office/unrelated) → escalate.
+      7. otherwise (clean interested/needs_info, no rate) → respond.
+    """
+    # 1. Missing context — same as baseline, highest priority (we have nothing
+    #    truthful to cite).
+    if not facts.has_minimum_context:
+        return TriageDecision(
+            action="escalate",
+            reason="missing_context",
+            detail="no signature and no recent post themes — nothing concrete to cite",
+        )
+    # 2. Hard no — declined / unsubscribe must never be auto-replied to.
+    if turn.classification in _HARD_NO_CLASSES:
+        return TriageDecision(
+            action="escalate",
+            reason="hard_no",
+            detail=f"{turn.classification}: do not auto-reply; human-only close-out",
+        )
+    # 3. Explicit negotiation class.
+    if turn.classification == "negotiating":
+        return TriageDecision(
+            action="escalate",
+            reason="negotiation_class",
+            detail="classifier tagged the turn as negotiating",
+        )
+    # 4. THE FIX — rate signal on an otherwise-positive class. A proposed rate
+    #    means terms are on the table, even if the classifier said "interested".
+    if (
+        turn.classification in _DRAFTABLE_CLASSES
+        and turn.extracted.proposed_rate_usd is not None
+    ):
+        return TriageDecision(
+            action="escalate",
+            reason="rate_signal_on_positive",
+            detail=(
+                f"classified {turn.classification} but a rate "
+                f"(USD {turn.extracted.proposed_rate_usd}) was proposed — "
+                "negotiation; escalate per D27 (agent does not mint mandates)"
+            ),
+        )
+    # 5. Soft no — don't auto-nudge; a human decides whether/when to re-engage.
+    if turn.classification in _SOFT_NO_CLASSES:
+        return TriageDecision(
+            action="escalate",
+            reason="soft_no",
+            detail="not_now: human owns re-engagement cadence",
+        )
+    # 6. Out-of-scope classes — not a drafting case at all.
+    if turn.classification in _OUT_OF_SCOPE_CLASSES:
+        return TriageDecision(
+            action="escalate",
+            reason="out_of_scope_class",
+            detail=f"{turn.classification}: not a reply-drafting case",
+        )
+    # 7. Clean draftable case.
+    return TriageDecision(
+        action="respond",
+        reason="clean_interested",
+        detail=f"classified as {turn.classification}; drafting a reply",
+    )
+
+
+def triage_inbound(
+    turn: ConversationTurnInput, facts: OutreachFacts
+) -> TriageDecision:
+    """The responder's LIVE pre-LLM gate (H1). Delegates to `_optimized_triage`.
+
+    Call this BEFORE `run_agent`/`build_responder_system_prompt`. When it
+    returns `action == "escalate"`, route to the human queue and DO NOT spend a
+    Pro draft. When it returns `action == "respond"`, proceed to draft.
+
+    This is real hardening, not a toy: the optimized rule set is wired as the
+    agent's actual behavior. The baseline rule set (`_baseline_triage`) exists
+    only for the measured before/after.
+    """
+    return _optimized_triage(turn, facts)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # System prompt builder — port of conversation-responder.agent.ts:72-118.
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -329,6 +539,14 @@ def build_responder_system_prompt(payload: BaseModel) -> str:
         "7. If the inbound classification is in {declined, negotiating, unsubscribe, not_now, out_of_office, unrelated} "
         "   you should not be here — escalate via partial output + reason.",
         "8. If facts.hasMinimumContext is false, escalate (we have nothing concrete to cite).",
+        # H4 / D25: the Optimizer pass added this clarification. The classifier
+        # sometimes rounds a rate-bearing reply down to `interested`/`needs_info`;
+        # a proposed rate means terms are on the table → it is a negotiation, so
+        # escalate (the agent never mints AP2 mandates — D27). This mirrors the
+        # `_optimized_triage` rate-signal rule that already gates this prompt.
+        "9. A proposed rate is a NEGOTIATION SIGNAL: if the inbound names a USD rate / fee / 단가 / 報酬 / 报价 "
+        "   (even when classified interested/needs_info), do NOT draft a reply — escalate. We do not negotiate "
+        "   rates or mint payment mandates here (a human + the payment_mandate agent own that, per D27).",
         "",
         "Output JSON: { subject, body, tone, spamScore, deliverabilityScore, skepticScore, "
         "revisionCount, groundedFacts } — nothing else.",
@@ -383,6 +601,7 @@ conversation_responder_agent_def: AgentDef[
 
 
 __all__ = [
+    "RESPONDER_MODEL",
     "BrandFacts",
     "ConversationResponderInput",
     "ConversationResponderOutput",
@@ -390,12 +609,15 @@ __all__ = [
     "CreatorFacts",
     "LogisticsFacts",
     "OutreachFacts",
-    "RESPONDER_MODEL",
     "ReplyClass",
     "ThreadMessage",
+    "TriageAction",
+    "TriageDecision",
+    "TriageReasonTag",
     "TurnExtracted",
     "build_responder_system_prompt",
     "conversation_responder_agent_def",
+    "triage_inbound",
 ]
 
 

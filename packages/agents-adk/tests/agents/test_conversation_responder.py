@@ -19,10 +19,12 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from hypothesis import HealthCheck, given, settings, strategies as st
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 from pydantic import BaseModel, ValidationError
 
 from ss_agents.agents.conversation_responder import (
+    RESPONDER_MODEL,
     BrandFacts,
     ConversationResponderInput,
     ConversationResponderOutput,
@@ -30,11 +32,13 @@ from ss_agents.agents.conversation_responder import (
     CreatorFacts,
     LogisticsFacts,
     OutreachFacts,
-    RESPONDER_MODEL,
     ThreadMessage,
+    TriageDecision,
     TurnExtracted,
+    _baseline_triage,
     build_responder_system_prompt,
     conversation_responder_agent_def,
+    triage_inbound,
 )
 from ss_agents.runtime import (
     EscalateToHuman,
@@ -43,7 +47,6 @@ from ss_agents.runtime import (
     RunContext,
     run_agent,
 )
-
 
 # ═════════════════════════════════════════════════════════════════════════════
 # Fixtures local to this module (the shared conftest covers RunContext etc.).
@@ -663,3 +666,156 @@ class TestResponderEscalation:
                 facts=example_facts,
                 locale="en",
             )
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 4. TestTriageHardening — H1: the pre-LLM triage that closes the
+#    interested-but-negotiating stall (GRAND-NARRATIVE-PLAN §5-1, D50).
+#    The OPTIMIZED rule set is wired as the agent's live behavior; the BASELINE
+#    is kept only so the before/after is measurable on the SAME function.
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+def _turn(
+    classification: str,
+    *,
+    rate: float | None = None,
+    question: str | None = None,
+    address: str | None = None,
+) -> ConversationTurnInput:
+    return ConversationTurnInput(
+        threadId="thr_triage",
+        creatorId="cr_triage",
+        incomingMessageId="msg_triage",
+        classification=classification,  # type: ignore[arg-type]
+        extracted=TurnExtracted(
+            proposedRateUsd=rate, question=question, shippingAddress=address
+        ),
+    )
+
+
+class TestTriageHardening:
+    """Per GRAND-NARRATIVE-PLAN §5-1 H1. `triage_inbound` is the live gate."""
+
+    # ── The stall + its fix (the heart of the chapter) ────────────────
+
+    def test_baseline_misses_interested_with_rate_the_stall(
+        self, example_facts: OutreachFacts
+    ) -> None:
+        """BASELINE: interested + a proposed rate is WRONGLY routed to respond.
+        This is the stall the hardening chapter narrates."""
+        turn = _turn("interested", rate=800.0, question="My rate is 800, okay?")
+        decision = _baseline_triage(turn, example_facts)
+        assert decision.action == "respond"
+        assert decision.reason == "clean_interested"
+
+    def test_optimized_escalates_interested_with_rate_the_fix(
+        self, example_facts: OutreachFacts
+    ) -> None:
+        """OPTIMIZED (= live triage_inbound): interested + a proposed rate is a
+        negotiation → escalate. This closes the stall."""
+        turn = _turn("interested", rate=800.0, question="My rate is 800, okay?")
+        decision = triage_inbound(turn, example_facts)
+        assert isinstance(decision, TriageDecision)
+        assert decision.action == "escalate"
+        assert decision.reason == "rate_signal_on_positive"
+        assert "800" in decision.detail
+
+    def test_optimized_escalates_needs_info_with_rate(
+        self, example_facts: OutreachFacts
+    ) -> None:
+        """The fix also fires on needs_info (the other draftable class)."""
+        turn = _turn("needs_info", rate=330.0, question="when does it ship? my rate is 330")
+        assert triage_inbound(turn, example_facts).reason == "rate_signal_on_positive"
+
+    def test_rate_zero_still_escalates(self, example_facts: OutreachFacts) -> None:
+        """proposed_rate_usd=0.0 (present but free) is still a terms signal —
+        the FIELD being present is the signal, not its magnitude."""
+        turn = _turn("interested", rate=0.0, question="free for product + license?")
+        assert triage_inbound(turn, example_facts).reason == "rate_signal_on_positive"
+
+    # ── Clean cases still proceed to respond ──────────────────────────
+
+    def test_clean_interested_responds(self, example_facts: OutreachFacts) -> None:
+        turn = _turn("interested", address="10 Maple Ave, Austin, TX")
+        decision = triage_inbound(turn, example_facts)
+        assert decision.action == "respond"
+        assert decision.reason == "clean_interested"
+
+    def test_clean_needs_info_responds(self, example_facts: OutreachFacts) -> None:
+        turn = _turn("needs_info", question="when would the sample arrive?")
+        assert triage_inbound(turn, example_facts).action == "respond"
+
+    # ── Other escalation paths the optimized rules add ────────────────
+
+    @pytest.mark.parametrize(
+        "classification,expected_reason",
+        [
+            ("negotiating", "negotiation_class"),
+            ("declined", "hard_no"),
+            ("unsubscribe", "hard_no"),
+            ("not_now", "soft_no"),
+            ("out_of_office", "out_of_scope_class"),
+            ("unrelated", "out_of_scope_class"),
+        ],
+    )
+    def test_optimized_escalation_reasons(
+        self,
+        classification: str,
+        expected_reason: str,
+        example_facts: OutreachFacts,
+    ) -> None:
+        decision = triage_inbound(_turn(classification), example_facts)
+        assert decision.action == "escalate"
+        assert decision.reason == expected_reason
+
+    def test_missing_context_escalates_both_rule_sets(
+        self, example_facts: OutreachFacts
+    ) -> None:
+        """has_minimum_context=False → escalate in BOTH rule sets (top priority)."""
+        no_ctx = example_facts.model_copy(update={"has_minimum_context": False})
+        turn = _turn("interested", address="PO Box 9")
+        assert _baseline_triage(turn, no_ctx).reason == "missing_context"
+        assert triage_inbound(turn, no_ctx).reason == "missing_context"
+
+    def test_missing_context_beats_rate_signal(
+        self, example_facts: OutreachFacts
+    ) -> None:
+        """When both missing-context AND a rate are present, missing-context
+        wins (we have nothing truthful to cite either way)."""
+        no_ctx = example_facts.model_copy(update={"has_minimum_context": False})
+        turn = _turn("interested", rate=230.0)
+        assert triage_inbound(turn, no_ctx).reason == "missing_context"
+
+    def test_negotiating_class_with_rate_uses_class_reason(
+        self, example_facts: OutreachFacts
+    ) -> None:
+        """A `negotiating` class that also carries a rate reports negotiation_class
+        (the explicit class), not rate_signal_on_positive."""
+        turn = _turn("negotiating", rate=900.0)
+        assert triage_inbound(turn, example_facts).reason == "negotiation_class"
+
+    # ── Decision is frozen + serializable for the trace artifact ──────
+
+    def test_triage_decision_is_frozen(self, example_facts: OutreachFacts) -> None:
+        decision = triage_inbound(_turn("interested"), example_facts)
+        with pytest.raises(ValidationError):
+            decision.action = "escalate"  # type: ignore[misc]
+
+    def test_triage_decision_round_trips(self, example_facts: OutreachFacts) -> None:
+        decision = triage_inbound(_turn("interested", rate=500.0), example_facts)
+        reborn = TriageDecision.model_validate(decision.model_dump())
+        assert reborn == decision
+
+    def test_baseline_and_optimized_agree_on_clean_and_negotiating(
+        self, example_facts: OutreachFacts
+    ) -> None:
+        """Sanity: where the baseline IS correct (clean interested, explicit
+        negotiating, missing context) the optimized agrees — the fix is
+        additive, it doesn't break the cases the baseline got right."""
+        clean = _turn("interested", address="x")
+        assert _baseline_triage(clean, example_facts).action == "respond"
+        assert triage_inbound(clean, example_facts).action == "respond"
+        neg = _turn("negotiating")
+        assert _baseline_triage(neg, example_facts).reason == "negotiation_class"
+        assert triage_inbound(neg, example_facts).reason == "negotiation_class"

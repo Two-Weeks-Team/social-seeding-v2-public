@@ -1,0 +1,54 @@
+{
+  "_meta": {
+    "purpose": "H3 Observability trace (stalled) — conversation_responder triage on the stall case under the baseline rule set.",
+    "authority": "GRAND-NARRATIVE-PLAN.md §5-1 (H3) + §4 wow scene #1; D32.",
+    "honesty_note": "Span attributes mirror ss_agents.observability.agent_span (D32). This is a deterministic, offline trace of the pure triage decision path — not a captured live Cloud Trace span.",
+    "rule_set": "baseline",
+    "status": "stalled",
+    "generated_at_utc": "2026-05-20T09:01:43.593032+00:00"
+  },
+  "span": {
+    "name": "agent:conversation-responder",
+    "attributes": {
+      "agent.id": "conversation-responder",
+      "agent.model": "gemini-2.5-pro",
+      "agent.trace_id": "trace-hardening-rate-positive-en-01-baseline",
+      "agent.outcome": "ok",
+      "triage.action": "respond",
+      "triage.reason_tag": "clean_interested",
+      "triage.detail": "classified as interested; drafting a reply",
+      "triage.rule_set": "baseline",
+      "turn.classification": "interested",
+      "turn.proposed_rate_usd": 800.0,
+      "facts.has_minimum_context": true
+    }
+  },
+  "reasoning_path": [
+    {
+      "n": 1,
+      "check": "facts.has_minimum_context",
+      "value": true,
+      "branch": "continue"
+    },
+    {
+      "n": 2,
+      "check": "classification == 'negotiating'",
+      "value": false,
+      "branch": "continue"
+    },
+    {
+      "n": 3,
+      "check": "(no rate-signal rule exists)",
+      "value": null,
+      "branch": "fallthrough → respond",
+      "stall": true,
+      "stall_note": "STALL: a proposed rate of USD 800.0 is present, but the baseline has no rule to read it. The turn is routed to `respond`, then the Pro drafter is told in prompt step 7 to escalate negotiations — it has already been sent down the drafting path with no rate-handling fact, so it oscillates at the auto-respond ↔ escalate boundary."
+    }
+  ],
+  "case": {
+    "id": "rate-positive-en-01",
+    "category": "interest_with_rate",
+    "locale": "en",
+    "incoming_message": "Love the product! My usual rate for a sponsored video is around 800 — does that work?"
+  }
+}

@@ -1,0 +1,131 @@
+{
+  "_meta": {
+    "purpose": "H4 before/after metrics — conversation_responder triage hardening. Produced by ss_agents.hardening.optimizer_pass; re-run via scripts/smoke-test/run-hardening-measure.sh.",
+    "authority": "GRAND-NARRATIVE-PLAN.md §5-1 (H4) + §2 arc; D50.",
+    "honesty_note": "before/after produced by a LOCAL deterministic optimization pass over the synthetic set (test-harness/hardening/synthetic_cases.json). The live Vertex AI Agent Optimizer is the production path and is STUBBED today (agent_optimizer_tune live = NotImplementedError, W7-deferred). No fabricated metrics: every number here is printed by the re-runnable smoke script.",
+    "agent_id": "conversation-responder",
+    "model": "gemini-2.5-pro",
+    "target_metric": "triage_routing_accuracy",
+    "generated_at_utc": "2026-05-20T09:01:43.592343+00:00"
+  },
+  "before": {
+    "rule_set": "baseline",
+    "total": 26,
+    "passed": 11,
+    "pass_rate": 0.4231,
+    "pass_rate_pct": 42.3,
+    "failed_case_ids": [
+      "rate-positive-en-01",
+      "rate-positive-ko-02",
+      "rate-positive-needsinfo-ja-03",
+      "rate-positive-zh-04",
+      "rate-positive-lowball-en-05",
+      "rate-positive-zero-en-06",
+      "decline-disguised-en-01",
+      "decline-disguised-ja-02",
+      "unsubscribe-en-01",
+      "soft-no-en-01",
+      "soft-no-zh-02",
+      "out-of-office-en-01",
+      "unrelated-en-02",
+      "mixed-emotion-rate-en-01",
+      "decline-clean-zh-03"
+    ],
+    "by_category_failures": {
+      "interest_with_rate": 6,
+      "decline_disguised_as_interest": 3,
+      "hard_no": 1,
+      "soft_no": 2,
+      "out_of_scope": 2,
+      "mixed_emotion": 1
+    }
+  },
+  "after": {
+    "rule_set": "optimized",
+    "total": 26,
+    "passed": 26,
+    "pass_rate": 1.0,
+    "pass_rate_pct": 100.0,
+    "failed_case_ids": [],
+    "by_category_failures": {}
+  },
+  "delta_pp": 57.7,
+  "headline": "42.3% → 100.0%",
+  "triage_fix_rule": "interested/needs_info + extracted.proposed_rate_usd is not None → escalate (reason=rate_signal_on_positive)",
+  "stall_case_id": "rate-positive-en-01",
+  "optimizer_input": {
+    "observed_failures": [
+      {
+        "kind": "misrouted:hard_no",
+        "sampleCount": 4,
+        "payload": {
+          "expected_decision": "escalate",
+          "expected_reason_tag": "hard_no",
+          "observed_decision": "respond",
+          "observed_reason_tag": "clean_interested",
+          "example_case_ids": [
+            "decline-disguised-en-01",
+            "decline-disguised-ja-02",
+            "unsubscribe-en-01",
+            "decline-clean-zh-03"
+          ]
+        }
+      },
+      {
+        "kind": "misrouted:out_of_scope_class",
+        "sampleCount": 2,
+        "payload": {
+          "expected_decision": "escalate",
+          "expected_reason_tag": "out_of_scope_class",
+          "observed_decision": "respond",
+          "observed_reason_tag": "clean_interested",
+          "example_case_ids": [
+            "out-of-office-en-01",
+            "unrelated-en-02"
+          ]
+        }
+      },
+      {
+        "kind": "misrouted:rate_signal_on_positive",
+        "sampleCount": 7,
+        "payload": {
+          "expected_decision": "escalate",
+          "expected_reason_tag": "rate_signal_on_positive",
+          "observed_decision": "respond",
+          "observed_reason_tag": "clean_interested",
+          "example_case_ids": [
+            "rate-positive-en-01",
+            "rate-positive-ko-02",
+            "rate-positive-needsinfo-ja-03",
+            "rate-positive-zh-04",
+            "rate-positive-lowball-en-05"
+          ]
+        }
+      },
+      {
+        "kind": "misrouted:soft_no",
+        "sampleCount": 2,
+        "payload": {
+          "expected_decision": "escalate",
+          "expected_reason_tag": "soft_no",
+          "observed_decision": "respond",
+          "observed_reason_tag": "clean_interested",
+          "example_case_ids": [
+            "soft-no-en-01",
+            "soft-no-zh-02"
+          ]
+        }
+      }
+    ],
+    "target_metric": "triage_routing_accuracy"
+  },
+  "live_optimizer": {
+    "capability_layer_mode": "stub",
+    "queued_receipt": {
+      "jobId": "opt-conversation-responder-001",
+      "etaMinutes": 30,
+      "status": "queued"
+    },
+    "note": "Production path = Vertex AI Agent Optimizer. The receipt above is the deterministic STUB (W7-deferred); live mode raises NotImplementedError. Disclosed per RULES.md + §7."
+  }
+}

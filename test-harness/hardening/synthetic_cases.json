@@ -1,0 +1,536 @@
+{
+  "_meta": {
+    "purpose": "H2 Agent Simulation — synthetic edge-case set for the conversation_responder triage stall. Each case is a ConversationResponderInput (by-alias) + the correct triage decision/reason. Run _baseline_triage over the set for the BEFORE number, _optimized_triage (the live triage_inbound) for the AFTER number.",
+    "authority": "GRAND-NARRATIVE-PLAN.md §5-1 H2; DECISIONS.md D23 (Tier-1 #5), D25 (learning loop), D32 (observability), D5 (models).",
+    "honesty_note": "These are hand-authored synthetic cases, not real creator data (D10). expected_decision/expected_reason_tag are the ground truth the triage is measured against. The 'expected_decision' for a creator who is negotiating is ALWAYS escalate — that is the correct outcome per runtime.Escalation + D27.",
+    "stall_case_id": "rate-positive-en-01",
+    "categories": [
+      "clean_interested", "explicit_negotiation", "interest_with_rate (the stall)",
+      "decline_disguised_as_interest", "soft_no", "hard_no", "out_of_scope",
+      "missing_context", "mixed_emotion", "multilingual ko/ja/zh/en"
+    ],
+    "version": "1.0"
+  },
+  "cases": [
+    {
+      "id": "clean-interested-en-01",
+      "category": "clean_interested",
+      "note": "interested + shipping address, no rate → respond.",
+      "expected_decision": "respond",
+      "expected_reason_tag": "clean_interested",
+      "input": {
+        "turn": {
+          "threadId": "thr_ci_en_01", "creatorId": "cr_001",
+          "incomingMessageId": "msg_ci_en_01", "classification": "interested",
+          "extracted": {"shippingAddress": "10 Maple Ave, Austin, TX 78701"}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@glowbymia", "nickname": "Mia", "signature": "skincare + coffee", "recentPostThemes": ["morning routine"], "followerCount": 38000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "Brightening serum.", "keyClaims": ["10% vitamin C"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "en"
+      }
+    },
+    {
+      "id": "clean-interested-ko-02",
+      "category": "clean_interested",
+      "note": "needs_info asking shipping ETA, no rate → respond.",
+      "expected_decision": "respond",
+      "expected_reason_tag": "clean_interested",
+      "input": {
+        "turn": {
+          "threadId": "thr_ci_ko_02", "creatorId": "cr_002",
+          "incomingMessageId": "msg_ci_ko_02", "classification": "needs_info",
+          "extracted": {"question": "샘플은 며칠 정도면 도착하나요?"}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@seoulskin", "nickname": "지수", "signature": "데일리 스킨케어 리뷰", "recentPostThemes": ["겨울 보습"], "followerCount": 51000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "브라이트닝 세럼.", "keyClaims": ["비타민C 10%"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "ko"
+      }
+    },
+    {
+      "id": "clean-interested-ja-03",
+      "category": "clean_interested",
+      "note": "interested + address (ja), no rate → respond.",
+      "expected_decision": "respond",
+      "expected_reason_tag": "clean_interested",
+      "input": {
+        "turn": {
+          "threadId": "thr_ci_ja_03", "creatorId": "cr_003",
+          "incomingMessageId": "msg_ci_ja_03", "classification": "interested",
+          "extracted": {"shippingAddress": "東京都渋谷区1-2-3"}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@tokyobeauty", "nickname": "あや", "signature": "美容レビュー", "recentPostThemes": ["朝のスキンケア"], "followerCount": 44000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "明るい肌へ。", "keyClaims": ["ビタミンC 10%"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "ja"
+      }
+    },
+    {
+      "id": "clean-interested-zh-04",
+      "category": "clean_interested",
+      "note": "needs_info question (zh), no rate → respond.",
+      "expected_decision": "respond",
+      "expected_reason_tag": "clean_interested",
+      "input": {
+        "turn": {
+          "threadId": "thr_ci_zh_04", "creatorId": "cr_004",
+          "incomingMessageId": "msg_ci_zh_04", "classification": "needs_info",
+          "extracted": {"question": "请问样品多久能寄到？"}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@shanghaiglow", "nickname": "小美", "signature": "护肤分享", "recentPostThemes": ["冬季保湿"], "followerCount": 62000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "提亮精华。", "keyClaims": ["10% 维C"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "zh-CN"
+      }
+    },
+    {
+      "id": "rate-positive-en-01",
+      "category": "interest_with_rate",
+      "note": "THE STALL: classified interested, but a rate is on the table → escalate. Baseline misses this and routes to respond.",
+      "expected_decision": "escalate",
+      "expected_reason_tag": "rate_signal_on_positive",
+      "input": {
+        "turn": {
+          "threadId": "thr_rp_en_01", "creatorId": "cr_010",
+          "incomingMessageId": "msg_rp_en_01", "classification": "interested",
+          "extracted": {"question": "Love the product! My usual rate for a sponsored video is around 800 — does that work?", "proposedRateUsd": 800.0}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@fitwithleo", "nickname": "Leo", "signature": "fitness + wellness", "recentPostThemes": ["gym haul"], "followerCount": 120000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "Brightening serum.", "keyClaims": ["10% vitamin C"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "en"
+      }
+    },
+    {
+      "id": "rate-positive-ko-02",
+      "category": "interest_with_rate",
+      "note": "interested + Korean rate ask → escalate (the stall, ko).",
+      "expected_decision": "escalate",
+      "expected_reason_tag": "rate_signal_on_positive",
+      "input": {
+        "turn": {
+          "threadId": "thr_rp_ko_02", "creatorId": "cr_011",
+          "incomingMessageId": "msg_rp_ko_02", "classification": "interested",
+          "extracted": {"question": "관심 있어요! 보통 협찬 영상 단가는 50만원 정도인데 가능할까요?", "proposedRateUsd": 380.0}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@dailyglowkr", "nickname": "하늘", "signature": "뷰티 크리에이터", "recentPostThemes": ["스킨케어 루틴"], "followerCount": 88000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "브라이트닝 세럼.", "keyClaims": ["비타민C 10%"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "ko"
+      }
+    },
+    {
+      "id": "rate-positive-needsinfo-ja-03",
+      "category": "interest_with_rate",
+      "note": "needs_info that also names a rate → escalate (the stall, ja, needs_info class).",
+      "expected_decision": "escalate",
+      "expected_reason_tag": "rate_signal_on_positive",
+      "input": {
+        "turn": {
+          "threadId": "thr_rp_ja_03", "creatorId": "cr_012",
+          "incomingMessageId": "msg_rp_ja_03", "classification": "needs_info",
+          "extracted": {"question": "サンプルはいつ届きますか？あと、私のレートは1本5万円ですが大丈夫ですか？", "proposedRateUsd": 330.0}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@cosmeaya", "nickname": "あや", "signature": "コスメレビュー", "recentPostThemes": ["新作コスメ"], "followerCount": 70000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "明るい肌へ。", "keyClaims": ["ビタミンC 10%"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "ja"
+      }
+    },
+    {
+      "id": "rate-positive-zh-04",
+      "category": "interest_with_rate",
+      "note": "interested + zh rate ask → escalate (the stall, zh).",
+      "expected_decision": "escalate",
+      "expected_reason_tag": "rate_signal_on_positive",
+      "input": {
+        "turn": {
+          "threadId": "thr_rp_zh_04", "creatorId": "cr_013",
+          "incomingMessageId": "msg_rp_zh_04", "classification": "interested",
+          "extracted": {"question": "我很有兴趣！我一条赞助视频的报价大概是 5000 元，可以吗？", "proposedRateUsd": 690.0}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@beautyzhen", "nickname": "珍珍", "signature": "美妆达人", "recentPostThemes": ["开箱测评"], "followerCount": 150000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "提亮精华。", "keyClaims": ["10% 维C"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "zh-CN"
+      }
+    },
+    {
+      "id": "rate-positive-lowball-en-05",
+      "category": "interest_with_rate",
+      "note": "low proposed rate (still a negotiation) → escalate, not a draft.",
+      "expected_decision": "escalate",
+      "expected_reason_tag": "rate_signal_on_positive",
+      "input": {
+        "turn": {
+          "threadId": "thr_rp_en_05", "creatorId": "cr_014",
+          "incomingMessageId": "msg_rp_en_05", "classification": "interested",
+          "extracted": {"proposedRateUsd": 25.0}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@nanoinfluencer", "nickname": "Sky", "signature": "everyday looks", "recentPostThemes": ["grwm"], "followerCount": 5200},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "Brightening serum.", "keyClaims": ["10% vitamin C"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "en"
+      }
+    },
+    {
+      "id": "rate-positive-zero-en-06",
+      "category": "interest_with_rate",
+      "note": "proposed rate of 0.0 (free, but explicitly named terms) is still a negotiation signal because the field is present → escalate.",
+      "expected_decision": "escalate",
+      "expected_reason_tag": "rate_signal_on_positive",
+      "input": {
+        "turn": {
+          "threadId": "thr_rp_en_06", "creatorId": "cr_015",
+          "incomingMessageId": "msg_rp_en_06", "classification": "interested",
+          "extracted": {"question": "Happy to do it for free in exchange for the product plus a usage license — sound good?", "proposedRateUsd": 0.0}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@barteringben", "nickname": "Ben", "signature": "deals + reviews", "recentPostThemes": ["unboxing"], "followerCount": 30000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "Brightening serum.", "keyClaims": ["10% vitamin C"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "en"
+      }
+    },
+    {
+      "id": "explicit-negotiating-en-01",
+      "category": "explicit_negotiation",
+      "note": "classifier already tagged negotiating → escalate (baseline AND optimized both catch this).",
+      "expected_decision": "escalate",
+      "expected_reason_tag": "negotiation_class",
+      "input": {
+        "turn": {
+          "threadId": "thr_neg_en_01", "creatorId": "cr_020",
+          "incomingMessageId": "msg_neg_en_01", "classification": "negotiating",
+          "extracted": {"question": "Can we discuss exclusivity and a multi-post package?"}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@prodeals", "nickname": "Pro", "signature": "brand partnerships", "recentPostThemes": ["sponsored"], "followerCount": 200000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "Brightening serum.", "keyClaims": ["10% vitamin C"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "en"
+      }
+    },
+    {
+      "id": "explicit-negotiating-rate-ko-02",
+      "category": "explicit_negotiation",
+      "note": "negotiating class AND a rate — class wins (negotiation_class), both catch it.",
+      "expected_decision": "escalate",
+      "expected_reason_tag": "negotiation_class",
+      "input": {
+        "turn": {
+          "threadId": "thr_neg_ko_02", "creatorId": "cr_021",
+          "incomingMessageId": "msg_neg_ko_02", "classification": "negotiating",
+          "extracted": {"question": "독점 조건과 패키지 단가를 조율하고 싶어요.", "proposedRateUsd": 900.0}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@bizcreatorkr", "nickname": "민준", "signature": "브랜드 협업 전문", "recentPostThemes": ["광고 협찬"], "followerCount": 310000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "브라이트닝 세럼.", "keyClaims": ["비타민C 10%"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "ko"
+      }
+    },
+    {
+      "id": "decline-disguised-en-01",
+      "category": "decline_disguised_as_interest",
+      "note": "classified declined; reads superficially polite but is a hard no → escalate (never auto-reply). Baseline escalates only via... nothing — baseline lets non-negotiating non-missing-context through to respond. Optimized catches hard_no.",
+      "expected_decision": "escalate",
+      "expected_reason_tag": "hard_no",
+      "input": {
+        "turn": {
+          "threadId": "thr_dd_en_01", "creatorId": "cr_030",
+          "incomingMessageId": "msg_dd_en_01", "classification": "declined",
+          "extracted": {"question": "Thanks so much for thinking of me — it looks lovely, but I'm going to pass this time."}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@politepass", "nickname": "Rae", "signature": "lifestyle", "recentPostThemes": ["daily vlog"], "followerCount": 47000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "Brightening serum.", "keyClaims": ["10% vitamin C"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "en"
+      }
+    },
+    {
+      "id": "decline-disguised-ja-02",
+      "category": "decline_disguised_as_interest",
+      "note": "ja polite decline → escalate hard_no.",
+      "expected_decision": "escalate",
+      "expected_reason_tag": "hard_no",
+      "input": {
+        "turn": {
+          "threadId": "thr_dd_ja_02", "creatorId": "cr_031",
+          "incomingMessageId": "msg_dd_ja_02", "classification": "declined",
+          "extracted": {"question": "ご連絡ありがとうございます。素敵な商品ですが、今回は見送らせていただきます。"}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@teineina", "nickname": "さくら", "signature": "暮らしのレビュー", "recentPostThemes": ["日常"], "followerCount": 39000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "明るい肌へ。", "keyClaims": ["ビタミンC 10%"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "ja"
+      }
+    },
+    {
+      "id": "unsubscribe-en-01",
+      "category": "hard_no",
+      "note": "unsubscribe → escalate hard_no; never auto-reply.",
+      "expected_decision": "escalate",
+      "expected_reason_tag": "hard_no",
+      "input": {
+        "turn": {
+          "threadId": "thr_un_en_01", "creatorId": "cr_032",
+          "incomingMessageId": "msg_un_en_01", "classification": "unsubscribe",
+          "extracted": {"question": "Please remove me from your list and do not contact me again."}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@optout", "nickname": "Sam", "signature": "tech reviews", "recentPostThemes": ["gadgets"], "followerCount": 80000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "Brightening serum.", "keyClaims": ["10% vitamin C"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "en"
+      }
+    },
+    {
+      "id": "soft-no-en-01",
+      "category": "soft_no",
+      "note": "not_now → escalate soft_no; a human owns re-engagement cadence.",
+      "expected_decision": "escalate",
+      "expected_reason_tag": "soft_no",
+      "input": {
+        "turn": {
+          "threadId": "thr_sn_en_01", "creatorId": "cr_040",
+          "incomingMessageId": "msg_sn_en_01", "classification": "not_now",
+          "extracted": {"question": "Booked solid through next quarter — maybe revisit in the spring?"}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@busybee", "nickname": "Quinn", "signature": "travel + food", "recentPostThemes": ["itinerary"], "followerCount": 95000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "Brightening serum.", "keyClaims": ["10% vitamin C"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "en"
+      }
+    },
+    {
+      "id": "soft-no-zh-02",
+      "category": "soft_no",
+      "note": "not_now (zh) → escalate soft_no.",
+      "expected_decision": "escalate",
+      "expected_reason_tag": "soft_no",
+      "input": {
+        "turn": {
+          "threadId": "thr_sn_zh_02", "creatorId": "cr_041",
+          "incomingMessageId": "msg_sn_zh_02", "classification": "not_now",
+          "extracted": {"question": "最近档期排满了，下个季度再聊好吗？"}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@manghu", "nickname": "阿杰", "signature": "生活方式", "recentPostThemes": ["日常分享"], "followerCount": 120000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "提亮精华。", "keyClaims": ["10% 维C"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "zh-CN"
+      }
+    },
+    {
+      "id": "out-of-office-en-01",
+      "category": "out_of_scope",
+      "note": "out_of_office → escalate out_of_scope_class.",
+      "expected_decision": "escalate",
+      "expected_reason_tag": "out_of_scope_class",
+      "input": {
+        "turn": {
+          "threadId": "thr_oo_en_01", "creatorId": "cr_050",
+          "incomingMessageId": "msg_oo_en_01", "classification": "out_of_office",
+          "extracted": {"question": "I'm away until the 20th with limited access to email."}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@onvacation", "nickname": "Jo", "signature": "outdoors", "recentPostThemes": ["hiking"], "followerCount": 60000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "Brightening serum.", "keyClaims": ["10% vitamin C"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "en"
+      }
+    },
+    {
+      "id": "unrelated-en-02",
+      "category": "out_of_scope",
+      "note": "unrelated → escalate out_of_scope_class.",
+      "expected_decision": "escalate",
+      "expected_reason_tag": "out_of_scope_class",
+      "input": {
+        "turn": {
+          "threadId": "thr_ur_en_02", "creatorId": "cr_051",
+          "incomingMessageId": "msg_ur_en_02", "classification": "unrelated",
+          "extracted": {"question": "Wrong thread — I was looking for the catering invoice."}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@mixedupinbox", "nickname": "Pat", "signature": "events", "recentPostThemes": ["weddings"], "followerCount": 22000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "Brightening serum.", "keyClaims": ["10% vitamin C"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "en"
+      }
+    },
+    {
+      "id": "missing-context-en-01",
+      "category": "missing_context",
+      "note": "interested but hasMinimumContext=false → escalate missing_context (both baseline and optimized catch it).",
+      "expected_decision": "escalate",
+      "expected_reason_tag": "missing_context",
+      "input": {
+        "turn": {
+          "threadId": "thr_mc_en_01", "creatorId": "cr_060",
+          "incomingMessageId": "msg_mc_en_01", "classification": "interested",
+          "extracted": {"shippingAddress": "PO Box 9, Reno, NV"}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@ghostprofile", "nickname": "NA", "signature": "", "recentPostThemes": [], "followerCount": 1500},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "Brightening serum.", "keyClaims": ["10% vitamin C"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": false
+        },
+        "locale": "en"
+      }
+    },
+    {
+      "id": "missing-context-rate-ko-02",
+      "category": "missing_context",
+      "note": "missing context AND a rate — missing_context has top priority in both rule sets.",
+      "expected_decision": "escalate",
+      "expected_reason_tag": "missing_context",
+      "input": {
+        "turn": {
+          "threadId": "thr_mc_ko_02", "creatorId": "cr_061",
+          "incomingMessageId": "msg_mc_ko_02", "classification": "interested",
+          "extracted": {"question": "단가는 30만원이요.", "proposedRateUsd": 230.0}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@blankprofilekr", "nickname": "NA", "signature": "", "recentPostThemes": [], "followerCount": 800},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "브라이트닝 세럼.", "keyClaims": ["비타민C 10%"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": false
+        },
+        "locale": "ko"
+      }
+    },
+    {
+      "id": "mixed-emotion-rate-en-01",
+      "category": "mixed_emotion",
+      "note": "enthusiastic + a rate buried mid-message; classifier said interested. Mixed emotion must not hide the rate → escalate.",
+      "expected_decision": "escalate",
+      "expected_reason_tag": "rate_signal_on_positive",
+      "input": {
+        "turn": {
+          "threadId": "thr_me_en_01", "creatorId": "cr_070",
+          "incomingMessageId": "msg_me_en_01", "classification": "interested",
+          "extracted": {"question": "Oh my gosh I LOVE this brand, been using it for years! I'd be thrilled to collab — my rate is 1200 per video though, hope that's okay!!", "proposedRateUsd": 1200.0}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@superfan", "nickname": "Dee", "signature": "skincare obsessed", "recentPostThemes": ["routine", "hauls"], "followerCount": 240000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "Brightening serum.", "keyClaims": ["10% vitamin C"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "en"
+      }
+    },
+    {
+      "id": "mixed-emotion-clean-en-02",
+      "category": "mixed_emotion",
+      "note": "enthusiastic + a question, NO rate → respond. Mixed emotion alone is not an escalation trigger.",
+      "expected_decision": "respond",
+      "expected_reason_tag": "clean_interested",
+      "input": {
+        "turn": {
+          "threadId": "thr_me_en_02", "creatorId": "cr_071",
+          "incomingMessageId": "msg_me_en_02", "classification": "interested",
+          "extracted": {"question": "So excited — but a little nervous since I've never done a sponsored post. What do you usually need from me?"}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@firsttimer", "nickname": "Val", "signature": "beauty newbie", "recentPostThemes": ["tutorials"], "followerCount": 14000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "Brightening serum.", "keyClaims": ["10% vitamin C"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "en"
+      }
+    },
+    {
+      "id": "mixed-emotion-frustrated-ja-03",
+      "category": "mixed_emotion",
+      "note": "mildly frustrated about delay but still interested, no rate → respond.",
+      "expected_decision": "respond",
+      "expected_reason_tag": "clean_interested",
+      "input": {
+        "turn": {
+          "threadId": "thr_me_ja_03", "creatorId": "cr_072",
+          "incomingMessageId": "msg_me_ja_03", "classification": "needs_info",
+          "extracted": {"question": "返信が遅くてすみません。まだ間に合いますか？参加したいです。"}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@osokuna", "nickname": "ゆい", "signature": "コスメ好き", "recentPostThemes": ["新作レビュー"], "followerCount": 33000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "明るい肌へ。", "keyClaims": ["ビタミンC 10%"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "ja"
+      }
+    },
+    {
+      "id": "clean-interested-noextract-en-05",
+      "category": "clean_interested",
+      "note": "interested with no extracted fields at all → respond (ask for address downstream).",
+      "expected_decision": "respond",
+      "expected_reason_tag": "clean_interested",
+      "input": {
+        "turn": {
+          "threadId": "thr_ci_en_05", "creatorId": "cr_080",
+          "incomingMessageId": "msg_ci_en_05", "classification": "interested",
+          "extracted": {}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@simpleyes", "nickname": "Robin", "signature": "minimal beauty", "recentPostThemes": ["clean girl"], "followerCount": 26000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "Brightening serum.", "keyClaims": ["10% vitamin C"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "en"
+      }
+    },
+    {
+      "id": "decline-clean-zh-03",
+      "category": "decline_disguised_as_interest",
+      "note": "zh polite decline → escalate hard_no.",
+      "expected_decision": "escalate",
+      "expected_reason_tag": "hard_no",
+      "input": {
+        "turn": {
+          "threadId": "thr_dd_zh_03", "creatorId": "cr_033",
+          "incomingMessageId": "msg_dd_zh_03", "classification": "declined",
+          "extracted": {"question": "谢谢你们想到我，产品看起来很棒，但这次我就不参加了。"}
+        },
+        "facts": {
+          "creator": {"uniqueId": "@keqi", "nickname": "丽丽", "signature": "时尚博主", "recentPostThemes": ["穿搭"], "followerCount": 105000},
+          "brand": {"name": "Freshly Vitamin C Serum", "category": "skincare/serum", "description": "提亮精华。", "keyClaims": ["10% 维C"]},
+          "logistics": {"shipsSamples": true}, "hasMinimumContext": true
+        },
+        "locale": "zh-CN"
+      }
+    }
+  ]
+}
