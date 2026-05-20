@@ -89,8 +89,23 @@ logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO").upper())
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+# The coordinator is a single-turn STRUCTURED-OUTPUT router (output_schema=
+# CoordinatorOutput). Gemini controlled-generation (responseSchema) is mutually
+# exclusive with function-calling tools, and ADK fails to build a function
+# declaration from a tool's Pydantic input under that mode. In the workflow path
+# the coordinator does NOT need tools anyway: Cloud Workflows supplies the
+# `candidateAgents` pool and performs the transport switch itself (see
+# coordinator.py: "The agent does NOT invoke the chosen agent — Cloud Workflows
+# performs the actual transport switch"). So we serve a tool-less copy — the
+# canonical `coordinator_agent_def` (with tools) is unchanged for any non-served
+# autonomous use. AgentDef is frozen; model_copy returns a new instance.
+_coordinator_serving: AgentDef[Any, Any] = coordinator_agent_def.model_copy(
+    update={"tools": []}
+)
+
+
 _ROUTES: dict[str, tuple[AgentDef[Any, Any], type[BaseModel], str]] = {
-    "coordinator": (coordinator_agent_def, CoordinatorInput, "bare"),
+    "coordinator": (_coordinator_serving, CoordinatorInput, "bare"),
     "sourcing": (sourcing_agent_def, SourcingInput, "envelope"),
     "vetting": (vetting_agent_def, VettingInput, "envelope"),
 }

@@ -50,7 +50,7 @@ main:
         args:
           url: ${default(map.get(args.agent_urls, "coordinator"), sys.get_env("AGENT_URL_COORDINATOR"))}
           body:
-            taskDescription: ${"Source creators for brand campaign " + campaignId + " — targeting " + json.encode(brief.targeting)}
+            taskDescription: ${"Source creators for brand campaign " + campaignId + " — targeting " + json.encode_to_string(brief.targeting)}
             workspacePolicy:
               allowedAgents: []
               budgetRemainingUsd: ${budgetRemainingUsd}
@@ -62,10 +62,14 @@ main:
                 avgLatencyMs: 2400
                 avgCostUsd: 0.018
                 transport: "in_process"
-              # D24/D45: remote A2A node — the OSS tiktok-mcp-server (1→100).
+              # D24/D45: remote A2A node — the OSS tiktok-mcp-server (1→100
+              # scale-out phase). At scale this node is the dedicated, optimized
+              # creator-search service: lower cost AND latency than the local
+              # in-process agent, so the coordinator's cost/latency optimization
+              # routes here (preferLocal=false).
               - agentId: "tiktok-mcp-search"
                 capabilities: ["source_creators", "tiktok", "remote", "a2a"]
-                avgLatencyMs: 3100
+                avgLatencyMs: 1800
                 avgCostUsd: 0.012
                 transport: "a2a_grpc"
             locale: "en"
@@ -73,11 +77,7 @@ main:
             preferLocal: false
           auth:
             type: OIDC
-          timeout: 30
-        retry:
-          predicate: ${http.default_retry_predicate}
-          max_retries: 3
-          backoff: {initial_delay: 2, max_delay: 30, multiplier: 2}
+          timeout: 120
         result: coordinator_response
 
     # ── D24/D45: branch on the coordinator's routing decision ────────────────
@@ -121,15 +121,11 @@ main:
               messageId: ${"a2a-" + campaignId + "-sourcing"}
               parts:
                 - kind: "text"
-                  text: ${"Source creators for brand campaign " + campaignId + " — targeting " + json.encode(brief.targeting)}
+                  text: ${"Source creators for brand campaign " + campaignId + " — targeting " + json.encode_to_string(brief.targeting)}
           headers:
             Content-Type: "application/json"
             A2A-Version: "0.3"
-          timeout: 60
-        retry:
-          predicate: ${http.default_retry_predicate}
-          max_retries: 3
-          backoff: {initial_delay: 2, max_delay: 30, multiplier: 2}
+          timeout: 120
         result: a2a_response
 
     # Parse the A2A v0.3 `task` envelope. On status.state == "completed", lift
@@ -171,10 +167,6 @@ main:
           auth:
             type: OIDC
           timeout: 120
-        retry:
-          predicate: ${http.default_retry_predicate}
-          max_retries: 3
-          backoff: {initial_delay: 5, max_delay: 60, multiplier: 2}
         result: sourcing_response
 
     - check_sourcing_outcome:
