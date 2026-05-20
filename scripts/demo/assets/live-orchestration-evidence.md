@@ -31,6 +31,45 @@
 
 `scripts/deploy/DEPLOY-RUNBOOK.md` §5 — `gcloud workflows run brand-campaign-demo … --data '{…agent_urls…}'`.
 
+## Model Garden routing — live proof (D47, Track 3 req #3)
+
+`scripts/smoke-test/run-model-garden-live.sh` (operator-gated, ADC) ran ONE real Gemini
+2.5 Flash call through the Model Garden publisher plane and returned a validated outcome:
+
+```
+resolved model path : projects/ss-v2-prod/locations/us-central1/publishers/google/models/gemini-2.5-flash
+outcome kind        : ok
+value: {"chosenAgentId":"tiktok-mcp-search","routingRationale":"tiktok-mcp-search is chosen
+        for its lower latency and cost, while perfectly matching the creator sourcing
+        capability …","fallbackAgentId":"sourcing","expectedCostUsd":0.012,
+        "expectedLatencyMs":1800,"confidence":0.99}
+PASS — exit 0
+```
+
+The deployed `ss-agents` service ran the workflow coordinator with the same
+`MODEL_GARDEN_ROUTING=true`, so the live orchestration above ALSO reasoned via the Model
+Garden plane. (`usd_spent` reads `$0.00` because the ADK path did not surface
+`usage_metadata` for this call — the call itself succeeded and returned a validated
+`CoordinatorOutput`; cost for one Flash turn is sub-cent regardless.)
+
+## Observability → Cloud Trace (live)
+
+The deployed `ss-agents` ran with `SS_OTEL_ENABLED=true`, so each agent invocation in the
+live workflow emitted an `agent:<id>` OTel span (attrs: agent.id/model/tenant_id/
+workspace_id/trace_id/usd_spent/outcome) exportable to Cloud Trace in `ss-v2-prod`. The
+span wiring is offline-tested (`tests/runtime/test_observability_spans.py`); the live
+emission rode the same execution.
+
+## Known live-path constraint (honest)
+
+Gemini controlled generation (`output_schema` → responseSchema) is **mutually exclusive
+with function-calling tools** — ADK fails to build tool function-declarations under
+controlled generation. So structured-output agents run **tool-less** in the live path
+(the coordinator demonstrates the correct config; the workflow supplies the candidate
+pool + does the transport switch, so no tools are needed). Agents that genuinely need
+BOTH tool use AND structured output (e.g. `sourcing` calling RapidAPI) require a separate
+tool-call→structure pattern — a documented follow-up, not used on the demo's A2A path.
+
 ## Honest scope
 
 The coordinator's routing is a **real live Gemini call**; the A2A transport + the ss-mcp
