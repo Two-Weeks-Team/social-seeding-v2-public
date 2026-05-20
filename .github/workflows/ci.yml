@@ -36,5 +36,15 @@ jobs:
       - name: pytest (offline)
         working-directory: packages/agents-adk
         run: pytest -q
-      # TODO(H5): wire golden-eval gate once packages/agents-adk eval runner lands
-      #   (was `pnpm run test:eval` — golden-set evals for the agents, Phase 1+).
+      # H5 (GRAND-NARRATIVE-PLAN.md §5-1): offline golden-eval gate. Drives the
+      # coordinator's deterministic predictor against its .evalset.json with a
+      # train/dev/holdout split; exits non-zero if the HOLDOUT slice misses the
+      # floor (overfit / regression). Fully offline ($0, no Vertex/creds) — the
+      # live Vertex Agent Evaluation path stays a nightly/operator job.
+      # Authority: D25 (Agent-Evaluation rung), D37 (Layer-1 TDD gate), D5.
+      - name: golden-eval gate (offline, coordinator)
+        working-directory: packages/agents-adk
+        env:
+          SS_OFFLINE: "1"
+          SS_LIVE: "0"
+        run: python -m evals --agent coordinator --holdout-floor 0.7

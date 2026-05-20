@@ -1,0 +1,400 @@
+{
+  "eval_set_id": "ss_coordinator_h5_v1",
+  "name": "Coordinator agent (M1) — 14-case golden set with holdout (H5)",
+  "description": "H5 (GRAND-NARRATIVE-PLAN.md §5-1): extends the Phase-4 8-case skeleton (eval/coordinator.evalset.json) to 14 cases so a train/dev (10) + holdout (4) split exists. The holdout slice is NEVER used to tune the deterministic predictor (evals/coordinator_eval.py) — see evals/holdout/coordinator.holdout.json + evals/README.md. ADK-compatible eval_cases shape. D-IDs: D5 (Flash), D25 (Agent-Evaluation rung), D34 (4-locale rationale), D37 (Layer-1 offline gate).",
+  "criteria_overrides": {
+    "routing_accuracy": 0.85,
+    "confidence_calibration": 0.8
+  },
+  "metadata": {
+    "agent_id": "coordinator",
+    "spec": "gcp-research/specs/tier2/coordinator.spec.md",
+    "decisions": ["D5", "D25", "D34", "D37"],
+    "model": "gemini-2.5-flash",
+    "split_manifest": "evals/holdout/coordinator.holdout.json"
+  },
+  "eval_cases": [
+    {
+      "eval_id": "coord_en_01_pick_local_sourcing",
+      "metadata": {
+        "locale": "en",
+        "expected_chosen": "sourcing",
+        "expected_fallback": "tiktok-mcp-search",
+        "should_escalate": false
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"Find 20 Korean skincare creators on TikTok with over 50k followers and engagement > 3%.\",\"workspacePolicy\":{\"allowedAgents\":[],\"budgetRemainingUsd\":2.50,\"slaTargetMs\":4000},\"candidateAgents\":[{\"agentId\":\"sourcing\",\"capabilities\":[\"source_creators\",\"tiktok\",\"rapidapi\"],\"avgLatencyMs\":2400,\"avgCostUsd\":0.018,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"tiktok-mcp-search\",\"capabilities\":[\"source_creators\",\"tiktok\",\"remote\",\"a2a\"],\"avgLatencyMs\":3100,\"avgCostUsd\":0.012,\"transport\":\"a2a_grpc\",\"healthy\":true}],\"locale\":\"en\",\"allowRemote\":true,\"preferLocal\":true}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"sourcing\",\"routingRationale\":\"Local sourcing agent matches the TikTok creator-search capability and stays within SLA; preferLocal=true breaks the tie.\",\"fallbackAgentId\":\"tiktok-mcp-search\",\"expectedCostUsd\":0.018,\"expectedLatencyMs\":2400,\"confidence\":0.92}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_en_02_pick_remote_when_cheapest",
+      "metadata": {
+        "locale": "en",
+        "expected_chosen": "tiktok-mcp-search",
+        "expected_fallback": "sourcing",
+        "should_escalate": false
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"Use the cheapest TikTok search agent available to find creators — cost is the priority, latency within SLA is fine.\",\"workspacePolicy\":{\"allowedAgents\":[],\"budgetRemainingUsd\":2.50,\"slaTargetMs\":4000},\"candidateAgents\":[{\"agentId\":\"sourcing\",\"capabilities\":[\"source_creators\",\"tiktok\",\"rapidapi\"],\"avgLatencyMs\":2400,\"avgCostUsd\":0.018,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"tiktok-mcp-search\",\"capabilities\":[\"source_creators\",\"tiktok\",\"remote\",\"a2a\"],\"avgLatencyMs\":3100,\"avgCostUsd\":0.012,\"transport\":\"a2a_grpc\",\"healthy\":true}],\"locale\":\"en\",\"allowRemote\":true,\"preferLocal\":false}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"tiktok-mcp-search\",\"routingRationale\":\"Remote A2A agent is cheaper and the operator explicitly requested cost-priority with preferLocal=false.\",\"fallbackAgentId\":\"sourcing\",\"expectedCostUsd\":0.012,\"expectedLatencyMs\":3100,\"confidence\":0.88}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_en_03_escalate_no_candidate_fits",
+      "metadata": {
+        "locale": "en",
+        "expected_chosen": "__escalate__",
+        "expected_fallback": null,
+        "should_escalate": true
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"Draft outreach emails to 30 creators using the tournament writer.\",\"workspacePolicy\":{\"allowedAgents\":[],\"budgetRemainingUsd\":0.01,\"slaTargetMs\":6000},\"candidateAgents\":[{\"agentId\":\"outreach_writer\",\"capabilities\":[\"draft_outreach\",\"tournament\"],\"avgLatencyMs\":5200,\"avgCostUsd\":0.12,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"lead_outreach_writer\",\"capabilities\":[\"draft_lead_outreach\"],\"avgLatencyMs\":4800,\"avgCostUsd\":0.09,\"transport\":\"in_process\",\"healthy\":true}],\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"__escalate__\",\"routingRationale\":\"No candidate satisfies policy — both outreach writers exceed the $0.01 budget.\",\"fallbackAgentId\":null,\"expectedCostUsd\":0,\"expectedLatencyMs\":0,\"confidence\":0.82}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_ko_01_korean_skincare_sourcing",
+      "metadata": {
+        "locale": "ko",
+        "expected_chosen": "sourcing",
+        "expected_fallback": null,
+        "should_escalate": false
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"한국 스킨케어 크리에이터 20명을 TikTok에서 찾아주세요. 팔로워 5만 이상.\",\"workspacePolicy\":{\"allowedAgents\":[\"sourcing\",\"vetting\"],\"budgetRemainingUsd\":1.50,\"slaTargetMs\":4000},\"candidateAgents\":[{\"agentId\":\"sourcing\",\"capabilities\":[\"source_creators\",\"tiktok\"],\"avgLatencyMs\":2400,\"avgCostUsd\":0.018,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"vetting\",\"capabilities\":[\"vet_candidate\"],\"avgLatencyMs\":900,\"avgCostUsd\":0.010,\"transport\":\"in_process\",\"healthy\":true}],\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"sourcing\",\"routingRationale\":\"크리에이터 검색 작업이므로 sourcing 에이전트가 적합합니다.\",\"fallbackAgentId\":\"vetting\",\"expectedCostUsd\":0.018,\"expectedLatencyMs\":2400,\"confidence\":0.90}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_ko_02_ambiguous_task_low_confidence",
+      "metadata": {
+        "locale": "ko",
+        "expected_chosen": "__escalate__",
+        "expected_fallback": null,
+        "should_escalate": true
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"크리에이터 관련 일 좀 해줘.\",\"workspacePolicy\":{\"allowedAgents\":[],\"budgetRemainingUsd\":2.50,\"slaTargetMs\":4000},\"candidateAgents\":[{\"agentId\":\"sourcing\",\"capabilities\":[\"source_creators\"],\"avgLatencyMs\":2400,\"avgCostUsd\":0.018,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"vetting\",\"capabilities\":[\"vet_candidate\"],\"avgLatencyMs\":900,\"avgCostUsd\":0.010,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"conversation\",\"capabilities\":[\"classify_reply\"],\"avgLatencyMs\":600,\"avgCostUsd\":0.003,\"transport\":\"in_process\",\"healthy\":true}],\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"__escalate__\",\"routingRationale\":\"작업 설명이 모호하여 적합한 에이전트를 결정할 수 없습니다.\",\"fallbackAgentId\":null,\"expectedCostUsd\":0,\"expectedLatencyMs\":0,\"confidence\":0.45}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_ja_01_japanese_outreach",
+      "metadata": {
+        "locale": "ja",
+        "expected_chosen": "outreach_writer",
+        "expected_fallback": "sourcing",
+        "should_escalate": false
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"20名のクリエイターにアウトリーチメールを下書きしてください。トーナメント方式で。\",\"workspacePolicy\":{\"allowedAgents\":[],\"budgetRemainingUsd\":5.00,\"slaTargetMs\":8000},\"candidateAgents\":[{\"agentId\":\"outreach_writer\",\"capabilities\":[\"draft_outreach\",\"tournament\"],\"avgLatencyMs\":5200,\"avgCostUsd\":0.12,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"sourcing\",\"capabilities\":[\"source_creators\"],\"avgLatencyMs\":2400,\"avgCostUsd\":0.018,\"transport\":\"in_process\",\"healthy\":true}],\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"outreach_writer\",\"routingRationale\":\"トーナメント方式のアウトリーチ作成は outreach_writer の能力と一致します。\",\"fallbackAgentId\":\"sourcing\",\"expectedCostUsd\":0.12,\"expectedLatencyMs\":5200,\"confidence\":0.93}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_ja_02_allow_remote_false_picks_local",
+      "metadata": {
+        "locale": "ja",
+        "expected_chosen": "sourcing",
+        "expected_fallback": null,
+        "should_escalate": false
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"日本のスキンケアクリエイターを15名探してください。リモートエージェントは使用不可。\",\"workspacePolicy\":{\"allowedAgents\":[],\"budgetRemainingUsd\":1.00,\"slaTargetMs\":5000},\"candidateAgents\":[{\"agentId\":\"sourcing\",\"capabilities\":[\"source_creators\",\"tiktok\"],\"avgLatencyMs\":2400,\"avgCostUsd\":0.018,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"tiktok-mcp-search\",\"capabilities\":[\"source_creators\",\"remote\"],\"avgLatencyMs\":3100,\"avgCostUsd\":0.012,\"transport\":\"a2a_grpc\",\"healthy\":true}],\"locale\":\"ja\",\"allowRemote\":false,\"preferLocal\":true}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"sourcing\",\"routingRationale\":\"allowRemote=false のため local の sourcing が唯一の選択肢です。\",\"fallbackAgentId\":null,\"expectedCostUsd\":0.018,\"expectedLatencyMs\":2400,\"confidence\":0.95}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_zh_01_compliance_pick",
+      "metadata": {
+        "locale": "zh-CN",
+        "expected_chosen": "compliance",
+        "expected_fallback": "outreach_writer",
+        "should_escalate": false
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"在发送外联邮件之前,检查韩国PIPA第23条和CAN-SPAM法的合规性。\",\"workspacePolicy\":{\"allowedAgents\":[],\"budgetRemainingUsd\":2.00,\"slaTargetMs\":4000},\"candidateAgents\":[{\"agentId\":\"compliance\",\"capabilities\":[\"check_compliance\",\"pipa\",\"canspam\"],\"avgLatencyMs\":1800,\"avgCostUsd\":0.025,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"outreach_writer\",\"capabilities\":[\"draft_outreach\"],\"avgLatencyMs\":5200,\"avgCostUsd\":0.12,\"transport\":\"in_process\",\"healthy\":true}],\"locale\":\"zh-CN\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"compliance\",\"routingRationale\":\"任务要求PIPA和CAN-SPAM合规检查,compliance代理是唯一匹配的候选者。\",\"fallbackAgentId\":\"outreach_writer\",\"expectedCostUsd\":0.025,\"expectedLatencyMs\":1800,\"confidence\":0.94}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_en_04_unhealthy_filtered_picks_secondary",
+      "metadata": {
+        "locale": "en",
+        "expected_chosen": "conversation-secondary",
+        "expected_fallback": null,
+        "should_escalate": false
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"Classify the inbound creator reply for thread T1.\",\"workspacePolicy\":{\"allowedAgents\":[],\"budgetRemainingUsd\":1.00,\"slaTargetMs\":4000},\"candidateAgents\":[{\"agentId\":\"conversation\",\"capabilities\":[\"classify_reply\"],\"avgLatencyMs\":600,\"avgCostUsd\":0.003,\"transport\":\"in_process\",\"healthy\":false},{\"agentId\":\"conversation-secondary\",\"capabilities\":[\"classify_reply\"],\"avgLatencyMs\":900,\"avgCostUsd\":0.004,\"transport\":\"in_process\",\"healthy\":true}],\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"conversation-secondary\",\"routingRationale\":\"Primary classifier is unhealthy; secondary is the only healthy classify_reply candidate.\",\"fallbackAgentId\":null,\"expectedCostUsd\":0.004,\"expectedLatencyMs\":900,\"confidence\":0.86}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_en_05_policy_allowlist_forces_sourcing",
+      "metadata": {
+        "locale": "en",
+        "expected_chosen": "sourcing",
+        "expected_fallback": null,
+        "should_escalate": false
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"Find vegan-skincare creators for the spring launch.\",\"workspacePolicy\":{\"allowedAgents\":[\"sourcing\"],\"budgetRemainingUsd\":2.50,\"slaTargetMs\":4000},\"candidateAgents\":[{\"agentId\":\"sourcing\",\"capabilities\":[\"source_creators\",\"tiktok\"],\"avgLatencyMs\":2400,\"avgCostUsd\":0.018,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"tiktok-mcp-search\",\"capabilities\":[\"source_creators\",\"remote\"],\"avgLatencyMs\":3100,\"avgCostUsd\":0.012,\"transport\":\"a2a_grpc\",\"healthy\":true}],\"locale\":\"en\",\"allowRemote\":true,\"preferLocal\":false}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"sourcing\",\"routingRationale\":\"allowedAgents=[sourcing] blocks the remote candidate; sourcing is the only policy-allowed match.\",\"fallbackAgentId\":null,\"expectedCostUsd\":0.018,\"expectedLatencyMs\":2400,\"confidence\":0.91}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_ko_03_holdout_compliance",
+      "metadata": {
+        "locale": "ko",
+        "expected_chosen": "compliance",
+        "expected_fallback": null,
+        "should_escalate": false,
+        "note": "HOLDOUT — Korean compliance phrasing not in any train cue; tests generalization of check_compliance matching."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"발송 전에 개인정보보호법(PIPA) 동의 요건을 점검해 주세요.\",\"workspacePolicy\":{\"allowedAgents\":[],\"budgetRemainingUsd\":2.00,\"slaTargetMs\":4000},\"candidateAgents\":[{\"agentId\":\"compliance\",\"capabilities\":[\"check_compliance\",\"pipa\"],\"avgLatencyMs\":1800,\"avgCostUsd\":0.025,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"sourcing\",\"capabilities\":[\"source_creators\"],\"avgLatencyMs\":2400,\"avgCostUsd\":0.018,\"transport\":\"in_process\",\"healthy\":true}],\"locale\":\"ko\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"compliance\",\"routingRationale\":\"PIPA 동의 점검 작업이므로 compliance 에이전트가 유일한 적합 후보입니다.\",\"fallbackAgentId\":\"sourcing\",\"expectedCostUsd\":0.025,\"expectedLatencyMs\":1800,\"confidence\":0.92}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_en_06_holdout_remote_only_blocked",
+      "metadata": {
+        "locale": "en",
+        "expected_chosen": "__escalate__",
+        "expected_fallback": null,
+        "should_escalate": true,
+        "note": "HOLDOUT — allowRemote=false but the only capability match is remote → escalate (escalation rule: allowRemote=false and the only matching candidate is remote)."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"Find TikTok creators for the launch.\",\"workspacePolicy\":{\"allowedAgents\":[],\"budgetRemainingUsd\":2.00,\"slaTargetMs\":4000},\"candidateAgents\":[{\"agentId\":\"tiktok-mcp-search\",\"capabilities\":[\"source_creators\",\"remote\",\"a2a\"],\"avgLatencyMs\":3100,\"avgCostUsd\":0.012,\"transport\":\"a2a_grpc\",\"healthy\":true},{\"agentId\":\"logistics\",\"capabilities\":[\"parse_address\"],\"avgLatencyMs\":1100,\"avgCostUsd\":0.005,\"transport\":\"in_process\",\"healthy\":true}],\"locale\":\"en\",\"allowRemote\":false,\"preferLocal\":true}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"__escalate__\",\"routingRationale\":\"allowRemote=false removes the only capability-matching candidate (tiktok-mcp-search is remote); logistics does not match the task.\",\"fallbackAgentId\":null,\"expectedCostUsd\":0,\"expectedLatencyMs\":0,\"confidence\":0.5}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_ja_03_holdout_classify_reply",
+      "metadata": {
+        "locale": "ja",
+        "expected_chosen": "conversation",
+        "expected_fallback": null,
+        "should_escalate": false,
+        "note": "HOLDOUT — Japanese classify-reply phrasing tests classify_reply cue generalization across locale."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"クリエイターからの返信を分類してください。\",\"workspacePolicy\":{\"allowedAgents\":[],\"budgetRemainingUsd\":1.00,\"slaTargetMs\":4000},\"candidateAgents\":[{\"agentId\":\"conversation\",\"capabilities\":[\"classify_reply\"],\"avgLatencyMs\":600,\"avgCostUsd\":0.003,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"logistics\",\"capabilities\":[\"parse_address\"],\"avgLatencyMs\":1100,\"avgCostUsd\":0.005,\"transport\":\"in_process\",\"healthy\":true}],\"locale\":\"ja\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"conversation\",\"routingRationale\":\"返信の分類は conversation エージェントの能力と一致します。\",\"fallbackAgentId\":\"logistics\",\"expectedCostUsd\":0.003,\"expectedLatencyMs\":600,\"confidence\":0.9}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "coord_en_07_holdout_over_budget_escalate",
+      "metadata": {
+        "locale": "en",
+        "expected_chosen": "__escalate__",
+        "expected_fallback": null,
+        "should_escalate": true,
+        "note": "HOLDOUT — every matching candidate is over_budget → escalate (no candidate fits)."
+      },
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "{\"taskDescription\":\"Draft tournament outreach emails for the creator shortlist.\",\"workspacePolicy\":{\"allowedAgents\":[],\"budgetRemainingUsd\":0.02,\"slaTargetMs\":8000},\"candidateAgents\":[{\"agentId\":\"outreach_writer\",\"capabilities\":[\"draft_outreach\",\"tournament\"],\"avgLatencyMs\":5200,\"avgCostUsd\":0.12,\"transport\":\"in_process\",\"healthy\":true},{\"agentId\":\"lead_outreach_writer\",\"capabilities\":[\"draft_outreach\"],\"avgLatencyMs\":4800,\"avgCostUsd\":0.09,\"transport\":\"in_process\",\"healthy\":true}],\"locale\":\"en\"}"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "{\"chosenAgentId\":\"__escalate__\",\"routingRationale\":\"Both outreach candidates exceed the $0.02 budget — no candidate fits.\",\"fallbackAgentId\":null,\"expectedCostUsd\":0,\"expectedLatencyMs\":0,\"confidence\":0.78}"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "_comment": "Holdout split for ss_coordinator_h5_v1 (H5 — GRAND-NARRATIVE-PLAN.md §5-1). The 4 'holdout' eval_ids are NEVER used to tune the deterministic predictor (evals/coordinator_eval.py) or the coordinator system prompt. Their accuracy is the overfit detector: a high train accuracy with a low holdout accuracy means the predictor's keyword/capability table was memorised against the visible cases rather than generalised. train = used to author/tune; dev = held lightly for prompt iteration but still visible. Policy: any new case is added to train OR dev; a case is promoted to holdout only at a calibration checkpoint and then frozen. D-IDs: D25, D37.",
+  "eval_set_id": "ss_coordinator_h5_v1",
+  "train": [
+    "coord_en_01_pick_local_sourcing",
+    "coord_en_02_pick_remote_when_cheapest",
+    "coord_en_03_escalate_no_candidate_fits",
+    "coord_ko_01_korean_skincare_sourcing",
+    "coord_ko_02_ambiguous_task_low_confidence",
+    "coord_ja_01_japanese_outreach",
+    "coord_ja_02_allow_remote_false_picks_local",
+    "coord_zh_01_compliance_pick"
+  ],
+  "dev": [
+    "coord_en_04_unhealthy_filtered_picks_secondary",
+    "coord_en_05_policy_allowlist_forces_sourcing"
+  ],
+  "holdout": [
+    "coord_ko_03_holdout_compliance",
+    "coord_en_06_holdout_remote_only_blocked",
+    "coord_ja_03_holdout_classify_reply",
+    "coord_en_07_holdout_over_budget_escalate"
+  ]
+}
