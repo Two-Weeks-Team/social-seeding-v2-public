@@ -103,7 +103,7 @@ verify them quickly:
 
 | Threat                                     | Mitigation                                              |
 |--------------------------------------------|---------------------------------------------------------|
-| Prompt injection / jailbreak via brand brief | Model Armor `sanitizeUserPrompt` + custom regex pre-filter |
+| Prompt injection / jailbreak via brand brief | Custom-regex pre-filter (always on) + Model Armor `sanitizeUserPrompt` GA call (deep layer; `MODEL_ARMOR_MODE=live`, operator-provisioned template + ADC) |
 | API key leakage in user input              | `_CUSTOM_REGEX` rejects `AIza…`, `BACKEND_DASHBOARD_PASSWORD`, etc. |
 | Forged Bearer tokens                       | `verify_id_token` against Identity Platform tenant audience |
 | Sidecar exfiltration via public reach      | Sidecar binds to `127.0.0.1:8100`, never to `0.0.0.0`   |

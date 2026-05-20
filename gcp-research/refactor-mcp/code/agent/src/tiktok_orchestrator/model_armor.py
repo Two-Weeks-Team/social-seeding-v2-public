@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Social Seeding Inc.
-"""Model Armor sanitization (D21).
+"""Model Armor sanitization (D21) — REAL Google Cloud GA integration.
 
 Reference: ``gcp-research/model-armor/ARMOR-GATEWAY.md §1.6 path A``
 ("per-request from your code — the most portable path"). The Agent
@@ -8,6 +8,30 @@ Gateway ``CONTENT_AUTHZ`` extension path (§1.6 D) is preview-only as of
 2026-05; until it goes GA we keep the explicit wrap at the agent layer so
 the audit trail is *guaranteed* (Track 3 Phase 5 §5.4 Enterprise Standards
 checks "Model Armor templates wired with ``FAIL_CLOSED``").
+
+GA API shape (verified 2026-05 against
+https://docs.cloud.google.com/model-armor/sanitize-prompts-responses):
+
+    POST https://modelarmor.{LOCATION}.rep.googleapis.com/v1/
+         projects/{P}/locations/{L}/templates/{T}:sanitizeUserPrompt
+    POST .../templates/{T}:sanitizeModelResponse
+
+    request   (prompt):   {"userPromptData":   {"text": "<text>"}}
+    request   (response): {"modelResponseData": {"text": "<text>"}}
+    response: {"sanitizationResult": {
+                  "filterMatchState": "MATCH_FOUND" | "NO_MATCH_FOUND",
+                  "invocationResult": "SUCCESS",
+                  "filterResults": {                # MAP keyed by filter name
+                      "rai":             {"raiFilterResult": {...}},
+                      "pi_and_jailbreak":{"piAndJailbreakFilterResult":{...}},
+                      "malicious_uris":  {"maliciousUriFilterResult":{...}},
+                      "sdp":             {"sdpFilterResult":{...}},
+                      "csam":            {"csamFilterFilterResult":{...}}}}}
+
+The Python GA client (``google.cloud.modelarmor_v1``) exposes the same shape:
+``ModelArmorClient.sanitize_user_prompt(request=SanitizeUserPromptRequest(...))``
+returns ``SanitizeUserPromptResponse`` whose ``.sanitization_result`` carries
+``.filter_match_state`` + ``.filter_results``.
 
 Policy (D21):
     * **Prompt injection / jailbreak**:   ENABLED, MEDIUM_AND_ABOVE
@@ -33,9 +57,19 @@ Each returns a ``SanitizationOutcome`` with ``blocked: bool``, ``reasons:
 list[str]``, and the maybe-redacted ``text``. The orchestrator (agent.py)
 short-circuits and emits a structured refusal whenever ``blocked is True``.
 
-Stub mode (``MODEL_ARMOR_STUB=1``):
-    * Returns ``blocked=False`` and forwards the text unchanged.
-    * Tests rely on this; production never sets it.
+Mode gate (``MODEL_ARMOR_MODE``, default ``stub``):
+    * ``stub``  — offline/CI default. The custom-regex pre-filter still runs
+      (defence-in-depth), then the text is forwarded unchanged. No network.
+    * ``live``  — REAL GA ``sanitizeUserPrompt`` / ``sanitizeModelResponse``
+      call. **Operator-gated**: requires an operator-provisioned Model Armor
+      template (``MODEL_ARMOR_INPUT_TEMPLATE`` / ``..._OUTPUT_TEMPLATE``) +
+      Application Default Credentials (ADC). See README "Going live (operator
+      step)". We do NOT claim layered enforcement is live unless the operator
+      runs it; the in-process custom-regex / prompt_guard layer stays the
+      belt-and-braces.
+
+    The legacy ``MODEL_ARMOR_STUB=1`` toggle is still honoured (it forces
+    ``stub``) for backward compatibility with existing CI / conftest.
 
 Failures policy:
     * ``MODEL_ARMOR_FAIL_MODE=closed`` (default) — any client error is
@@ -47,6 +81,7 @@ Failures policy:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
@@ -69,7 +104,15 @@ TEMPLATE_OUTPUT = os.environ.get(
     "MODEL_ARMOR_OUTPUT_TEMPLATE",
     f"projects/{PROJECT_ID}/locations/{REGION}/templates/ss-output" if PROJECT_ID else "",
 )
-STUB_MODE = os.environ.get("MODEL_ARMOR_STUB", "").lower() in {"1", "true", "yes"}
+
+# Mode gate. ``MODEL_ARMOR_MODE`` is the canonical control:
+#   * "stub" (default) — offline/CI; custom-regex pre-filter only, no network.
+#   * "live"           — REAL GA sanitize call (operator template + ADC).
+# Legacy ``MODEL_ARMOR_STUB=1`` is still honoured and forces "stub" so existing
+# CI / conftest keep working unchanged.
+_LEGACY_STUB = os.environ.get("MODEL_ARMOR_STUB", "").lower() in {"1", "true", "yes"}
+MODE = "stub" if _LEGACY_STUB else os.environ.get("MODEL_ARMOR_MODE", "stub").lower()
+STUB_MODE = MODE != "live"  # back-compat alias; tests monkeypatch this directly
 FAIL_MODE = os.environ.get("MODEL_ARMOR_FAIL_MODE", "closed").lower()  # closed | open
 
 # Per ARMOR-GATEWAY.md §1.7: custom regex set we always apply locally as a
@@ -198,57 +241,158 @@ async def _sanitize(text: str, *, direction: str, template: str) -> Sanitization
         return _fail_outcome(text, direction, reason="template_not_configured")
 
     try:
-        client = _get_client()
-        from google.cloud import modelarmor_v1  # type: ignore[import-not-found]
-
-        if direction == "prompt":
-            req = modelarmor_v1.SanitizeUserPromptRequest(
-                name=template, user_prompt_data={"text": text}
-            )
-            resp = client.sanitize_user_prompt(request=req)
-        else:
-            req = modelarmor_v1.SanitizeModelResponseRequest(
-                name=template, model_response_data={"text": text}
-            )
-            resp = client.sanitize_model_response(request=req)
-    except Exception as exc:  # noqa: BLE001
+        resp = await asyncio.to_thread(_call_live, text, direction=direction, template=template)
+    except Exception as exc:
         logger.error("Model Armor call failed: %s", exc, exc_info=True)
         return _fail_outcome(text, direction, reason=f"client_error:{type(exc).__name__}")
 
     return _parse_response(resp, text=text, template=template, direction=direction)
 
 
-def _parse_response(resp: Any, *, text: str, template: str, direction: str) -> SanitizationOutcome:
-    """Translate the MA SDK response into a ``SanitizationOutcome``.
+def _build_request(text: str, *, direction: str, template: str) -> Any:
+    """Build the GA SanitizeUserPrompt/ModelResponse request.
 
-    The SDK returns a ``sanitizationResult`` field whose ``filterMatchState``
-    is either ``MATCH_FOUND`` (any filter triggered) or ``NO_MATCH_FOUND``.
-    The redacted text — if the OUTPUT template is in SANITIZE mode — is
-    surfaced as ``sanitizationResult.sanitizedText``.
+    The request envelope matches the GA REST shape verified against the doc:
+        prompt:   {"name": <template>, "userPromptData":   {"text": <text>}}
+        response: {"name": <template>, "modelResponseData": {"text": <text>}}
+
+    The GA Python client wraps the inner ``{"text": ...}`` in a ``DataItem``
+    proto; passing the dict is accepted by the proto-plus constructor and keeps
+    this layer independent of the exact proto class name across client minors.
     """
-    result = getattr(resp, "sanitization_result", None) or getattr(resp, "sanitizationResult", None)
+    from google.cloud import modelarmor_v1  # type: ignore[import-not-found]
+
+    if direction == "prompt":
+        return modelarmor_v1.SanitizeUserPromptRequest(
+            name=template, user_prompt_data={"text": text}
+        )
+    return modelarmor_v1.SanitizeModelResponseRequest(
+        name=template, model_response_data={"text": text}
+    )
+
+
+def _call_live(text: str, *, direction: str, template: str) -> Any:
+    """Synchronous GA call (run in a thread by ``_sanitize``).
+
+    Isolated so tests can monkeypatch this single seam to inject a mocked GA
+    response without touching the network — there is no real HTTP/gRPC in CI.
+    """
+    client = _get_client()
+    req = _build_request(text, direction=direction, template=template)
+    if direction == "prompt":
+        return client.sanitize_user_prompt(request=req)
+    return client.sanitize_model_response(request=req)
+
+
+# Map of GA ``filterResults`` keys → human-readable reason names. The GA
+# response keys ``filterResults`` by filter name (NOT a list); each value is a
+# wrapper proto whose nested ``*FilterResult`` carries that filter's own
+# ``matchState``. We surface the names of the filters that actually matched.
+_GA_FILTER_KEYS: tuple[str, ...] = (
+    "pi_and_jailbreak",
+    "sdp",
+    "malicious_uris",
+    "rai",
+    "csam",
+)
+
+
+def _coerce_match_state(value: Any) -> str:
+    """Normalize a proto enum / string match-state into an upper-case string."""
+    if value is None:
+        return ""
+    # proto-plus enums stringify as e.g. "FilterMatchState.MATCH_FOUND".
+    return str(getattr(value, "name", value)).upper()
+
+
+def _is_match_found(state: str) -> bool:
+    """True only for an actual MATCH_FOUND.
+
+    NB: a plain substring test is WRONG — ``"MATCH_FOUND" in "NO_MATCH_FOUND"``
+    is True. We require the state to end with ``MATCH_FOUND`` *and* not be
+    ``NO_MATCH_FOUND`` (which is the explicit "clean" verdict).
+    """
+    if not state or "NO_MATCH_FOUND" in state:
+        return False
+    return state.endswith("MATCH_FOUND")
+
+
+def _filter_matched(node: Any) -> bool:
+    """Best-effort: does this nested filter-result node report MATCH_FOUND?
+
+    Walks one or two levels deep (``rai`` nests under ``raiFilterResult``,
+    ``sdp`` under ``sdpFilterResult.inspectResult``) looking for any
+    ``matchState`` / ``match_state`` that is MATCH_FOUND.
+    """
+    if node is None:
+        return False
+    for attr in ("match_state", "matchState"):
+        state = _coerce_match_state(getattr(node, attr, None))
+        if _is_match_found(state):
+            return True
+    # Descend through the single wrapper proto fields that the GA shape uses.
+    for attr in (
+        "rai_filter_result",
+        "pi_and_jailbreak_filter_result",
+        "malicious_uri_filter_result",
+        "csam_filter_filter_result",
+        "sdp_filter_result",
+        "inspect_result",
+    ):
+        child = getattr(node, attr, None)
+        if child is not None and _filter_matched(child):
+            return True
+    return False
+
+
+def _extract_matched_filters(filter_results: Any) -> list[str]:
+    """Return the names of GA filters that matched.
+
+    Handles the GA map shape (proto-plus ``MapComposite`` / dict keyed by
+    filter name) and degrades for non-mapping shapes.
+    """
+    reasons: list[str] = []
+    if filter_results is None:
+        return reasons
+    # proto-plus map and plain dict both support ``.items()``.
+    items = getattr(filter_results, "items", None)
+    if callable(items):
+        try:
+            for key, node in filter_results.items():
+                if _filter_matched(node):
+                    reasons.append(f"filter:{key}")
+        except (TypeError, AttributeError):
+            pass
+    return reasons
+
+
+def _parse_response(resp: Any, *, text: str, template: str, direction: str) -> SanitizationOutcome:
+    """Translate the GA Model Armor response into a ``SanitizationOutcome``.
+
+    The GA response carries a ``sanitizationResult`` whose ``filterMatchState``
+    is either ``MATCH_FOUND`` (any filter triggered) or ``NO_MATCH_FOUND``.
+    ``filterResults`` is a MAP keyed by filter name (``pi_and_jailbreak``,
+    ``sdp``, ``rai``, ``malicious_uris``, ``csam``); we surface the names of
+    the filters that actually matched as ``reasons``. The redacted text — if
+    the OUTPUT template is in SANITIZE mode — is surfaced as
+    ``sanitizationResult.sanitizedText``.
+    """
+    result = getattr(resp, "sanitization_result", None)
+    if result is None:
+        result = getattr(resp, "sanitizationResult", None)
     if result is None:
         return _fail_outcome(text, direction, reason="malformed_response")
 
-    matched = getattr(result, "filter_match_state", None) or getattr(
-        result, "filterMatchState", None
-    )
-    matched_str = str(matched) if matched is not None else ""
-    blocked = "MATCH_FOUND" in matched_str.upper()
+    matched = getattr(result, "filter_match_state", None)
+    if matched is None:
+        matched = getattr(result, "filterMatchState", None)
+    matched_str = _coerce_match_state(matched)
+    blocked = _is_match_found(matched_str)
 
-    reasons: list[str] = []
-    filter_results = getattr(result, "filter_results", None) or getattr(
-        result, "filterResults", []
-    )
-    try:
-        for entry in filter_results or []:
-            filter_type = getattr(entry, "filter_type", None) or getattr(
-                entry, "filterType", "unknown"
-            )
-            reasons.append(str(filter_type))
-    except TypeError:
-        # SDK returned a non-iterable proto map — best-effort summary only.
-        reasons.append(matched_str)
+    filter_results = getattr(result, "filter_results", None)
+    if filter_results is None:
+        filter_results = getattr(result, "filterResults", None)
+    reasons = _extract_matched_filters(filter_results)
 
     sanitized_text = (
         getattr(result, "sanitized_text", None)
@@ -259,7 +403,7 @@ def _parse_response(resp: Any, *, text: str, template: str, direction: str) -> S
     return SanitizationOutcome(
         blocked=blocked,
         text="" if blocked else sanitized_text,
-        reasons=reasons or [matched_str],
+        reasons=reasons or [matched_str or "match_state_unknown"],
         template=template,
         direction=direction,
         raw={"match_state": matched_str},
@@ -287,11 +431,12 @@ def _fail_outcome(text: str, direction: str, *, reason: str) -> SanitizationOutc
 
 
 __all__ = [
-    "SanitizationOutcome",
-    "sanitize_prompt",
-    "sanitize_response",
+    "FAIL_MODE",
+    "MODE",
     "STUB_MODE",
     "TEMPLATE_INPUT",
     "TEMPLATE_OUTPUT",
-    "FAIL_MODE",
+    "SanitizationOutcome",
+    "sanitize_prompt",
+    "sanitize_response",
 ]
