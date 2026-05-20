@@ -1,4 +1,4 @@
-"""optimizer_pass.py — H4 Agent Optimizer (local pass) + H3 Observability traces.
+"""optimizer_pass.py — H4 LOCAL deterministic optimization pass + H3 traces.
 
 The "we hardened it" measurement (GRAND-NARRATIVE-PLAN §5-1, D50). End to end:
 
@@ -7,19 +7,23 @@ The "we hardened it" measurement (GRAND-NARRATIVE-PLAN §5-1, D50). End to end:
      stall case under the baseline, shaped on `observability.py` span attributes
      (D32).
   3. H4 — build the `ObservedFailure` list from the baseline failures and feed
-     it to the optimizer. Locally we apply the deterministic OPTIMIZED rule set
-     (the live behavior); we also queue the live Vertex Agent Optimizer
-     capability to surface the production path (it returns a stub receipt today
-     — W7-deferred — and we record that honestly).
+     it to the LOCAL deterministic optimization pass (we apply the OPTIMIZED
+     rule set — the live behavior). Separately, we queue the GA Vertex AI Prompt
+     Optimizer (data-driven) capability to surface the production path: in stub
+     mode it returns a deterministic receipt; in live mode it composes + submits
+     a real data-driven-optimizer job (operator-gated). We record this honestly.
   4. Re-run the OPTIMIZED triage → `after` pass-rate; capture the "repaired"
      trace for the same case.
 
 HONEST SCOPE (RULES.md §Professional Honesty, GRAND-NARRATIVE-PLAN §7):
-    The before/after numbers come from THIS in-process pass over the synthetic
-    set, NOT from the live Vertex AI Agent Optimizer. The live optimizer
-    (`agent_optimizer_tune` CAPABILITY_LAYER_MODE=live) raises NotImplementedError
-    (W7-deferred); its STUB queues a deterministic receipt. The capability
-    surface + the ObservedFailure contract are real; the GCP backend is staged.
+    The before/after numbers come from THIS in-process LOCAL deterministic
+    optimization pass over the synthetic set — it emulates the optimize loop
+    offline. It is NOT the GA Vertex AI Prompt Optimizer (data-driven). The GA
+    Prompt Optimizer (`agent_optimizer_tune` CAPABILITY_LAYER_MODE=live) is the
+    production path: its live submission is wired (operator-gated — ADC + a GCS
+    bucket); its STUB (the default here) queues a deterministic receipt. The
+    capability surface + the ObservedFailure contract are real; live submission
+    is operator-gated, not run in CI.
 
 Citations: D23 (Tier-2 M3 optimizer), D25 (learning loop), D32 (observability),
 D5 (models). Uses `agent_optimizer_tune.ObservedFailure` (the optimizer input
@@ -195,13 +199,15 @@ def _trace_for_case(
 def queue_live_optimizer(
     baseline_failures: list[ObservedFailure],
 ) -> AgentOptimizerTuneOutput:
-    """Queue the live Vertex AI Agent Optimizer via the capability surface.
+    """Queue the GA Vertex AI Prompt Optimizer (data-driven) via the capability
+    surface.
 
     This proves the production path exists + accepts the SAME `ObservedFailure`
-    shape our local pass produces. In stub mode (default) it returns a
-    deterministic queued receipt; in live mode it raises NotImplementedError
-    (W7-deferred). We never depend on its OUTPUT for the before/after numbers —
-    those come from the local OPTIMIZED rule set.
+    shape our local pass produces (they become the optimizer's labeled
+    examples). In stub mode (default) it returns a deterministic queued receipt;
+    in live mode it composes + submits a real data-driven-optimizer job
+    (operator-gated — ADC + a GCS bucket). We never depend on its OUTPUT for the
+    before/after numbers — those come from the local OPTIMIZED rule set.
     """
     current_prompt = (
         "conversation_responder system prompt (triage gate). "
@@ -249,9 +255,10 @@ def run_optimizer_pass(
             "honesty_note": (
                 "before/after produced by a LOCAL deterministic optimization "
                 "pass over the synthetic set (test-harness/hardening/"
-                "synthetic_cases.json). The live Vertex AI Agent Optimizer is "
-                "the production path and is STUBBED today "
-                "(agent_optimizer_tune live = NotImplementedError, W7-deferred). "
+                "synthetic_cases.json) — it emulates the optimize loop offline. "
+                "It is NOT the GA Vertex AI Prompt Optimizer (data-driven). The "
+                "GA Prompt Optimizer is the production path "
+                "(agent_optimizer_tune live mode is wired, operator-gated). "
                 "No fabricated metrics: every number here is printed by the "
                 "re-runnable smoke script."
             ),
@@ -292,9 +299,11 @@ def run_optimizer_pass(
             "capability_layer_mode": optimizer_live_mode,
             "queued_receipt": live_receipt.model_dump(by_alias=True),
             "note": (
-                "Production path = Vertex AI Agent Optimizer. The receipt above "
-                "is the deterministic STUB (W7-deferred); live mode raises "
-                "NotImplementedError. Disclosed per RULES.md + §7."
+                "Production path = Vertex AI Prompt Optimizer (data-driven). The "
+                "receipt above is the deterministic STUB (default); live mode "
+                "composes + submits a real data-driven-optimizer job "
+                "(operator-gated — ADC + a GCS bucket). Disclosed per "
+                "RULES.md + §7."
             ),
         },
     }

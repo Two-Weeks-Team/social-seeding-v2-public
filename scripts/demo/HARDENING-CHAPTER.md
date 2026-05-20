@@ -9,8 +9,9 @@
 > every number below is printed by a committed, re-runnable script
 > (`scripts/smoke-test/run-hardening-measure.sh`). Nothing is invented. The
 > measured before/after comes from a **local, deterministic optimization pass**
-> over a synthetic edge-case set. The live Vertex AI Agent Optimizer is the
-> production path and is **stubbed today** (W7-deferred); see "Honest scope".
+> over a synthetic edge-case set that **emulates the optimize loop offline**.
+> The GA **Vertex AI Prompt Optimizer (data-driven)** is the production path;
+> its live submission is **wired (operator-gated)**; see "Honest scope".
 
 ---
 
@@ -39,9 +40,12 @@ We made this measurable and fixed it with the Optimize toolchain, all offline:
   out-of-scope, missing-context, mixed-emotion, across **ko / ja / zh-CN / en**.
 - **Agent Observability (H3)** — captured the stalled reasoning path, then the
   repaired one (`scripts/demo/assets/observability-trace-{stalled,repaired}.json`).
-- **Agent Optimizer (H4)** — turned the baseline failures into the
-  `agent_optimizer_tune.ObservedFailure` contract, applied the improved triage
-  rule, and **re-measured**.
+- **Prompt Optimizer (H4)** — turned the baseline failures into the
+  `agent_optimizer_tune.ObservedFailure` contract (the labeled examples the GA
+  data-driven optimizer consumes), applied the improved triage rule in a local
+  deterministic pass, and **re-measured**. The GA Vertex AI Prompt Optimizer
+  (data-driven) is the production path; its live submission is wired
+  (operator-gated) via the same `agent_optimizer_tune` capability.
 
 ---
 
@@ -124,14 +128,27 @@ renders the stalled graph, then the repaired graph flowing through.
 ## 5. Honest scope (the load-bearing disclosure)
 
 - The before/after numbers are produced by a **local deterministic optimization
-  pass** over the synthetic set — **not** by the live Vertex AI Agent Optimizer.
-- The live Vertex AI Agent Optimizer is the **production path** and is **stubbed
-  today**: `ss_agents.tools.agent_optimizer_tune` in
-  `CAPABILITY_LAYER_MODE=live` raises `NotImplementedError` (W7-deferred). The
-  measurement harness queues the **stub**, which returns a deterministic receipt
-  (`opt-conversation-responder-001`, `queued`) — proving the production
-  capability surface and the `ObservedFailure` input contract are real while the
-  GCP backend connection is staged (GRAND-NARRATIVE-PLAN §7).
+  pass** over the synthetic set that **emulates the optimize loop offline** —
+  it is **not** the GA Vertex AI Prompt Optimizer (data-driven). The local pass
+  demonstrates the before/after offline; the GA Prompt Optimizer is the
+  production path.
+- The GA **Vertex AI Prompt Optimizer (data-driven)** is a **batch / async**
+  optimization job: you give it a labeled example dataset + a target eval metric
+  + the system instruction to improve; it runs an iterative custom job and
+  writes the improved instruction back to a GCS `output_path`
+  ([docs](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/learn/prompts/data-driven-optimizer)).
+- That production path is now **wired (operator-gated)** in
+  `ss_agents.tools.agent_optimizer_tune` (`CAPABILITY_LAYER_MODE=live`): it
+  composes the data-driven-optimizer config (`system_instruction`,
+  `eval_metrics_types`, `input_data_path`, `output_path`, …) from the observed
+  failures + the target metric, uploads it to a GCS bucket, and submits the job
+  via `vertexai.Client.prompt_optimizer.optimize(method=VAPO, …)`. Live runs
+  require the operator to set `VERTEX_PROMPT_OPTIMIZER_GCS_BUCKET`,
+  `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, and ADC — **not run in CI**.
+- The measurement harness (default) queues the **stub**, which returns a
+  deterministic receipt (`opt-conversation-responder-001`, `queued`) — proving
+  the production capability surface and the `ObservedFailure` input contract are
+  real while live submission stays operator-gated (GRAND-NARRATIVE-PLAN §7).
 - The Observability trace artifacts are deterministic, offline renderings of the
   pure triage decision path — **not** captured live Cloud Trace spans. The OTel
   span shape (`observability.py`) is real; live export is the production path.

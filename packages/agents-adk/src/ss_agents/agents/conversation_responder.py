@@ -24,10 +24,12 @@ Citations:
     D23 — Tier-1 agent #5 (Tier-1 #5 in the §4 fleet inventory).
     D25 — Learning loop: the `_OPTIMIZED` triage below is the deterministic,
           locally-runnable analogue of the prompt-rewrite half of D25's loop.
-          The live Vertex AI Agent Optimizer (`agent_optimizer_tune` live mode)
-          is the production path; it is stubbed today (W7-deferred), so the
-          measured before/after in `scripts/demo/HARDENING-CHAPTER.md` comes
-          from this in-process pass over the synthetic set, not from Vertex.
+          The GA Vertex AI Prompt Optimizer (data-driven —
+          `agent_optimizer_tune` live mode) is the production path; its live
+          submission is wired (operator-gated). The measured before/after in
+          `scripts/demo/HARDENING-CHAPTER.md` comes from this in-process LOCAL
+          deterministic optimization pass over the synthetic set, not from the
+          GA Prompt Optimizer.
     D27 — Drafted reply may carry AP2 Intent Mandate disclosure when a
           rate is proposed (escalation path; agent does NOT mint mandates).
     D32 — Observability: `triage_inbound` returns a structured `TriageDecision`

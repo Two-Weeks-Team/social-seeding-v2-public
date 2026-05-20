@@ -22,7 +22,8 @@ Citations:
     D23   — Tier-2 meta agent M3 ("the 1→100 coordinators").
     D25   — Learning loop: "Prompt + Agent Evaluation + Vertex SFT +
             Distillation (Pro→Flash) + RLHF on Agent Simulation". This
-            agent is the "Prompt" entry point.
+            agent is the "Prompt" entry point; its `agent_optimizer.tune`
+            tool drives the GA Vertex AI Prompt Optimizer (data-driven).
     D27   — AP2 Intent Mandate only — human approves the prompt PR before
             merge. The optimizer outputs a *proposal*, never a write.
     D38   — M3 PM agent coordinates the prompt-rewrite DAG at build-time.
@@ -487,10 +488,11 @@ OptimizerAgentOutput = Annotated[
 
 def _format_failure_clusters(rows: list[EvalResultRow]) -> str:
     """Group failures by metric + a 60-char prefix of failure_reason. The
-    optimizer reasons over CLUSTERS, not individual rows — same reduction
-    Agent Optimizer GA uses (AI-AGENTS.md §21: "clusters real-world
-    failures from production traces"). v2 has no precedent here; the
-    pattern is canonical to this Tier-2 agent."""
+    optimizer reasons over CLUSTERS, not individual rows — the same reduction
+    the GA Vertex AI Prompt Optimizer (data-driven) applies when it scores
+    instruction candidates against labeled failure examples (AI-AGENTS.md §21:
+    "clusters real-world failures from production traces"). v2 has no precedent
+    here; the pattern is canonical to this Tier-2 agent."""
     if not rows:
         return "Recent eval results: (none supplied — operate on observed_failure_patterns only)."
     failed = [r for r in rows if not r.passed]
@@ -648,14 +650,17 @@ optimizer_agent_def: AgentDef[OptimizerInput, OptimizerOutput] = AgentDef(
     output_schema=OptimizerOutput,
     system_prompt=build_optimizer_system_prompt,
     # D41 capability layer — optimizer.spec.md §6 (ARCHITECTURE.md §3 row 19)
-    # names `agent_optimizer.tune` (request a Vertex AI prompt-tuning job) and
-    # `prompt_registry.update` (write the optimized prompt) as the M3 tool
-    # surface. Both stubs return deterministic receipts in dev/CI; the live
-    # path raises NotImplementedError until W7 wires real Vertex + Spanner.
+    # names `agent_optimizer.tune` (submit a Vertex AI Prompt Optimizer
+    # data-driven job) and `prompt_registry.update` (write the optimized prompt)
+    # as the M3 tool surface. Both return deterministic receipts in dev/CI
+    # (stub). `agent_optimizer.tune` live mode is wired (operator-gated): it
+    # composes the GA data-driven-optimizer config from observed failures +
+    # the target metric and submits it via google-cloud-aiplatform — see
+    # ss_agents.tools.agent_optimizer_tune for the operator prerequisites.
     #
     # The original "no tools" comment is preserved here as docs — the agent
-    # still reasons over its input, but the two D41 tools let it CALL
-    # Vertex's optimizer when it needs prompt-rewrite proposals, and persist
+    # still reasons over its input, but the two D41 tools let it CALL the
+    # Prompt Optimizer when it needs prompt-rewrite proposals, and persist
     # the winning version when the human-review PR merges.
     tools=[agent_optimizer_tune, prompt_registry_update],
     # Single-turn agent — no self-correction loop. Cap at 3 turns for

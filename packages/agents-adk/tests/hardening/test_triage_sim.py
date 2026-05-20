@@ -158,7 +158,17 @@ class TestOptimizerPassMetrics:
         metrics = run_optimizer_pass()
         note = metrics["live_optimizer"]["note"].lower()
         assert "stub" in note
-        assert "notimplementederror" in metrics["_meta"]["honesty_note"].lower()
+        # Honest scope: numbers come from a LOCAL deterministic optimization
+        # pass, NOT the GA Vertex AI Prompt Optimizer (data-driven). The live
+        # path is wired (operator-gated), not a NotImplementedError stub.
+        honesty = metrics["_meta"]["honesty_note"].lower()
+        assert "local deterministic optimization" in honesty
+        assert "vertex ai prompt optimizer" in honesty
+        assert "operator-gated" in honesty
+        # The misnomer must be gone.
+        assert "agent optimizer" not in honesty
+        assert "agent optimizer" not in note
+        assert "prompt optimizer" in note
 
     def test_metrics_quote_the_fix_rule(self) -> None:
         metrics = run_optimizer_pass()

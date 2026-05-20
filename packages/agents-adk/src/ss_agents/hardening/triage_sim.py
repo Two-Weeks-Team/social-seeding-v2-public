@@ -8,7 +8,8 @@ pass-rate. A "pass" is: the triage's `action` matches the case's
 This is the deterministic, offline analogue of Vertex AI Agent Simulation
 (D25 learning loop); it runs with no LLM, no GCP credentials, no billing — it
 only invokes the pure `triage_inbound` / `_baseline_triage` / `_optimized_triage`
-functions in `ss_agents.agents.conversation_responder`.
+functions in `ss_agents.agents.conversation_responder`. It is NOT the GA Vertex
+AI Prompt Optimizer (that is the production path; see optimizer_pass.py).
 
 Pass either rule set:
     · "baseline"  → `_baseline_triage` (the prompt-only era; misses the stall).
@@ -16,7 +17,8 @@ Pass either rule set:
 
 The failing cases from the baseline run are turned into
 `agent_optimizer_tune.ObservedFailure` records so the Optimizer pass (H4) can
-consume the SAME failure shape the live Vertex Agent Optimizer would.
+consume the SAME failure shape the live Vertex AI Prompt Optimizer
+(data-driven) would (those become its labeled examples).
 
 Citations: D23, D25, D32, D5. GRAND-NARRATIVE-PLAN §5-1 (H2).
 """
@@ -190,7 +192,8 @@ def run_simulation(
 
 def build_observed_failures(report: SimReport) -> list[ObservedFailure]:
     """Turn a simulation report's failures into the SAME `ObservedFailure`
-    shape the live Vertex Agent Optimizer would consume (H4 input).
+    shape the live Vertex AI Prompt Optimizer (data-driven) would consume as
+    labeled examples (H4 input).
 
     Groups failures by the EXPECTED reason tag they should have produced — that
     is the failure family the optimizer needs to learn to handle. The `payload`
