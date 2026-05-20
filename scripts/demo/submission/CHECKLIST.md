@@ -24,6 +24,8 @@
 | G-7 | YouTube video uploaded + processing complete | YouTube Studio | Status = "Unlisted, Processing complete"; thumbnail rendered | D30 |
 | G-8 | Repository visibility per O1 answer | GitHub repo settings | Public OR private-with-judge-access matching the O1 answer | O1 |
 | G-9 | License files exist | `cat LICENSE` | BUSL-1.1 core IP + Apache-2.0 ancillary | D9 |
+| G-10 | **Honest-scope table present** | `scripts/demo/submission/HONEST-SCOPE.md` | 16-row production-vs-shipped table (9 GA-real / 4 operator-deploy / 2 Google-Private-Preview); replaces scattered caveats | W5 / `RULES.md` |
+| G-11 | **Live-deploy artifacts present** | `ls packages/agents-adk/serve.py gcp-research/refactor-mcp/code/Dockerfile terraform/modules/integration/workflows/brand-campaign-demo.workflows.yaml scripts/deploy/DEPLOY-RUNBOOK.md` | all 4 exist → a live Cloud Workflow execution is a ~3-command operator step | W3 / DEPLOY-RUNBOOK |
 
 If any gate is RED, stop and resolve before proceeding. (G-7 is the only one that may legitimately stay pending while the video processes — do not click Submit until it is green.)
 
@@ -40,7 +42,8 @@ Confirm each is still true at submission time — these are the rubric-load-bear
 - [ ] ⑤ **Multi-agent orchestration** — coordinator → a2a_invoke → ss-mcp **inside the brand-campaign Cloud Workflow**, ~3.7s, 5 creators (G-2); 22-agent fleet (D23).
 - [ ] ⑥ **A2A intents documented** — `gcp-research/refactor-mcp/A2A-INTENTS.md` (5 exposed / 2 consumed) (D48).
 - [ ] + **Agent Identity** — SPIFFE `spiffe://ss-mcp-prod.svc.id.goog/...` (`AGENT-IDENTITY.md`) (D48); mTLS declared, enforcement pending O7 (disclose, do not overclaim).
-- [ ] **PDF Build Example #2 match** — `content_verify` ↔ DAM agent callout present (with the honest transport-gap note) (D48/D49).
+- [ ] **PDF Build Example #2 match** — `content_verify → get_brand_assets` is a **real A2A v0.3 hop on `ss-mcp`** (W3, transport-exact); callout present (D48/D49; `HONEST-SCOPE.md` row 9).
+- [ ] **The 5 GA features (W2) referenced** — Cloud Trace spans, Model Armor sanitize, Vertex AI **Prompt Optimizer (data-driven)** (NOT "Agent Optimizer"), Memory Bank (Firestore default), signed agent card (JWS ES256) + JWKS — all real code, offline-tested, live operator-gated (`HONEST-SCOPE.md` rows 1-5).
 
 ## 1b. Grand-narrative (Build → Optimize → Refactor) self-check (D50)
 
@@ -125,6 +128,8 @@ Paste in this order:
 4. `https://github.com/Two-Weeks-Team/social-seeding-v2` (repository, BUSL-1.1 + Apache-2.0)
 5. `scripts/smoke-test/run-hardening-measure.sh` (re-runnable, $0 — prints 40.5% → 100.0% train / 71.4% holdout)
 6. `scripts/smoke-test/run-integration-a2a.sh` (cross-call smoke, exit 0 — ~3.7s, 5 creators)
+7. `scripts/demo/submission/HONEST-SCOPE.md` (the single production-vs-shipped table)
+8. `scripts/deploy/DEPLOY-RUNBOOK.md` (live Cloud Workflow execution — ~3-command operator step)
 
 ---
 
@@ -137,7 +142,10 @@ Paste in this order:
 - [ ] Verify the A2A cross-call number reads **~3.7s, 5 creators**, described as **in the brand-campaign Cloud Workflow** (not just documented).
 - [ ] Verify all three live URLs are exact and resolve (G-3, G-4, G-5).
 - [ ] Verify the Tagline character count is ≤ 200.
-- [ ] Verify the **Honest scope** content is present (local-pass before/after + holdout 71.4% (the honest headline) + Vertex AI Prompt Optimizer wired/operator-gated, mTLS declared not enforced, `ss-mcp-server` heuristic ranker, O7 allowlist pending, Build Example #2 transport gap) — do not silently drop it; honest disclosure is part of the Innovation contribution.
+- [ ] Verify the **Honest scope** content is present and references **`HONEST-SCOPE.md`** as the single production-vs-shipped table (the load-bearing headlines stay inline; the full 16-row table is the linked source) — do not silently drop it; honest disclosure is part of the Innovation contribution.
+- [ ] Verify the **Imagen clarification** is present: the real 1024×1024 image is from the standalone `gen_sample_image.py`; the in-fleet `creative` agent's imagen tool is W7-staged (live = `NotImplementedError`). Do not imply the creative agent generated it live.
+- [ ] Verify the **"Agent Optimizer" misnomer is corrected** everywhere — the GA product is the Vertex AI **Prompt Optimizer (data-driven / VAPO)**; the local deterministic pass demonstrates the before/after, the GA Prompt Optimizer is the production path.
+- [ ] Verify the **5 GA features (W2)** are credited as real-code/offline-tested/live-operator-gated (Cloud Trace, Model Armor, Prompt Optimizer, Memory Bank, signed agent card + JWKS) and the **DAM hop reads as a real A2A v0.3 call** (W3).
 - [ ] Verify the 6-requirement gate table renders (no broken markdown table).
 - [ ] Verify all 10 screenshots upload successfully — confirm the **hero is the train-100%/holdout-71.4% before/after bar** (click each preview to confirm it loads).
 - [ ] Verify the video URL preview shows the YouTube player with the correct thumbnail.
@@ -184,9 +192,10 @@ If Devpost does NOT allow edits after submit (gated-invite events sometimes lock
 - **Keep the three Cloud Run services warm** through the judging window (Cloud Scheduler warm-up cron, D46); they are `min=0` otherwise.
 - **Tag the repo** at the submission SHA: `git tag -a v1.0.0-devpost-submission -m "Frozen at Devpost submission 2026-06-0X"`.
 - **Update `STATUS-REPORT-UNIFIED.md`** with the confirmation URL + final closure note.
-- **Track O7 Gemini Enterprise / Agent Gateway allowlist** weekly until it clears.
+- **Track O7 Gemini Enterprise / Agent Gateway allowlist** weekly until it clears (Gemini Enterprise enrollment is on Google's 1-2 week window; Agent Gateway mTLS is in Google Private Preview).
+- **Capture a live Cloud Workflow execution** via `scripts/deploy/DEPLOY-RUNBOOK.md` (~3-command operator step) if a judge asks for the live deploy beyond the offline proofs.
 - **Track O10 foreign sub-entity** decision per the $1k MRR trigger.
-- **Resolve O-A..O-E** to promote `ss-mcp-server` from stub mode to the full multi-container topology.
+- **Resolve O-A..O-E** to promote `ss-mcp-server` from the heuristic ranker to the full multi-container topology (`HONEST-SCOPE.md` row 8).
 
 ---
 

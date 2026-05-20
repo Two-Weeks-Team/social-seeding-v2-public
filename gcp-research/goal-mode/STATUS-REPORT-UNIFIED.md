@@ -1,6 +1,8 @@
 # STATUS-REPORT-UNIFIED.md — 단일 Track 3 제출 통합 진행 보고
 
-> 자율 `/goal` 세션. 갱신: 2026-05-20. 상태: **✅ GOAL ACHIEVED** — I1~I9 + 대서사 갭클로징 G1~G5·H1~H5 전부 완료 · Track 3 6요건 충족 · Grand Prize 정조준 · 운영자 잔여만 남음.
+> 자율 `/goal` 세션. 갱신: 2026-05-20. 상태: **✅ GOAL ACHIEVED** — I1~I9 + 대서사 갭클로징 G1~G5·H1~H5 + **시너지 완성 W1~W5** 전부 완료 · Track 3 6요건 충족 · Grand Prize 정조준 · 운영자 잔여만 남음.
+>
+> **시너지 완성 W1-W5 (SYNERGY-COMPLETION-PLAN, 2026-05-20)**: W1 데모가 실 campaign-canvas(React-Flow) 구동 + 워터마크 · W2 GA agent 기능 5종 실연결(Observability→Cloud Trace · Model Armor sanitize · GA Prompt Optimizer 재배선 · 관리형 Memory Bank · A2A signed card JWS) · W3 content_verify→DAM 진짜 A2A hop(Build Example #2 transport-exact) + holdout 71.4%(56케이스/14 adversarial, 28.6pp gap, 미튜닝) + 라이브 배포 아티팩트(serve.py+demo workflow+RUNBOOK) · W4 ROI-vs-agency(99.7% 절감, TAM $1.15B 인용) + OSS A2A-only 분배 템플릿(verify.sh pass) · W5 HONEST-SCOPE 표(16행: 9 GA-real / 4 operator-deploy / 2 Google-gated). pytest **2925** green · verify-build green · GCP ~$1-5/mo. 모든 real 주장 = 재실행 가능 증거; Google-gated는 신청+공개(미조작).
 
 ---
 

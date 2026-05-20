@@ -26,10 +26,12 @@
 >
 > **Companion files**: `STORYBOARD-track2.md`, `STORYBOARD-track3.md` (per-surface mouse manuals this
 > arc threads together), `HARDENING-CHAPTER.md` (the Optimize chapter source — H1-H4 + honest scope),
-> `web-demo/index.html` (the no-FFmpeg interactive replacement — 24 scenes, the render engine),
-> `web-demo/wow-business.html` (the D49 surface: real Imagen 4 + animated A2A cross-call + ROI/TAM +
-> Build Example #2), `gcp-research/refactor-mcp/A2A-INTENTS.md` (the cross-call source-of-truth §4 +
-> Build Example #2 §5).
+> `web-demo/index.html` (the no-FFmpeg interactive replacement — drives the **REAL Mission Control
+> campaign-canvas** with the stall→repair on the real outreach node and an honest "Illustrative mock"
+> watermark, W1), `web-demo/wow-business.html` (the D49 surface: real Imagen 4 + animated A2A
+> cross-call + ROI/TAM + Build Example #2), `gcp-research/refactor-mcp/A2A-INTENTS.md` (the cross-call
+> source-of-truth §4 + Build Example #2 §5), and `submission/HONEST-SCOPE.md` (the single
+> production-vs-shipped table — every honest-scope caption in this storyboard links there).
 
 ---
 
@@ -182,7 +184,7 @@ either old track file — it is the Optimize/Track-2 hardening work, folded into
 |---|---|
 | **Real / 8×** | ~120 s / ~15 s |
 | **D29 angle** | **D29-A + D29-C** — `triage_inbound` is a typed deterministic function (D29-A); the failing input is a multilingual, mixed-emotion creator reply (D29-C) |
-| **Surface** | `web-demo` (Observability panel) → renders `scripts/demo/assets/observability-trace-{stalled,repaired}.json` + the `hardening-before-after.json` bar |
+| **Surface** | the interactive demo drives the **REAL Mission Control campaign-canvas** (the React-Flow flowchart recreated) — the **stall→repair happens ON the real outreach node**, with an honest **"Illustrative mock" watermark** (W1); the Observability panel renders `scripts/demo/assets/observability-trace-{stalled,repaired}.json` + the `hardening-before-after.json` bar |
 | **Source of truth** | `HARDENING-CHAPTER.md` §1-§4; `scripts/smoke-test/run-hardening-measure.sh` |
 | **Build Example #2 link** | none (this is the reliability beat the Guide's "production-ready" framing asks for) |
 
@@ -254,15 +256,20 @@ diagram.
 | **Surface** | `web-demo` Track 3 · Scene 4 (deploy/config view) + the requirement-gate cards |
 | **On-screen callout** | "LLM reasoning routes through Model Garden `publishers/google/models/<id>` (req ③, D47) · Agent Identity SPIFFE `spiffe://ss-mcp-prod.svc.id.goog/ns/agents/sa/tiktok-mcp-runner` (D48)" |
 
-The deploy/config surface shows two enterprise-readiness facts: LLM reasoning routes through the
+The deploy/config surface shows the enterprise-readiness facts: LLM reasoning routes through the
 **Vertex AI Model Garden** publisher path (`publishers/google/models/...`) — proven by an offline
 test asserting the publisher path reaches the model layer (live smoke operator-gated, req ③, D47) —
 and each agent carries a cryptographic **Agent Identity**: SPIFFE
-`spiffe://ss-mcp-prod.svc.id.goog/ns/agents/sa/tiktok-mcp-runner` (D48).
+`spiffe://ss-mcp-prod.svc.id.goog/ns/agents/sa/tiktok-mcp-runner` (D48). The same surface surfaces the
+**5 GA features made genuinely real this round (W2)** — Agent Observability → Cloud Trace spans in
+`run_agent`, Model Armor GA sanitize on the A2A path, the Vertex AI **Prompt Optimizer (data-driven)**
+production path (NOT a GA "Agent Optimizer" — that misnomer is corrected), the managed Vertex AI
+Memory Bank backend (Firestore default), and the A2A v0.3 **signed agent card (JWS ES256) + JWKS**.
 
-**Honest-scope caption (on screen)**: *"mTLS is **declared** but not yet enforced on this demo
-(enforcement pending O7); the SPIFFE workload identity and the Model Garden publisher path are real,
-the live smokes are operator-gated."*
+**Honest-scope caption (on screen)**: *"The 5 GA features are real code, offline-tested; live runs are
+operator-gated. mTLS is **declared** but not yet enforced on this demo (Agent Gateway mTLS is in
+Google Private Preview, O7); the SPIFFE workload identity and the Model Garden publisher path are
+real. Full production-vs-shipped split in `scripts/demo/submission/HONEST-SCOPE.md`."*
 
 > Detailed mouse sequence: `STORYBOARD-track3.md` Scene 4 (unchanged).
 
@@ -351,10 +358,14 @@ test-account-only). Each draft carries an attached image — the multimodal chan
 | **Build Example #2 link** | `content_verify` is the agent the Guide's "on-brand and compliant" verdict maps to (see Coda U11) |
 
 The `content_verify` agent confirms delivery and live view counts; the per-view cost ticker
-($0.01 × views, D28) updates live. The demo then jumps to `wow-business.html#roi`: the worked example
-($380 budget → 38,000 verified views → $380 billed @ $0.01/view, $10 eCPM), the "no view, no charge"
-framing, and the **TAM/SAM/SOM** napkin (every figure sourced or explicitly labelled an internal
-assumption). **This is the Business-30% surface** the demo previously lacked (D49(c)).
+($0.01 × views, D28) updates live. The demo then jumps to `wow-business.html#roi`: the ROI-vs-agency
+headline — same 20-creator KR skincare campaign costs an agency **≈ $2,400 mgmt fee + ~45 ops hours**
+vs **≈ $7.40 GCP cost-of-goods + ~2 hours** → a **99.7% reduction in the management-fee line** and
+**~43 human-hours saved** — the "no view, no charge" framing, and the **TAM/SAM/SOM** model
+(**TAM ≈ $1.15B** software/platform segment / **SAM ≈ $144M** / **SOM ≈ $540k ARR**; every figure
+sourced [CITED], formula-shown [DERIVED], or labelled an explicit [ASSUMPTION], per `BUSINESS-CASE.md`).
+The design-partner program is **OPEN with zero validated signups (pre-launch)** — stated honestly.
+**This is the Business-30% surface** the demo previously lacked (D49(c)).
 
 > Detailed mouse sequence: `STORYBOARD-track2.md` Scene 7 (unchanged); ROI/TAM panel: `wow-business.html`.
 
@@ -387,23 +398,27 @@ opened.
 | **Surface** | `web-demo` Track 2 · Scene 12 (smoke) → `wow-business.html#build-example-2` + `#multimodal` |
 | **Build Example #2 link** | **the explicit 1:1 callout** (D48/D49(d)) |
 
-The canary streams `PASS — 22/22 agents · 0 failures`; the broader suite is **2832 pytest cases
-passing**, `verify-build` green. Then the demo lands on `wow-business.html#build-example-2`: the
-verbatim quote from `designed_guide.pdf` p.7 (the marketing agent that uses A2A to reach a DAM agent
-for approved brand logos) mapped element-for-element onto our **`content_verify`** agent + its
-**`vision.brand_logo_detect`** capability.
+The canary streams `PASS — 22/22 agents · 0 failures`; the broader suite is **2925 pytest cases
+passing** (`packages/agents-adk`), `verify-build` green. Then the demo lands on
+`wow-business.html#build-example-2`: the verbatim quote from `designed_guide.pdf` p.7 (the marketing
+agent that uses A2A to reach a DAM agent for approved brand logos) mapped element-for-element onto our
+**`content_verify`** agent — which reaches brand assets via the **`get_brand_assets` A2A v0.3 hop on
+`ss-mcp`** (W3) and verifies them with its **`vision.brand_logo_detect`** capability.
 
 **On-screen callout (must appear)**: **"Official Guide Build Example #2 = our `content_verify` ↔ DAM
-(brand-logo / on-brand verification) — 1:1 match."**
+(brand-logo / on-brand verification) — 1:1 match, over a real A2A v0.3 hop."**
 
-**Honest-scope caption (on screen)**: *"Today `content_verify` reaches the brand-asset check via an
-in-process ADK FunctionTool, not yet an A2A hop to a separately-deployed DAM agent. The roles map
-1:1; promoting it to a standalone A2A-addressable DAM agent is the same lift as the U6
-live-wiring."*
+**Honest-scope caption (on screen)**: *"After W3, `content_verify` reaches the brand assets via the
+**`get_brand_assets` A2A v0.3 hop on `ss-mcp`** — Build Example #2 is transport-exact, not a local
+stand-in. The remaining roadmap step is promoting `get_brand_assets` to a separately-deployed,
+independently-scaled DAM agent (HONEST-SCOPE.md row 9)."*
 
 Adjacent, `#multimodal` shows the **one real Imagen 4 generation** (`imagen-4.0-generate-001`, 1:1
-**1024×1024, 950 KB**, NOT a stub) — the multimodal channel the Build Example #2 marketing agent
-needs (D49(a)). GCP cost envelope on screen: **~$1-5/mo** (all Cloud Run `min=0`).
+**1024×1024, 950 KB**, NOT a stub) from the **standalone `scripts/demo/gen_sample_image.py` script**
+(D49(a)). **Honest-scope caption (on screen)**: *"The real image is from the standalone script; the
+in-fleet `creative` agent's `imagen.generate` tool is W7-staged (live = `NotImplementedError`) — a
+judge running the creative agent live will hit the stub (HONEST-SCOPE.md row 10)."* GCP cost envelope
+on screen: **~$1-5/mo** (all Cloud Run `min=0`).
 
 > Detailed mouse sequence: `STORYBOARD-track2.md` Scene 12 (unchanged); panels in `wow-business.html`.
 
