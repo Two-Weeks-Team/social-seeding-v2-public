@@ -92,9 +92,24 @@
   table.ledger td { padding: 7px 8px; border-bottom: 1px solid #16253e; }
   table.ledger td.num { text-align: right; font-variant-numeric: tabular-nums; }
   @media (max-width: 900px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  /* persistent honesty badge — this page mixes LIVE-measured artifacts (Imagen 4,
+     the 318 ms A2A round-trip) with illustrative/derived figures (ROI/TAM). Make
+     that explicit on-screen; the re-runnable proof is the smoke harness. */
+  #ws-watermark {
+    position: fixed; right: 14px; bottom: 14px; z-index: 200;
+    background: rgba(15,23,42,0.9); color: #cbd5e1;
+    border: 1px solid rgba(148,163,184,0.35); border-radius: 8px;
+    padding: 6px 11px; font-size: 11px; font-weight: 600; line-height: 1.35;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4); max-width: 340px;
+  }
+  #ws-watermark code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10px; color: #93c5fd; }
+  #ws-watermark .live { color: #6ee7a8; }
 </style>
 </head>
 <body>
+<div id="ws-watermark" role="note">
+  <span class="live">Live-measured</span> (Imagen 4 · 318 ms A2A) + illustrative figures · proof via <code>/scripts/smoke-test</code>
+</div>
 <div class="wrap">
 
   <header class="page">
