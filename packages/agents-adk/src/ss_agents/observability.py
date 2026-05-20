@@ -115,6 +115,29 @@ def agent_span(
         yield span
 
 
+@contextlib.contextmanager
+def llm_child_span(*, model: str, agent_id: str) -> Iterator[Any]:
+    """Child span for one LLM call — `llm:{model}`, nested under `agent:{id}`.
+
+    Per the module docstring the agent span owns a child span per LLM call. The
+    live ADK path also emits its own model-call spans via callback-driven
+    instrumentation that inherits this provider's context (ADK auto-instrumentation
+    is GA — OpenInference `GoogleADKInstrumentor` / Phoenix `register`); this hook
+    gives the stub/offline path the same minimal span tree so traces look the
+    same shape in dev and prod. No-op when tracing is disabled.
+
+    Yields the child span (or None). Must be entered *inside* an active
+    `agent_span` so it parents correctly.
+    """
+    if _TRACER is None:
+        yield None
+        return
+    with _TRACER.start_as_current_span(f"llm:{model}") as span:
+        span.set_attribute("llm.model", model)
+        span.set_attribute("agent.id", agent_id)
+        yield span
+
+
 def record_outcome(span: Any, *, kind: str, usd_spent: float) -> None:
     """Stamp the span with the final outcome. No-op when span is None."""
     if span is None:
@@ -123,4 +146,4 @@ def record_outcome(span: Any, *, kind: str, usd_spent: float) -> None:
     span.set_attribute("agent.usd_spent", float(usd_spent))
 
 
-__all__ = ["agent_span", "record_outcome", "setup_observability"]
+__all__ = ["agent_span", "llm_child_span", "record_outcome", "setup_observability"]

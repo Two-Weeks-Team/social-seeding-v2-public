@@ -139,6 +139,58 @@ The scaffolding decisions made for `intake` (Pydantic schema mirroring,
 `InMemoryRunner` wrapping, OTel span shape, cost-guard callback ordering) are
 locked in here so the remaining 15 Tier-1 ports are template-driven.
 
+## Agent observability → Cloud Trace (D31 SLO · D32 Monitoring + SIEM)
+
+Every `run_agent` invocation is wrapped in an OpenTelemetry span. The wiring
+lives in `observability.py` (`setup_observability` / `agent_span` /
+`record_outcome`) and is called from `runtime.run_agent`.
+
+Each invocation emits one parent span `agent:{id}` carrying:
+
+| attribute | value |
+|---|---|
+| `agent.id` | the `AgentDef.id` |
+| `agent.model` | declared short Gemini id (`AgentDef.model`) |
+| `agent.tenant_id` / `agent.workspace_id` / `agent.trace_id` | from `RunContext` |
+| `agent.usd_spent` | cost of this invocation |
+| `agent.outcome` | `"ok"` on success, `"escalate"` on every escalation path |
+
+Plus a child span `llm:{model}` per model call (the offline/stub path emits a
+minimal one; the live ADK path additionally inherits ADK's own GA
+auto-instrumentation — OpenInference `GoogleADKInstrumentor` / Phoenix `register`
+— into the same provider context).
+
+**Default = off.** `SS_OTEL_ENABLED=false` (the test/dev default) takes a no-op
+path: `agent_span` yields `None`, `record_outcome(None, …)` is a no-op, zero
+overhead, nothing exported. The offline span shape is asserted deterministically
+in `tests/runtime/test_observability_spans.py` with an in-memory exporter — no
+GCP creds.
+
+### Capturing a LIVE trace (operator-gated)
+
+The spans are real and Cloud-Trace-*exportable* today (`setup_observability`
+wires `BatchSpanProcessor(CloudTraceSpanExporter(project_id=…))` from
+`opentelemetry-exporter-gcp-trace`). Producing a trace that actually lands in
+Cloud Trace is an operator step because it costs real GCP API calls + needs ADC:
+
+```bash
+# 1. Authenticate (Application Default Credentials).
+gcloud auth application-default login
+
+# 2. Turn export on + point at the project.
+export SS_OTEL_ENABLED=true
+export GOOGLE_CLOUD_PROJECT=<your-project>
+export GOOGLE_CLOUD_LOCATION=us-central1   # optional; used as resource label
+
+# 3. Run any live agent invocation (e.g. the model-garden smoke), then view it:
+#    https://console.cloud.google.com/traces/list?project=<your-project>
+```
+
+If `opentelemetry-exporter-gcp-trace` is unavailable in a minimal image,
+`setup_observability` falls back to `ConsoleSpanExporter` so traces still print
+locally. The IAM scope required for Cloud Trace ingestion is
+`roles/cloudtrace.agent`.
+
 ## What this package does NOT do (yet)
 
 - **No Cloud Run wrapper** — Phase 3 adds `apps/agents-runner/` (FastAPI) that
