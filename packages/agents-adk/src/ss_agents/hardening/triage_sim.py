@@ -46,6 +46,21 @@ RuleSet = Literal["baseline", "optimized"]
 """Which triage to run. `optimized` exercises the agent's LIVE behavior
 (`triage_inbound` delegates to `_optimized_triage`)."""
 
+Subset = Literal["all", "train", "holdout"]
+"""Which slice of the synthetic set to score (D25, D37):
+
+  · train    → the cases the `_optimized_triage` rules were authored against.
+  · holdout  → the ADVERSARIAL slice carved out AFTER the rules were written and
+               NOT used to design them. Measures GENERALIZATION (not memorization);
+               the optimized triage does well but NOT perfectly here, on purpose.
+  · all      → train + holdout (the full set).
+
+A case's slice is its `split` field (default "train" when absent — the original
+26 cases predate the split and are all train)."""
+
+DEFAULT_SPLIT = "train"
+"""Cases without an explicit `split` are treated as train (the original set)."""
+
 # Map a rule-set name to its pure triage function. `optimized` points at the
 # public `triage_inbound` to prove the measured "after" IS the live behavior.
 _RULE_SETS: dict[RuleSet, Callable[[ConversationTurnInput, OutreachFacts], TriageDecision]] = {
@@ -68,6 +83,7 @@ class CaseResult:
     case_id: str
     category: str
     locale: str
+    split: str
     expected_decision: TriageAction
     expected_reason_tag: TriageReasonTag
     actual_decision: TriageAction
@@ -79,6 +95,7 @@ class CaseResult:
             "case_id": self.case_id,
             "category": self.category,
             "locale": self.locale,
+            "split": self.split,
             "expected_decision": self.expected_decision,
             "expected_reason_tag": self.expected_reason_tag,
             "actual_decision": self.actual_decision,
@@ -94,6 +111,7 @@ class SimReport:
     rule_set: RuleSet
     total: int
     passed: int
+    subset: Subset = "all"
     results: list[CaseResult] = field(default_factory=list)
 
     @property
@@ -107,6 +125,7 @@ class SimReport:
     def to_dict(self) -> dict[str, Any]:
         return {
             "rule_set": self.rule_set,
+            "subset": self.subset,
             "total": self.total,
             "passed": self.passed,
             "pass_rate": round(self.pass_rate, 4),
@@ -118,8 +137,19 @@ class SimReport:
         }
 
 
-def load_cases(path: str | Path = DEFAULT_CASES_PATH) -> list[dict[str, Any]]:
-    """Load the synthetic edge-case set. Raises if malformed."""
+def case_split(case: dict[str, Any]) -> str:
+    """Return a case's slice (`train`/`holdout`), defaulting to train when the
+    `split` field is absent (the original 26 cases predate the split)."""
+    return str(case.get("split", DEFAULT_SPLIT))
+
+
+def load_cases(
+    path: str | Path = DEFAULT_CASES_PATH, *, subset: Subset = "all"
+) -> list[dict[str, Any]]:
+    """Load the synthetic edge-case set, optionally filtered to one slice.
+
+    Raises if malformed or if the requested `subset` is empty (so a typo / a
+    dropped holdout block fails loudly instead of silently scoring 0 cases)."""
     p = Path(path)
     with p.open("r", encoding="utf-8") as f:
         doc = json.load(f)
@@ -128,6 +158,10 @@ def load_cases(path: str | Path = DEFAULT_CASES_PATH) -> list[dict[str, Any]]:
     cases = doc["cases"]
     if not isinstance(cases, list) or not cases:
         raise ValueError(f"{p}: `cases` must be a non-empty list")
+    if subset != "all":
+        cases = [c for c in cases if case_split(c) == subset]
+        if not cases:
+            raise ValueError(f"{p}: no cases in subset {subset!r}")
     return cases
 
 
@@ -147,18 +181,32 @@ def run_simulation(
     rule_set: RuleSet,
     cases: list[dict[str, Any]] | None = None,
     *,
+    subset: Subset = "all",
     cases_path: str | Path = DEFAULT_CASES_PATH,
 ) -> SimReport:
-    """Run `rule_set` over the synthetic set and score it.
+    """Run `rule_set` over a `subset` of the synthetic set and score it.
 
     A case passes iff BOTH the action and the reason tag match the expected
     values. (Matching only the action would let a right-answer-for-the-wrong-
     reason slip through — a real risk for the rate-signal cases.)
+
+    `subset` selects the slice (D25, D37):
+      · "all"     → train + holdout (the full set; default).
+      · "train"   → the cases the optimized rules were authored against.
+      · "holdout" → the adversarial generalization slice (NOT used to design the
+                    rules). The optimized triage scores < 100% here on purpose.
+
+    When `cases` is passed explicitly the caller owns the slicing and `subset`
+    only labels the report (no re-filtering — so a pre-filtered list isn't
+    double-filtered).
     """
     if rule_set not in _RULE_SETS:
         raise ValueError(f"unknown rule_set {rule_set!r}; expected one of {list(_RULE_SETS)}")
     rule_fn = _RULE_SETS[rule_set]
-    raw_cases = cases if cases is not None else load_cases(cases_path)
+    if cases is not None:
+        raw_cases = cases
+    else:
+        raw_cases = load_cases(cases_path, subset=subset)
 
     results: list[CaseResult] = []
     for case in raw_cases:
@@ -174,6 +222,7 @@ def run_simulation(
                 case_id=case["id"],
                 category=case.get("category", "uncategorized"),
                 locale=case["input"].get("locale", "?"),
+                split=case_split(case),
                 expected_decision=expected_decision,
                 expected_reason_tag=expected_reason,
                 actual_decision=decision.action,
@@ -186,6 +235,7 @@ def run_simulation(
         rule_set=rule_set,
         total=len(results),
         passed=sum(1 for r in results if r.passed),
+        subset=subset,
         results=results,
     )
 
@@ -225,10 +275,13 @@ def build_observed_failures(report: SimReport) -> list[ObservedFailure]:
 
 __all__ = [
     "DEFAULT_CASES_PATH",
+    "DEFAULT_SPLIT",
     "CaseResult",
     "RuleSet",
     "SimReport",
+    "Subset",
     "build_observed_failures",
+    "case_split",
     "load_cases",
     "run_simulation",
 ]

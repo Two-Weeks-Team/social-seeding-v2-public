@@ -222,36 +222,67 @@ def queue_live_optimizer(
     return agent_optimizer_tune(tune_input)
 
 
+def _slice_metrics(report: SimReport) -> dict[str, Any]:
+    """Serialize one SimReport slice into the metrics-artifact shape."""
+    return {
+        "rule_set": report.rule_set,
+        "subset": report.subset,
+        "total": report.total,
+        "passed": report.passed,
+        "pass_rate": round(report.pass_rate, 4),
+        "pass_rate_pct": round(report.pass_rate * 100, 1),
+        "failed_case_ids": [r.case_id for r in report.failures],
+        "by_category_failures": dict(report.to_dict()["by_category_failures"]),
+    }
+
+
 def run_optimizer_pass(
     *, cases_path: str | Path = DEFAULT_CASES_PATH
 ) -> dict[str, Any]:
-    """Run the full before/after measurement. Returns the metrics dict that is
-    serialized to scripts/demo/assets/hardening-before-after.json.
+    """Run the full before/after measurement WITH an anti-overfit holdout split
+    (H5). Returns the metrics dict serialized to
+    scripts/demo/assets/hardening-before-after.json.
+
+    The honest headline is three numbers, not one:
+      · before  — baseline triage on the TRAIN slice (the "before").
+      · after   — optimized triage on the TRAIN slice (the "after", ≈ memorized).
+      · holdout — optimized triage on the ADVERSARIAL HOLDOUT slice, which was
+        NOT used to author the rules. This is the GENERALIZATION number; it is
+        deliberately < 100% (the rate-signal rule keys on the STRUCTURED
+        proposed_rate_usd field, so obfuscated / unextracted / mid-thread /
+        sarcastic rate cases legitimately slip through). The train↔holdout gap
+        is left visible — we report generalization, not memorization.
 
     No LLM, no GCP, no billing — pure functions over the synthetic set.
     """
-    cases = load_cases(cases_path)
+    train_cases = load_cases(cases_path, subset="train")
+    holdout_cases = load_cases(cases_path, subset="holdout")
 
-    # 1. H2 — baseline pass-rate (the "before").
-    before: SimReport = run_simulation("baseline", cases)
-    # 4. re-measure with the optimized (live) rule set (the "after").
-    after: SimReport = run_simulation("optimized", cases)
+    # 1. H2 — baseline pass-rate on the TRAIN slice (the "before").
+    before: SimReport = run_simulation("baseline", train_cases, subset="train")
+    # 4. re-measure on TRAIN with the optimized (live) rule set (the "after").
+    after_train: SimReport = run_simulation("optimized", train_cases, subset="train")
+    # H5 — the optimized rule set on the HELD-OUT slice (generalization).
+    holdout: SimReport = run_simulation("optimized", holdout_cases, subset="holdout")
 
-    # 3. H4 — build the optimizer input from baseline failures, queue live stub.
+    # 3. H4 — build the optimizer input from TRAIN baseline failures, queue stub.
     observed_failures = build_observed_failures(before)
     live_receipt = queue_live_optimizer(observed_failures)
     optimizer_live_mode = os.getenv("CAPABILITY_LAYER_MODE", "stub")
 
-    delta_pp = round((after.pass_rate - before.pass_rate) * 100, 1)
+    delta_pp = round((after_train.pass_rate - before.pass_rate) * 100, 1)
+    generalization_gap_pp = round(
+        (after_train.pass_rate - holdout.pass_rate) * 100, 1
+    )
 
     return {
         "_meta": {
             "purpose": (
-                "H4 before/after metrics — conversation_responder triage "
-                "hardening. Produced by ss_agents.hardening.optimizer_pass; "
+                "H4/H5 before/after + holdout metrics — conversation_responder "
+                "triage hardening. Produced by ss_agents.hardening.optimizer_pass; "
                 "re-run via scripts/smoke-test/run-hardening-measure.sh."
             ),
-            "authority": "GRAND-NARRATIVE-PLAN.md §5-1 (H4) + §2 arc; D50.",
+            "authority": "GRAND-NARRATIVE-PLAN.md §5-1 (H4, H5) + §2 arc; D50. D25, D37.",
             "honesty_note": (
                 "before/after produced by a LOCAL deterministic optimization "
                 "pass over the synthetic set (test-harness/hardening/"
@@ -260,34 +291,48 @@ def run_optimizer_pass(
                 "GA Prompt Optimizer is the production path "
                 "(agent_optimizer_tune live mode is wired, operator-gated). "
                 "No fabricated metrics: every number here is printed by the "
-                "re-runnable smoke script."
+                "re-runnable smoke script. ANTI-OVERFIT: the after (train) number "
+                "is measured on the SAME cases the optimized rules were authored "
+                "against, so it is expectedly high; the holdout number is the "
+                "honest GENERALIZATION result on an adversarial slice the rules "
+                "never saw — it is below the train number ON PURPOSE, and the "
+                "misses were NOT tuned away (that would defeat the holdout)."
             ),
             "agent_id": _AGENT_ID,
             "model": RESPONDER_MODEL,
             "target_metric": _TARGET_METRIC,
+            "split_design": (
+                "TRAIN = the patterns the _optimized_triage rules were authored "
+                "against. HOLDOUT = an adversarial slice carved out AFTER the "
+                "rules were written (obfuscated 'comp', rate only in free text the "
+                "extractor missed, mid-thread rate, sarcasm, follower-count "
+                "false-positive bait, code-switching, non-USD locale rate forms) "
+                "and NOT used to design them. Measures generalization, not "
+                "memorization."
+            ),
             "generated_at_utc": dt.datetime.now(dt.UTC).isoformat(),
         },
-        "before": {
-            "rule_set": "baseline",
-            "total": before.total,
-            "passed": before.passed,
-            "pass_rate": round(before.pass_rate, 4),
-            "pass_rate_pct": round(before.pass_rate * 100, 1),
-            "failed_case_ids": [r.case_id for r in before.failures],
-            "by_category_failures": dict(before.to_dict()["by_category_failures"]),
-        },
-        "after": {
-            "rule_set": "optimized",
-            "total": after.total,
-            "passed": after.passed,
-            "pass_rate": round(after.pass_rate, 4),
-            "pass_rate_pct": round(after.pass_rate * 100, 1),
-            "failed_case_ids": [r.case_id for r in after.failures],
-            "by_category_failures": dict(after.to_dict()["by_category_failures"]),
-        },
+        "before": _slice_metrics(before),
+        "after": _slice_metrics(after_train),
+        "holdout": _slice_metrics(holdout),
         "delta_pp": delta_pp,
+        "generalization_gap_pp": generalization_gap_pp,
         "headline": (
-            f"{round(before.pass_rate * 100, 1)}% → {round(after.pass_rate * 100, 1)}%"
+            f"{round(before.pass_rate * 100, 1)}% → "
+            f"{round(after_train.pass_rate * 100, 1)}% (train); "
+            f"holdout {round(holdout.pass_rate * 100, 1)}%"
+        ),
+        "holdout_honest_finding": (
+            f"On the held-out adversarial slice the optimized triage scores "
+            f"{holdout.passed}/{holdout.total} = "
+            f"{round(holdout.pass_rate * 100, 1)}% — a "
+            f"{generalization_gap_pp} pp train↔holdout gap. The "
+            f"{len(holdout.failures)} misses "
+            f"({', '.join(r.case_id for r in holdout.failures)}) are negotiation "
+            "intents with NO structured proposed_rate_usd (obfuscated / "
+            "unextracted / mid-thread / sarcastic); the rate-signal rule reads the "
+            "structured field, so it does not catch them. We left them as misses "
+            "rather than tuning the rule to memorize the holdout."
         ),
         "triage_fix_rule": TRIAGE_FIX_RULE,
         "stall_case_id": STALL_CASE_ID,

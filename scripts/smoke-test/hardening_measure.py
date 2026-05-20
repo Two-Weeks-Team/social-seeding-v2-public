@@ -67,27 +67,50 @@ def main() -> int:
 
     before = metrics["before"]
     after = metrics["after"]
+    holdout = metrics["holdout"]
+    total_cases = before["total"] + holdout["total"]
 
     print("=" * 68)
-    print(" H2/H3/H4 — conversation_responder triage hardening (offline)")
+    print(" H2/H3/H4/H5 — conversation_responder triage hardening (offline)")
     print("=" * 68)
-    print(f"  synthetic cases : {before['total']}")
+    print(
+        f"  synthetic cases : {total_cases} "
+        f"(train {before['total']} / holdout {holdout['total']})"
+    )
     print(f"  stall case      : {metrics['stall_case_id']}")
     print(f"  target metric   : {metrics['_meta']['target_metric']}")
     print("-" * 68)
     print(
-        f"  BEFORE (baseline triage)  : "
+        f"  BEFORE (baseline, train)   : "
         f"{before['passed']}/{before['total']} = {before['pass_rate_pct']}%"
     )
     print(f"    failed cases: {before['failed_case_ids']}")
     print(
-        f"  AFTER  (optimized triage) : "
+        f"  AFTER  (optimized, train)  : "
         f"{after['passed']}/{after['total']} = {after['pass_rate_pct']}%"
     )
     print(f"    failed cases: {after['failed_case_ids']}")
+    print(
+        f"  HOLDOUT (optimized, unseen): "
+        f"{holdout['passed']}/{holdout['total']} = {holdout['pass_rate_pct']}%"
+        "   <-- honest generalization number"
+    )
+    print(f"    failed cases: {holdout['failed_case_ids']}")
     print("-" * 68)
-    print(f"  RESULT          : {metrics['headline']}  (+{metrics['delta_pp']} pp)")
+    print(
+        f"  RESULT          : {metrics['headline']}  "
+        f"(train +{metrics['delta_pp']} pp; train↔holdout gap "
+        f"{metrics['generalization_gap_pp']} pp)"
+    )
     print(f"  fix rule        : {metrics['triage_fix_rule']}")
+    print("-" * 68)
+    print("  anti-overfit    : holdout slice was NOT used to author the triage")
+    print(
+        f"                    rules; its {len(holdout['failed_case_ids'])} misses "
+        "are negotiation intents with no"
+    )
+    print("                    structured proposed_rate_usd — left as misses, not")
+    print("                    tuned away (that would defeat the holdout).")
     print("-" * 68)
     lo = metrics["live_optimizer"]
     print(
@@ -95,12 +118,15 @@ def main() -> int:
         f"→ receipt {lo['queued_receipt']}"
     )
     print(
-        "  honest scope    : before/after = LOCAL deterministic pass over the "
-        "synthetic set;"
+        "  honest scope    : before/after/holdout = LOCAL deterministic pass over"
     )
     print(
-        "                    live Vertex AI Agent Optimizer is the production "
-        "path (stubbed today, W7-deferred = NotImplementedError)."
+        "                    the synthetic set; live Vertex AI Prompt Optimizer "
+        "(data-driven)"
+    )
+    print(
+        "                    is the production path (wired, operator-gated; not "
+        "run in CI)."
     )
     print("-" * 68)
     print("  artifacts written:")

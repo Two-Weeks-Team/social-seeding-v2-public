@@ -5,7 +5,7 @@
     "honesty_note": "Span attributes mirror ss_agents.observability.agent_span (D32). This is a deterministic, offline trace of the pure triage decision path — not a captured live Cloud Trace span.",
     "rule_set": "optimized",
     "status": "repaired",
-    "generated_at_utc": "2026-05-20T09:01:43.593062+00:00"
+    "generated_at_utc": "2026-05-20T11:07:36.779433+00:00"
   },
   "span": {
     "name": "agent:conversation-responder",

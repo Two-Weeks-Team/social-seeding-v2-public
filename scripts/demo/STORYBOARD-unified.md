@@ -19,7 +19,7 @@
 > stall→repair climax, and the A2A cross-call wired into the live brand-campaign Cloud Workflow.
 >
 > **The one sentence**: *We built a 22-agent fleet that runs the influencer-campaign loop, hardened
-> it until an ambiguous-reply routing gap closed (triage routing accuracy 42.3% → 100.0%), and
+> it until an ambiguous-reply routing gap closed (triage routing accuracy 40.5% → 100.0% on train, 71.4% on an unseen holdout), and
 > refactored it into an enterprise A2A ecosystem — Cloud Run + Model Garden reasoning + cryptographic
 > Agent Identity — where a coordinator agent A2A-invokes our OSS `tiktok-mcp-server` as part of the
 > orchestration, and a Korean-region Marketplace exclusion becomes an A2A-only distribution path.*
@@ -47,9 +47,9 @@
    │  An ambiguous creator reply ("Love it! my rate is ~$800, ok?")   │
    │  STALLS the responder at the auto-respond ↔ escalate boundary.   │
    │  Observability trace shows the stall → we add one triage rule →  │
-   │  the trace FLOWS. Re-measured on 26 synthetic cases:             │
-   │           triage routing accuracy  42.3% → 100.0%  (+57.7pp)     │
-   │  Anti-overfit: holdout split (train 100% / holdout 75%, gap shown)│
+   │  the trace FLOWS. Re-measured on 56 synthetic cases:             │
+   │     triage routing accuracy  40.5% → 100.0% (train, +59.5pp)     │
+   │  Anti-overfit holdout (unseen 14 cases): 71.4% — 28.6pp gap kept │
    └────────────────────────────┬─────────────────────────────────────┘
                                  │  "now make it enterprise-distributable"
                                  ▼
@@ -92,7 +92,7 @@ behind a **Track 2 / Track 3** toggle so a judge can drill into either surface; 
 defines the **single guided path** through them, plus the **two new scenes** that did not exist in
 either track file:
 
-- **U4 (NEW · Optimize climax)** — the Observability stall→repair trace + the 42.3% → 100.0% bar.
+- **U4 (NEW · Optimize climax)** — the Observability stall→repair trace + the 40.5% → 100.0% (train) / 71.4% (holdout) bar.
 - **U6 (NEW · Refactor hop)** — `coordinator → a2a_invoke → tiktok-mcp` *as a step inside the live
   brand-campaign Cloud Workflow* (previously only the diagram existed; now it is wired into
   orchestration).
@@ -170,7 +170,7 @@ hard question: *is it reliable when a creator reply is ambiguous?*
 
 ## ACT II — OPTIMIZE / the hardening climax (the stall → repair; ~3:30 real / ~26 s @8×)
 
-> **On-screen act card**: **"OPTIMIZE — we hardened it. Watch reliability go from 42.3% to 100%."**
+> **On-screen act card**: **"OPTIMIZE — we hardened it. Train 40.5% → 100%; on an unseen holdout, 71.4% (gap shown, not hidden)."**
 
 This act is the demo's **climax** and its single strongest technical proof. It did not exist in
 either old track file — it is the Optimize/Track-2 hardening work, folded into the one arc per D50
@@ -205,22 +205,25 @@ either old track file — it is the Optimize/Track-2 hardening work, folded into
    `triage.reason_tag = rate_signal_on_positive`, `agent.outcome = escalate`.
 4. **The before/after bar.** A two-bar chart animates from baseline to optimized:
 
-   | triage routing accuracy | Before (`_baseline_triage`) | After (`_optimized_triage`, live) |
-   |---|---|---|
-   | Synthetic cases | 26 | 26 |
-   | Passed | 11 | 26 |
-   | **Pass rate** | **42.3 %** | **100.0 %** |
-   | Delta | — | **+57.7 pp** |
+   | triage routing accuracy | Before (`_baseline_triage`, train) | After (`_optimized_triage`, train) | **Holdout** (`_optimized_triage`, unseen) |
+   |---|---|---|---|
+   | Synthetic cases | 42 | 42 | 14 |
+   | Passed | 17 | 42 | 10 |
+   | **Pass rate** | **40.5 %** | **100.0 %** | **71.4 %** |
+   | Delta vs before | — | **+59.5 pp** | — |
+   | Train↔holdout gap | — | — | **28.6 pp** |
 
 **On-screen callouts (must appear):**
 
-- **Headline bar caption**: **"triage routing accuracy 42.3% → 100.0% (+57.7pp), 26-case multilingual synthetic set"**
-- **Anti-overfit caption**: "Golden-set runner with a **holdout split** (train 100% / holdout 75% — a +25% train↔holdout gap left visible). We measure generalization, not overfit."
-- **★ Honest-scope caption (load-bearing, must be on screen)**: *"This before/after is a **local
-  deterministic optimization pass** over the synthetic set. The live **Vertex AI Agent Optimizer**
-  is the production path and is **stubbed today** (W7-deferred). The Observability trace artifacts
-  are deterministic offline renderings of the triage decision path — the OTel span shape is real;
-  live Cloud Trace export is the production path."*
+- **Headline bar caption**: **"triage routing accuracy 40.5% → 100.0% on train; 71.4% on an unseen adversarial holdout (28.6pp gap kept visible), 56-case multilingual synthetic set"**
+- **Anti-overfit caption**: "Golden-set runner with a **holdout split** (train 100% / holdout **71.4%** — a **28.6pp** train↔holdout gap left visible). The holdout's 4 misses are negotiation intents with no structured rate (obfuscated 'comp', unextracted rate, mid-thread, sarcasm) — kept as misses, NOT tuned away. We measure generalization, not overfit."
+- **★ Honest-scope caption (load-bearing, must be on screen)**: *"The 100% is the **train** number
+  (the cases the rules were authored against); the honest headline is the **holdout 71.4%**. This
+  before/after is a **local deterministic optimization pass** over the synthetic set. The live
+  **Vertex AI Prompt Optimizer (data-driven)** is the production path and is **wired
+  (operator-gated)**, not run in CI. The Observability trace artifacts are deterministic offline
+  renderings of the triage decision path — the OTel span shape is real; live Cloud Trace export is
+  the production path."*
 
 **Why this is the climax**: it is the Technical-30% reliability evidence *and* the highest-attention
 Demo-20% visual (a graph that stalls, then flows) in a single frame — and the honest-scope caption
@@ -228,8 +231,9 @@ keeps it credible (RULES.md, GRAND-NARRATIVE-PLAN §7).
 
 > **Recommended operator action in the recording**: open the Observability panel, let the **stalled**
 > graph render and hold 2 s on the `"stall": true` step, click **Apply optimized triage**, let the
-> **repaired** graph flow, then hold 3 s on the `42.3% → 100.0%` bar with the honest-scope caption
-> visible. Reproduce live with `bash scripts/smoke-test/run-hardening-measure.sh` (offline, $0).
+> **repaired** graph flow, then hold 3 s on the `40.5% → 100.0% (train) / 71.4% (holdout)` bar with
+> the honest-scope caption visible. Reproduce live with
+> `bash scripts/smoke-test/run-hardening-measure.sh` (offline, $0).
 
 ---
 
@@ -412,7 +416,7 @@ needs (D49(a)). GCP cost envelope on screen: **~$1-5/mo** (all Cloud Run `min=0`
 | BUILD | U1 intake | T2·S1 | ● | | | (sets up marketing agent) |
 | BUILD | U2 AP2 Intent | T2·S2 | | | ● | |
 | BUILD | U3 bulk sourcing | T2·S3 | ● | | | |
-| **OPTIMIZE** | **U4 stall→repair + 42.3%→100% (NEW)** | Observability + `hardening-before-after.json` | ● | | ● | (production-reliability beat) |
+| **OPTIMIZE** | **U4 stall→repair + 40.5%→100% train / 71.4% holdout (NEW)** | Observability + `hardening-before-after.json` | ● | | ● | (production-reliability beat) |
 | REFACTOR | U5 Model Garden + Agent Identity | T3·S4 + req cards | ● | | | |
 | **REFACTOR** | **U6 A2A hop in Cloud Workflow (NEW)** | workflow view → `#a2a-crosscall` | ● | ● | ● | A2A transport |
 | REFACTOR | U7 A2A client | T3·S5 | | | ● | |
@@ -433,8 +437,8 @@ agents calling each other over A2A) and the **agent role** (U11, `content_verify
 | Asset | Origin | Where it lands in the arc |
 |---|---|---|
 | **Observability stall→repair trace** | `HARDENING-CHAPTER` H3 (`observability-trace-{stalled,repaired}.json`) | **U4 — the climax visual** |
-| **42.3% → 100.0% (+57.7pp) before/after bar** | `HARDENING-CHAPTER` H4 (`hardening-before-after.json`) | **U4 — the climax headline** |
-| **Holdout split (train 100% / holdout 75%, +25% gap)** | `HARDENING-CHAPTER` H5 anti-overfit | U4 anti-overfit caption |
+| **40.5% → 100.0% (train, +59.5pp) before/after bar** | `HARDENING-CHAPTER` H4 (`hardening-before-after.json`) | **U4 — the climax headline** |
+| **Holdout split (train 100% / holdout 71.4%, 28.6pp gap)** | `HARDENING-CHAPTER` H5 anti-overfit | U4 anti-overfit caption |
 | **~3.7s round-trip · 5 ranked creators** | live A2A measurement this session | U6 badge `task/completed · ~3.7s` + result table |
 | **A2A hop wired into brand-campaign Cloud Workflow** | `A2A-INTENTS.md §4` + workflow YAML | U6 — the second peak |
 | **Live endpoint** `ss-mcp-server-…run.app` | deploy | U6 + U7 |

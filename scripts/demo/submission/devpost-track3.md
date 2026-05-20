@@ -27,7 +27,7 @@ Social Seeding — built, hardened, then refactored into an enterprise A2A agent
 ## One-line tagline
 
 ```
-A 22-agent influencer-campaign fleet we built, then hardened (triage routing accuracy 42.3% → 100.0%), then refactored into an enterprise A2A ecosystem — a coordinator A2A-invokes our OSS tiktok-mcp-server inside a live Cloud Workflow (~3.7s, 5 creators), and a Korean Marketplace-region exclusion becomes an A2A-only distribution path.
+A 22-agent influencer-campaign fleet we built, then hardened (triage routing accuracy 40.5% → 100.0% on train, 71.4% on an unseen holdout), then refactored into an enterprise A2A ecosystem — a coordinator A2A-invokes our OSS tiktok-mcp-server inside a live Cloud Workflow (~3.7s, 5 creators), and a Korean Marketplace-region exclusion becomes an A2A-only distribution path.
 ```
 
 ## The arc in one paragraph (lead)
@@ -37,8 +37,9 @@ fleet that runs the entire influencer-campaign loop — source → vet → outre
 verify → report. **We hardened it**: when a creator reply was ambiguous (interested, but quietly
 negotiating a rate), the responder stalled at the auto-respond ↔ escalate boundary — we made that
 failure measurable, fixed it with one deterministic triage rule, and drove triage routing accuracy
-from **42.3% to 100.0% (+57.7pp)** on a 26-case multilingual synthetic set, with a holdout split to
-prove we measure generalization rather than overfit. **Then we refactored it** for enterprise
+from **40.5% to 100.0% (+59.5pp) on the train slice** of a 56-case multilingual synthetic set — and,
+crucially, scored **71.4% on a 14-case adversarial holdout the rules never saw** (a 28.6pp gap left
+visible), so the number means generalization, not overfit. **Then we refactored it** for enterprise
 distribution: Cloud Run + LLM reasoning routed through Model Garden + a cryptographic Agent Identity
 per agent + A2A-native composition — where the fleet's coordinator A2A-invokes our OSS
 `tiktok-mcp-server` **as a step inside the live brand-campaign Cloud Workflow** (`task/completed`,
@@ -109,15 +110,24 @@ negotiation; escalate (D27).
 surface. A "pass" requires matching **both** the expected decision **and** the expected reason tag —
 a right-answer-for-the-wrong-reason cannot inflate the score.
 
-| triage_routing_accuracy | Before (`_baseline_triage`) | After (`_optimized_triage`, live) |
-|---|---|---|
-| Synthetic cases (multilingual: ko/ja/zh-CN/en) | 26 | 26 |
-| Passed | 11 | 26 |
-| **Pass rate** | **42.3 %** | **100.0 %** |
-| Delta | — | **+57.7 pp** |
+| triage_routing_accuracy | Before (`_baseline_triage`, train) | After (`_optimized_triage`, train) | **Holdout** (`_optimized_triage`, unseen) |
+|---|---|---|---|
+| Synthetic cases (multilingual: ko/ja/zh-CN/en) | 42 | 42 | 14 |
+| Passed | 17 | 42 | 10 |
+| **Pass rate** | **40.5 %** | **100.0 %** | **71.4 %** |
+| Delta vs before | — | **+59.5 pp** | — |
+| Train↔holdout gap | — | — | **28.6 pp** |
 
-**Anti-overfit.** A golden-set scoring runner with a **holdout split** (train 100% / holdout 75%, a
-+25% train↔holdout gap left visible) — proof we measure generalization honestly, not overfit.
+**Anti-overfit (the honest headline is the holdout 71.4%).** The 56-case set is split into **42
+train** cases (the patterns the triage rules were authored against) and a **14-case adversarial
+holdout** carved out afterward and never used to design the rules. The optimized triage hits 100% on
+train — expected, since those are its own examples — but **71.4% on the holdout**, a **28.6pp**
+train↔holdout gap left visible. The 4 holdout misses are negotiation intents with no *structured*
+rate (obfuscated "can we discuss the comp?", a rate the extractor missed, a mid-thread rate,
+sarcasm); the rate-signal rule reads the structured `proposed_rate_usd` field, so it doesn't catch
+them — and we kept them as misses rather than tuning the rule to memorize the holdout. The
+follower-count "bait" cases (a number that is *not* a rate) are the false-positive control: the
+triage correctly does *not* escalate them. Proof we measure generalization honestly, not overfit.
 
 **Reproduce**: `bash scripts/smoke-test/run-hardening-measure.sh` (offline, $0) prints the
 before→after and rewrites the asset files; the Observability stall→repair traces
@@ -209,9 +219,11 @@ The roles map 1:1; the transport is currently a local capability call. Promoting
 
 **The ambiguous-reply stall (the hardening work).** Making an LLM agent reliable is not the same as
 making it work once. The interested-but-negotiating reply quietly broke the auto-respond ↔ escalate
-boundary; surfacing it as a measurable failure (42.3% baseline), fixing it with a deterministic
-triage rule, and re-measuring to 100.0% — with a holdout split so the number means generalization —
-was the most valuable engineering of the project. See "What we hardened".
+boundary; surfacing it as a measurable failure (40.5% train baseline), fixing it with a deterministic
+triage rule, re-measuring to 100.0% on train — and then, on a 14-case adversarial holdout the rules
+never saw, landing at an honest **71.4%** (a 28.6pp gap we left visible rather than tuning away) —
+was the most valuable engineering of the project. The holdout is what keeps the headline honest. See
+"What we hardened".
 
 **The Korean-region listing gap (D2 → D3).** Marketplace excludes Korea from the payment region. We
 chose to disclose the exclusion openly and document the A2A-only distribution path any
@@ -236,16 +248,18 @@ clean-text safety check are pinned in `tests/tools/test_prompt_guard.py`.
 
 ## Accomplishments we're proud of (Devpost field)
 
-- **A measured reliability gain, honestly scoped.** triage routing accuracy **42.3% → 100.0%
-  (+57.7pp)** on a 26-case multilingual synthetic set, with a holdout split (train 100% / holdout
-  75%, +25% gap visible). The number is printed by a re-runnable script, not asserted.
+- **A measured reliability gain, honestly scoped.** triage routing accuracy **40.5% → 100.0%
+  (+59.5pp) on the train slice** of a 56-case multilingual synthetic set — and **71.4% on a 14-case
+  adversarial holdout the rules never saw** (a 28.6pp gap left visible; 4 misses kept, not tuned
+  away). The honest headline is the holdout number, and every number is printed by a re-runnable
+  script, not asserted.
 - **A2A wired into orchestration, not just documented.** `coordinator → a2a_invoke → tiktok-mcp` runs
   as a step inside the live brand-campaign Cloud Workflow: A2A `task` returns `state=completed` in
   **~3.7s** with **5 ranked creators** (D45). This is the concrete proof the halves are one
   ecosystem.
 - **All six official Track 3 requirements met** + Agent Identity (crypto ID). See the gate table.
 - **Three live Cloud Run endpoints**, all 200, all scale-to-zero (~$1-5/mo, all `min=0`, D46).
-- **2832 pytest cases pass**; `verify-build` green.
+- **2925 pytest cases pass** (`packages/agents-adk`); `verify-build` green.
 - **One real Imagen 4 generation** (D49), not a stub — the `creative` agent produces an actual
   1024×1024, 950 KB image with `CAPABILITY_LAYER_MODE=live`.
 - **PDF Build Example #2 mapped 1:1** — `content_verify` is the Gemini multimodal marketing agent
@@ -254,9 +268,10 @@ clean-text safety check are pinned in `tests/tools/test_prompt_guard.py`.
 ## What we learned (Devpost field)
 
 - **Reliability is a measurement discipline, not a vibe.** The ambiguous-reply stall was invisible
-  until we built a synthetic edge-case set and scored it with a holdout split. "It worked in the demo"
-  and "it routes correctly on 26 multilingual edge cases" are different claims; only the second is
-  worth shipping.
+  until we built a synthetic edge-case set and scored it with a holdout split. "It worked in the
+  demo," "it routes 100% of the cases we wrote the rules for," and "it routes 71.4% of an adversarial
+  holdout we never saw" are three different claims — and only the holdout one is worth trusting. The
+  gap between the train 100% and the holdout 71.4% is the most honest thing in the submission.
 - **Marketplace distribution is a legal-and-banking problem, not only an engineering one.** The
   hardest Track 3 work was the payment-region exclusion. Honest disclosure plus a documented,
   copyable workaround is the contribution that distinguishes a submission.
@@ -268,8 +283,9 @@ clean-text safety check are pinned in `tests/tools/test_prompt_guard.py`.
 ## What's next (Devpost field)
 
 - **Now → judging window** — Gemini Enterprise registration approval (O7 allowlist, Google 1-2 wk);
-  promote the live Vertex AI Agent Optimizer from stub to production; enforce mTLS on the A2A
-  transport (currently declared, O7).
+  promote the live Vertex AI Prompt Optimizer (data-driven) from stub to production; close the
+  holdout misses with extraction/thread-history robustness (not by tuning the rule to the holdout);
+  enforce mTLS on the A2A transport (currently declared, O7).
 - **2026-Q3** — Foreign sub-entity to resolve the Marketplace payment-region exclusion (O10),
   triggered at $1k listing MRR. Instagram + YouTube Shorts tools on the same A2A shell.
 - **2026-Q4** — SOC 2 Type 1 (O9). Promote `vision.brand_logo_detect` to a standalone A2A-addressable
@@ -282,7 +298,7 @@ See [`built-with-tags.txt`](built-with-tags.txt). Headline GCP stack:
 - **Build**: ADK 2.0 Python · Gemini 2.5 Pro/Flash/Flash-Lite · Model Context Protocol · A2A v0.3 ·
   AP2 v0.2 · Model Garden · Cloud Marketplace
 - **Scale/Govern/Optimize**: Vertex AI Agent Runtime · Agent Gateway · Agent Identity (SPIFFE) ·
-  Agent Registry · Agent Optimizer · Agent Evaluation · Agent Observability
+  Agent Registry · Vertex AI Prompt Optimizer (data-driven) · Agent Evaluation · Agent Observability
 - **Data**: Spanner · AlloyDB AI · Firestore · Vertex AI Vector Search · BigQuery · Memorystore · Pub/Sub
 - **Compute/Integration**: Cloud Run · Cloud Workflows · Cloud Tasks · Eventarc Advanced · Apigee X ·
   Cloud Build · Artifact Registry
@@ -300,7 +316,7 @@ See [`built-with-tags.txt`](built-with-tags.txt). Headline GCP stack:
   `/api/healthz` 200
 - **Live demo landing + report**: `https://ss-landing-80064221403.us-central1.run.app`
 - **Repository**: `https://github.com/Two-Weeks-Team/social-seeding-v2` (BUSL-1.1 core + Apache-2.0 ancillary, D9)
-- **Hardening measure (re-runnable, $0)**: `scripts/smoke-test/run-hardening-measure.sh` — prints 42.3% → 100.0%
+- **Hardening measure (re-runnable, $0)**: `scripts/smoke-test/run-hardening-measure.sh` — prints 40.5% → 100.0% (train) / 71.4% (holdout)
 - **A2A intents manifest (req ⑥)**: `gcp-research/refactor-mcp/A2A-INTENTS.md`
 - **Agent Identity design**: `gcp-research/refactor-mcp/AGENT-IDENTITY.md`
 - **Cross-call smoke test (exit 0)**: `scripts/smoke-test/run-integration-a2a.sh`
@@ -360,14 +376,17 @@ alongside the Grand Prize aim.
 
 Per `RULES.md §Professional Honesty` — the load-bearing disclosures:
 
-- **The hardening before/after is a local deterministic optimization pass.** The 42.3% → 100.0% bar
-  comes from a deterministic optimization pass over the 26-case synthetic set — **not** from the live
-  Vertex AI Agent Optimizer, which is the **production path and is stubbed today** (W7-deferred). The
+- **The hardening before/after is a local deterministic optimization pass.** The
+  40.5% → 100.0% (train) / 71.4% (holdout) bar comes from a deterministic optimization pass over the
+  56-case synthetic set — **not** from the live Vertex AI Prompt Optimizer (data-driven), which is
+  the **production path and is wired (operator-gated; ADC + a GCS bucket), not run in CI**. The
   measurement harness queues the stub (returns a deterministic receipt), proving the production
-  capability surface and the `ObservedFailure` input contract are real while the GCP backend
-  connection is staged. The Observability stall→repair traces are deterministic offline renderings of
-  the triage decision path; the OTel span shape is real, live Cloud Trace export is the production
-  path. Synthetic cases are hand-authored, not real creator data (D10).
+  capability surface and the `ObservedFailure` input contract are real while live submission stays
+  operator-gated. The train 100% is measured on the cases the rules were authored against; the honest
+  generalization number is the **holdout 71.4%**, with the 28.6pp gap and the 4 misses left visible
+  (not tuned away). The Observability stall→repair traces are deterministic offline renderings of the
+  triage decision path; the OTel span shape is real, live Cloud Trace export is the production path.
+  Synthetic cases are hand-authored, not real creator data (D10).
 - **Agent Identity mTLS is declared but not yet enforced** on the demo (enforcement pending O7). The
   SPIFFE workload identity and the agent card are real; transport-layer mTLS enforcement is the
   production path.

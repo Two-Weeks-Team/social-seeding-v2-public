@@ -14,8 +14,8 @@
 | # | Gate | Verify with | Pass criteria | Reference |
 |---|------|------------|---------------|-----------|
 | G-0 | O1 Devpost console GAPs answered | Devpost team registration page | All 10 GAPs answered: team size, license, video length cap, repo visibility, multi-track rules, IP grant clauses | D6 / O1 |
-| G-1 | pytest green | `pnpm exec pytest packages/agents-adk` | `0 failed`, **2832 passed** | brief 2026-05-20 |
-| G-1b | **Hardening before/after reproducible** | `bash scripts/smoke-test/run-hardening-measure.sh` | prints **42.3% → 100.0% (+57.7pp)**, 26 cases; rewrites `hardening-before-after.json` + the two trace assets | D25 / D50 / `HARDENING-CHAPTER.md` |
+| G-1 | pytest green | `pnpm exec pytest packages/agents-adk` | `0 failed`, **2925 passed** | brief 2026-05-20 |
+| G-1b | **Hardening before/after + holdout reproducible** | `bash scripts/smoke-test/run-hardening-measure.sh` | prints **40.5% → 100.0% (train, +59.5pp)** and **holdout 71.4%** (28.6pp gap), 56 cases (42 train / 14 holdout); rewrites `hardening-before-after.json` + the two trace assets | D25 / D37 / D50 / `HARDENING-CHAPTER.md` |
 | G-2 | **Cross-call smoke green within 24 h (now in-workflow)** | `bash scripts/smoke-test/run-integration-a2a.sh` | exit 0; coordinator → a2a_invoke → ss-mcp **inside the brand-campaign Cloud Workflow**; **~3.7s**; 5 creators | D45 |
 | G-3 | Live A2A endpoint 200 | `curl -s https://ss-mcp-server-1049119860518.us-central1.run.app/.well-known/agent.json \| jq .protocolVersion` | `"0.3.0"` | I1 / req ④ |
 | G-4 | Live Mission Control 200 | `curl -sI https://ss-v2-web-722660901814.us-central1.run.app/api/healthz` | HTTP 200 | I2 / req ② |
@@ -47,7 +47,7 @@ Confirm each is still true at submission time — these are the rubric-load-bear
 The arc is what aims this at the Grand Prize. Confirm all three stages are evidenced:
 
 - [ ] **BUILD** — 22-agent fleet runs the loop end-to-end (Mission Control demo + smoke).
-- [ ] **OPTIMIZE (the hardening climax)** — the stall→repair Observability trace + the **42.3% → 100.0% (+57.7pp)** before/after bar are present in the demo AND the submission; reproducible via G-1b. Holdout split (train 100% / holdout 75%, +25% gap) is shown. Honest-scope caption present (local deterministic pass; live Vertex AI Agent Optimizer stubbed, W7-deferred).
+- [ ] **OPTIMIZE (the hardening climax)** — the stall→repair Observability trace + the **40.5% → 100.0% (train, +59.5pp)** before/after bar are present in the demo AND the submission; reproducible via G-1b. The **holdout split (train 100% / holdout 71.4%, 28.6pp gap)** is shown, leading with the holdout number as the honest headline; the 4 holdout misses are visible (not tuned away). Honest-scope caption present (local deterministic pass; live Vertex AI Prompt Optimizer (data-driven) wired + operator-gated, not run in CI).
 - [ ] **REFACTOR** — A2A hop wired into the live brand-campaign Cloud Workflow (~3.7s, 5 creators, G-2); Model Garden (req ③); Agent Identity (req +); real Imagen 4 (1024×1024, 950 KB, D49).
 
 ---
@@ -66,12 +66,12 @@ Copy each matching section from `devpost-track3.md` and paste directly into Devp
 
 | Devpost field | Source section in `devpost-track3.md` | Word target | Verify |
 |---|---|---|---|
-| Tagline | "One-line tagline" | ≤ 200 chars | character count under 200 (trim the example numbers if rejected); leads with the 42.3%→100% + ~3.7s arc |
+| Tagline | "One-line tagline" | ≤ 200 chars | character count under 200 (trim the example numbers if rejected); leads with the 40.5%→100% train / 71.4% holdout + ~3.7s arc |
 | Inspiration | "Inspiration" | 100–200 | KR gap → reframe as innovation (D2/D3); APAC Regional in range |
 | What it does | "What it does" + "What we hardened" | 250–400 | the 3-stage arc: built fleet + hardened reliability + refactored A2A ecosystem |
 | How we built it | "How we built it" | 450–600 | cites D47 (Model Garden), D48 (A2A intents/Identity), D18, D17; include the **6-requirement gate table** + **Build Example #2 match** here; A2A now **in the Cloud Workflow** |
 | Challenges we ran into | "Challenges we ran into" | 250–350 | the ambiguous-reply stall (hardening) + KR gap + `/healthz` + Inngest→GCP + CJK (BN-9→D40) |
-| Accomplishments | "Accomplishments we're proud of" | 150–250 | **42.3%→100% (+57.7pp)** + A2A-in-workflow ~3.7s + 6 requirements + 2832 tests + real Imagen |
+| Accomplishments | "Accomplishments we're proud of" | 150–250 | **40.5%→100% train / 71.4% holdout (28.6pp gap)** + A2A-in-workflow ~3.7s + 6 requirements + 2925 tests + real Imagen |
 | What we learned | "What we learned" | 120–180 | 3 bullets, lead with reliability-as-measurement |
 | What's next | "What's next" | 80–150 | Optimizer stub→prod + mTLS enforce + Gemini Enterprise approval + foreign sub-entity + DAM-agent A2A promote |
 | Built With | `built-with-tags.txt` | ~80 tags | paste verbatim |
@@ -86,7 +86,7 @@ Copy each matching section from `devpost-track3.md` and paste directly into Devp
 Order matters — Devpost shows the gallery in upload order. The grand-narrative arc puts the
 **Optimize climax (the before/after bar)** first as the hero. From `SCREENSHOTS-MANIFEST.md §0`:
 
-1. `hardening-before-after-42-to-100.png` (**hero** — triage routing accuracy 42.3% → 100.0%, +57.7pp)
+1. `hardening-before-after-train-100-holdout-71.png` (**hero** — triage routing accuracy 40.5% → 100.0% train, **71.4% holdout** (28.6pp gap kept visible))
 2. `observability-stall-repair-trace.png` (the stall→repair reasoning graph, the climax visual)
 3. `live-a2a-crosscall-in-workflow.png` (coordinator → a2a_invoke → ss-mcp inside the Cloud Workflow, ~3.7s, 5 creators)
 4. `live-agent-json-200.png`
@@ -95,12 +95,14 @@ Order matters — Devpost shows the gallery in upload order. The grand-narrative
 7. `mission-control-fleet.png`
 8. `real-imagen-generation.png` (1024×1024, 950 KB)
 9. `wow-business-roi-tam.png`
-10. `pytest-2832-passing.png`
+10. `pytest-2925-passing.png`
 
 > If the older screenshot filenames (`live-a2a-crosscall-318ms.png`, `pytest-2713-passing.png`,
-> `a2a-animation-diagram.png`, `ap2-mandate-detail.png`) are still on disk, re-capture them to match
-> the verified numbers (~3.7s, 2832) and the grand-narrative ordering before upload. The hero MUST be
-> the hardening before/after bar — it carries both Technical-30% and Demo-20%.
+> `pytest-2832-passing.png`, `hardening-before-after-42-to-100.png`, `a2a-animation-diagram.png`,
+> `ap2-mandate-detail.png`) are still on disk, re-capture them to match the verified numbers (~3.7s,
+> 2925, train 100% / holdout 71.4%) and the grand-narrative ordering before upload. The hero MUST be
+> the hardening before/after bar (now with the holdout number on it) — it carries both Technical-30%
+> and Demo-20%.
 
 ---
 
@@ -121,7 +123,7 @@ Paste in this order:
 2. `https://ss-v2-web-722660901814.us-central1.run.app` (live Mission Control)
 3. `https://ss-landing-80064221403.us-central1.run.app` (live demo landing + report)
 4. `https://github.com/Two-Weeks-Team/social-seeding-v2` (repository, BUSL-1.1 + Apache-2.0)
-5. `scripts/smoke-test/run-hardening-measure.sh` (re-runnable, $0 — prints 42.3% → 100.0%)
+5. `scripts/smoke-test/run-hardening-measure.sh` (re-runnable, $0 — prints 40.5% → 100.0% train / 71.4% holdout)
 6. `scripts/smoke-test/run-integration-a2a.sh` (cross-call smoke, exit 0 — ~3.7s, 5 creators)
 
 ---
@@ -131,13 +133,13 @@ Paste in this order:
 - [ ] Read the entire Devpost form preview end-to-end one more time.
 - [ ] Verify no `<YOUTUBE_URL>` placeholder remains.
 - [ ] Verify the **Build → Optimize → Refactor arc** reads as one story (the lead paragraph + the "What we hardened" section + the gate table) — this is what aims it at the Grand Prize (D50).
-- [ ] Verify the hardening before/after **42.3% → 100.0% (+57.7pp)** appears, with the holdout split + the honest-scope caption (local deterministic pass; Optimizer stubbed).
+- [ ] Verify the hardening before/after **40.5% → 100.0% train (+59.5pp)** appears, leading with the honest **holdout 71.4% (28.6pp gap)** + the honest-scope caption (local deterministic pass; Vertex AI Prompt Optimizer wired + operator-gated). Confirm the 4 holdout misses are shown, not hidden.
 - [ ] Verify the A2A cross-call number reads **~3.7s, 5 creators**, described as **in the brand-campaign Cloud Workflow** (not just documented).
 - [ ] Verify all three live URLs are exact and resolve (G-3, G-4, G-5).
 - [ ] Verify the Tagline character count is ≤ 200.
-- [ ] Verify the **Honest scope** content is present (local-pass before/after + Optimizer stubbed, mTLS declared not enforced, `ss-mcp-server` heuristic ranker, O7 allowlist pending, Build Example #2 transport gap) — do not silently drop it; honest disclosure is part of the Innovation contribution.
+- [ ] Verify the **Honest scope** content is present (local-pass before/after + holdout 71.4% (the honest headline) + Vertex AI Prompt Optimizer wired/operator-gated, mTLS declared not enforced, `ss-mcp-server` heuristic ranker, O7 allowlist pending, Build Example #2 transport gap) — do not silently drop it; honest disclosure is part of the Innovation contribution.
 - [ ] Verify the 6-requirement gate table renders (no broken markdown table).
-- [ ] Verify all 10 screenshots upload successfully — confirm the **hero is the 42.3%→100% before/after bar** (click each preview to confirm it loads).
+- [ ] Verify all 10 screenshots upload successfully — confirm the **hero is the train-100%/holdout-71.4% before/after bar** (click each preview to confirm it loads).
 - [ ] Verify the video URL preview shows the YouTube player with the correct thumbnail.
 - [ ] Spot-check 3 random D-IDs cited in the paste actually exist in `DECISIONS.md`.
 
