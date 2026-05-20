@@ -661,7 +661,7 @@
 <div id="header-banner">
   <div>
     <h1>Social Seeding v2 — Interactive Web Demo</h1>
-    <div class="meta">Build (Mission Control + 22-agent fleet) · Optimize (stall → repair · 42.3% → 100.0%) · Refactor (tiktok-mcp-server + A2A v0.3) · D27 · D29 · D30 · D34 · D50</div>
+    <div class="meta">Build (Mission Control + 22-agent fleet) · Optimize (stall → repair · train 40.5% → 100.0% · holdout 71.4%) · Refactor (tiktok-mcp-server + A2A v0.3) · D27 · D29 · D30 · D34 · D50</div>
   </div>
   <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
     <a href="wow-business.html"
@@ -684,7 +684,7 @@
   <div class="us-flow" aria-hidden="false">
     <span class="us-node us-t2">Build<small>22-agent fleet · full loop</small></span>
     <span class="us-arrow"><a style="cursor:default;" aria-hidden="true">──&nbsp;harden&nbsp;──▶<small>same fleet, matured</small></a></span>
-    <span class="us-node" style="background:#1a1230; border:1px solid #4a2f78;">Optimize<small style="color:#c4a6ff;">stall → repair · 42.3% → 100.0%</small></span>
+    <span class="us-node" style="background:#1a1230; border:1px solid #4a2f78;">Optimize<small style="color:#c4a6ff;">stall → repair · train 40.5% → 100.0% · holdout 71.4%</small></span>
     <span class="us-arrow">
       <a href="wow-business.html#a2a-crosscall"
          aria-label="Open the live A2A cross-call climax: coordinator a2a_invoke to the Track 3 MCP server, 318 ms round-trip">
@@ -697,7 +697,7 @@
   <div class="us-note">
     <b>One submission, one story</b> (D45 · D50): a single fleet matures — we <b>built</b> it (22 agents),
     we <b>hardened</b> it (the Optimize act traces a stalled reply and repairs it, lifting triage accuracy
-    <b>42.3% → 100.0%</b>), then we <b>refactored</b> it for the enterprise — the <code>coordinator</code>
+    <b>train 40.5% → 100.0%</b>, <b>holdout 71.4%</b> on unseen adversarial cases), then we <b>refactored</b> it for the enterprise — the <code>coordinator</code>
     A2A-invokes the refactored MCP server. The Act toggle below drills into each surface; guided path in
     <code>scripts/demo/STORYBOARD-unified.md</code>.
     <a href="wow-business.html#hardening" style="margin-left:8px; white-space:nowrap;">Optimize&nbsp;before/after (D50) →</a>
@@ -847,33 +847,33 @@ const SUBTITLES = {
     [175000, 180000, "github.com/ComBba/social-seeding-v2 — Apache-2.0 + BUSL-1.1。"],
   ],
   /* Optimize act -- ko / en / ja / zh-CN. "Build → Optimize → Refactor" 의 가운데 막.
-     숫자는 hardening-before-after.json 과 일치 (42.3% → 100.0%, +57.7pp, 26 cases). */
+     숫자는 hardening-before-after.json 과 일치 (train 40.5% → 100.0%, +59.5pp; holdout 71.4%; 56 cases = 42 train / 14 holdout). */
   "optimize-ko": [
     [0, 5000, "Optimize — 우리는 함대를 단련했다. 모호한 답신에서 멈추던 추론을 추적하고 고친다."],
-    [5000, 14400, "씬 1 — Agent Simulation: 협상·거절위장·다국어 합성 엣지케이스 26건. 베이스라인 통과율 42.3%."],
+    [5000, 14400, "씬 1 — Agent Simulation: 협상·거절위장·다국어 합성 엣지케이스 56건 (train 42 / holdout 14). 베이스라인(train) 통과율 40.5%."],
     [14400, 29400, "씬 2 — Observability: \"관심 있는데 단가 $800\" 답신에서 추론이 auto-respond↔escalate 경계에서 정지. Optimizer가 rate_signal 규칙을 적용하자 escalate 경로로 흐른다."],
-    [29400, 40700, "씬 3 — Optimizer 재측정: 42.3% → 100.0%, +57.7pp. 로컬 결정론적 측정 — 라이브 Vertex AI Agent Optimizer는 프로덕션 경로(현재 stub, 정직 공개)."],
+    [29400, 40700, "씬 3 — Optimizer 재측정: train 40.5% → 100.0%, +59.5pp; holdout(미학습 적대 케이스) 71.4% — 28.6pp 격차를 숨기지 않고 정직하게 표기. 로컬 결정론적 측정 — 라이브 Vertex AI Agent Optimizer는 프로덕션 경로(현재 stub, 정직 공개)."],
     [40700, 47000, "단련된 함대 — 이제 엔터프라이즈로 리팩터한다 (Track 3)."],
   ],
   "optimize-en": [
     [0, 5000, "Optimize — we hardened the fleet. We trace the reasoning that stalled on an ambiguous reply, then we fix it."],
-    [5000, 14400, "Scene 1 — Agent Simulation: 26 synthetic edge cases (negotiation, disguised decline, multilingual). Baseline pass rate 42.3%."],
+    [5000, 14400, "Scene 1 — Agent Simulation: 56 synthetic edge cases (42 train / 14 holdout; negotiation, disguised decline, multilingual). Baseline (train) pass rate 40.5%."],
     [14400, 29400, "Scene 2 — Observability: on \"interested, my rate is $800\" the reasoning stalls at the auto-respond ↔ escalate boundary. The Optimizer applies the rate_signal rule and the graph flows to escalate."],
-    [29400, 40700, "Scene 3 — Optimizer re-measure: 42.3% → 100.0%, +57.7pp. Local deterministic measurement — the live Vertex AI Agent Optimizer is the production path (stubbed today, disclosed)."],
+    [29400, 40700, "Scene 3 — Optimizer re-measure: train 40.5% → 100.0%, +59.5pp; holdout (unseen adversarial) 71.4% — the 28.6pp gap shown honestly, not tuned away. Local deterministic measurement — the live Vertex AI Agent Optimizer is the production path (stubbed today, disclosed)."],
     [40700, 47000, "A hardened fleet — now we refactor it for the enterprise (Track 3)."],
   ],
   "optimize-ja": [
     [0, 5000, "Optimize — 艦隊を鍛えた。曖昧な返信で停止した推論を追跡し、修正する。"],
-    [5000, 14400, "シーン1 — Agent Simulation: 交渉・偽装拒否・多言語の合成エッジケース 26 件。ベースライン通過率 42.3%。"],
+    [5000, 14400, "シーン1 — Agent Simulation: 交渉・偽装拒否・多言語の合成エッジケース 56 件(train 42 / holdout 14)。ベースライン(train)通過率 40.5%。"],
     [14400, 29400, "シーン2 — Observability: 「興味あり、レートは $800」で推論が auto-respond ↔ escalate の境界で停止。Optimizer が rate_signal ルールを適用すると escalate へ流れる。"],
-    [29400, 40700, "シーン3 — Optimizer 再計測: 42.3% → 100.0%、+57.7pp。ローカル決定論的計測 — ライブ Vertex AI Agent Optimizer が本番経路(現在 stub、正直に開示)。"],
+    [29400, 40700, "シーン3 — Optimizer 再計測: train 40.5% → 100.0%、+59.5pp;holdout(未学習の敵対ケース)71.4% — 28.6pp の差を隠さず正直に表示。ローカル決定論的計測 — ライブ Vertex AI Agent Optimizer が本番経路(現在 stub、正直に開示)。"],
     [40700, 47000, "鍛えた艦隊 — 次はエンタープライズへリファクタ (Track 3)。"],
   ],
   "optimize-zh-CN": [
     [0, 5000, "Optimize — 我们锤炼了这支舰队。追踪在模糊回复处停滞的推理,然后修复它。"],
-    [5000, 14400, "场景 1 — Agent Simulation:26 个合成边界用例(议价、伪装拒绝、多语言)。基线通过率 42.3%。"],
+    [5000, 14400, "场景 1 — Agent Simulation:56 个合成边界用例(train 42 / holdout 14;议价、伪装拒绝、多语言)。基线(train)通过率 40.5%。"],
     [14400, 29400, "场景 2 — Observability:在“感兴趣,我的报价 $800”上,推理在 auto-respond ↔ escalate 边界处停滞。Optimizer 应用 rate_signal 规则后,推理图流向 escalate。"],
-    [29400, 40700, "场景 3 — Optimizer 复测:42.3% → 100.0%,+57.7pp。本地确定性测量 — 线上 Vertex AI Agent Optimizer 是生产路径(目前为 stub,已如实披露)。"],
+    [29400, 40700, "场景 3 — Optimizer 复测:train 40.5% → 100.0%,+59.5pp;holdout(未见过的对抗用例)71.4% — 28.6pp 差距如实展示,未做针对性微调。本地确定性测量 — 线上 Vertex AI Agent Optimizer 是生产路径(目前为 stub,已如实披露)。"],
     [40700, 47000, "锤炼后的舰队 — 接着为企业级重构 (Track 3)。"],
   ],
   /* Track 3 -- ko / en / ja / zh-CN */
@@ -971,7 +971,7 @@ const TIMELINE = {
   optimize: [
     { i: 1, title: "Agent Simulation — 26 synthetic edge cases", angle: "D29-A", real: 75, comp:  9.4 },
     { i: 2, title: "Observability — stall → repair trace",       angle: "D29-A+C", real: 120, comp: 15.0 },
-    { i: 3, title: "Optimizer — 42.3% → 100.0% before/after",    angle: "D29-A", real: 90, comp: 11.3 },
+    { i: 3, title: "Optimizer — train 40.5% → 100.0% · holdout 71.4%",    angle: "D29-A", real: 90, comp: 11.3 },
   ],
   track3: [
     { i: 1,  title: "Problem framing — Cloud Console",     angle: "D29-B", real: 60,  comp:  7.5 },
@@ -1643,18 +1643,23 @@ function track2Scene12() {
    scripts/smoke-test/run-hardening-measure.sh to regenerate the source JSON.
    Source narrative: scripts/demo/HARDENING-CHAPTER.md · GRAND-NARRATIVE-PLAN §2/§4/§5-1. */
 const HARDENING = {
-  before: { total: 26, passed: 11, pct: 42.3 },
-  after:  { total: 26, passed: 26, pct: 100.0 },
-  deltaPp: 57.7,
-  headline: "42.3% → 100.0%",
+  // train = the cases the optimized rules were authored against; holdout = an adversarial
+  // slice carved out AFTER the rules were written (never used to design them — measures
+  // generalization, not memorization). Numbers match hardening-before-after.json exactly.
+  before:  { total: 42, passed: 17, pct: 40.5 },   // baseline, train subset
+  after:   { total: 42, passed: 42, pct: 100.0 },  // optimized, train subset
+  holdout: { total: 14, passed: 10, pct: 71.4 },   // optimized, unseen adversarial holdout
+  deltaPp: 59.5,
+  gapPp: 28.6,                                      // train ↔ holdout generalization gap
+  headline: "40.5% → 100.0% (train); holdout 71.4%",
   fixRule: "interested/needs_info + extracted.proposed_rate_usd is not None → escalate (reason=rate_signal_on_positive)",
   stallCaseId: "rate-positive-en-01",
   stallMessage: "Love the product! My usual rate for a sponsored video is around 800 — does that work?",
   observedFailures: [
-    { kind: "misrouted:rate_signal_on_positive", samples: 7, label: "rate signal on a positive reply (the stall)" },
-    { kind: "misrouted:hard_no",                 samples: 4, label: "declined / unsubscribe (hard no)" },
-    { kind: "misrouted:soft_no",                 samples: 2, label: "not-now (soft no)" },
-    { kind: "misrouted:out_of_scope_class",      samples: 2, label: "out_of_office / unrelated" },
+    { kind: "misrouted:rate_signal_on_positive", samples: 13, label: "rate signal on a positive reply (the stall)" },
+    { kind: "misrouted:hard_no",                 samples: 5,  label: "declined / unsubscribe (hard no)" },
+    { kind: "misrouted:out_of_scope_class",      samples: 4,  label: "out_of_office / unrelated" },
+    { kind: "misrouted:soft_no",                 samples: 3,  label: "not-now (soft no)" },
   ],
   liveOptimizer: { mode: "stub", jobId: "opt-conversation-responder-001", status: "queued", etaMinutes: 30 },
   // simulation cases for Scene 1 (locales + categories taken from the JSON case ids)
@@ -1710,8 +1715,8 @@ function optimizeScene1() {
         <h2 style="font-size:22px; font-weight:700; letter-spacing:-0.02em; margin:0;">Agent Simulation — synthetic edge-case set</h2>
       </div>
       <p style="font-size:13px; color:#94a3b8; margin-top:4px;">
-        <code>test-harness/hardening/synthetic_cases.json</code> · <b>26 cases</b> across ko / ja / zh-CN / en —
-        negotiation, interest-with-rate, disguised decline, soft/hard no, out-of-scope, mixed-emotion. Run under the <b>baseline</b> triage.
+        <code>test-harness/hardening/synthetic_cases.json</code> · <b>56 cases</b> (42 train / 14 holdout) across ko / ja / zh-CN / en —
+        negotiation, interest-with-rate, disguised decline, soft/hard no, out-of-scope, mixed-emotion. The <b>42 train</b> cases run under the <b>baseline</b> triage here.
       </p>
       <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:18px; margin-top:16px; align-items:start;">
         <div style="background:#0d1729; border:1px solid #1e2d4a; border-radius:10px; padding:8px 14px;">
@@ -1724,16 +1729,16 @@ function optimizeScene1() {
             </tr></thead>
             <tbody style="font-size:11px;">${rows}</tbody>
           </table>
-          <div style="font-size:10.5px; color:#64748b; padding:6px 4px 2px;">showing 10 of 26 representative cases</div>
+          <div style="font-size:10.5px; color:#64748b; padding:6px 4px 2px;">showing 10 of 42 representative train cases</div>
         </div>
         <div>
           <div style="background:#0d1729; border:1px solid #1e2d4a; border-radius:10px; padding:16px;">
-            <div style="font-size:12px; color:#94a3b8;">Baseline pass rate <small>(triage_routing_accuracy)</small></div>
+            <div style="font-size:12px; color:#94a3b8;">Baseline pass rate <small>(triage_routing_accuracy · train)</small></div>
             <div id="opt-s1-rate" style="font-size:40px; font-weight:800; color:#f87171; line-height:1.1; margin-top:4px;">—</div>
             <div id="opt-s1-frac" style="font-size:12px; color:#94a3b8;">&nbsp;</div>
           </div>
           <div id="opt-s1-fail" style="margin-top:14px; background:#0d1729; border:1px solid #1e2d4a; border-radius:10px; padding:16px; display:none;">
-            <div style="font-size:12px; color:#cbd5e1; font-weight:600; margin-bottom:8px;">15 baseline failures → ObservedFailure families</div>
+            <div style="font-size:12px; color:#cbd5e1; font-weight:600; margin-bottom:8px;">25 baseline (train) failures → ObservedFailure families</div>
             ${HARDENING.observedFailures.map(f => `
               <div style="display:flex; justify-content:space-between; font-size:11.5px; padding:3px 0; color:#cbd5e1;">
                 <span><code style="font-size:10.5px;color:#fca5a5;">${f.kind}</code></span>
@@ -1811,7 +1816,7 @@ function optimizeScene2() {
   return `<div style="background:#0b1220; height:100%;">${body}</div>`;
 }
 
-/* --- Optimize Scene 3 — Optimizer before/after (42.3% → 100.0%) -------------*/
+/* --- Optimize Scene 3 — Optimizer before/after (train 40.5% → 100.0%; holdout 71.4%) */
 function optimizeScene3() {
   const body = `
     <div style="padding:26px 36px; height:100%; box-sizing:border-box; color:#e2e8f0;">
@@ -1820,35 +1825,51 @@ function optimizeScene3() {
         <h2 style="font-size:22px; font-weight:700; letter-spacing:-0.02em; margin:0;">Agent Optimizer — re-measured</h2>
       </div>
       <p style="font-size:13px; color:#94a3b8; margin-top:4px;">
-        <code>triage_routing_accuracy</code> over the same 26-case set, before vs. after the rule the Optimizer applied.
+        <code>triage_routing_accuracy</code> over the 42 train cases, before vs. after the rule the Optimizer applied —
+        then re-scored on the 14-case unseen <b>holdout</b> to report generalization honestly.
       </p>
 
       <div style="background:#0d1729; border:1px solid #1e2d4a; border-radius:12px; padding:22px 26px; margin-top:14px;">
         <div style="display:flex; align-items:center; gap:16px; margin-bottom:18px;">
-          <div style="font-size:13px; width:150px; color:#cbd5e1;">Before <small style="color:#7c93b8;">(_baseline_triage)</small></div>
+          <div style="font-size:13px; width:188px; color:#cbd5e1;">Before <small style="color:#7c93b8;">(baseline · train)</small></div>
           <div class="opt-bar-track" style="flex:1;">
             <div id="opt-s3-bar-before" class="opt-bar-fill" style="width:0%; background:linear-gradient(90deg,#b91c1c,#f87171);">0%</div>
           </div>
-          <div style="width:70px; text-align:right; font-size:13px; color:#94a3b8;">11 / 26</div>
+          <div style="width:70px; text-align:right; font-size:13px; color:#94a3b8;">17 / 42</div>
         </div>
-        <div style="display:flex; align-items:center; gap:16px;">
-          <div style="font-size:13px; width:150px; color:#cbd5e1;">After <small style="color:#7c93b8;">(_optimized_triage, live)</small></div>
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom:18px;">
+          <div style="font-size:13px; width:188px; color:#cbd5e1;">After <small style="color:#7c93b8;">(optimized · train, live)</small></div>
           <div class="opt-bar-track" style="flex:1;">
             <div id="opt-s3-bar-after" class="opt-bar-fill" style="width:0%; background:linear-gradient(90deg,#15803d,#34d399);">0%</div>
           </div>
-          <div style="width:70px; text-align:right; font-size:13px; color:#94a3b8;">26 / 26</div>
+          <div style="width:70px; text-align:right; font-size:13px; color:#94a3b8;">42 / 42</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div style="font-size:13px; width:188px; color:#cbd5e1;">Holdout <small style="color:#7c93b8;">(optimized · unseen)</small></div>
+          <div class="opt-bar-track" style="flex:1;">
+            <div id="opt-s3-bar-holdout" class="opt-bar-fill" style="width:0%; background:linear-gradient(90deg,#b45309,#fbbf24); color:#1a1205;">0%</div>
+          </div>
+          <div style="width:70px; text-align:right; font-size:13px; color:#94a3b8;">10 / 14</div>
+        </div>
+        <div style="font-size:10.5px; color:#94a3b8; margin-top:12px; line-height:1.5; border-top:1px solid #1e2d4a; padding-top:10px;">
+          <b style="color:#fbbf24;">Holdout</b> = 14 unseen adversarial cases (obfuscated “comp”, rate only in free text, mid-thread rate,
+          sarcasm) carved out <i>after</i> the rules were written. The <b>28.6 pp</b> train↔holdout gap is shown
+          honestly, <b>not tuned away</b> — that would defeat the holdout.
         </div>
       </div>
 
       <div style="display:grid; grid-template-columns: 1fr 1fr; gap:18px; margin-top:18px;">
         <div style="background:#0d1729; border:1px solid #1e2d4a; border-radius:12px; padding:18px 22px; text-align:center;">
-          <div style="font-size:12px; color:#94a3b8;">Headline</div>
-          <div id="opt-s3-headline" style="font-size:34px; font-weight:800; letter-spacing:-0.02em; margin-top:4px;">
-            <span style="color:#f87171;">42.3%</span>
-            <span style="color:#64748b; font-size:24px;"> → </span>
+          <div style="font-size:12px; color:#94a3b8;">Headline <small style="color:#7c93b8;">(train)</small></div>
+          <div id="opt-s3-headline" style="font-size:30px; font-weight:800; letter-spacing:-0.02em; margin-top:4px;">
+            <span style="color:#f87171;">40.5%</span>
+            <span style="color:#64748b; font-size:22px;"> → </span>
             <span style="color:#34d399;">100.0%</span>
           </div>
-          <div style="font-size:14px; color:#6ee7b7; font-weight:700; margin-top:4px;">+57.7 pp</div>
+          <div style="font-size:14px; color:#6ee7b7; font-weight:700; margin-top:4px;">+59.5 pp</div>
+          <div style="font-size:13px; color:#fbbf24; font-weight:700; margin-top:8px; border-top:1px solid #1e2d4a; padding-top:8px;">
+            holdout 71.4% <small style="color:#94a3b8; font-weight:600;">(unseen · honest)</small>
+          </div>
         </div>
         <div style="background:#0d1729; border:1px solid #1e2d4a; border-radius:12px; padding:16px 20px;">
           <div style="font-size:12px; color:#94a3b8; margin-bottom:6px;">The rule that closed the stall</div>
@@ -2378,10 +2399,14 @@ function buildCampaignCanvas() {
           </div>
         </div>
         <div style="text-align:center;margin-top:7px;font-size:14px;font-weight:800;">
-          <span style="color:#f87171;">42.3%</span>
+          <span style="color:#94a3b8;font-size:10px;font-weight:600;">train </span>
+          <span style="color:#f87171;">40.5%</span>
           <span style="color:#64748b;font-size:11px;"> → </span>
           <span style="color:#34d399;">100.0%</span>
-          <span style="color:#6ee7b7;font-size:11px;font-weight:700;margin-left:6px;">+57.7 pp</span>
+          <span style="color:#6ee7b7;font-size:11px;font-weight:700;margin-left:6px;">+59.5 pp</span>
+        </div>
+        <div style="text-align:center;margin-top:3px;font-size:10px;color:#fbbf24;font-weight:700;">
+          holdout 71.4% <span style="color:#94a3b8;font-weight:600;">· 14 unseen adversarial · 28.6pp gap shown honestly</span>
         </div>
       </div>
       <button id="cc-apply-fix" style="margin-top:10px;width:100%;background:#15803d;color:#fff;border:none;border-radius:7px;padding:7px;font-size:11px;font-weight:700;cursor:default;">apply optimized triage</button>
@@ -2512,7 +2537,7 @@ function ccFillBar(sel, pct) {
   const el = ccLayer()?.querySelector(sel);
   if (!el) return;
   el.style.width = pct + "%";
-  // one decimal to match hardening-before-after.json exactly (42.3% / 100.0%)
+  // one decimal to match hardening-before-after.json exactly (train 40.5% / 100.0%)
   el.textContent = pct.toFixed(1) + "%";
 }
 
@@ -2732,7 +2757,7 @@ const KEYFRAMES = {
 
   /* OPTIMIZE act keyframes — stall → repair animation + before/after */
   optimize: [
-    /* SCENE 1 — Agent Simulation: reveal verdicts, count baseline pass rate to 42.3% */
+    /* SCENE 1 — Agent Simulation: reveal verdicts, count baseline (train) pass rate to 40.5% */
     (sc) => [
       { at: 0.12, fn: () => revealSimVerdicts(sc) },
       { at: 0.45, fn: () => animatePct(sc, "#opt-s1-rate", "#opt-s1-frac",
@@ -2743,21 +2768,22 @@ const KEYFRAMES = {
        The bespoke graph is now a DRILL-DOWN into the outreach node: zoom/focus
        the outreach→wait-reply pair, the ambiguous "$800" reply flips outreach to
        ROSE errored + stalls the outreach→shipping edge, the trace expands as an
-       INSET tied to that node, before/after bars fill (42.3% → 100.0%), then
+       INSET tied to that node, before/after bars fill (train 40.5% → 100.0%), then
        "apply optimized triage" returns outreach blue→emerald and the edge flows. */
     (sc) => [
       { at: 0.06, fn: () => ccFocusOutreach() },                       // zoom onto outreach pair
       { at: 0.14, fn: () => ccStallOutreach() },                       // rose errored + stalled edge + inset opens
       { at: 0.20, fn: () => ccActivateInsetTrace("cc-tr-st", "stall") },// BEFORE trace stalls
       { at: 0.46, fn: () => ccActivateInsetTrace("cc-tr-rp", "repair") },// AFTER trace flows to escalate
-      { at: 0.60, fn: () => { ccFillBar("#cc-bar-before", HARDENING.before.pct); } }, // 42.3%
-      { at: 0.74, fn: () => { ccFillBar("#cc-bar-after", HARDENING.after.pct); } },   // 100.0%
+      { at: 0.60, fn: () => { ccFillBar("#cc-bar-before", HARDENING.before.pct); } }, // 40.5% (train)
+      { at: 0.74, fn: () => { ccFillBar("#cc-bar-after", HARDENING.after.pct); } },   // 100.0% (train)
       { at: 0.88, fn: () => ccRepairOutreach() },                      // apply fix → emerald, edge flows
     ],
-    /* SCENE 3 — Optimizer: fill before (42.3%) then after (100.0%) bars */
+    /* SCENE 3 — Optimizer: fill before (40.5%), after (100.0%), then holdout (71.4%) bars */
     (sc) => [
       { at: 0.10, fn: () => fillOptBar(sc, "#opt-s3-bar-before", HARDENING.before.pct) },
-      { at: 0.45, fn: () => fillOptBar(sc, "#opt-s3-bar-after", HARDENING.after.pct) },
+      { at: 0.40, fn: () => fillOptBar(sc, "#opt-s3-bar-after", HARDENING.after.pct) },
+      { at: 0.62, fn: () => fillOptBar(sc, "#opt-s3-bar-holdout", HARDENING.holdout.pct) },
     ],
   ],
 

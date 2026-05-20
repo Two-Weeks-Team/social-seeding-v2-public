@@ -165,7 +165,8 @@
   <!-- ====================================================================== -->
   <!-- (e) OPTIMIZE act — the "we hardened it" chapter (stall → repair).      -->
   <!--     Technical-30 core + Demo-20 wow scene #1. Numbers verbatim from    -->
-  <!--     scripts/demo/assets/hardening-before-after.json (42.3% → 100.0%).  -->
+  <!--     scripts/demo/assets/hardening-before-after.json                    -->
+  <!--     (train 40.5% → 100.0%, +59.5pp; holdout 71.4%).                     -->
   <!--     Mirrors index.html's Optimize act; D50 single grand-narrative.     -->
   <!-- ====================================================================== -->
   <section class="panel" id="hardening" style="border-color:#3a2a5c; background:#100c20;">
@@ -215,32 +216,43 @@
     <!-- before/after bars + headline -->
     <div class="grid2" style="margin-top:18px;">
       <div class="card">
-        <div class="k">triage_routing_accuracy · 26 synthetic cases</div>
+        <div class="k">triage_routing_accuracy · 56 synthetic cases (42 train / 14 holdout)</div>
         <div style="margin-top:14px;">
           <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-            <span style="width:62px; font-size:12px; color:#cbd5e1;">Before</span>
+            <span style="width:76px; font-size:12px; color:#cbd5e1;">Before<br><span style="font-size:9.5px;color:#7c93b8;">train</span></span>
             <div style="flex:1; background:#1e293b; border-radius:6px; height:26px; overflow:hidden;">
-              <div style="width:42.3%; height:100%; border-radius:6px; background:linear-gradient(90deg,#b91c1c,#f87171); display:flex; align-items:center; justify-content:flex-end; padding-right:8px; font-size:12px; font-weight:700; color:#fff;">42.3%</div>
+              <div style="width:40.5%; height:100%; border-radius:6px; background:linear-gradient(90deg,#b91c1c,#f87171); display:flex; align-items:center; justify-content:flex-end; padding-right:8px; font-size:12px; font-weight:700; color:#fff;">40.5%</div>
             </div>
-            <span style="width:54px; text-align:right; font-size:12px; color:#94a3b8;">11 / 26</span>
+            <span style="width:54px; text-align:right; font-size:12px; color:#94a3b8;">17 / 42</span>
           </div>
-          <div style="display:flex; align-items:center; gap:12px;">
-            <span style="width:62px; font-size:12px; color:#cbd5e1;">After</span>
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+            <span style="width:76px; font-size:12px; color:#cbd5e1;">After<br><span style="font-size:9.5px;color:#7c93b8;">train</span></span>
             <div style="flex:1; background:#1e293b; border-radius:6px; height:26px; overflow:hidden;">
               <div style="width:100%; height:100%; border-radius:6px; background:linear-gradient(90deg,#15803d,#34d399); display:flex; align-items:center; justify-content:flex-end; padding-right:8px; font-size:12px; font-weight:700; color:#fff;">100.0%</div>
             </div>
-            <span style="width:54px; text-align:right; font-size:12px; color:#94a3b8;">26 / 26</span>
+            <span style="width:54px; text-align:right; font-size:12px; color:#94a3b8;">42 / 42</span>
           </div>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <span style="width:76px; font-size:12px; color:#cbd5e1;">Holdout<br><span style="font-size:9.5px;color:#7c93b8;">unseen</span></span>
+            <div style="flex:1; background:#1e293b; border-radius:6px; height:26px; overflow:hidden;">
+              <div style="width:71.4%; height:100%; border-radius:6px; background:linear-gradient(90deg,#b45309,#fbbf24); display:flex; align-items:center; justify-content:flex-end; padding-right:8px; font-size:12px; font-weight:700; color:#1a1205;">71.4%</div>
+            </div>
+            <span style="width:54px; text-align:right; font-size:12px; color:#94a3b8;">10 / 14</span>
+          </div>
+        </div>
+        <div class="d" style="margin-top:12px; font-size:10.5px; line-height:1.5;">
+          <b style="color:#fbbf24;">Holdout</b> = 14 unseen adversarial cases (obfuscated “comp”, rate only in free text, mid-thread rate, sarcasm) carved out <i>after</i> the rules were written. The <b>28.6 pp</b> train↔holdout gap is shown honestly, <b>not tuned away</b>.
         </div>
       </div>
       <div class="card" style="display:flex; flex-direction:column; justify-content:center; text-align:center;">
-        <div class="k">Headline</div>
-        <div style="font-size:30px; font-weight:800; letter-spacing:-0.02em; margin-top:6px;">
-          <span style="color:#f87171;">42.3%</span>
+        <div class="k">Headline <span style="font-size:11px;color:#7c93b8;">(train)</span></div>
+        <div style="font-size:28px; font-weight:800; letter-spacing:-0.02em; margin-top:6px;">
+          <span style="color:#f87171;">40.5%</span>
           <span style="color:#64748b; font-size:22px;"> → </span>
           <span style="color:#34d399;">100.0%</span>
         </div>
-        <div style="font-size:14px; color:#6ee7a8; font-weight:700; margin-top:4px;">+57.7 pp</div>
+        <div style="font-size:14px; color:#6ee7a8; font-weight:700; margin-top:4px;">+59.5 pp</div>
+        <div style="font-size:14px; color:#fbbf24; font-weight:800; margin-top:8px; border-top:1px solid #2a2050; padding-top:8px;">holdout 71.4% <span style="font-size:11px;color:#94a3b8;font-weight:600;">(unseen · honest)</span></div>
         <div class="d" style="margin-top:8px;">A pass must match <b>both</b> decision and reason tag — no right-answer-for-the-wrong-reason inflation.</div>
       </div>
     </div>
