@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280">
+<title>Social Seeding v2 — Wow + Business (D49)</title>
+<!--
+  I9 / D49 — "Wow + Business" reinforcement panel for Track 3 judging.
+  Companion to index.html (the 24-scene interactive demo). This page is the
+  Demo-20% + Business-30% surface that index.html lacked. Self-contained:
+  Tailwind Play CDN + inline SVG/CSS only, no other external dependency.
+
+  Four deliverables (DECISIONS.md D49):
+    (a) ONE REAL Imagen 4 generation — assets/generated-sample.png
+        (live Vertex AI call on ss-v2-prod, imagen-4.0-generate-001, 1:1,
+         1024x1024, 950,522 bytes, $0.04). NOT a stub.
+    (b) Animated A2A cross-call — coordinator -> a2a_invoke -> ss-mcp,
+        real 318 ms round-trip + 5 creators from the live endpoint.
+    (c) ROI / TAM-SAM-SOM scene — the $0.01/delivered-view model (D28).
+    (d) PDF Build Example #2 1:1 match callout (A2A-INTENTS.md §5).
+
+  D-IDs cited on-screen: D28 ($0.01/view, $10 eCPM) · D29 (3 angles) ·
+  D45 (single Track-3 narrative) · D48 (A2A intents) · D49 (this panel).
+  RULES.md: no marketing superlatives; every market figure carries its
+  source + the assumption used to derive it.
+-->
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --gcp-blue: #1a73e8;
+    --gcp-green: #34a853;
+    --gcp-red: #ea4335;
+    --gcp-yellow: #fbbc04;
+    --slate-900: #0f172a;
+    --slate-800: #1e293b;
+    --slate-700: #334155;
+    --slate-400: #94a3b8;
+    --slate-200: #e2e8f0;
+  }
+  html, body {
+    font-family: -apple-system, "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+    background: #0b1220;
+    color: #e2e8f0;
+    margin: 0;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 24px 80px; }
+  a { color: #7cb0ff; }
+  header.page {
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid #1e293b; padding-bottom: 16px; margin-bottom: 8px;
+    flex-wrap: wrap; gap: 12px;
+  }
+  header.page h1 { font-size: 20px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+  header.page .meta { font-size: 12px; color: var(--slate-400); margin-top: 4px; }
+  .back-link {
+    font-size: 13px; font-weight: 600; text-decoration: none;
+    background: #16233b; border: 1px solid #2a3b57; color: #cbd5e1;
+    padding: 8px 14px; border-radius: 8px; white-space: nowrap;
+  }
+  .panel {
+    background: #0f1a2e; border: 1px solid #1e2d4a; border-radius: 14px;
+    padding: 22px 24px; margin-top: 22px;
+  }
+  .panel h2 {
+    font-size: 17px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .panel .sub { font-size: 12.5px; color: var(--slate-400); margin: 0 0 16px; line-height: 1.5; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 9999px;
+    border: 1px solid; letter-spacing: 0.02em;
+  }
+  .pill-blue { background: #11243f; color: #79b0ff; border-color: #2a4a78; }
+  .pill-green { background: #0f2a1c; color: #6ee7a8; border-color: #1f5436; }
+  .pill-amber { background: #2c2410; color: #f7c948; border-color: #5a4a16; }
+  .pill-purple { background: #241a3a; color: #c4a6ff; border-color: #463273; }
+  .pill-red { background: #2c1414; color: #ff8a80; border-color: #5a2424; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .card {
+    background: #0b1628; border: 1px solid #1c2c47; border-radius: 10px; padding: 16px;
+  }
+  .card .k { font-size: 11px; color: var(--slate-400); text-transform: uppercase; letter-spacing: 0.06em; }
+  .card .v { font-size: 26px; font-weight: 800; margin-top: 4px; letter-spacing: -0.02em; }
+  .card .d { font-size: 11.5px; color: #8aa0bd; margin-top: 4px; line-height: 1.45; }
+  .src { font-size: 10.5px; color: #6b7c95; line-height: 1.5; }
+  .footnote { font-size: 11px; color: #6b7c95; margin-top: 10px; line-height: 1.55; }
+  table.ledger { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.ledger th { text-align: left; color: var(--slate-400); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid #243653; font-size: 11px; }
+  table.ledger td { padding: 7px 8px; border-bottom: 1px solid #16253e; }
+  table.ledger td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  @media (max-width: 900px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <div>
+      <h1>Social Seeding v2 — Wow + Business</h1>
+      <div class="meta">Track 3 judging · Demo 20% + Business 30% reinforcement · D28 · D29 · D45 · D48 · D49</div>
+    </div>
+    <a class="back-link" href="index.html">← 24-scene interactive demo</a>
+  </header>
+
+  <!-- ====================================================================== -->
+  <!-- (d) PDF Build Example #2 1:1 match — placed first so judges anchor to  -->
+  <!--     the official guide before anything else.                           -->
+  <!-- ====================================================================== -->
+  <section class="panel" id="build-example-2" style="border-color:#463273; background:#140f24;">
+    <h2><span class="pill pill-purple">Track 3 Guide</span> Build Example&nbsp;#2 — 1:1 match</h2>
+    <p class="sub">
+      Google's official AI Agents Challenge Resource Guide (<span class="mono">designed_guide.pdf</span> p.7)
+      describes a reference marketing agent. Social Seeding's <span class="mono">content_verify</span> agent maps onto it
+      element-for-element. <span class="pill pill-blue" style="margin-left:4px;">D29-C</span>
+      <span class="pill pill-purple" style="margin-left:4px;">D48</span>
+    </p>
+
+    <div style="background:#0b1024; border:1px solid #2c2350; border-left:3px solid #8b5cf6; border-radius:8px; padding:14px 16px; font-size:12.5px; line-height:1.6; color:#cbb8f0; font-style:italic;">
+      &ldquo;marketing agent&hellip; multi-modal video assembly&hellip; powered by Gemini&hellip; analyze PDF briefs,
+      generate storyboards, orchestrate audio-visual assets&hellip; <b>A2A protocol</b>&hellip; communicate with
+      company's internal <b>Digital Asset Manager (DAM) Agent</b> to retrieve approved brand logos and product
+      imagery, ensuring every generated video remains <b>on-brand and compliant</b>.&rdquo;
+      <div style="font-style:normal; color:#7c6aa8; font-size:11px; margin-top:8px;">— designed_guide.pdf p.7, Build Example #2 (verbatim)</div>
+    </div>
+
+    <table class="ledger" style="margin-top:16px;">
+      <thead><tr><th style="width:38%;">PDF Build Example #2 element</th><th>Social Seeding implementation</th></tr></thead>
+      <tbody>
+        <tr><td>Marketing agent on Cloud&nbsp;Run&nbsp;/&nbsp;GKE, powered by Gemini, <b>multi-modal</b></td>
+            <td><span class="mono">content_verify</span> — Gemini 2.5 Flash multimodal (text + image + video), the first multimodal Tier-1 agent</td></tr>
+        <tr><td><b>A2A</b> to an internal <b>DAM Agent</b> for approved brand logos / product imagery</td>
+            <td><span class="mono">vision.brand_logo_detect</span> (Cloud Vision <span class="mono">LOGO_DETECTION</span>) verifies the seeded brand's logo against post media — the DAM's "approved-logo" check</td></tr>
+        <tr><td>Output &ldquo;remains <b>on-brand and compliant</b>&rdquo;</td>
+            <td>Returns <span class="mono">{matches, mentionsBrand, logoDetected, flags[8], rationale}</span>; flags include <span class="mono">competitor_mention</span>, <span class="mono">ai_generated_suspect</span> — the explicit verdict</td></tr>
+      </tbody>
+    </table>
+
+    <p class="footnote">
+      <b>Honest scope note</b> (RULES.md — no overclaim): in shipped Phase-3 code, <span class="mono">content_verify</span>
+      reaches its brand-asset check via an <b>in-process ADK FunctionTool</b>, not yet a separate A2A-deployed DAM agent.
+      The roles map 1:1; promoting <span class="mono">vision.brand_logo_detect</span> to a standalone A2A-addressable
+      DAM agent is the Phase-4 step (same lift as the <span class="mono">a2a_invoke</span> live-wiring shown below).
+      Source: <span class="mono">gcp-research/refactor-mcp/A2A-INTENTS.md §5</span>.
+    </p>
+  </section>
+
+  <!-- ====================================================================== -->
+  <!-- (b) Animated A2A cross-call diagram.                                   -->
+  <!-- ====================================================================== -->
+  <section class="panel" id="a2a-crosscall">
+    <h2><span class="pill pill-blue">A2A v0.3</span> Live cross-call — <span class="mono" style="font-size:14px;">coordinator → a2a_invoke → ss-mcp</span></h2>
+    <p class="sub">
+      The load-bearing edge that makes Track 2 + Track 3 one submission (D45). Measured against the live endpoint —
+      not mocked. <span class="pill pill-blue" style="margin-left:4px;">D29-A</span>
+      <span class="pill pill-blue" style="margin-left:4px;">D45</span>
+    </p>
+
+    <!-- SVG animation: 3 nodes + a packet that travels right (request) then left (response) -->
+    <div style="background:#0a1322; border:1px solid #1c2c47; border-radius:10px; padding:18px;">
+      <svg viewBox="0 0 1080 230" width="100%" role="img" aria-label="Animated A2A cross-call from coordinator to a2a_invoke to ss-mcp server and back">
+        <defs>
+          <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 Z" fill="#3a5a8c"/>
+          </marker>
+        </defs>
+
+        <!-- wires -->
+        <line x1="245" y1="92" x2="395" y2="92" stroke="#3a5a8c" stroke-width="2" marker-end="url(#arrow)"/>
+        <line x1="685" y1="92" x2="835" y2="92" stroke="#3a5a8c" stroke-width="2" marker-end="url(#arrow)"/>
+        <!-- return wire (lower) -->
+        <line x1="835" y1="140" x2="685" y2="140" stroke="#1f5436" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+        <line x1="395" y1="140" x2="245" y2="140" stroke="#1f5436" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+
+        <!-- node: coordinator -->
+        <g>
+          <rect x="55" y="62" width="190" height="60" rx="10" fill="#11243f" stroke="#2a4a78" stroke-width="1.5"/>
+          <text x="150" y="88" text-anchor="middle" fill="#dbe7ff" font-size="14" font-weight="700">coordinator (M1)</text>
+          <text x="150" y="106" text-anchor="middle" fill="#79b0ff" font-size="10.5">Track 2 ADK fleet</text>
+        </g>
+        <!-- node: a2a_invoke -->
+        <g>
+          <rect x="395" y="62" width="290" height="60" rx="10" fill="#1a1230" stroke="#463273" stroke-width="1.5"/>
+          <text x="540" y="88" text-anchor="middle" fill="#e6dbff" font-size="14" font-weight="700" font-family="ui-monospace, monospace">a2a_invoke</text>
+          <text x="540" y="106" text-anchor="middle" fill="#c4a6ff" font-size="10.5">HTTPS POST · SPIFFE identity (D48) · TLS enforced</text>
+        </g>
+        <!-- node: ss-mcp -->
+        <g>
+          <rect x="835" y="62" width="200" height="60" rx="10" fill="#0f2a1c" stroke="#1f5436" stroke-width="1.5"/>
+          <text x="935" y="84" text-anchor="middle" fill="#d6ffe6" font-size="13.5" font-weight="700">ss-mcp-server</text>
+          <text x="935" y="100" text-anchor="middle" fill="#6ee7a8" font-size="10">plan_creator_search</text>
+          <text x="935" y="114" text-anchor="middle" fill="#5fae84" font-size="9">Cloud Run · us-central1</text>
+        </g>
+
+        <!-- request packet (left -> right) -->
+        <g>
+          <rect x="-26" y="84" width="52" height="16" rx="4" fill="#1a73e8">
+            <animate attributeName="x" values="248;380;700;812" keyTimes="0;0.45;0.55;1"
+                     dur="3.4s" begin="0s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0;1;1;1;0" keyTimes="0;0.05;0.45;0.55;0.6" dur="3.4s" repeatCount="indefinite"/>
+          </rect>
+          <text x="0" y="96" text-anchor="middle" fill="#fff" font-size="8.5" font-weight="700" font-family="ui-monospace, monospace">
+            brief
+            <animate attributeName="x" values="274;406;726;838" keyTimes="0;0.45;0.55;1"
+                     dur="3.4s" begin="0s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0;1;1;1;0" keyTimes="0;0.05;0.45;0.55;0.6" dur="3.4s" repeatCount="indefinite"/>
+          </text>
+        </g>
+
+        <!-- response packet (right -> left, lower lane) -->
+        <g>
+          <rect x="810" y="132" width="76" height="16" rx="4" fill="#34a853">
+            <animate attributeName="x" values="812;700;380;-50" keyTimes="0;0.45;0.55;1"
+                     dur="3.4s" begin="1.7s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0;1;1;1;0" keyTimes="0;0.05;0.45;0.55;0.6" dur="3.4s" begin="1.7s" repeatCount="indefinite"/>
+          </rect>
+          <text x="848" y="144" text-anchor="middle" fill="#062" font-size="8.5" font-weight="700" font-family="ui-monospace, monospace">
+            5 creators
+            <animate attributeName="x" values="848;736;416;-14" keyTimes="0;0.45;0.55;1"
+                     dur="3.4s" begin="1.7s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0;1;1;1;0" keyTimes="0;0.05;0.45;0.55;0.6" dur="3.4s" begin="1.7s" repeatCount="indefinite"/>
+          </text>
+        </g>
+
+        <!-- timing badge -->
+        <g>
+          <rect x="430" y="170" width="220" height="34" rx="8" fill="#0b1628" stroke="#243653"/>
+          <text x="540" y="192" text-anchor="middle" fill="#6ee7a8" font-size="13" font-weight="700" font-family="ui-monospace, monospace">task/completed · 318 ms</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="grid2" style="margin-top:16px;">
+      <div class="card">
+        <div class="k">Live endpoint</div>
+        <div class="mono" style="font-size:11.5px; color:#7cb0ff; margin-top:6px; word-break:break-all;">https://ss-mcp-server-1049119860518.us-central1.run.app</div>
+        <div class="d">A2A v0.3 over JSONRPC · <span class="mono">POST /v1/message:send</span> · OIDC bearer (D19) · 318 ms measured round-trip</div>
+      </div>
+      <div class="card">
+        <div class="k">Result · 5 ranked creators</div>
+        <table class="ledger" style="margin-top:8px;">
+          <thead><tr><th>handle</th><th class="num">followers</th><th class="num">ER</th><th class="num">fit</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">@kr_vegan_beauty</td><td class="num">412k</td><td class="num">0.0923</td><td class="num">0.222</td></tr>
+            <tr><td class="mono">@seoul_clean_beauty</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+            <tr><td class="mono">@minkookie</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+            <tr><td class="mono">@petite_skin</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+            <tr><td class="mono">@vegan.jihye</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="footnote">
+      Measured 2026-05-19 against the live Cloud Run endpoint. <span class="mono">@kr_vegan_beauty</span> metrics shown
+      as returned; the other four handles are returned in the ranked set (per-handle metrics omitted here for brevity).
+      Source trail: <span class="mono">packages/agents-adk/.../tools/a2a_invoke.py</span> (USD_COST=$0.0005/hop, TLS enforced) ·
+      <span class="mono">A2A-INTENTS.md §4</span>.
+    </p>
+  </section>
+
+  <!-- ====================================================================== -->
+  <!-- (a) Real Imagen 4 multimodal generation showcase.                      -->
+  <!-- ====================================================================== -->
+  <section class="panel" id="multimodal">
+    <h2><span class="pill pill-green">Live</span> Real multimodal generation — Imagen 4</h2>
+    <p class="sub">
+      One real Vertex AI Imagen 4 call (not a stub). This is the multimodal channel under the
+      <span class="mono">creative</span> agent that the Build Example #2 marketing agent needs.
+      <span class="pill pill-blue" style="margin-left:4px;">D29-C</span>
+      <span class="pill pill-amber" style="margin-left:4px;">D49(a)</span>
+    </p>
+    <div class="grid2">
+      <div class="card" style="padding:12px;">
+        <img src="assets/generated-sample.png" alt="Imagen 4 generated: minimalist Korean skincare serum bottle on soft beige background"
+             style="width:100%; border-radius:8px; display:block; background:#1a1a1a;"/>
+        <div class="d" style="margin-top:8px; text-align:center;">
+          Generated via <b>Imagen 4 (live on prod)</b> · <span class="mono">imagen-4.0-generate-001</span>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="k">Prompt</div>
+          <div class="d" style="font-size:12px; color:#c2d2e8;">"minimalist Korean skincare serum bottle, soft beige background, premium beauty product photography, studio lighting, high detail, clean composition, no text, no logo"</div>
+        </div>
+        <div class="card" style="margin-top:12px;">
+          <table class="ledger">
+            <tbody>
+              <tr><td>Project</td><td class="mono">ss-v2-prod</td></tr>
+              <tr><td>Region</td><td class="mono">us-central1</td></tr>
+              <tr><td>Aspect / size</td><td class="mono">1:1 · 1024×1024</td></tr>
+              <tr><td>Safety filter</td><td class="mono">BLOCK_MEDIUM_AND_ABOVE</td></tr>
+              <tr><td>Bytes</td><td class="mono">950,522 (PNG)</td></tr>
+              <tr><td>Cost</td><td class="mono">≈ $0.04 (1 image)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="footnote" style="margin-top:10px;">
+          SHA-256 <span class="mono" style="word-break:break-all;">94245a8e56dc322f220b72a2f0bd6b021db4a0b0ee9d19fc78e11ac04b99082c</span>.
+          Generator: <span class="mono">scripts/demo/gen_sample_image.py</span>. Cost ceiling per D39 ($1,500 credits);
+          contract mirrors <span class="mono">packages/agents-adk/.../tools/imagen_generate.py</span>
+          ($0.04/image, 1:1 → 1024×1024).
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================================================================== -->
+  <!-- (c) ROI / pricing model — the $0.01/delivered-view (D28).              -->
+  <!-- ====================================================================== -->
+  <section class="panel" id="roi">
+    <h2><span class="pill pill-amber">Business</span> ROI — $0.01 per delivered view ($10 eCPM, ROI-linked)</h2>
+    <p class="sub">
+      The customer pays for outcomes, not seats. Worked example using the live cross-call's creator
+      (<span class="mono">@kr_vegan_beauty</span>, 412k followers, ER 0.0923).
+      <span class="pill pill-amber" style="margin-left:4px;">D28</span>
+      <span class="pill pill-blue" style="margin-left:4px;">D29-C</span>
+    </p>
+
+    <!-- pricing flow -->
+    <div style="background:#0a1322; border:1px solid #1c2c47; border-radius:10px; padding:16px;">
+      <svg viewBox="0 0 1080 120" width="100%" role="img" aria-label="Pricing flow: campaign budget to delivered views to billed amount">
+        <defs>
+          <marker id="arr2" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 Z" fill="#5a6f92"/>
+          </marker>
+        </defs>
+        <line x1="262" y1="60" x2="362" y2="60" stroke="#5a6f92" stroke-width="2" marker-end="url(#arr2)"/>
+        <line x1="640" y1="60" x2="740" y2="60" stroke="#5a6f92" stroke-width="2" marker-end="url(#arr2)"/>
+
+        <g>
+          <rect x="40" y="32" width="222" height="56" rx="10" fill="#11243f" stroke="#2a4a78"/>
+          <text x="151" y="56" text-anchor="middle" fill="#dbe7ff" font-size="12" font-weight="700">Campaign budget</text>
+          <text x="151" y="76" text-anchor="middle" fill="#79b0ff" font-size="15" font-weight="800" font-family="ui-monospace, monospace">$380.00</text>
+        </g>
+        <g>
+          <rect x="362" y="32" width="278" height="56" rx="10" fill="#1a1230" stroke="#463273"/>
+          <text x="501" y="50" text-anchor="middle" fill="#e6dbff" font-size="11.5" font-weight="700">Delivered &amp; verified views</text>
+          <text x="501" y="70" text-anchor="middle" fill="#c4a6ff" font-size="15" font-weight="800" font-family="ui-monospace, monospace">38,000 views</text>
+          <text x="501" y="84" text-anchor="middle" fill="#8a72c0" font-size="9">content_verify confirms each delivery</text>
+        </g>
+        <g>
+          <rect x="740" y="32" width="300" height="56" rx="10" fill="#0f2a1c" stroke="#1f5436"/>
+          <text x="890" y="50" text-anchor="middle" fill="#d6ffe6" font-size="11.5" font-weight="700">Billed @ $0.01 / view</text>
+          <text x="890" y="70" text-anchor="middle" fill="#6ee7a8" font-size="15" font-weight="800" font-family="ui-monospace, monospace">$380.00</text>
+          <text x="890" y="84" text-anchor="middle" fill="#5fae84" font-size="9">Pub/Sub → BigQuery → Apigee metering</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="grid3" style="margin-top:16px;">
+      <div class="card">
+        <div class="k">Unit price</div>
+        <div class="v" style="color:#6ee7a8;">$0.01</div>
+        <div class="d">per delivered, verified view = <b>$10 effective CPM</b>. Charged only on views <span class="mono">content_verify</span> confirms.</div>
+      </div>
+      <div class="card">
+        <div class="k">Why ROI-linked</div>
+        <div class="v" style="font-size:18px; line-height:1.3;">no view,<br>no charge</div>
+        <div class="d">Per-seat / per-creator SaaS bills regardless of outcome. Per-delivered-view ties spend to attention actually delivered.</div>
+      </div>
+      <div class="card">
+        <div class="k">Demo run cost</div>
+        <div class="v" style="color:#79b0ff;">$1.34</div>
+        <div class="d">Full brand-campaign loop (173 agent calls, 22 agents) — well under the $1,500 GCP credit envelope (D39).</div>
+      </div>
+    </div>
+    <p class="footnote">
+      eCPM math: $0.01/view × 1,000 = $10 CPM. Worked example uses 38,000 verified views (the demo's Scene-7 view-count
+      figure) at the $0.01 unit price ⇒ $380. Metering pipeline: Pub/Sub event → BigQuery → Apigee X usage billing
+      (DECISIONS.md §5). Pricing decision: <b>D28</b>.
+    </p>
+  </section>
+
+  <!-- ====================================================================== -->
+  <!-- (c-2) TAM / SAM / SOM napkin chart — honest, sourced.                   -->
+  <!-- ====================================================================== -->
+  <section class="panel" id="tam">
+    <h2><span class="pill pill-amber">Market</span> TAM / SAM / SOM — Korean influencer marketing</h2>
+    <p class="sub">
+      Napkin estimate. Every figure carries its source and the assumption used to derive it (RULES.md — no overclaim).
+      <span class="pill pill-amber" style="margin-left:4px;">D28</span>
+    </p>
+
+    <div class="grid2">
+      <!-- concentric SVG -->
+      <div class="card" style="display:flex; align-items:center; justify-content:center;">
+        <svg viewBox="0 0 320 300" width="100%" style="max-width:320px;" role="img" aria-label="Concentric TAM SAM SOM chart">
+          <!-- TAM -->
+          <circle cx="160" cy="150" r="135" fill="#11243f" stroke="#2a4a78" stroke-width="1.5"/>
+          <text x="160" y="40" text-anchor="middle" fill="#79b0ff" font-size="12" font-weight="700">TAM · Global</text>
+          <text x="160" y="58" text-anchor="middle" fill="#dbe7ff" font-size="15" font-weight="800" font-family="ui-monospace, monospace">$32.6B</text>
+          <!-- SAM -->
+          <circle cx="160" cy="178" r="92" fill="#1a1230" stroke="#463273" stroke-width="1.5"/>
+          <text x="160" y="120" text-anchor="middle" fill="#c4a6ff" font-size="11.5" font-weight="700">SAM · Korea</text>
+          <text x="160" y="138" text-anchor="middle" fill="#e6dbff" font-size="14" font-weight="800" font-family="ui-monospace, monospace">$489M</text>
+          <!-- SOM -->
+          <circle cx="160" cy="205" r="48" fill="#0f2a1c" stroke="#1f5436" stroke-width="1.5"/>
+          <text x="160" y="200" text-anchor="middle" fill="#6ee7a8" font-size="11" font-weight="700">SOM</text>
+          <text x="160" y="217" text-anchor="middle" fill="#d6ffe6" font-size="13" font-weight="800" font-family="ui-monospace, monospace">~$5M</text>
+        </svg>
+      </div>
+
+      <div>
+        <div class="card" style="border-left:3px solid #2a4a78;">
+          <div class="k" style="color:#79b0ff;">TAM — global influencer marketing 2025</div>
+          <div class="v" style="font-size:22px;">$32.6B</div>
+          <div class="src">Source: Statista, global influencer marketing market ≈ $32.55B in 2025 (up ~35% YoY from $24B in 2024). Used as the total addressable ceiling.</div>
+        </div>
+        <div class="card" style="border-left:3px solid #463273; margin-top:12px;">
+          <div class="k" style="color:#c4a6ff;">SAM — Korea influencer ad spend 2025</div>
+          <div class="v" style="font-size:22px;">$489M</div>
+          <div class="src">Source: Statista Influencer Advertising outlook — Korea ad spend ≈ US$489.24M in 2025, projected ≈ US$786M by 2030. This is the serviceable Korea-region slice our A2A-only distribution path (D2/D3) targets.</div>
+        </div>
+        <div class="card" style="border-left:3px solid #1f5436; margin-top:12px;">
+          <div class="k" style="color:#6ee7a8;">SOM — obtainable, 3-yr</div>
+          <div class="v" style="font-size:22px;">~$5M</div>
+          <div class="src"><b>Assumption (ours, not a market report):</b> ~1% of the $489M Korea SAM captured over 3 years ⇒ ≈ $5M ARR. Single-digit-% capture is a deliberately conservative early-stage planning figure, not a forecast.</div>
+        </div>
+      </div>
+    </div>
+    <p class="footnote">
+      Figures are point estimates from third-party market reports (Statista) plus one explicitly-labelled internal
+      assumption for SOM. They are sizing context for the $0.01/view model (D28), not revenue guidance. Different
+      reports scope the market differently (e.g. fashion-only KR influencer ≈ $2.89B, 2025); we use the narrower
+      "influencer advertising spend" line for SAM because it best matches what a per-view product actually bills against.
+    </p>
+  </section>
+
+  <!-- ====================================================================== -->
+  <!-- Three-angle footer (D29).                                              -->
+  <!-- ====================================================================== -->
+  <section class="panel" id="angles" style="background:#0b1628;">
+    <h2><span class="pill pill-blue">D29</span> Three differentiation angles, on one surface</h2>
+    <div class="grid3" style="margin-top:6px;">
+      <div class="card" style="border-top:3px solid #1a73e8;">
+        <div class="k" style="color:#79b0ff;">D29-A · Agent-as-function</div>
+        <div class="d" style="color:#c2d2e8;">The cross-call above is a typed function (Zod/Pydantic I/O, USD cap, escalation), not a free ReAct loop — invoked over A2A.</div>
+      </div>
+      <div class="card" style="border-top:3px solid #8b5cf6;">
+        <div class="k" style="color:#c4a6ff;">D29-B · KR-region gap</div>
+        <div class="d" style="color:#c2d2e8;">No paid Marketplace listing for a Korean entity (D2). A2A-only distribution (D3) is the reframed innovation — the $489M SAM above.</div>
+      </div>
+      <div class="card" style="border-top:3px solid #34a853;">
+        <div class="k" style="color:#6ee7a8;">D29-C · Multimodal + AP2 + Multi-agent</div>
+        <div class="d" style="color:#c2d2e8;">The real Imagen 4 image, the Build Example #2 match, and the 22-agent fleet behind the $0.01/view loop.</div>
+      </div>
+    </div>
+    <p class="footnote">
+      Single Track-3 narrative per D45. Companion to the 24-scene interactive demo:
+      <a href="index.html">index.html</a>. Repo: github.com/ComBba/social-seeding-v2 · Apache-2.0 + BUSL-1.1.
+    </p>
+  </section>
+
+</div>
+</body>
+</html>
