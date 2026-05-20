@@ -1,172 +1,131 @@
-# SCREENSHOTS-MANIFEST.md
+# SCREENSHOTS-MANIFEST.md — single Track 3 submission (whole platform)
 
-> **Purpose**: every screenshot the operator must capture before clicking "Submit" on Devpost (per D30 demo recording + D6 Devpost gated invite). One entry per file, in capture order.
+> **Purpose**: every screenshot the operator captures before clicking "Submit" on the **single** Devpost Track 3 entry (D45 — one submission subsuming the whole platform). One entry per file, in capture order.
 >
-> **Naming convention**: `<track>-<scene>-<ordinal>.png` — lowercase, hyphens only. Target output directory: `scripts/demo/submission/screenshots/` (gitignored except `.gitkeep`). All PNG, sRGB, no alpha unless noted.
+> **Submission strategy**: ONE Devpost form (Track 3 / Refactor). The platform (former Track 2) is absorbed; there is no second gallery. Devpost accepts up to **10 image uploads per submission** — the recommended final 10 are marked ★ below.
 >
-> **Tooling**: macOS `Cmd+Shift+4 + Space` for window-bound captures; Chrome DevTools "Capture full-size screenshot" for long-scrolling Mission Control views; `gcloud screenshot` not available — use the Cloud Console UI directly with browser zoom 100% for crispness.
+> **Naming convention**: `<scene>-<ordinal>.png` — lowercase, hyphens only. Output directory: `scripts/demo/submission/screenshots/` (gitignored except `.gitkeep`). All PNG, sRGB, no alpha unless noted.
 >
-> **Authoritative source**: `gcp-research/decisions/DECISIONS.md` (cited inline per D-ID); demo script in `gcp-research/demo/SCRIPT.md` §3 (Track 2) and §4 (Track 3).
+> **Tooling**: macOS `Cmd+Shift+4 + Space` for window-bound captures; Chrome DevTools "Capture full-size screenshot" for long-scrolling Mission Control views; for live endpoints use a real browser/terminal at 100% zoom. Live demo landing animations captured as PNG stills (or short GIF if Devpost gallery accepts it).
 >
-> **Status as of 2026-05-19**: 24 captures required (14 Track 2 + 10 Track 3). Zero captured to date — operator captures during the live demo recording window, post W7 deploy.
+> **Authoritative source**: `gcp-research/decisions/DECISIONS.md` (cited inline per D-ID).
+>
+> **Status as of 2026-05-20**: 18 captures defined for the single submission. Live endpoints reachable now (stub mode); operator captures during the demo recording window.
 
 ---
 
-## 1. Track 2 — `social-seeding-v2` (14 captures)
+## 0. The 10 strongest (Devpost gallery, in upload order) ★
 
-### 1.1 Mission Control intake (D26)
+Devpost caps at 10 images. Upload these, in this order — the hero is the live A2A cross-call:
 
-| # | Filename | Where to capture | Dimensions | Notes |
-|---|----------|------------------|------------|-------|
-| T2-01 | `t2-mission-control-intake-01.png` | `<CLOUD_RUN_WEB_URL>/intake` — fresh brand brief form, empty | 1920 × 1080 | Show empty state with placeholder text and the "Conversational intake (Gemini 2.5 Flash)" badge top-right per D23 |
-| T2-02 | `t2-mission-control-intake-02.png` | Same URL, brief filled in (paste demo brief from `gcp-research/demo/SCRIPT.md` §3.2) | 1920 × 1080 | Show the intake agent's clarifying questions in the right panel; Identity Platform tenant chip in nav bar |
+1. ★ `live-a2a-crosscall-318ms.png` — the load-bearing proof (S-01)
+2. ★ `live-agent-json-200.png` — A2A v0.3 card served live (S-02)
+3. ★ `req-gate-table.png` — 6-requirement gate, all green (S-03)
+4. ★ `build-example-2-match.png` — PDF Build Example #2 1:1 callout (S-04)
+5. ★ `mission-control-fleet.png` — 22-agent fleet overview (S-05)
+6. ★ `ap2-mandate-detail.png` — AP2 Intent Mandate human gate (S-06)
+7. ★ `real-imagen-generation.png` — real Imagen multimodal output (S-07)
+8. ★ `wow-business-roi-tam.png` — $0.01/view ROI + TAM/SAM/SOM scene (S-08)
+9. ★ `a2a-animation-diagram.png` — animated A2A cross-call diagram still (S-09)
+10. ★ `pytest-2713-passing.png` — 2,713 passed / 0 failed (S-10)
 
-### 1.2 22-agent fleet runtime view (D17 / D23)
-
-| # | Filename | Where to capture | Dimensions | Notes |
-|---|----------|------------------|------------|-------|
-| T2-03 | `t2-agent-fleet-overview.png` | `<CLOUD_RUN_WEB_URL>/agents` — all 22 agents listed with status | 1920 × 1080 | Each agent row shows: tier (1/2/3), model (2.5 Pro/Flash/Flash-Lite), tool count, last invocation, USD-day spend bar. Sortable by tier. |
-| T2-04 | `t2-agent-runtime-deployed.png` | Cloud Console → Vertex AI → Agent Runtime → endpoints list, showing all 22 agents deployed across 3 regions | 1920 × 1080 | Per D17. Filter by region tag; show us-central1, europe-west4, asia-northeast3 columns populated |
-
-### 1.3 AP2 mandate flow (D27)
-
-| # | Filename | Where to capture | Dimensions | Notes |
-|---|----------|------------------|------------|-------|
-| T2-05 | `t2-ap2-mandate-detail.png` | `<CLOUD_RUN_WEB_URL>/approvals/{mandate_id}` — Intent Mandate detail view | 1920 × 1080 | Show: mandate JSON (collapsible), creator identity, brand identity, USD ceiling, the gate name (`external_send`), Approve/Reject buttons, Decline-with-reason input. Cite D27 in caption. |
-| T2-06 | `t2-approvals-bulk-approve.png` | `<CLOUD_RUN_WEB_URL>/approvals` — list view with multi-select | 1920 × 1080 | Show 12 pending mandates with checkboxes, "Approve selected" button highlighted, total-USD chip showing $34.27. |
-
-### 1.4 Workflow + telemetry (D18 / D31)
-
-| # | Filename | Where to capture | Dimensions | Notes |
-|---|----------|------------------|------------|-------|
-| T2-07 | `t2-workflows-canvas.png` | Cloud Console → Workflows → `brand-campaign` → graph view | 1920 × 1080 | Show the `step.sleep(14d)` → `waitForCallback` rewrite as Cloud Workflows. Per D18 / D42. |
-| T2-08 | `t2-cloud-trace-spans.png` | Cloud Console → Cloud Trace → trace for one full campaign run | 1920 × 1080 | Show spans for: Mission Control intake → Agent Gateway → 22 agents fan-out → Spanner / AlloyDB writes → Apigee meter. Per D31 hot-path < 1 s p99. |
-| T2-09 | `t2-cost-watch-dashboard.png` | Managed Grafana dashboard for `cost_watch` (W2) | 1920 × 1080 | Per-tenant USD/day with 50/75/90/95% threshold ladder lines. Per D23 / D39. |
-
-### 1.5 Dialogflow CX widget (D26)
-
-| # | Filename | Where to capture | Dimensions | Notes |
-|---|----------|------------------|------------|-------|
-| T2-10 | `t2-dialogflow-cx-widget.png` | `<CLOUD_RUN_WEB_URL>` with the chat widget open mid-conversation | 1280 × 720 | Show the operator asking "How is the Q3 vegan-skincare campaign going?" and the agent's response with links to live campaign data. Per D26. |
-
-### 1.6 Build + test evidence (D37 / D43)
-
-| # | Filename | Where to capture | Dimensions | Notes |
-|---|----------|------------------|------------|-------|
-| T2-11 | `t2-smoke-test-green.png` | Terminal output of `scripts/smoke-test/run-brand-campaign.sh` showing exit 0 | 1280 × 800 | Per D43. Show: 22/22 agents validated, 50/50 tool invocations, 0.15 s wall, exit 0. Monospace dark theme. |
-| T2-12 | `t2-pytest-2668-passing.png` | Terminal output of `pnpm exec pytest packages/agents-adk` showing 2,668 passed / 0 failed | 1280 × 800 | Per `STATUS-REPORT.md §2`. Show the last 30 lines of pytest summary. |
-| T2-13 | `t2-cloud-deploy-canary.png` | Cloud Console → Cloud Deploy → pipeline for `social-seeding-v2` showing canary at 10% | 1920 × 1080 | Per D37. Show: 10% traffic split, SLO burn-rate gate, Binary Authorization "Approved" badge. |
-
-### 1.7 Model Armor + Chronicle (D21 / D32)
-
-| # | Filename | Where to capture | Dimensions | Notes |
-|---|----------|------------------|------------|-------|
-| T2-14 | `t2-model-armor-policy.png` | Cloud Console → Security → Model Armor → policy details for the `social-seeding-v2` tenant | 1920 × 1080 | Show: PI/JB block ON, PII block ON, RAI default, custom regex (brand/competitor/influencer-handle) listed, Agent Anomaly Detection ON, threshold-driven auto-quarantine ON. Per D21. |
+The remaining captures (S-11..S-18) are committed to the repo and linked from the README so judges can find them; they do not ride the 10-slot gallery.
 
 ---
 
-## 2. Track 3 — `tiktok-mcp-server` (10 captures)
-
-### 2.1 Marketplace listing (D2 / D3)
+## 1. Live-endpoint evidence (the cross-call story — D45)
 
 | # | Filename | Where to capture | Dimensions | Notes |
 |---|----------|------------------|------------|-------|
-| T3-01 | `t3-marketplace-pending.png` | Producer Portal → Listings → `Influencer Research Agent (TikTok) by Social Seeding` — status PENDING with timestamp visible | 1920 × 1080 | **The headline visual for Track 3.** Capture must include: PENDING status badge, KR-payment-region disclosure visible in the listing description preview, submission timestamp. Per D2 / D3. |
-| T3-02 | `t3-marketplace-listing-page.png` | Marketplace catalog preview page (Producer Portal's "Preview" button) | 1920 × 1080 | Show: title, tagline ("Brand brief in. Ranked TikTok creators out."), screenshots strip, pricing tiers ($0 / $49 / $299 / Enterprise), the A2A skill + MCP tools list. |
+| S-01 ★ | `live-a2a-crosscall-318ms.png` | Terminal: `bash scripts/smoke-test/run-integration-a2a.sh` showing exit 0 | 1280 × 800 | **Hero.** Show `coordinator → a2a_invoke → ss-mcp` round-trip: A2A `task` `state=completed`, **318 ms**, **5 ranked creators**. Monospace dark theme. Per D45. |
+| S-02 ★ | `live-agent-json-200.png` | Terminal: `curl -s https://ss-mcp-server-1049119860518.us-central1.run.app/.well-known/agent.json \| jq` | 1280 × 800 | Show A2A v0.3 card: `protocolVersion 0.3.0`, `skills[0].id=plan_creator_search`, four `mcp_tools`, live Cloud Run URL in `additionalInterfaces`. Requirement ④. |
+| S-11 | `live-message-send-200.png` | Terminal: `curl -s -X POST .../v1/message:send` with a brand brief body | 1280 × 800 | Show the A2A `task` envelope response, `status.state=completed`, 5 creators, `source_attribution` present. |
+| S-12 | `live-mission-control-healthz.png` | `https://ss-v2-web-722660901814.us-central1.run.app/api/healthz` 200 in browser | 1280 × 720 | Requirement ②. Show the live Mission Control health response. |
+| S-13 | `live-landing-demo.png` | `https://ss-landing-80064221403.us-central1.run.app` landing + report page | 1920 × 1080 | The public demo/report surface (D46 essential asset). |
 
-### 2.2 ADK agent runtime (D17 / D24)
-
-| # | Filename | Where to capture | Dimensions | Notes |
-|---|----------|------------------|------------|-------|
-| T3-03 | `t3-cloud-run-agent-deployed.png` | Cloud Console → Cloud Run → `tiktok-mcp` service detail | 1920 × 1080 | Show: multi-container (`agent` + `mcp` sidecar per `REFACTOR-MCP.md §5.3`), us-central1 deployment, session affinity ON, scale-to-zero. |
-| T3-04 | `t3-agent-runtime-card.png` | Cloud Console → Vertex AI → Agent Runtime → `influencer_research_coordinator` detail | 1920 × 1080 | Show: agent.json content (skills + mcp_tools dual surface), A2A v0.3 schema_version, Gemini 2.5 Flash + Pro routing config. Per D17 + D24. |
-
-### 2.3 Gemini Enterprise A2A integration (D24 / D29)
+## 2. Track 3 requirement evidence (designed_guide.pdf p.6-7)
 
 | # | Filename | Where to capture | Dimensions | Notes |
 |---|----------|------------------|------------|-------|
-| T3-05 | `t3-gemini-enterprise-chat.png` | Gemini Enterprise chat surface (or simulated mock via the demo recording) — operator asks "Find 10 TikTok creators for a vegan skincare launch in Korea targeting Gen-Z" | 1920 × 1080 | Show the agent's reasoning trace expanded: searcher keyword-fan-out, dedupe, ranker engagement-rate calc. Final ranked top-10 with reasoning. |
-| T3-06 | `t3-a2a-well-known.png` | `curl -s https://mcp.socialseed.ing/.well-known/agent.json | jq` — terminal capture | 1280 × 800 | Show the full agent.json A2A card with `skills`, `mcp_tools`, OAuth issuer pointing at `securetoken.google.com`, schema_version 0.3.0. Per D24 / D29. |
+| S-03 ★ | `req-gate-table.png` | The 6-requirement gate table (devpost-track3.md / STATUS-REPORT-UNIFIED §2), rendered | 1920 × 1080 | All six ✅ + Agent Identity ✅, each with live URL/commit/doc. Maps to Technical 30%. |
+| S-04 ★ | `build-example-2-match.png` | The Build Example #2 1:1 match table (A2A-INTENTS.md §5) rendered, with on-screen callout | 1920 × 1080 | `content_verify` ↔ DAM agent; Gemini multimodal; on-brand/compliant verdict. Per D48/D49. |
+| S-14 | `model-garden-routing.png` | `deploy/model-garden/README.md` + agent model config showing `publishers/google/models/<id>` routing | 1280 × 800 | Requirement ③ / D47. "Strict data security" framing visible. |
+| S-15 | `agent-identity-spiffe.png` | `AGENT-IDENTITY.md` showing `spiffe://ss-mcp-prod.svc.id.goog/ns/agents/sa/tiktok-mcp-runner` | 1280 × 800 | Agent Identity crypto ID (p.7) / D48. |
 
-### 2.4 Identity Platform + Apigee meter (D19 / D28)
-
-| # | Filename | Where to capture | Dimensions | Notes |
-|---|----------|------------------|------------|-------|
-| T3-07 | `t3-identity-platform-tenant.png` | Cloud Console → Identity Platform → tenant `mcp-socialseed-prod` → providers | 1920 × 1080 | Show: Google OAuth provider ON, multi-tenant config, sign-in methods, CORS origins for `mcp.socialseed.ing`. Per D19. |
-| T3-08 | `t3-apigee-meter-dashboard.png` | Cloud Console → Apigee X → Analytics → `tiktok-mcp` proxy meter dashboard | 1920 × 1080 | Per-tenant call volume + USD billing, the three tiers (Free / Starter / Pro) visible. Per D28. |
-
-### 2.5 Govern parity (D21 / D32)
+## 3. Platform (former Track 2) — fleet + AP2 + multimodal
 
 | # | Filename | Where to capture | Dimensions | Notes |
 |---|----------|------------------|------------|-------|
-| T3-09 | `t3-model-armor-block.png` | Cloud Logging query for `model_armor.action="BLOCK"` showing a real adversarial-brief block during the 50-adversarial-eval per `REFACTOR-MCP.md §6.4 step 2` | 1280 × 720 | Show: block reason (PI / JB / PII / custom regex), tenant ID redacted, timestamp. Per D21. |
-| T3-10 | `t3-chronicle-evidence-pack.png` | Chronicle SecOps → search `principal:"tiktok-mcp-runner"` for the demo window | 1920 × 1080 | Show: audit log events, Agent Anomaly Detection signals, the 90-day BigQuery export sink. Per D32 / D33. |
+| S-05 ★ | `mission-control-fleet.png` | Mission Control `/agents` — all 22 agents with tier/model/tool-count/USD-day | 1920 × 1080 | Requirement ⑤ (multi-agent). Look for the `coordinator` row's "A2A → ss-mcp / plan_creator_search" tool chip. Per D23. |
+| S-06 ★ | `ap2-mandate-detail.png` | Mission Control `/approvals/{mandate_id}` — Intent Mandate detail | 1920 × 1080 | Show mandate JSON, creator + brand identity, USD ceiling, gate name (`external_send`), Approve/Reject. Per D27. |
+| S-16 | `ap2-approvals-bulk.png` | Mission Control `/approvals` — multi-select list | 1920 × 1080 | Pending mandates with checkboxes, total-USD chip. Per D27. |
+| S-07 ★ | `real-imagen-generation.png` | The `creative` agent's real Imagen output with `CAPABILITY_LAYER_MODE=live` | 1920 × 1080 | **Real generation, not stub** (D49). Show the moodboard image + the agent panel that produced it. ~$0.04 take. |
+
+## 4. Wow + business reinforcement (D49 — Demo 20% + Business 30%)
+
+| # | Filename | Where to capture | Dimensions | Notes |
+|---|----------|------------------|------------|-------|
+| S-08 ★ | `wow-business-roi-tam.png` | Live landing / demo ROI scene: $0.01/view (D28) + TAM/SAM/SOM visualization | 1920 × 1080 | Business is co-#1 rubric weight (30%). Show $24B TAM → $1.7B SAM → $540k SOM with source labels. Per D28/D49. |
+| S-09 ★ | `a2a-animation-diagram.png` | Animated A2A cross-call diagram (still frame, or short GIF) | 1920 × 1080 | coordinator → a2a_invoke → ss-mcp → task/completed, animated. Per D49. |
+
+## 5. Build + test + govern evidence
+
+| # | Filename | Where to capture | Dimensions | Notes |
+|---|----------|------------------|------------|-------|
+| S-10 ★ | `pytest-2713-passing.png` | Terminal: `pnpm exec pytest packages/agents-adk` summary | 1280 × 800 | **2,713 passed / 0 failed.** Show the last ~30 lines. |
+| S-17 | `cloud-run-scale-to-zero.png` | Cloud Console → Cloud Run → `ss-mcp-server` detail | 1920 × 1080 | Show `minScale=0` (scale-to-zero, ~$0/mo idle), revision `00003-22m`, region us-central1. Per D46. |
+| S-18 | `model-armor-policy.png` | Model Armor policy details (design-target config) | 1920 × 1080 | PI/JB + PII block + RAI + custom regex + Anomaly Detection. Per D21. **Caption must note: design target; live enforcement gated on O-A..O-E (stub-mode honest gap).** |
 
 ---
 
-## 3. Cross-track captures (shared evidence, 0 separate; reuse Track 2 numbering)
-
-The Mission Control screenshots (T2-01, T2-02) can be cropped to 1280 × 720 for the Track 3 Devpost gallery if needed — Mission Control includes a Track 3 widget showing the v2 `sourcing` agent calling `plan_creator_search` over A2A. The cross-track integration test screenshot is part of T2-03 (look for the `sourcing` agent row's "A2A → mcp.socialseed.ing/plan_creator_search" tool chip).
-
----
-
-## 4. Pre-capture checklist (operator)
+## 6. Pre-capture checklist (operator)
 
 Before opening Devpost:
 
-1. **Verify W5 day-1 setup complete**: `gcloud projects list | grep ss-` returns three projects.
-2. **Verify W7 deploy complete**: `gcloud run services list --region=us-central1 --filter='metadata.name~ss-v2-web|tiktok-mcp'` returns both services with status `Ready: True`.
-3. **Verify demo run is green**: `bash scripts/smoke-test/run-brand-campaign.sh` exits 0 within the last 24 hours (D43 freshness gate).
-4. **Verify Producer Portal status**: listing is PENDING with the KR-payment-region disclosure visible in the description preview (D2 / D3).
-5. **Set browser zoom to 100%** and viewport to 1920 × 1080 for all desktop captures; 1280 × 720 for mobile-PWA captures.
-6. **Disable browser extensions** (especially ad blockers and dark-mode forcers) — captures should match the deployed UI exactly.
-7. **Use macOS `Cmd+Shift+4 + Space` + window selection** (not full-screen) for clean window captures with system shadow.
-8. **Crop to remove menubar / dock** — captures should show only the application content.
-9. **Verify no PII in captures**: redact tenant IDs, operator email (`app.2weeks@gmail.com` shows in Identity Platform views — redact with a black rectangle), real influencer handles per D10.
+1. **Verify the three live endpoints return 200**:
+   - `curl -sI https://ss-mcp-server-1049119860518.us-central1.run.app/` → 200
+   - `curl -s https://ss-mcp-server-1049119860518.us-central1.run.app/.well-known/agent.json | jq .protocolVersion` → `"0.3.0"`
+   - `curl -sI https://ss-v2-web-722660901814.us-central1.run.app/api/healthz` → 200
+   - `curl -sI https://ss-landing-80064221403.us-central1.run.app/` → 200
+2. **Verify cross-call green within 24 h**: `bash scripts/smoke-test/run-integration-a2a.sh` exits 0 (318 ms / 5 creators).
+3. **Verify pytest green**: `pnpm exec pytest packages/agents-adk` → 2,713 passed / 0 failed.
+4. **Set browser zoom to 100%**, viewport 1920 × 1080 for desktop, 1280 × 720/800 for terminal/mobile.
+5. **Disable browser extensions** (ad blockers, dark-mode forcers) — captures should match the deployed UI.
+6. **Verify no PII in captures**: redact tenant IDs, operator email (`app.2weeks@gmail.com`), real influencer handles per D10.
+7. **For the real Imagen take (S-07)**: run with `CAPABILITY_LAYER_MODE=live` for one take only, then revert to stub (D41/D49).
 
 ---
 
-## 5. File-layout target
+## 7. File-layout target
 
 ```
 scripts/demo/submission/
 ├── SCREENSHOTS-MANIFEST.md         (this file)
 ├── screenshots/
 │   ├── .gitkeep
-│   ├── t2-mission-control-intake-01.png
-│   ├── t2-mission-control-intake-02.png
-│   ├── t2-agent-fleet-overview.png
-│   ├── t2-agent-runtime-deployed.png
-│   ├── t2-ap2-mandate-detail.png
-│   ├── t2-approvals-bulk-approve.png
-│   ├── t2-workflows-canvas.png
-│   ├── t2-cloud-trace-spans.png
-│   ├── t2-cost-watch-dashboard.png
-│   ├── t2-dialogflow-cx-widget.png
-│   ├── t2-smoke-test-green.png
-│   ├── t2-pytest-2668-passing.png
-│   ├── t2-cloud-deploy-canary.png
-│   ├── t2-model-armor-policy.png
-│   ├── t3-marketplace-pending.png
-│   ├── t3-marketplace-listing-page.png
-│   ├── t3-cloud-run-agent-deployed.png
-│   ├── t3-agent-runtime-card.png
-│   ├── t3-gemini-enterprise-chat.png
-│   ├── t3-a2a-well-known.png
-│   ├── t3-identity-platform-tenant.png
-│   ├── t3-apigee-meter-dashboard.png
-│   ├── t3-model-armor-block.png
-│   └── t3-chronicle-evidence-pack.png
+│   ├── live-a2a-crosscall-318ms.png        (S-01 ★ hero)
+│   ├── live-agent-json-200.png             (S-02 ★)
+│   ├── req-gate-table.png                  (S-03 ★)
+│   ├── build-example-2-match.png           (S-04 ★)
+│   ├── mission-control-fleet.png           (S-05 ★)
+│   ├── ap2-mandate-detail.png              (S-06 ★)
+│   ├── real-imagen-generation.png          (S-07 ★)
+│   ├── wow-business-roi-tam.png            (S-08 ★)
+│   ├── a2a-animation-diagram.png           (S-09 ★)
+│   ├── pytest-2713-passing.png             (S-10 ★)
+│   ├── live-message-send-200.png           (S-11)
+│   ├── live-mission-control-healthz.png    (S-12)
+│   ├── live-landing-demo.png               (S-13)
+│   ├── model-garden-routing.png            (S-14)
+│   ├── agent-identity-spiffe.png           (S-15)
+│   ├── ap2-approvals-bulk.png              (S-16)
+│   ├── cloud-run-scale-to-zero.png         (S-17)
+│   └── model-armor-policy.png              (S-18)
 └── CHECKLIST.md
 ```
 
-Devpost accepts up to **10 image uploads per submission**. Operator selects the 10 strongest per track:
-
-- **Track 2 recommended order** (10 of 14): T2-01, T2-03, T2-05, T2-06, T2-07, T2-08, T2-10, T2-11, T2-13, T2-14
-- **Track 3 recommended order** (10 of 10): T3-01, T3-02, T3-03, T3-04, T3-05, T3-06, T3-07, T3-08, T3-09, T3-10
-
-The remaining Track 2 captures (T2-02, T2-04, T2-09, T2-12) are committed to the repository and linked from the README so judges can find them; they do not need to ride the Devpost gallery.
+The 10 ★ images ride the Devpost gallery (in the order listed in §0). S-11..S-18 are committed and linked from the README.
 
 ---
 
-**End of `SCREENSHOTS-MANIFEST.md`.** When all 24 files exist in `screenshots/`, proceed to [`CHECKLIST.md`](CHECKLIST.md).
+**End of `SCREENSHOTS-MANIFEST.md`.** When the 10 ★ files exist in `screenshots/`, proceed to [`CHECKLIST.md`](CHECKLIST.md).

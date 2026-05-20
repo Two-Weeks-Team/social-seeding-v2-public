@@ -13,25 +13,60 @@ Stub mode (CAPABILITY_LAYER_MODE=stub, default in dev/CI):
     Other endpoints raise `ValueError` so tests catch typos early.
 
 Live mode (CAPABILITY_LAYER_MODE=live):
-    Real outbound A2A v0.3 invocation through Agent Gateway (D44). Wired in
-    W7 deploy phase — raises `NotImplementedError` until then.
+    Real outbound A2A v0.3 `message/send` invocation to a deployed remote
+    agent (e.g. the Track-3 `tiktok-mcp-server` on Cloud Run). The hop posts
+    the A2A v0.3 REST message envelope to `<endpoint>/v1/message:send` and
+    parses the returned `task` envelope back into `response_payload`. This is
+    the load-bearing cross-component edge for D45 — the single-Track-3 proof
+    that the 22-agent ADK fleet and the refactored MCP server are one A2A
+    ecosystem (A2A-INTENTS.md §4).
 
 Citations:
     D23 — Tier-2 M1 coordinator picks local-or-remote per task.
     D24 — Phased coordination: 1→100 RemoteA2AAgent fan-out.
     D41 — Capability-layer ADK FunctionTool stub/live pattern.
+    D44 — Agent Gateway / Agent Identity (SPIFFE) — the live hop presents a
+          workload identity token when one is available (AGENT-IDENTITY.md).
+    D45 — coordinator → a2a_invoke → tiktok-mcp-server.plan_creator_search is
+          the cross-component proof for the single-Track-3 narrative.
     coordinator.spec.md §6 — Tool table row for `a2a.invoke`.
+
+A2A v0.3 wire format (verified via Context7 `/websites/a2a-protocol` —
+"message/send" REST + the live ss-mcp-server response):
+    Request:  POST <endpoint>/v1/message:send
+              {"message": {"role": "user", "parts": [{"kind":"text","text": "<brief>"}]}}
+    Response: a `task` envelope
+              {"kind":"task","id","contextId","status":{"state":"completed"},
+               "artifacts":[{"artifactId","parts":[{"kind":"data","data":<RankedCreators>}]}]}
 """
 from __future__ import annotations
 
 import logging
 import os
+import time
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
+import httpx
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 logger = logging.getLogger(__name__)
+
+
+# A2A v0.3 REST binding for the `message/send` method (verified via Context7
+# against the A2A spec + the live ss-mcp-server deploy). The remote endpoint
+# is the agent's base URL; the message:send route is appended.
+_A2A_MESSAGE_SEND_PATH: str = "v1/message:send"
+
+# Default text part the coordinator's task_payload maps onto when it does not
+# already carry an explicit A2A message. The brief lives under one of these
+# keys (coordinator hands the capability a content-blind dict per D41).
+_BRIEF_KEYS: tuple[str, ...] = ("brand_brief", "brandBrief", "brief", "text", "task_description")
+
+# Bounded retry budget for the live hop. The coordinator retries on its NEXT
+# invocation (the runtime is single-turn), so we keep this small + total.
+_LIVE_MAX_ATTEMPTS: int = 3
+_LIVE_BACKOFF_BASE_S: float = 0.5
 
 USD_COST: float = 0.0005
 """A2A invocation cost is the network hop + Agent Gateway fee (not the remote
@@ -123,10 +158,11 @@ def a2a_invoke(payload: A2AInvokeInput) -> A2AInvokeOutput:
 
     Returns:
         `A2AInvokeOutput` with the remote response payload, latency, and
-        success flag.
+        success flag. Live transport/HTTP failures are returned as
+        `succeeded=False, error=<...>` rather than raised — the coordinator
+        treats a failed hop as a routing signal, not a crash.
 
     Raises:
-        NotImplementedError: live mode — wired in W7 deploy phase.
         ValueError: stub mode, endpoint outside `https://stub.local/agent/`.
     """
     mode = os.getenv("CAPABILITY_LAYER_MODE", "stub")
@@ -184,25 +220,272 @@ def _stub(payload: A2AInvokeInput) -> A2AInvokeOutput:
     )
 
 
-def _live(payload: A2AInvokeInput) -> A2AInvokeOutput:
-    """Live A2A v0.3 invocation — wired in W7 deploy phase.
+def _build_a2a_message(payload: A2AInvokeInput) -> dict[str, Any]:
+    """Map the coordinator's content-blind `task_payload` onto the A2A v0.3
+    `message/send` request envelope.
 
-    The live impl will:
-      1. Acquire a SPIFFE identity token (D44 Agent Identity).
-      2. POST through Agent Gateway with the task_payload + correlation_id.
-      3. Honor `timeout_s` as the read timeout + apply exponential backoff
-         (3 attempts max — coordinator retries on the next invocation).
-      4. Surface remote 4xx/5xx as `succeeded=False, error="<code>: <msg>"`.
+    A2A v0.3 (verified via Context7 `/websites/a2a-protocol`): the request body
+    is `{"message": {"role": "user", "parts": [...]}}`. The skill we target
+    (`plan_creator_search`) takes the brief as a single `text` part.
+
+    Two shapes are accepted from the coordinator:
+      1. The payload already IS an A2A message envelope — `{"message": {...}}`
+         or a bare `{"role","parts"}` — in which case it is forwarded verbatim
+         (only normalising the outer `message` wrapper).
+      2. The payload carries the brief under one of `_BRIEF_KEYS`; we wrap that
+         text into a single `text` part. The `correlation_id` is attached as
+         the A2A `messageId` so the remote can echo it for trace pairing.
     """
-    raise NotImplementedError(
-        "a2a_invoke live mode wired in W7 deploy phase "
-        "(set CAPABILITY_LAYER_MODE=stub for now)"
+    raw = payload.task_payload
+
+    # Shape 1a: already wrapped — forward the inner message verbatim.
+    if isinstance(raw.get("message"), dict):
+        message = dict(raw["message"])
+        message.setdefault("role", "user")
+        message.setdefault("messageId", payload.correlation_id)
+        return {"message": message}
+
+    # Shape 1b: a bare A2A message ({"role","parts"}) — wrap it.
+    if "parts" in raw and isinstance(raw["parts"], list):
+        message = {
+            "role": raw.get("role", "user"),
+            "parts": raw["parts"],
+            "messageId": payload.correlation_id,
+        }
+        return {"message": message}
+
+    # Shape 2: derive the brief text from a known key (or, failing that, the
+    # first string value present) and wrap it into a single text part.
+    text: str | None = None
+    for key in _BRIEF_KEYS:
+        val = raw.get(key)
+        if isinstance(val, str) and val.strip():
+            text = val
+            break
+    if text is None:
+        # Last resort: any non-empty string value in the payload.
+        text = next(
+            (v for v in raw.values() if isinstance(v, str) and v.strip()),
+            "",
+        )
+
+    return {
+        "message": {
+            "role": "user",
+            "messageId": payload.correlation_id,
+            "parts": [{"kind": "text", "text": text}],
+        }
+    }
+
+
+def _extract_response_payload(task: dict[str, Any]) -> dict[str, Any]:
+    """Pull the structured result out of an A2A v0.3 `task` envelope.
+
+    The remote returns either a `task` (the ss-mcp-server case) or a bare
+    `message`. For a task we surface the completion state, the first `data`
+    artifact part (the `RankedCreators` payload for `plan_creator_search`),
+    and the task ids so the coordinator can correlate. We never raise here —
+    a malformed envelope just yields a thinner payload + `succeeded` is decided
+    by the caller from the HTTP status + task state.
+    """
+    out: dict[str, Any] = {"kind": task.get("kind")}
+
+    status = task.get("status")
+    if isinstance(status, dict):
+        out["state"] = status.get("state")
+    out["task_id"] = task.get("id")
+    out["context_id"] = task.get("contextId")
+
+    # First data part across all artifacts is the structured result.
+    data_part: Any = None
+    artifacts = task.get("artifacts")
+    if isinstance(artifacts, list):
+        for artifact in artifacts:
+            if not isinstance(artifact, dict):
+                continue
+            for part in artifact.get("parts", []) or []:
+                if isinstance(part, dict) and part.get("kind") == "data":
+                    data_part = part.get("data")
+                    break
+            if data_part is not None:
+                break
+    if data_part is not None:
+        out["data"] = data_part
+
+    return out
+
+
+def _live(payload: A2AInvokeInput) -> A2AInvokeOutput:
+    """Live A2A v0.3 `message/send` invocation to a deployed remote agent.
+
+    Steps (per the W7-promoted live path, D44 + D45):
+      1. Compose the A2A v0.3 request envelope from the coordinator's
+         content-blind `task_payload` (`_build_a2a_message`).
+      2. Acquire a SPIFFE/Agent-Identity workload token when one is available
+         (`_identity_token`). Cloud Run is unauthenticated today (AGENT-IDENTITY
+         .md — mTLS is post-O7), so the token is optional and absent is fine.
+      3. POST to `<remote_agent_endpoint>/v1/message:send` honoring `timeout_s`
+         as the read timeout, with bounded exponential backoff (3 attempts).
+      4. Parse the returned `task` envelope into `response_payload`; the
+         `correlation_id` is echoed back for trace pairing.
+      5. Surface transport / 4xx / 5xx failures as `succeeded=False,
+         error="<code>: <msg>"` — never raise (the coordinator treats a failed
+         hop as a routing signal).
+    """
+    base = str(payload.remote_agent_endpoint)
+    # urljoin needs a trailing slash on the base to append a relative path
+    # without clobbering the last segment.
+    target = urljoin(base if base.endswith("/") else base + "/", _A2A_MESSAGE_SEND_PATH)
+
+    request_body = _build_a2a_message(payload)
+    headers: dict[str, str] = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "A2A-Version": "0.3",
+    }
+    token = _identity_token(payload.remote_agent_endpoint)
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    start = time.monotonic()
+    last_error: str = "no attempt made"
+    for attempt in range(1, _LIVE_MAX_ATTEMPTS + 1):
+        try:
+            response = httpx.post(
+                target,
+                json=request_body,
+                headers=headers,
+                timeout=httpx.Timeout(float(payload.timeout_s)),
+            )
+        except httpx.HTTPError as exc:
+            last_error = f"transport_error: {type(exc).__name__}: {exc}"
+            logger.warning(
+                "a2a_invoke_live_transport_error",
+                extra={
+                    "endpoint": target,
+                    "attempt": attempt,
+                    "correlation_id": payload.correlation_id,
+                    "error": last_error,
+                },
+            )
+            if attempt < _LIVE_MAX_ATTEMPTS:
+                time.sleep(_LIVE_BACKOFF_BASE_S * (2 ** (attempt - 1)))
+                continue
+            return _live_failure(start, last_error)
+
+        latency_ms = int((time.monotonic() - start) * 1000)
+
+        # Retry 5xx (transient); 4xx is terminal (won't fix on retry).
+        if response.status_code >= 500:
+            last_error = f"{response.status_code}: {response.text[:200]}"
+            if attempt < _LIVE_MAX_ATTEMPTS:
+                time.sleep(_LIVE_BACKOFF_BASE_S * (2 ** (attempt - 1)))
+                continue
+            return _live_failure(start, last_error)
+        if response.status_code >= 400:
+            return A2AInvokeOutput(
+                responsePayload={"http_status": response.status_code},
+                latencyMs=latency_ms,
+                succeeded=False,
+                error=f"{response.status_code}: {response.text[:480]}",
+            )
+
+        # 2xx — parse the A2A task/message envelope.
+        try:
+            task = response.json()
+        except ValueError as exc:
+            return A2AInvokeOutput(
+                responsePayload={"http_status": response.status_code},
+                latencyMs=latency_ms,
+                succeeded=False,
+                error=f"invalid_json: {exc}",
+            )
+
+        result = _extract_response_payload(task if isinstance(task, dict) else {})
+        result["correlation_id"] = payload.correlation_id
+
+        # A completed task is success; any other terminal state is a failure
+        # the coordinator should see (it may pick the fallback agent).
+        state = result.get("state")
+        succeeded = result.get("kind") != "task" or state == "completed"
+        error: str | None = None
+        if not succeeded:
+            error = f"task_state: {state!r}"
+
+        logger.info(
+            "a2a_invoke_live_completed",
+            extra={
+                "endpoint": target,
+                "attempt": attempt,
+                "correlation_id": payload.correlation_id,
+                "latency_ms": latency_ms,
+                "state": state,
+                "succeeded": succeeded,
+            },
+        )
+        return A2AInvokeOutput(
+            responsePayload=result,
+            latencyMs=latency_ms,
+            succeeded=succeeded,
+            error=error,
+        )
+
+    # Unreachable — the loop always returns — but keeps mypy happy.
+    return _live_failure(start, last_error)  # pragma: no cover
+
+
+def _live_failure(start: float, error: str) -> A2AInvokeOutput:
+    """Build a failed `A2AInvokeOutput` with the elapsed latency."""
+    return A2AInvokeOutput(
+        responsePayload={},
+        latencyMs=int((time.monotonic() - start) * 1000),
+        succeeded=False,
+        error=error[:480],
     )
 
 
+def _identity_token(endpoint: HttpUrl) -> str | None:
+    """Acquire a workload identity (SPIFFE / Agent Identity) token for the hop.
+
+    Per AGENT-IDENTITY.md (D44): the caller presents its workload identity and
+    the callee verifies it at the transport layer. The Cloud Run demo endpoint
+    is currently *unauthenticated* (mTLS is the post-O7 step), so this is
+    optional — when no token source is configured we return None and the hop
+    proceeds without an Authorization header.
+
+    Two sources, in priority order:
+      1. `A2A_IDENTITY_TOKEN` env var — an explicitly-provisioned token (test /
+         CI / a sidecar that already minted one).
+      2. Google ID token for the endpoint audience via the metadata server /
+         ADC (`google.oauth2.id_token.fetch_id_token`). Best-effort: any
+         failure (no ADC, offline, etc.) degrades to None rather than raising,
+         because the demo callee does not require it.
+    """
+    explicit = os.getenv("A2A_IDENTITY_TOKEN")
+    if explicit:
+        return explicit
+
+    if os.getenv("A2A_FETCH_ID_TOKEN") != "1":
+        # Default: do NOT attempt ADC fetch (the demo endpoint is open and the
+        # fetch adds latency + a hard google-auth dependency on the hot path).
+        return None
+
+    try:  # pragma: no cover — exercised only when A2A_FETCH_ID_TOKEN=1 + ADC.
+        import google.auth.transport.requests as ga_requests
+        from google.oauth2 import id_token as ga_id_token
+
+        parsed = urlparse(str(endpoint))
+        audience = f"{parsed.scheme}://{parsed.netloc}"
+        token: str = ga_id_token.fetch_id_token(ga_requests.Request(), audience)  # type: ignore[no-untyped-call]
+        return token
+    except Exception as exc:  # pragma: no cover — best-effort, never fatal.
+        logger.debug("a2a_invoke_identity_token_unavailable", extra={"error": str(exc)})
+        return None
+
+
 __all__ = [
+    "USD_COST",
     "A2AInvokeInput",
     "A2AInvokeOutput",
-    "USD_COST",
     "a2a_invoke",
 ]

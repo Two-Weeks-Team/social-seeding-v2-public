@@ -180,7 +180,7 @@ def test_stub_determinism_different_params_different_id(
 
 
 @pytest.mark.parametrize(
-    "kind", ["scale_up", "rollback", "quarantine", "circuit_breaker"]
+    "kind", ["scale_up", "scale_down", "rollback", "quarantine", "circuit_breaker"]
 )
 def test_stub_runbook_kind_roundtrip(
     kind: RunbookKind, monkeypatch: pytest.MonkeyPatch
@@ -207,7 +207,7 @@ def test_stub_runbook_kind_roundtrip(
 
 
 @pytest.mark.parametrize(
-    "kind", ["scale_up", "rollback", "quarantine", "circuit_breaker"]
+    "kind", ["scale_up", "scale_down", "rollback", "quarantine", "circuit_breaker"]
 )
 def test_live_mode_mutating_kind_requires_explicit_opt_in(
     kind: RunbookKind, monkeypatch: pytest.MonkeyPatch
@@ -254,7 +254,7 @@ def test_live_mode_opt_in_cleared_raises_not_implemented(
 
 def test_mutating_kinds_exact_set() -> None:
     assert MUTATING_KINDS == frozenset(
-        {"scale_up", "rollback", "quarantine", "circuit_breaker"}
+        {"scale_up", "scale_down", "rollback", "quarantine", "circuit_breaker"}
     )
 
 

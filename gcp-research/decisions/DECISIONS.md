@@ -6,7 +6,7 @@
 >
 > **Audience**: (1) the 13 background agents queued for SDD/TDD/architecture work, (2) future code authors, (3) judges (a sanitized subset).
 >
-> **Status as of 2026-05-19**: 44 decisions recorded across 10 rounds. No code may be written until each decision has either an entry below or an explicit "Outstanding" line in §6.
+> **Status as of 2026-05-20**: 49 decisions recorded across 12 rounds. D1 (dual submission) superseded by D45 (single Track 3 submission). D47-D49 added after extracting the official designed_guide.pdf and gap-analyzing Track 3's 6 official requirements (operator-approved). No code may be written until each decision has either an entry below or an explicit "Outstanding" line in §6.
 
 ---
 
@@ -29,7 +29,7 @@
 
 ---
 
-## 2. Decisions of record (44)
+## 2. Decisions of record (49)
 
 Status legend: ✅ active · 🔁 superseded · ⏸ deferred · ❓ outstanding
 
@@ -37,7 +37,7 @@ Status legend: ✅ active · 🔁 superseded · ⏸ deferred · ❓ outstanding
 
 | ID | Decision | Source | Status | Implication |
 |---|---|---|---|---|
-| **D1** | **Dual submission**: v2 → Track 2; tiktok-mcp-server → Track 3 | INDEX §0 · 2026-05-19 | ✅ | Two parallel work streams; separate Devpost entries |
+| **D1** | ~~**Dual submission**: v2 → Track 2; tiktok-mcp-server → Track 3~~ | INDEX §0 · 2026-05-19 | 🔁 superseded by **D45** | — |
 | **D2** | **Korean legal entity** — Marketplace direct listing impossible (payment-region exclusion) | TRACK3-PLAYBOOK §1.1 · user-confirmed | ✅ | Track 3 cannot deliver paid Marketplace listing on the timeline |
 | **D3** | **Reframe listing-gap as innovation** — "A2A-only distribution path for non-Marketplace-region startups" | user-confirmed 2026-05-19 | ✅ | Becomes Innovation-20% talking point in Devpost write-up |
 | **D4** | ~~Keep Inngest durable orchestration in v2~~ | PORTING-V2 §6 | 🔁 superseded by **D18** | — |
@@ -131,6 +131,23 @@ Status legend: ✅ active · 🔁 superseded · ⏸ deferred · ❓ outstanding
 | **D42** | **Cloud Workflows YAML wires via Terraform output injection** — workflow `call:` URLs reference `${args.agent_url}`, populated from `terraform output -json` per environment; no hardcoded hostnames in YAML | autonomous `/goal` session 2026-05-19 (W3) | ✅ | Dev/staging/prod agent endpoints vary without YAML edits; `gcloud workflows deploy` idempotent across regions |
 | **D43** | **End-to-end smoke test is the Phase-3 canary** — `scripts/smoke-test/run-brand-campaign.sh` exercises brand-brief → 22-agent fleet → Gmail send (to `app.2weeks@gmail.com` per D10) → workflow continuation → final report; must exit 0 before any deploy or demo recording | autonomous `/goal` session 2026-05-19 (W4) | ✅ | Gating condition for W6/W7/W8; protects D31 99.99% SLO claim with empirical baseline |
 | **D44** | **Terraform root config lives in `terraform/environments/<env>/`** (dev, staging, prod), NOT in module dirs; root configs call `module "compute" { source = "../../modules/compute" ... }` with per-env vars | autonomous `/goal` session 2026-05-19 (W6) | ✅ | Module reuse across 3 regions × 3 envs without duplication; backend state per env in distinct GCS buckets |
+
+### Round 11 — Submission consolidation (D45-D46)
+
+| ID | Decision | Source | Status | Implication |
+|---|---|---|---|---|
+| **D45** | **Single Track 3 submission that subsumes the entire Track 2 platform** — supersedes D1. We submit ONE Devpost entry to Track 3 (Refactor). The `tiktok-mcp-server` A2A refactor is the "seed", but the full 22-agent ADK fleet + AP2 Mission Control + multimodal pipeline are presented as the A2A ecosystem the refactored MCP server lives inside. The 3-angle differentiation (D29) all map onto this single narrative: Agent-as-function (22-agent fleet) · KR-region-gap (A2A-only distribution, D2/D3) · Multimodal+AP2+Multi-agent (the whole platform). Track 2 is NOT a separate Devpost entry. | 회의 확정 + user 2026-05-20 | ✅ | Demo + write-up + screenshots are ONE integrated story. coordinator agent `a2a_invoke`→tiktok-mcp-server is the cross-component proof. No second Devpost form. |
+| **D46** | **Essential-asset retention + state-driven auto-scale budget design** — assets required for judging (live landing/demo `ss-landing`, Track 3 A2A endpoint, Gemini Enterprise registration) stay up through the judging window; everything else is `min=0` scale-to-zero (Cloud Run) + state-driven scale-up/down (Cloud Scheduler warm-up during judging window, `cost_watch` Tier-3 agent triggers scale-down on threshold, `terraform destroy` of heavy stores after judging). No always-on Spanner/AlloyDB unless traffic demands. | user 2026-05-20 | ✅ | Supersedes the static "옵션 A/B/C" framing — budget follows live traffic, not a fixed tier. Essential assets ≈ $1-5/mo idle; scale-up only on real demo/judge traffic. D39 $1,500 cap protects worst case. |
+
+### Round 12 — Track 3 official-requirement hardening (D47-D49)
+
+> Source: `services.google.com/.../ai_agents_challenge_designed_guide.pdf` (official 8-page Resource Guide, extracted 2026-05-20). PDF page 6 enumerates the 6-step Track 3 (Refactor) requirement; page 7 names Agent Identity (crypto ID); the judging rubric is Tech 30 / Business 30 / Innovation 20 / Demo 20. Gap analysis vs UNIFIED-TRACK3-PLAN found 3 missing official requirements + under-weighted Business/Demo. User approved I7-I9 on 2026-05-20.
+
+| ID | Decision | Source | Status | Implication |
+|---|---|---|---|---|
+| **D47** | **Route LLM reasoning through Model Garden** (Track 3 PDF requirement #3) — Gemini calls go through a Model Garden-deployed endpoint, not direct Vertex AI `generateContent`. "Strict data security" framing. Documented in deploy/model-garden + agent runtime config. | designed_guide.pdf p.6 · user-approved 2026-05-20 | ✅ | I7. Closes Technical 30% gap. Affects `packages/agents-adk` model config + deploy IAM. |
+| **D48** | **A2A intents manifest + Agent Identity crypto ID** (Track 3 PDF requirement #6 + p.7) — author `gcp-research/refactor-mcp/A2A-INTENTS.md` mapping every A2A intent the agent *exposes* and *consumes*; harden `agent.json`; assign each agent a unique cryptographic identity (SPIFFE/SPIRE or Agent Identity workload cert) per the PDF's "secure by design" mandate. | designed_guide.pdf p.6-7 · user-approved 2026-05-20 | ✅ | I8. Closes the documentation + Agent Identity gap. The PDF Build Example #2 (marketing agent + multimodal + A2A→DAM brand-logo) maps 1:1 to our `content_verify` agent — call this out explicitly. |
+| **D49** | **Wow + business reinforcement for Demo 20% + Business 30%** — (a) one REAL Imagen/Veo generation in the demo (not stub), (b) animated A2A cross-call diagram, (c) ROI/TAM visualization scene proving the $0.01/view model (D28), (d) explicit on-screen match to PDF Build Example #2. Business is co-#1 rubric weight (30%) yet was absent from the demo surface. | designed_guide.pdf p.7-8 rubric · user-approved 2026-05-20 | ✅ | I9. Lifts Demo 70%→95% and Business 60%→90% in self-assessment. Requires `CAPABILITY_LAYER_MODE=live` for imagen_generate/veo_generate during one demo take. |
 
 ---
 
@@ -306,3 +323,9 @@ Per user directive 2026-05-19 ("실제 코드를 적용하기 전에 반드시 �
 | 2026-05-19 | D42 | Cloud Workflows YAMLs inject agent URLs via Terraform output, no hardcode | autonomous /goal session (W3) |
 | 2026-05-19 | D43 | End-to-end smoke test is Phase-3 canary gating deploy + demo | autonomous /goal session (W4) |
 | 2026-05-19 | D44 | Terraform root config lives in terraform/environments/<env>/, modules reused | autonomous /goal session (W6) |
+| 2026-05-20 | D1 | Dual submission RETIRED — superseded by D45 (single Track 3) | 회의 확정 |
+| 2026-05-20 | D45 | Single Track 3 submission subsuming entire Track 2 platform | 회의 확정 + user |
+| 2026-05-20 | D46 | Essential-asset retention + state-driven auto-scale budget | user |
+| 2026-05-20 | D47 | Route LLM reasoning through Model Garden (Track 3 req #3) | designed_guide.pdf + user |
+| 2026-05-20 | D48 | A2A intents manifest + Agent Identity crypto ID (Track 3 req #6) | designed_guide.pdf + user |
+| 2026-05-20 | D49 | Wow + business reinforcement for Demo 20% + Business 30% | designed_guide.pdf + user |

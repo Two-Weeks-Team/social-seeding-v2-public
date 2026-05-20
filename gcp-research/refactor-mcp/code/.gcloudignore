@@ -1,0 +1,31 @@
+# Keep the Cloud Run --source build context lean. The single-container
+# Dockerfile only needs agent/ (pyproject + src) and deployment/agent.json.
+.git
+.gitignore
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+node_modules
+*.log
+
+# Not part of the single-container build (root-anchored so we DON'T drop
+# agent/README.md, which hatchling needs to build the wheel):
+docs/
+ts-patches/
+agent/tests/
+/PHASE-5-STATUS.md
+/README.md
+/MAINTAINERS.md
+/SECURITY.md
+/NOTICE
+/LICENSE
+
+# The multi-container Dockerfile is the future full-topology build; the
+# single-container ./Dockerfile is what `gcloud run deploy --source` uses.
+deployment/Dockerfile.multi-container
+deployment/cloudbuild.yaml
+deployment/cloud-run-service.yaml

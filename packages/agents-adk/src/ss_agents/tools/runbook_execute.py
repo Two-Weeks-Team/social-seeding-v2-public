@@ -66,11 +66,20 @@ itself, not this seam."""
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-RunbookKind = Literal["scale_up", "rollback", "quarantine", "circuit_breaker"]
-"""The four production-mutating runbook kinds. Each maps to a distinct
-Cloud Workflow deployed by W7. All four are MUTATING — the stub enforces
+RunbookKind = Literal[
+    "scale_up", "scale_down", "rollback", "quarantine", "circuit_breaker"
+]
+"""The five production-mutating runbook kinds. Each maps to a distinct
+Cloud Workflow deployed by W7. All five are MUTATING — the stub enforces
 `dry_run=True` for every kind, and the live path requires explicit
-`dry_run=False` opt-in before any side effect."""
+`dry_run=False` opt-in before any side effect.
+
+`scale_down` is the D46 cost-guard lever: when `cost_watch` crosses the 90%
+budget threshold it triggers `runbook_execute("scale_down")`, which forces
+every essential Cloud Run service back to `min=0` (the runbook wraps
+`scripts/ops/scale-down.sh`). It is mutating — pinning min back to 0 changes
+live serving capacity — so it carries the same `dry_run=False` opt-in
+guardrail as the other kinds."""
 
 
 ExecutionStatus = Literal["queued", "running", "succeeded", "failed"]
@@ -83,10 +92,11 @@ path returns the real state from the Cloud Workflows response."""
 # guardrail can be extended (or read-only kinds added) without touching
 # the enforcement code.
 MUTATING_KINDS: frozenset[RunbookKind] = frozenset(
-    {"scale_up", "rollback", "quarantine", "circuit_breaker"}
+    {"scale_up", "scale_down", "rollback", "quarantine", "circuit_breaker"}
 )
 """Production-mutating runbook kinds — require explicit `dry_run=False`
-in live mode. Stub mode forces `dry_run=True` regardless."""
+in live mode. Stub mode forces `dry_run=True` regardless. `scale_down` is
+the D46 cost-guard kind (forces Cloud Run min=0)."""
 
 
 # ─────────────────────────────────────────────────────────────────────────────

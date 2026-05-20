@@ -30,7 +30,9 @@ from ss_agents.agents.cost_watch import (
     CANONICAL_THRESHOLDS,
     COST_WATCH_MODEL_SENTINEL,
     DEFAULT_FALLBACK_BUDGET_USD,
+    SCALE_DOWN_TRIGGER_PERCENT,
     BillingSnapshot,
+    CostGuardResult,
     CostWatchInput,
     CostWatchOutput,
     Crossing,
@@ -41,6 +43,8 @@ from ss_agents.agents.cost_watch import (
     _new_crossings,
     _resolve_budget,
     build_cost_watch_system_prompt,
+    cost_guard,
+    cost_guard_from_billing,
     cost_watch_agent_def,
     evaluate_cost_watch,
 )
@@ -736,3 +740,199 @@ class TestEvalInvariants:
     def test_default_fallback_budget_is_50_usd_per_day(self) -> None:
         """Spec §6: 'default to $50/day'."""
         assert DEFAULT_FALLBACK_BUDGET_USD == 50.0
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 5. TestCostGuard — D46 auto-scale wiring (I4).
+#
+# Proves the billing.query → threshold ladder → pubsub.alert → (90%)
+# runbook_execute("scale_down") chain. Every tool runs in stub capability
+# mode (CAPABILITY_LAYER_MODE unset/stub) so the test is offline + deterministic.
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+class TestCostGuard:
+    """The cost-guard wiring is the I4 deliverable: it ties the three
+    cost_watch capabilities together and auto-triggers scale_down at 90%.
+
+    Stub mode keeps every hop deterministic + side-effect-free
+    (runbook_execute forces dry_run; pubsub_alert mints a synthetic id)."""
+
+    @pytest.fixture(autouse=True)
+    def _force_stub_mode(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """All guard tests run with the capability layer in stub mode so no
+        real Pub/Sub publish or Cloud Workflows execution can occur."""
+        monkeypatch.setenv("CAPABILITY_LAYER_MODE", "stub")
+
+    def test_trigger_constant_is_90(self) -> None:
+        """The scale_down trigger fires at the 90% banner threshold per the
+        I4 brief."""
+        assert SCALE_DOWN_TRIGGER_PERCENT == 90.0
+
+    # ── below trigger: alert(s) only, no scale_down ───────────────────
+
+    def test_below_50_no_alerts_no_scale_down(
+        self, now_utc: dt.datetime
+    ) -> None:
+        out = cost_guard(_input(spent=20.0, budget=100.0, tick=now_utc))
+        assert isinstance(out, CostGuardResult)
+        assert out.evaluation.crossings == []
+        assert out.alert_message_ids == []
+        assert out.scale_down_triggered is False
+        assert out.scale_down_execution_id is None
+
+    def test_50_crossing_publishes_one_alert_no_scale_down(
+        self, now_utc: dt.datetime
+    ) -> None:
+        out = cost_guard(_input(spent=55.0, budget=100.0, tick=now_utc))
+        assert [c.threshold for c in out.evaluation.crossings] == [50]
+        # One banner alert published for the 50 crossing.
+        assert len(out.alert_message_ids) == 1
+        assert out.alert_message_ids[0].startswith("stub_msg_budget_50_")
+        # 50 < 90 → no scale_down.
+        assert out.scale_down_triggered is False
+        assert out.scale_down_execution_id is None
+
+    def test_75_crossing_publishes_two_alerts_no_scale_down(
+        self, now_utc: dt.datetime
+    ) -> None:
+        out = cost_guard(_input(spent=80.0, budget=100.0, tick=now_utc))
+        assert [c.threshold for c in out.evaluation.crossings] == [50, 75]
+        assert len(out.alert_message_ids) == 2
+        assert out.scale_down_triggered is False
+
+    # ── at/above trigger: scale_down fires ────────────────────────────
+
+    def test_90_crossing_triggers_scale_down(
+        self, now_utc: dt.datetime
+    ) -> None:
+        """The headline I4 contract: at 90% the guard auto-triggers the
+        scale_down runbook."""
+        out = cost_guard(
+            _input(spent=92.0, budget=100.0, previous=[50, 75], tick=now_utc)
+        )
+        # 90 fired this tick (50/75 already deduped).
+        assert [c.threshold for c in out.evaluation.crossings] == [90]
+        # Banner alert for the 90 crossing.
+        assert len(out.alert_message_ids) == 1
+        assert out.alert_message_ids[0].startswith("stub_msg_budget_90_")
+        # And the scale_down runbook fired.
+        assert out.scale_down_triggered is True
+        assert out.scale_down_execution_id is not None
+        assert out.scale_down_execution_id.startswith("stub_exec_scale_down_")
+
+    def test_fresh_climb_to_95_alerts_all_and_scales_down(
+        self, now_utc: dt.datetime
+    ) -> None:
+        """A tenant that jumps straight to 95% with no prior crossings fires
+        50/75/90/95 alerts AND scale_down (because 90 + 95 both >= trigger)."""
+        out = cost_guard(_input(spent=96.0, budget=100.0, tick=now_utc))
+        assert [c.threshold for c in out.evaluation.crossings] == [
+            50,
+            75,
+            90,
+            95,
+        ]
+        # Four banner alerts (50/75/90/95 are all banner kinds).
+        assert len(out.alert_message_ids) == 4
+        assert out.scale_down_triggered is True
+
+    def test_over_limit_crossings_scale_down_but_no_banner_for_100_110(
+        self, now_utc: dt.datetime
+    ) -> None:
+        """100/110 are NOT banner alert kinds (they belong to the
+        budget_exceeded topic) — so no banner alert is published for them,
+        but they DO trigger scale_down (>= 90)."""
+        out = cost_guard(
+            _input(
+                spent=110.0,
+                budget=100.0,
+                previous=[50, 75, 90, 95],
+                tick=now_utc,
+            )
+        )
+        assert [c.threshold for c in out.evaluation.crossings] == [100, 110]
+        # No banner alerts (100/110 aren't in the banner ladder).
+        assert out.alert_message_ids == []
+        # But scale_down still fired (crossings >= 90).
+        assert out.scale_down_triggered is True
+
+    def test_already_at_90_does_not_refire(self, now_utc: dt.datetime) -> None:
+        """If 90 already crossed last tick (in previous_crossings), a tick
+        still above 90 emits NO new crossing → no new alert, no scale_down."""
+        out = cost_guard(
+            _input(
+                spent=92.0,
+                budget=100.0,
+                previous=[50, 75, 90],
+                tick=now_utc,
+            )
+        )
+        assert out.evaluation.crossings == []
+        assert out.alert_message_ids == []
+        # No NEW 90 crossing this tick → guard does not re-trigger scale_down.
+        assert out.scale_down_triggered is False
+
+    # ── dry-run safety ────────────────────────────────────────────────
+
+    def test_scale_down_is_dry_run_by_default(
+        self, now_utc: dt.datetime
+    ) -> None:
+        """The guard defaults to dry_run; the stub runbook forces it too, so
+        no real fleet scale can occur from a test/dev tick."""
+        out = cost_guard(_input(spent=92.0, budget=100.0, previous=[50, 75], tick=now_utc))
+        assert out.scale_down_triggered is True
+        # Stub execution id is deterministic regardless of dry_run.
+        again = cost_guard(
+            _input(spent=92.0, budget=100.0, previous=[50, 75], tick=now_utc),
+            dry_run=False,
+        )
+        # Same params → same stub execution id (the stub ignores dry_run for
+        # determinism; the LIVE path is where dry_run=False matters).
+        assert again.scale_down_execution_id == out.scale_down_execution_id
+
+    def test_guard_is_deterministic(self, now_utc: dt.datetime) -> None:
+        a = cost_guard(_input(spent=96.0, budget=100.0, tick=now_utc))
+        b = cost_guard(_input(spent=96.0, budget=100.0, tick=now_utc))
+        assert a.alert_message_ids == b.alert_message_ids
+        assert a.scale_down_execution_id == b.scale_down_execution_id
+
+    # ── full billing-fed path ─────────────────────────────────────────
+
+    def test_from_billing_uses_d39_cap_when_no_budget(
+        self, now_utc: dt.datetime
+    ) -> None:
+        """cost_guard_from_billing reads billing_query (stub) and measures
+        against the D39 $1500 cap when no explicit budget is given. The
+        canonical demo workspace ($42.50/day → ~3% of $1500) trips nothing."""
+        out = cost_guard_from_billing(
+            tenant_id="t_demo",
+            window="per_day",
+            tick_time=now_utc,
+            time_range=(now_utc.date(), now_utc.date()),
+            workspace_id="ws_demo",
+        )
+        # $42.50 / $1500 = ~2.8% → no crossings, no alerts, no scale_down.
+        assert out.evaluation.crossings == []
+        assert out.alert_message_ids == []
+        assert out.scale_down_triggered is False
+        assert out.evaluation.budget_usd == 1500.0
+
+    def test_from_billing_explicit_low_budget_trips_scale_down(
+        self, now_utc: dt.datetime
+    ) -> None:
+        """With a tight explicit budget the demo workspace's $42.50/day
+        crosses 90% and the guard auto-scales-down."""
+        # $42.50 spend against a $45 budget = ~94% → fires 50/75/90 + scale_down.
+        out = cost_guard_from_billing(
+            tenant_id="t_demo",
+            window="per_day",
+            tick_time=now_utc,
+            time_range=(now_utc.date(), now_utc.date()),
+            workspace_id="ws_demo",
+            budget_usd=45.0,
+        )
+        thresholds = [c.threshold for c in out.evaluation.crossings]
+        assert 90 in thresholds
+        assert out.scale_down_triggered is True
+        assert out.scale_down_execution_id is not None

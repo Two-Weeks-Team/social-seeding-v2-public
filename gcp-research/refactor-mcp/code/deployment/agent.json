@@ -10,7 +10,8 @@
   "url": "https://mcp.socialseed.ing",
   "preferredTransport": "JSONRPC",
   "additionalInterfaces": [
-    { "url": "https://mcp.socialseed.ing/v1", "transport": "HTTP+JSON" }
+    { "url": "https://mcp.socialseed.ing/v1", "transport": "HTTP+JSON" },
+    { "url": "https://ss-mcp-server-1049119860518.us-central1.run.app/v1", "transport": "HTTP+JSON", "_comment": "Live Cloud Run deploy (ss-mcp-prod, us-central1) — Track 3 demo endpoint until mcp.socialseed.ing DNS cutover (PHASE-5-STATUS O-C)." }
   ],
 
   "iconUrl": "https://cdn.socialseed.ing/agents/tiktok-influencer-research-256.png",
@@ -39,7 +40,7 @@
     "oidc": {
       "type": "openIdConnect",
       "openIdConnectUrl": "https://securetoken.google.com/PROJECT_ID/.well-known/openid-configuration",
-      "_comment": "Identity Platform tenant OIDC discovery (D19). PROJECT_ID is substituted at deploy time by terraform/cloud-run-service.yaml."
+      "_comment": "Identity Platform tenant OIDC discovery (D19). PROJECT_ID is substituted at deploy time by terraform/cloud-run-service.yaml. CALLER identity — gates who may invoke."
     },
     "oauth": {
       "type": "oauth2",
@@ -52,6 +53,10 @@
           }
         }
       }
+    },
+    "mutualTLS": {
+      "type": "mutualTLS",
+      "description": "A2A v0.3 mutual-TLS — peers authenticate by client certificate at the transport layer (no identity in the payload). The agent presents the workload-identity client cert tied to the SPIFFE ID in `identity` below. AGENT identity — proves who this agent is. See AGENT-IDENTITY.md."
     }
   },
 
@@ -59,6 +64,16 @@
     { "oidc": [] },
     { "oauth": ["tiktok:read"] }
   ],
+
+  "identity": {
+    "_comment": "Agent Identity (designed_guide.pdf p.7 + DECISIONS.md D48). Unique cryptographic ID for this agent, anchored by the Cloud Run workload-identity service account `tiktok-mcp-runner` (cloud-run-service.yaml). Non-secret discovery metadata; the private key is GCP-managed + auto-rotated and never on disk. Full design: AGENT-IDENTITY.md.",
+    "id": "spiffe://ss-mcp-prod.svc.id.goog/ns/agents/sa/tiktok-mcp-runner",
+    "scheme": "spiffe",
+    "trustDomain": "ss-mcp-prod.svc.id.goog",
+    "workloadIdentityProvider": "cloud-run-service-account",
+    "serviceAccount": "tiktok-mcp-runner@ss-mcp-prod.iam.gserviceaccount.com",
+    "documentationUrl": "https://docs.socialseed.ing/agents/tiktok-influencer-research/identity"
+  },
 
   "defaultInputModes":  ["text/plain", "application/json"],
   "defaultOutputModes": ["application/json"],
@@ -138,6 +153,32 @@
         },
         "trace": { "type": "object" }
       }
+    }
+  },
+
+  "_a2a_intents": {
+    "_comment": "Track 3 official requirement #6 (designed_guide.pdf p.6) — the A2A intents this agent EXPOSES and CONSUMES. Human-readable manifest: A2A-INTENTS.md. Per DECISIONS.md D48.",
+    "exposed": {
+      "a2a_skills": ["plan_creator_search"],
+      "mcp_tools": ["tiktok_search", "tiktok_user_info", "tiktok_user_posts", "tiktok_post_detail"]
+    },
+    "consumed": {
+      "a2a_intents": [],
+      "internal_dependencies": ["mcp.tiktok_toolset (loopback :8100)", "identity_platform.verify_id_token (D19)"]
+    },
+    "cross_call_proof": "Track-2 coordinator (M1) A2A-invokes this agent's plan_creator_search via ss_agents.tools.a2a_invoke (D45 single-narrative edge).",
+    "manifest": "gcp-research/refactor-mcp/A2A-INTENTS.md"
+  },
+
+  "_build_example_2_match": {
+    "_comment": "designed_guide.pdf p.7 Build Example #2 (Gemini multimodal marketing agent → A2A → DAM Agent for approved brand logos, staying on-brand/compliant) maps 1:1 to Social Seeding's content_verify agent + vision.brand_logo_detect. Per DECISIONS.md D48. Honest scope: today the brand-asset check is an in-process ADK FunctionTool, not yet a separately-deployed A2A DAM agent — see A2A-INTENTS.md §5.",
+    "pdf_role": "marketing agent + multimodal + A2A → internal DAM Agent (approved brand logos / product imagery) for on-brand compliance",
+    "our_implementation": {
+      "agent": "content_verify (Track-2 Tier-1 agent #7)",
+      "model": "gemini-2.5-flash (multimodal: text + image + video)",
+      "brand_asset_capability": "vision.brand_logo_detect (Cloud Vision LOGO_DETECTION)",
+      "compliance_output": "ContentVerifyOutput {matches, mentionsBrand, logoDetected, performanceScore, flags[8], rationale}",
+      "source": "packages/agents-adk/src/ss_agents/agents/content_verify.py"
     }
   },
 

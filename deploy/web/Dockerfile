@@ -58,9 +58,16 @@ FROM node:24-alpine AS builder
 RUN corepack enable && corepack prepare pnpm@10.18.2 --activate
 WORKDIR /repo
 
+# Bring the warm pnpm store/root node_modules forward, then copy the full
+# monorepo. We re-run `pnpm install` so EVERY workspace package gets its own
+# `packages/*/node_modules` (pnpm symlinks into the virtual store). Without
+# this, Next's `transpilePackages` cannot resolve the @ss/* packages' own deps
+# (zod, etc.) and the build fails with module-not-found. The store is reused
+# from the cache mount so this is a fast relink, not a fresh download.
 COPY --from=deps /repo/node_modules ./node_modules
-COPY --from=deps /repo/apps/web/node_modules ./apps/web/node_modules
 COPY . .
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --prefer-offline
 
 ENV NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production

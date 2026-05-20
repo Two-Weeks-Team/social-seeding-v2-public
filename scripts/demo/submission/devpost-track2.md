@@ -1,4 +1,16 @@
-# Devpost form fill — `social-seeding-v2` (Track 2: Optimize)
+> # ⚠️ ARCHIVED — merged into `devpost-track3.md` per D45 (single submission)
+> #
+> # This file is **no longer a separate Devpost entry**. Per [`DECISIONS.md` D45](../../gcp-research/decisions/DECISIONS.md)
+> # (2026-05-20, supersedes D1), we submit **ONE** Devpost entry to **Track 3 (Refactor)**
+> # that subsumes the entire Track 2 platform. The 22-agent fleet, AP2 Mission Control,
+> # and multimodal pipeline content below has been absorbed into
+> # [`devpost-track3.md`](devpost-track3.md). Do NOT paste this file into a second Devpost form.
+> #
+> # Retained for traceability / source material only. The live submission is `devpost-track3.md`.
+
+---
+
+# Devpost form fill — `social-seeding-v2` (Track 2: Optimize) — **[ARCHIVED]**
 
 > **Origin**: condensed from [`gcp-research/submission/DEVPOST.md`](../../gcp-research/submission/DEVPOST.md) §A (1,950-word source).  
 > **Target word count**: 1,400–1,800 — judges skim; signal beats narrative (per `SUBMISSION-PACKAGE.md` §4).  
