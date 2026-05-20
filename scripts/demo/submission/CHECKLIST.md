@@ -1,10 +1,11 @@
-# CHECKLIST.md — final operator submission checklist
+# CHECKLIST.md — final operator submission checklist (single Track 3 entry)
 
-> **Goal**: paste the text into Devpost forms + click Submit before **2026-06-05 23:59 PT (2026-06-06 15:59 KST)**.
-> **Reference**: D6 (Devpost gated invite accepted) + D1 (dual submission) + D30 (8× demo recording).
-> **Authority**: This file is the executable runbook for the submission. If anything in this file disagrees with `gcp-research/decisions/DECISIONS.md`, that file wins.
+> **Goal**: paste the text into the **single** Devpost Track 3 form + click Submit before **2026-06-05 23:59 PT (2026-06-06 15:59 KST)**.
+> **Strategy**: ONE Devpost entry to **Track 3 (Refactor)** subsuming the whole platform (D45, supersedes the dual-submission plan D1). There is **no second form**.
+> **Reference**: D45 (single submission) · D6 (Devpost gated invite) · D30 (8× demo recording) · D47-D49 (Track 3 requirement hardening).
+> **Authority**: This file is the executable runbook. If anything here disagrees with `gcp-research/decisions/DECISIONS.md`, that file wins.
 >
-> **Time budget**: ~90 minutes wall time for both submissions if all assets are ready. Add ~3 hours if YouTube videos still need to upload + process. **Do not start within 3 hours of the deadline.**
+> **Time budget**: ~60 minutes wall time if all assets are ready. Add ~3 hours if the YouTube video still needs to upload + process. **Do not start within 3 hours of the deadline.**
 
 ---
 
@@ -12,203 +13,167 @@
 
 | # | Gate | Verify with | Pass criteria | Reference |
 |---|------|------------|---------------|-----------|
-| G-0 | O1 Devpost console GAPs answered | Inspect Devpost team registration page | All 10 GAPs answered: team size, license, video length cap, repo visibility, multi-track rules, IP grant clauses | D6 / O1 |
-| G-1 | `pnpm run verify-build` green | Run in repo root | exit 0; lint + tsc + build all pass | D43 |
-| G-2 | Smoke test green within 24 h | `bash scripts/smoke-test/run-brand-campaign.sh` | exit 0; 22/22 agents; 50/50 tools; <30 s wall | D43 |
-| G-3 | pytest 2,668 passing | `pnpm exec pytest packages/agents-adk` | `0 failed`, ≥2,668 passed | `STATUS-REPORT.md §2` |
-| G-4 | All 24 screenshots captured | `ls scripts/demo/submission/screenshots/*.png \| wc -l` | ≥24 | `SCREENSHOTS-MANIFEST.md` |
-| G-5 | YouTube videos uploaded + processing complete | Visit YouTube Studio for each | Both videos status = "Unlisted, Processing complete"; thumbnail rendered | D30 |
-| G-6 | Track 3 Marketplace Producer Portal submitted | Producer Portal → Listings → `tiktok-mcp` | Status = PENDING with KR disclosure visible | D2 / D3 |
-| G-7 | Live demo URLs reachable | `curl -sI <CLOUD_RUN_WEB_URL>` + `curl -sI https://mcp.socialseed.ing/.well-known/agent.json` | Both return HTTP 200 | W7 |
-| G-8 | Repository is public OR private-with-judge-access per O1 answer | GitHub repo visibility settings | Matches the O1 answer | O1 |
-| G-9 | License files exist on both repos | `cat LICENSE` on each repo | `BUSL-1.1` core IP, `Apache-2.0` for ancillary code in Track 3 | D9 |
+| G-0 | O1 Devpost console GAPs answered | Devpost team registration page | All 10 GAPs answered: team size, license, video length cap, repo visibility, multi-track rules, IP grant clauses | D6 / O1 |
+| G-1 | pytest green | `pnpm exec pytest packages/agents-adk` | `0 failed`, **2,713 passed** | brief 2026-05-20 |
+| G-2 | Cross-call smoke green within 24 h | `bash scripts/smoke-test/run-integration-a2a.sh` | exit 0; coordinator → a2a_invoke → ss-mcp; 318 ms; 5 creators | D45 |
+| G-3 | Live A2A endpoint 200 | `curl -s https://ss-mcp-server-1049119860518.us-central1.run.app/.well-known/agent.json \| jq .protocolVersion` | `"0.3.0"` | I1 / req ④ |
+| G-4 | Live Mission Control 200 | `curl -sI https://ss-v2-web-722660901814.us-central1.run.app/api/healthz` | HTTP 200 | I2 / req ② |
+| G-5 | Live landing 200 | `curl -sI https://ss-landing-80064221403.us-central1.run.app/` | HTTP 200 | D46 |
+| G-6 | The 10 ★ screenshots captured | `ls scripts/demo/submission/screenshots/*.png \| wc -l` | ≥ 10 (the ★ set from `SCREENSHOTS-MANIFEST.md §0`) | `SCREENSHOTS-MANIFEST.md` |
+| G-7 | YouTube video uploaded + processing complete | YouTube Studio | Status = "Unlisted, Processing complete"; thumbnail rendered | D30 |
+| G-8 | Repository visibility per O1 answer | GitHub repo settings | Public OR private-with-judge-access matching the O1 answer | O1 |
+| G-9 | License files exist | `cat LICENSE` | BUSL-1.1 core IP + Apache-2.0 ancillary | D9 |
 
-If any gate is RED, stop and resolve before proceeding.
-
----
-
-## 1. Track 2 — `social-seeding-v2` Devpost submission
-
-### 1.1 Open the form
-
-1. Go to `https://socialseed.ing.devpost.com` (or the actual gated-invite URL from D6).
-2. Click **Submit a project** → choose **Track 2 — Optimize an existing prototype**.
-3. Project title: paste `social-seeding-v2` from `devpost-track2.md` "Project name" section.
-
-### 1.2 Paste each form field (in order)
-
-For each field below, copy the matching section from `devpost-track2.md` and paste it directly into Devpost. **Do not retype** — copy-paste preserves D-ID citations.
-
-| Devpost field | Source section in `devpost-track2.md` | Word target | Verify |
-|---------------|---------------------------------------|-------------|--------|
-| Tagline | "One-line tagline" | ≤200 chars | character count under 200 |
-| Inspiration | "Inspiration (Devpost field: Inspiration)" | 100–200 | one paragraph, narrative |
-| What it does | "What it does" | 100–200 | mentions 22-agent fleet, AP2 gates |
-| How we built it | "How we built it" | 400–500 | cites D15, D17, D18, D21, D25, D27, D31 inline |
-| Challenges we ran into | "Challenges we ran into" | 200–300 | Inngest migration + KR gap + AP2 preview |
-| Accomplishments | "Accomplishments we're proud of" | 150–250 | 8× cost drop + 354 tests + 22 agents |
-| What we learned | "What we learned" | 100–150 | 3 bullets |
-| What's next | "What's next" | 80–150 | 7 bullets; includes cost_watch RLHF + Bigtable + foreign sub-entity |
-| Built With | `built-with-tags.txt` Track 2 section, comma-separated | ~80 tags | paste verbatim |
-| Business case | "Business case" section | 250–350 | $10K MRR + TAM/SAM/SOM napkin math |
-| Differentiation | "Differentiation" section | 250–350 | 3 angles, each with proof |
-
-### 1.3 Upload images (≤10 of T2-01..T2-14)
-
-Order matters — Devpost shows the gallery in upload order. Recommended order from `SCREENSHOTS-MANIFEST.md §5`:
-
-1. `t2-mission-control-intake-01.png` (hero)
-2. `t2-agent-fleet-overview.png`
-3. `t2-ap2-mandate-detail.png`
-4. `t2-approvals-bulk-approve.png`
-5. `t2-workflows-canvas.png`
-6. `t2-cloud-trace-spans.png`
-7. `t2-dialogflow-cx-widget.png`
-8. `t2-smoke-test-green.png`
-9. `t2-cloud-deploy-canary.png`
-10. `t2-model-armor-policy.png`
-
-### 1.4 Video URL
-
-1. Open YouTube Studio for the Track 2 video.
-2. Verify status = "Unlisted, Processing complete" (do NOT submit before processing finishes — Devpost previews the thumbnail and reviewers see a broken player otherwise).
-3. Copy the URL from the address bar (format `https://youtu.be/<11-char-id>`).
-4. Paste into Devpost's "Video URL" field.
-
-### 1.5 "Try it out" links
-
-Paste these in the order shown:
-
-1. `https://github.com/Two-Weeks-Team/social-seeding-v2`
-2. `<CLOUD_RUN_WEB_URL>` (the live Mission Control)
-3. `https://github.com/Two-Weeks-Team/social-seeding-v2/pull/1` (the W1-W4 + Phase 6-8 baseline PR)
-
-### 1.6 Final review before clicking Submit
-
-- [ ] Read the entire Devpost form preview end-to-end one more time.
-- [ ] Verify no `<YOUTUBE_TRACK2_URL>` or `<CLOUD_RUN_WEB_URL>` placeholders remain.
-- [ ] Verify all D-IDs cited in the paste actually exist in `DECISIONS.md` (spot-check 3 random IDs).
-- [ ] Verify the Tagline character count is ≤ 200.
-- [ ] Verify all 10 screenshots upload successfully (Devpost shows previews; click each to verify it loads).
-- [ ] Verify the video URL preview shows the YouTube player with the correct thumbnail.
-
-### 1.7 Click **Submit** for Track 2
-
-After clicking Submit:
-- [ ] Save the submission confirmation URL (`https://socialseed.ing.devpost.com/submissions/<id>`) to `scripts/demo/submission/CONFIRMATION-TRACK-2.txt`.
-- [ ] Take a screenshot of the confirmation page to `screenshots/t2-devpost-confirmation.png`.
+If any gate is RED, stop and resolve before proceeding. (G-7 is the only one that may legitimately stay pending while the video processes — do not click Submit until it is green.)
 
 ---
 
-## 2. Track 3 — `tiktok-mcp-server` Devpost submission
+## 1. Track 3 official 6-requirement self-check (designed_guide.pdf p.6-7)
 
-### 2.1 Open the form
+Confirm each is still true at submission time — these are the rubric-load-bearing claims:
 
-1. Same Devpost gated-invite URL.
-2. Click **Submit a project** → choose **Track 3 — Refactor for Cloud Marketplace / Gemini Enterprise**.
-3. Project title: paste `tiktok-mcp-server` from `devpost-track3.md`.
+- [ ] ① **B2B use case** — multi-tenant influencer-campaign SaaS (D11/D12).
+- [ ] ② **Migrate to Cloud Run** — `ss-mcp-server` + `ss-v2-web` both live, 200 (G-3, G-4).
+- [ ] ③ **Route LLMs through Model Garden** — `publishers/google/models/<id>` routing + `deploy/model-garden/README.md` (D47).
+- [ ] ④ **A2A protocol** — agent.json `protocolVersion 0.3.0`; `POST /v1/message:send` returns `task` (G-3).
+- [ ] ⑤ **Multi-agent orchestration** — coordinator → a2a_invoke → ss-mcp 318 ms (G-2); 22-agent fleet (D23).
+- [ ] ⑥ **A2A intents documented** — `gcp-research/refactor-mcp/A2A-INTENTS.md` (5 exposed / 2 consumed) (D48).
+- [ ] + **Agent Identity** — SPIFFE `spiffe://ss-mcp-prod.svc.id.goog/...` (`AGENT-IDENTITY.md`) (D48).
+- [ ] **PDF Build Example #2 match** — `content_verify` ↔ DAM agent callout present (with the honest transport-gap note) (D48/D49).
 
-### 2.2 Paste each form field
+---
+
+## 2. Open the single Devpost form
+
+1. Go to the Devpost gated-invite URL (from D6).
+2. Click **Submit a project** → choose **Track 3 — Refactor**. (Do NOT create a second submission for the platform — it is subsumed per D45.)
+3. Project title: paste the "Project name" line from `devpost-track3.md`.
+
+---
+
+## 3. Paste each form field (in order)
+
+Copy each matching section from `devpost-track3.md` and paste directly into Devpost. **Do not retype** — copy-paste preserves D-ID citations.
 
 | Devpost field | Source section in `devpost-track3.md` | Word target | Verify |
-|---------------|---------------------------------------|-------------|--------|
-| Tagline | "One-line tagline" | ≤200 chars | character count under 200 |
-| Inspiration | "Inspiration" | 100–200 | KR gap + reframe as innovation (D2/D3) |
-| What it does | "What it does" | 100–200 | dual MCP + A2A surfaces, 4 tools |
-| How we built it | "How we built it" | 400–500 | cites D14, D17, D19, D21, D28, D32 |
-| Challenges we ran into | "Challenges we ran into" | 200–300 | KR gap + Watchtower cutover + MCP session affinity |
-| Accomplishments | "Accomplishments we're proud of" | 150–250 | PENDING listing + 4-step eval + A2A native |
-| What we learned | "What we learned" | 100–150 | 2 bullets |
-| What's next | "What's next" | 80–150 | foreign sub-entity + Instagram + SOC2 + AP2 Cart |
-| Built With | `built-with-tags.txt` Track 3 section, comma-separated | ~60 tags | paste verbatim |
-| Business case | "Business case" section | 250–350 | $3K MRR + TAM/SAM/SOM napkin math |
-| Differentiation | "Differentiation" section | 200–300 | 3 angles |
-| Innovation framing | "Korean-region gap section" | 250 | D3 reframing, 5-step pattern |
+|---|---|---|---|
+| Tagline | "One-line tagline" | ≤ 200 chars | character count under 200 (trim the example numbers if rejected) |
+| Inspiration | "Inspiration" | 100–200 | KR gap → reframe as innovation (D2/D3) |
+| What it does | "What it does" | 150–250 | refactored A2A seed + 22-agent fleet + the cross-call |
+| How we built it | "How we built it" | 400–550 | cites D47 (Model Garden), D48 (A2A intents/Identity), D18, D21, D17; include the **6-requirement gate table** + **Build Example #2 match** here |
+| Challenges we ran into | "Challenges we ran into" | 250–350 | KR gap + `/healthz` reservation + Inngest→GCP + CJK (BN-9→D40) |
+| Accomplishments | "Accomplishments we're proud of" | 150–250 | 6 requirements + 318 ms + 2,713 tests + real Imagen |
+| What we learned | "What we learned" | 100–150 | 3 bullets |
+| What's next | "What's next" | 80–150 | Gemini Enterprise approval + foreign sub-entity + DAM-agent A2A promote |
+| Built With | `built-with-tags.txt` (Track 2 section + Track 3 external tags) | ~80 tags | paste verbatim |
+| Business case | "Business case" | 250–350 | $0.01/view (D28) + TAM/SAM/SOM with source labels |
+| Innovation framing | "Innovation framing" | 200–300 | D3 5-step pattern; 3-angle (D29) |
 
-### 2.3 Upload images (10 of T3-01..T3-10)
+---
 
-Order:
+## 4. Upload images (the 10 ★ set, in order)
 
-1. `t3-marketplace-pending.png` (hero — the PENDING listing visual)
-2. `t3-marketplace-listing-page.png`
-3. `t3-gemini-enterprise-chat.png`
-4. `t3-cloud-run-agent-deployed.png`
-5. `t3-agent-runtime-card.png`
-6. `t3-a2a-well-known.png`
-7. `t3-identity-platform-tenant.png`
-8. `t3-apigee-meter-dashboard.png`
-9. `t3-model-armor-block.png`
-10. `t3-chronicle-evidence-pack.png`
+Order matters — Devpost shows the gallery in upload order. From `SCREENSHOTS-MANIFEST.md §0`:
 
-### 2.4 Video URL
+1. `live-a2a-crosscall-318ms.png` (hero — the cross-call proof)
+2. `live-agent-json-200.png`
+3. `req-gate-table.png`
+4. `build-example-2-match.png`
+5. `mission-control-fleet.png`
+6. `ap2-mandate-detail.png`
+7. `real-imagen-generation.png`
+8. `wow-business-roi-tam.png`
+9. `a2a-animation-diagram.png`
+10. `pytest-2713-passing.png`
 
-Same as Track 2 §1.4, with the Track 3 YouTube URL.
+---
 
-### 2.5 "Try it out" links
+## 5. Video URL
 
-1. `https://github.com/Two-Weeks-Team/tiktok-mcp-server`
-2. `https://mcp.socialseed.ing` (the live MCP endpoint)
-3. `https://mcp.socialseed.ing/.well-known/agent.json` (the A2A surface)
+1. Open YouTube Studio for the demo video.
+2. Verify status = "Unlisted, Processing complete" (do NOT submit before processing finishes — Devpost previews the thumbnail and reviewers see a broken player otherwise).
+3. Copy the URL (format `https://youtu.be/<11-char-id>`).
+4. Paste into Devpost's "Video URL" field.
 
-### 2.6 Final review before clicking Submit
+---
 
-- [ ] Read the entire Devpost form preview end-to-end.
-- [ ] Verify no `<YOUTUBE_TRACK3_URL>` or `<CLOUD_RUN_MCP_URL>` placeholders remain.
-- [ ] Verify the KR-payment-region disclosure is visible in the Inspiration + Innovation sections (the contribution per D3).
-- [ ] Verify the PENDING listing screenshot is the first gallery image (hero).
+## 6. "Try it out" links
+
+Paste in this order:
+
+1. `https://ss-mcp-server-1049119860518.us-central1.run.app` (live A2A endpoint — probe `/.well-known/agent.json`)
+2. `https://ss-v2-web-722660901814.us-central1.run.app` (live Mission Control)
+3. `https://ss-landing-80064221403.us-central1.run.app` (live demo landing + report)
+4. `https://github.com/Two-Weeks-Team/social-seeding-v2` (repository, BUSL-1.1 + Apache-2.0)
+
+---
+
+## 7. Final review before clicking Submit
+
+- [ ] Read the entire Devpost form preview end-to-end one more time.
+- [ ] Verify no `<YOUTUBE_URL>` placeholder remains.
+- [ ] Verify all three live URLs are exact and resolve (G-3, G-4, G-5).
 - [ ] Verify the Tagline character count is ≤ 200.
+- [ ] Verify the **Honest gaps** content is present (stub mode of `ss-mcp-server`, O7 allowlist pending, Build Example #2 transport gap) — do not silently drop it; honest disclosure is part of the Innovation contribution.
+- [ ] Verify the 6-requirement gate table renders (no broken markdown table).
+- [ ] Verify all 10 screenshots upload successfully (click each preview to confirm it loads).
+- [ ] Verify the video URL preview shows the YouTube player with the correct thumbnail.
+- [ ] Spot-check 3 random D-IDs cited in the paste actually exist in `DECISIONS.md`.
 
-### 2.7 Click **Submit** for Track 3
+---
+
+## 8. Click **Submit**
 
 After clicking Submit:
-- [ ] Save the confirmation URL to `scripts/demo/submission/CONFIRMATION-TRACK-3.txt`.
-- [ ] Screenshot the confirmation page to `screenshots/t3-devpost-confirmation.png`.
+- [ ] Save the confirmation URL (`https://<devpost-event>.devpost.com/submissions/<id>`) to `scripts/demo/submission/CONFIRMATION.txt`.
+- [ ] Screenshot the confirmation page to `screenshots/devpost-confirmation.png`.
 
 ---
 
-## 3. Post-submit verification
+## 9. Post-submit verification
 
-- [ ] **Re-open both submissions** and verify Devpost rendered the markdown correctly (no broken links, no escaped backticks).
-- [ ] **Click your own video URL** — verify YouTube serves the player without "Video unavailable".
-- [ ] **Click your own GitHub URL** — verify the README renders.
-- [ ] **Click the live demo URLs** — verify both Cloud Run endpoints respond.
-- [ ] **Check Devpost team member list** — verify all collaborators are tagged correctly (per O1 team-size answer).
-- [ ] **Email yourself** the two confirmation URLs as a permanent record.
+- [ ] Re-open the submission and verify Devpost rendered the markdown correctly (no broken links, no escaped backticks, table intact).
+- [ ] Click your own video URL — verify YouTube serves the player without "Video unavailable".
+- [ ] Click your own GitHub URL — verify the README renders.
+- [ ] Click the three live URLs — verify all respond.
+- [ ] Check Devpost team member list — verify all collaborators are tagged (per O1 team-size answer).
+- [ ] Email yourself the confirmation URL as a permanent record.
 
 ---
 
-## 4. Rollback / re-submit (if Devpost allows edits)
+## 10. Rollback / re-submit (if Devpost allows edits)
 
 Devpost typically allows edits until the deadline. If a defect is found:
 
 1. **Do not delete the submission.** Use the Edit button on the Devpost dashboard.
 2. **Edit the specific field**, not the whole form (preserves any judge notes).
-3. **Re-upload images only if necessary** — duplicate uploads count against the 10-per-track limit until the page is refreshed.
+3. **Re-upload images only if necessary** — duplicate uploads count against the 10-per-submission limit until the page refreshes.
 4. **Re-save** and verify the change rendered correctly.
 5. Log the change in `scripts/demo/submission/EDIT-LOG.txt` with timestamp + field + reason.
 
-If Devpost does NOT allow edits after submit (gated-invite challenges sometimes lock), the submission is final. Do not submit a duplicate; contact the Devpost moderator.
+If Devpost does NOT allow edits after submit (gated-invite events sometimes lock), the submission is final. Do not submit a duplicate; contact the Devpost moderator.
 
 ---
 
-## 5. After-submit follow-ups (informational, not blocking)
+## 11. After-submit follow-ups (informational, not blocking)
 
 - **Watch for judge questions** on the Devpost submission page; reply within 24 h.
-- **Pause the demo Cloud Run services** at the end of the judging window to save on D39 credits (`gcloud run services update --no-traffic` per region).
-- **Tag the repo** at the submission SHA: `git tag -a v1.0.0-devpost-submission -m "Frozen at Devpost submission 2026-06-0X"` on both repos.
-- **Update `STATUS-REPORT.md`** with submission confirmation URLs and the W9 final closure note.
-- **Track O7 Agent Gateway Private Preview allowlist** application status weekly until it clears.
-- **Track O10 foreign sub-entity** decision per the $1k MRR threshold trigger.
+- **Keep the three Cloud Run services warm** through the judging window (Cloud Scheduler warm-up cron, D46); they are `min=0` otherwise.
+- **Tag the repo** at the submission SHA: `git tag -a v1.0.0-devpost-submission -m "Frozen at Devpost submission 2026-06-0X"`.
+- **Update `STATUS-REPORT-UNIFIED.md`** with the confirmation URL + final closure note.
+- **Track O7 Gemini Enterprise / Agent Gateway allowlist** weekly until it clears.
+- **Track O10 foreign sub-entity** decision per the $1k MRR trigger.
+- **Resolve O-A..O-E** to promote `ss-mcp-server` from stub mode to the full multi-container topology.
 
 ---
 
-## 6. If anything is unclear
+## 12. If anything is unclear
 
-- **Operator's primary instruction** (per the W9 brief): paste text into Devpost forms + click Submit before 2026-06-05 23:59 PT. Nothing else.
-- **For Devpost-form questions** (where does this field live, what is the character limit): the Devpost console preview is the source of truth.
-- **For content questions** (is this paragraph right, does this claim hold): `gcp-research/decisions/DECISIONS.md` is the source of truth; cite the D-ID in any edit.
-- **For deadline questions**: deadline is **2026-06-05 23:59 PT** (= **2026-06-06 15:59 KST**). Do not push to the wire — submit ≥ 6 hours early to allow recovery from any Devpost or YouTube outage.
+- **Operator's primary instruction**: paste text into the single Track 3 Devpost form + click Submit before 2026-06-05 23:59 PT. Nothing else.
+- **For Devpost-form questions** (field location, character limit): the Devpost console preview is the source of truth.
+- **For content questions** (is this claim right): `gcp-research/decisions/DECISIONS.md` is the source of truth; cite the D-ID in any edit.
+- **For deadline questions**: deadline is **2026-06-05 23:59 PT** (= **2026-06-06 15:59 KST**). Submit ≥ 6 hours early to allow recovery from any Devpost or YouTube outage.
 
 ---
 
-**End of `CHECKLIST.md`.** When both submissions are confirmed, append the confirmation timestamps to this file as the final step.
+**End of `CHECKLIST.md`.** When the submission is confirmed, append the confirmation timestamp here as the final step.
