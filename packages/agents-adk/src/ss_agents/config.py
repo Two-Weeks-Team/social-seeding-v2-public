@@ -7,6 +7,17 @@ Citations:
     D5  — Gemini 2.5 baseline; 3.1 Preview only for final demo.
     D17 — Vertex AI Agent Runtime.
     D39 — $1500 GCP credits (default daily ceiling lifted from $5 to $25).
+    D47 — Route LLM reasoning through Model Garden (Track 3 designed_guide.pdf
+          requirement #3). When `MODEL_GARDEN_ROUTING=true` the runtime rewrites
+          each agent's short Gemini id (e.g. `gemini-2.5-flash`) into the Vertex
+          AI Model Garden publisher-model resource path
+          (`projects/{project}/locations/{location}/publishers/google/models/
+          gemini-2.5-flash`) before constructing the ADK `LlmAgent`. This pins
+          reasoning to the Vertex-served Model Garden plane — the same plane the
+          "strict data security" controls (VPC Service Controls perimeter, CMEK,
+          data residency per D13/D20) are enforced on — rather than the public
+          AI Studio `generativelanguage.googleapis.com` endpoint. See
+          deploy/model-garden/README.md.
 """
 from __future__ import annotations
 
@@ -81,6 +92,17 @@ class Settings(BaseSettings):
     google_cloud_location: str = Field(default=DEFAULT_REGION, alias="GOOGLE_CLOUD_LOCATION")
     google_api_key: str | None = Field(default=None, alias="GOOGLE_API_KEY")
 
+    # ── Model Garden routing (D47, Track 3 designed_guide.pdf req #3) ──
+    model_garden_routing: bool = Field(default=False, alias="MODEL_GARDEN_ROUTING")
+    """When True, each agent's short Gemini id is rewritten into the Vertex AI
+    Model Garden publisher-model resource path before the ADK `LlmAgent` is
+    built — pinning reasoning to the Vertex-served Model Garden plane (the plane
+    VPC-SC / CMEK / data-residency are enforced on, per D13/D20). When False the
+    runtime passes the short id straight through, which the `google-genai`
+    Vertex backend still resolves to the same publisher model — used for dev/CI
+    where the verbose path adds nothing. Gated, not always-on, so stub tests and
+    local runs are unaffected. Prod sets `MODEL_GARDEN_ROUTING=true`."""
+
     # ── App-level toggles ─────────────────────────────────────────────
     ss_environment: Literal["dev", "test", "staging", "prod"] = Field(
         default="dev", alias="SS_ENVIRONMENT"
@@ -125,18 +147,100 @@ def reset_settings_cache() -> None:
     get_settings.cache_clear()
 
 
-def model_pricing(model_id: str) -> tuple[float, float]:
-    """Return (input_$/tok, output_$/tok) for a Gemini model id.
+# Model Garden / Vertex AI publisher-model path components (D47).
+# A publisher-model resource is addressed as
+#   projects/{project}/locations/{location}/publishers/{publisher}/models/{model}
+# Gemini's publisher is always "google". The short, location-free form
+#   publishers/google/models/{model}
+# is also accepted by the google-genai Vertex backend and is what we emit in
+# dev where project/location come from GOOGLE_CLOUD_* env vars instead.
+MODEL_GARDEN_PUBLISHER = "google"
+
+
+def canonical_model_id(model_ref: str) -> str:
+    """Normalize any model reference to its bare Gemini id.
+
+    Accepts the short id (`gemini-2.5-flash`), a Model Garden publisher path
+    (`publishers/google/models/gemini-2.5-flash`), or a fully-qualified
+    publisher resource (`projects/p/locations/l/publishers/google/models/
+    gemini-2.5-flash`) and returns just `gemini-2.5-flash`. Endpoint resources
+    (`projects/.../endpoints/...`) have no resolvable short id, so they are
+    returned unchanged — `model_pricing` will then KeyError loudly, which is the
+    intended signal that a self-deployed endpoint needs an explicit pricing row.
+    """
+    if "/models/" in model_ref:
+        return model_ref.rsplit("/models/", 1)[-1]
+    return model_ref
+
+
+def model_pricing(model_ref: str) -> tuple[float, float]:
+    """Return (input_$/tok, output_$/tok) for a Gemini model reference.
+
+    `model_ref` may be the short id or a Model Garden publisher path (D47); it
+    is normalized via `canonical_model_id` before the pricing lookup so cost
+    accounting is identical whether or not Model Garden routing is on.
 
     Raises:
         KeyError: when the model is unknown. Caller is expected to validate the
                   model id via the Pydantic ModelId enum first.
     """
+    model_id = canonical_model_id(model_ref)
     if model_id not in MODEL_PRICING:
         raise KeyError(
             f"Unknown model id {model_id!r}. Valid: {sorted(MODEL_PRICING.keys())}"
         )
     return MODEL_PRICING[model_id]
+
+
+def model_garden_model_path(
+    model_id: str,
+    *,
+    project: str | None = None,
+    location: str | None = None,
+) -> str:
+    """Rewrite a short Gemini id into a Vertex AI Model Garden publisher path (D47).
+
+    Returns the fully-qualified resource path when both `project` and
+    `location` are supplied:
+        projects/{project}/locations/{location}/publishers/google/models/{model}
+    otherwise the location-free short form the google-genai Vertex backend also
+    resolves:
+        publishers/google/models/{model}
+
+    Inputs that are already a publisher/endpoint resource path (contain a "/")
+    are returned unchanged — callers may pin a self-deployed Model Garden
+    endpoint (e.g. an open-source LLM per the designed_guide.pdf "third-party/
+    open-source LLM deployed specifically through Model Garden" clause) by
+    passing its `projects/.../endpoints/...` resource directly as the agent's
+    model, and we must not mangle that.
+    """
+    if "/" in model_id:
+        return model_id
+    bare = canonical_model_id(model_id)
+    if project and location:
+        return (
+            f"projects/{project}/locations/{location}"
+            f"/publishers/{MODEL_GARDEN_PUBLISHER}/models/{bare}"
+        )
+    return f"publishers/{MODEL_GARDEN_PUBLISHER}/models/{bare}"
+
+
+def resolve_runtime_model(model_id: str) -> str:
+    """Return the model string to hand the ADK `LlmAgent`, honoring D47.
+
+    When `MODEL_GARDEN_ROUTING=true` the short id is rewritten to the Model
+    Garden publisher path (using the configured project/location); otherwise the
+    short id is returned unchanged. This is the single seam the runtime uses so
+    that Model Garden routing is one env-var flip with no per-agent edits.
+    """
+    settings = get_settings()
+    if not settings.model_garden_routing:
+        return model_id
+    return model_garden_model_path(
+        model_id,
+        project=settings.google_cloud_project,
+        location=settings.google_cloud_location,
+    )
 
 
 def is_offline() -> bool:

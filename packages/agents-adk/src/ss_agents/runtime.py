@@ -50,7 +50,12 @@ from typing import (
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from ss_agents.config import get_settings, is_offline, model_pricing
+from ss_agents.config import (
+    get_settings,
+    is_offline,
+    model_pricing,
+    resolve_runtime_model,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -481,6 +486,15 @@ async def _run_with_adk(
 
     Mirrors PORTING-V2.md §5 lines 583-617 (the FastAPI wrapper) but inlined
     here so callers do not need to spin up a runner per agent.
+
+    D47 (Track 3 designed_guide.pdf req #3): the model handed to `LlmAgent` is
+    passed through `resolve_runtime_model`, which — when
+    `MODEL_GARDEN_ROUTING=true` — rewrites the short Gemini id into the Vertex
+    AI Model Garden publisher-model path. Reasoning is then served from the
+    Model Garden plane, the plane the "strict data security" controls (VPC-SC
+    perimeter, CMEK, data residency per D13/D20) are enforced on. Pricing/cost
+    accounting still keys off the agent's declared short id (`agent_def.model`),
+    so the budget guard is unchanged by the rewrite.
     """
     try:
         from google.adk.agents import LlmAgent
@@ -493,7 +507,10 @@ async def _run_with_adk(
             "google-adk not installed. Run: uv pip install -e '.[dev]'"
         ) from exc
 
+    # Cost accounting keys off the declared short id; the model string actually
+    # sent to Vertex may be a Model Garden publisher path (D47) — see below.
     in_price, out_price = model_pricing(agent_def.model)
+    runtime_model = resolve_runtime_model(agent_def.model)
 
     def cost_guard(
         callback_context: CallbackContext, llm_request: LlmRequest
@@ -536,7 +553,7 @@ async def _run_with_adk(
     # by input. Same pattern as PORTING-V2.md §5 lines 534-567.
     agent = LlmAgent(
         name=agent_def.id,
-        model=agent_def.model,
+        model=runtime_model,  # D47: Model Garden publisher path when routing is on
         description=agent_def.description,
         instruction=system_prompt,
         output_schema=agent_def.output_schema,
