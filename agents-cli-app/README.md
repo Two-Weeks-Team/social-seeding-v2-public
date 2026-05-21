@@ -6,8 +6,8 @@ A [Google Agents CLI](https://cloud.google.com/) (`agents-cli`) project that wra
 capabilities. Built for the Google AI Agents Challenge submission.
 
 > Status: **Preview.** `agents-cli` is a preview tool; commands and flags may
-> change. The grounding shown below is **real** — `google_search` and
-> `research_brand` ground against the live web via Gemini, not a chat completion.
+> change. The grounding shown below is **real** — `research_brand` grounds against
+> the live web via Gemini Google Search grounding, not a chat completion.
 
 ## What it is
 
@@ -19,9 +19,16 @@ auto-function-calling-friendly `str -> str` wrappers.
 
 | Tool | Backed by | Purpose |
 |---|---|---|
-| `google_search` | ADK built-in **grounding** tool | Fast, real web grounding (the headline "not just chat completion" feature). |
-| `research_brand(query)` | `ss_agents.tools.web_search.web_search` | Google-Search-grounded brand/market/trend/competitor research with cited source URLs (D53). |
+| `research_brand(query)` | `ss_agents.tools.web_search.web_search` | **Real Google Search grounding** (the headline "not just chat completion" feature): brand/market/trend/competitor research that returns the cited source URLs lifted from Gemini grounding metadata (D53). |
 | `search_creators(brand_brief)` | `ss_agents.tools.a2a_invoke` → live ss-mcp `plan_creator_search` (A2A v0.3, D45), with `ss_agents.tools.rapidapi_tiktok_search` fallback | Ranked TikTok creator sourcing from the real pipeline. |
+
+> **Why not the ADK built-in `google_search` tool too?** Mixing a built-in
+> grounding tool with custom function tools in one agent disables automatic
+> function calling and makes the model emit opaque grounding-chunk markers
+> (`[1.1.1]`) that carry no citable URL. `research_brand` performs the *same*
+> Google Search grounding under the hood (via `web.search`) but returns explicit
+> `Source: <url>` lines the model cites verbatim — measurably better grounding
+> (it took the eval rubric's `grounded` score from 0/4 → 4/4).
 
 ### Model policy
 
