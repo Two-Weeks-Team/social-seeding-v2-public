@@ -7,9 +7,12 @@ DECISIONS.md **D41** (capability layer ADK FunctionTool stub/live):
 
 The runtime selects between `stub` and `live` implementations via the
 `CAPABILITY_LAYER_MODE` environment variable (default = `stub`). Stubs return
-deterministic canned data so dev + CI traffic is fully reproducible. Live mode
-will dispatch to Vertex AI Search / Google Search grounding when wired —
-until then it raises `NotImplementedError` with a precise migration hint.
+deterministic canned data so dev + CI traffic is fully reproducible. **Live
+mode performs REAL Google Search grounding** via `gemini-3.5-flash` + the
+built-in `GoogleSearch` tool and lifts the cited sources out of
+`grounding_metadata` (D53; requires ADC + the Vertex `global` endpoint). This
+is grounding, not a chat completion — every result row is a URL the model
+grounded against. Proof: `scripts/smoke-test/run-web-search-grounding.sh`.
 
 Per-tool USD cost is surfaced via the module-level `USD_COST` attribute so
 `cost_watch` (D42) can deduct from the campaign budget without instantiating
@@ -273,17 +276,108 @@ def _stub_search(payload: WebSearchInput) -> WebSearchOutput:
 
 
 def _live_search(payload: WebSearchInput) -> WebSearchOutput:
-    """Live implementation placeholder.
+    """Live Google Search grounding via Gemini (D41 + D53 + D21).
 
-    Per D41 the live path will dispatch to Vertex AI Search (or
-    google_search grounding inside the LlmAgent). Until that adapter ships
-    we raise NotImplementedError with the exact env var the operator must
-    flip back to switch off live mode."""
-    raise NotImplementedError(
-        "web.search live mode is not wired yet (D41 — capability layer "
-        f"adapter pending). Set {_CAPABILITY_MODE_ENV}=stub to use the "
-        f"deterministic stub, or wait for the Vertex AI Search adapter."
+    Real web grounding — NOT a chat completion. Calls `gemini-3.5-flash` with
+    the built-in `GoogleSearch` grounding tool, then lifts the cited sources
+    out of `response.candidates[0].grounding_metadata` (`grounding_chunks` →
+    title/uri, `grounding_supports` → the text segment each source backs) into
+    `WebSearchResult` rows. Citations are first-class: every row is a real URL
+    Gemini grounded against.
+
+    Requires Application Default Credentials + the Vertex **`global`** endpoint
+    (Gemini 3.x is served on `global`, per D53; `get_settings().google_cloud_
+    location` defaults to `global`). Transport/auth failures raise so the
+    caller (research agent) sees a real error rather than silent empty results.
+
+    The result URLs are Google's grounding-redirect URIs (the standard, stable
+    citation form); `_redact_results` still scrubs any credential-bearing URL.
+    """
+    try:
+        from google import genai
+        from google.genai import types as genai_types
+    except ImportError as exc:  # pragma: no cover — google-genai is a hard dep
+        raise RuntimeError(
+            "google-genai not installed. Run: uv pip install -e '.[dev]'"
+        ) from exc
+
+    from ss_agents.config import get_settings
+
+    settings = get_settings()
+    client = genai.Client(
+        vertexai=True,
+        project=settings.google_cloud_project,
+        location=settings.google_cloud_location,
     )
+
+    _locale_hint = {
+        "ko": "한국어로 핵심을 요약하세요.",
+        "en": "Summarize the key findings in English.",
+        "ja": "要点を日本語で要約してください。",
+        "zh-CN": "用简体中文总结要点。",
+    }[payload.locale]
+
+    response = client.models.generate_content(
+        model="gemini-3.5-flash",
+        contents=(
+            f"{payload.query}\n\n{_locale_hint} "
+            "Use up-to-date public web sources and cite them."
+        ),
+        config=genai_types.GenerateContentConfig(
+            tools=[genai_types.Tool(google_search=genai_types.GoogleSearch())],
+        ),
+    )
+
+    candidate = response.candidates[0] if getattr(response, "candidates", None) else None
+    grounding = getattr(candidate, "grounding_metadata", None) if candidate else None
+    summary = (getattr(response, "text", None) or "").strip()
+
+    chunks = list(getattr(grounding, "grounding_chunks", None) or [])
+    supports = list(getattr(grounding, "grounding_supports", None) or [])
+
+    # Map each grounding-chunk index → the response text segment it backs, so
+    # the snippet is the actual sentence the source grounded (not a generic blurb).
+    snippet_by_chunk: dict[int, str] = {}
+    for support in supports:
+        segment = getattr(support, "segment", None)
+        seg_text = (getattr(segment, "text", None) or "").strip() if segment else ""
+        for idx in getattr(support, "grounding_chunk_indices", None) or []:
+            if seg_text and idx not in snippet_by_chunk:
+                snippet_by_chunk[idx] = seg_text
+
+    rows: list[WebSearchResult] = []
+    for i, chunk in enumerate(chunks):
+        web = getattr(chunk, "web", None)
+        if web is None:
+            continue
+        uri = getattr(web, "uri", None)
+        title = getattr(web, "title", None)
+        if not uri or not title:
+            continue
+        snippet = (snippet_by_chunk.get(i) or summary or title)[:600]
+        try:
+            rows.append(
+                WebSearchResult(
+                    title=title[:300],
+                    url=uri[:2_000],
+                    snippet=snippet or title[:600],
+                )
+            )
+        except Exception:  # noqa: BLE001 — skip a malformed citation, keep the rest
+            logger.debug("web_search_live_skip_row", extra={"uri": uri})
+            continue
+
+    rows = rows[: payload.max_results]
+    rows = _redact_results(rows)
+    logger.info(
+        "web_search_live_grounded",
+        extra={
+            "query": payload.query,
+            "queries_run": list(getattr(grounding, "web_search_queries", None) or []),
+            "sources": len(rows),
+        },
+    )
+    return WebSearchOutput(results=rows)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

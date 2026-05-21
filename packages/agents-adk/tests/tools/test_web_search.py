@@ -5,7 +5,7 @@ Coverage matrix:
   1. Stub determinism — same input ⇒ identical output across N calls.
   2. URL/secret redaction — results with `password=` / `token=` etc. dropped.
   3. Pydantic input/output validation — boundary cases, bad URLs, length caps.
-  4. Live mode raises NotImplementedError when CAPABILITY_LAYER_MODE=live.
+  4. Live mode dispatches to the real Google Search grounding path (D53).
 
 These tests are the W2-A1 canonical test template applied to the W2-A7
 inputs. Determinism + redaction failures are real security regressions, so
@@ -228,14 +228,19 @@ def test_module_usd_cost_attribute_is_positive() -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def test_live_mode_raises_not_implemented(
+def test_live_mode_dispatches_to_grounding(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """`CAPABILITY_LAYER_MODE=live` must raise NotImplementedError."""
+    """`CAPABILITY_LAYER_MODE=live` routes to the real grounding path (no longer
+    a NotImplementedError stub). We patch `_live_search` to a sentinel so this
+    asserts the dispatch WITHOUT a network call; the real grounding 200 is
+    covered offline by test_web_search_grounding.py + the live smoke (D53)."""
+    from ss_agents.tools import web_search as ws
+
+    sentinel = WebSearchOutput(results=[])
     monkeypatch.setenv("CAPABILITY_LAYER_MODE", "live")
-    payload = WebSearchInput(query="social seeding")
-    with pytest.raises(NotImplementedError):
-        web_search(payload)
+    monkeypatch.setattr(ws, "_live_search", lambda payload: sentinel)
+    assert ws.web_search(WebSearchInput(query="social seeding")) is sentinel
 
 
 def test_unknown_mode_raises_value_error(
