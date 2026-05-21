@@ -1,0 +1,13 @@
+name: "ss-agents-acli"
+acli_version: "0.2.0"
+agent_directory: "app"
+region: "us-central1"
+base_template: "adk"
+language: "python"
+create_params:
+  deployment_target: "cloud_run"
+  session_type: "in_memory"
+  cicd_runner: "skip"
+  include_data_ingestion: false
+  datastore: "none"
+  agent_guidance_filename: "CLAUDE.md"
