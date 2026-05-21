@@ -38,7 +38,7 @@ it.
 
 The weak point we narrate: when a creator reply is ambiguous — **interested,
 but quietly negotiating a rate** ("Love it! my rate is ~$800, ok?") — the
-`conversation_responder` (Tier-1 agent #5, Gemini 2.5 Pro) **stalled at the
+`conversation_responder` (Tier-1 agent #5, Gemini 3.5 Flash) **stalled at the
 auto-respond ↔ escalate boundary**. The 8-intent classifier (`conversation`,
 agent #4) rounded the reply down to `interested`, so the rate signal never
 triggered an escalation; the responder was sent down the drafting path with no

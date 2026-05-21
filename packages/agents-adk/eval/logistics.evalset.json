@@ -15,7 +15,7 @@
     "spec": "gcp-research/specs/tier1/logistics.spec.md",
     "decisions": ["D5", "D17", "D21", "D23", "D34"],
     "locales_covered": ["en", "en", "en", "ko", "ko", "ja", "ja", "zh-CN"],
-    "model": "gemini-2.5-flash",
+    "model": "gemini-3.1-flash-lite",
     "max_usd_per_run": 0.05
   },
   "eval_cases": [

@@ -6,7 +6,7 @@ artifact (MP3) stored in Cloud Storage, in the requested locale + voice
 profile. Drives the `ttsAudioGcsUri` field of the a11y bundle.
 
 Citations:
-    D5  — Gemini 2.5 Flash multimodal is NOT used here — TTS is a
+    D5  — Gemini 3.1 Flash-Lite multimodal is NOT used here — TTS is a
           dedicated GCP service. The tool wraps Google Cloud
           Text-to-Speech v1 (`Studio` voices when available, `Neural2`
           otherwise).

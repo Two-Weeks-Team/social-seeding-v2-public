@@ -13,7 +13,7 @@
     "spec": "gcp-research/specs/tier2/coordinator.spec.md",
     "brief": "Phase 4 agent #1 (Tier-2 M1) brief — task router",
     "decisions": ["D5", "D17", "D23", "D24", "D34", "D38"],
-    "model": "gemini-2.5-flash",
+    "model": "gemini-3.1-flash-lite",
     "max_usd": 0.005,
     "locales_covered": ["en", "en", "en", "ko", "ko", "ja", "ja", "zh-CN"],
     "scenarios_covered": [

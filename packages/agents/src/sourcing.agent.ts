@@ -17,11 +17,11 @@ export const sourcingAgent = defineAgent({
   id: "sourcing",
   description: "Turn a campaign brief into a ranked list of TikTok creator candidates with match reasons.",
   tools: ["tiktok.search", "blacklist.check"],
-  model: "claude-opus-4-7",
-  // Cap raised from 1.5 → 2.5: live-demo 2026-05-14 observed Opus 4.7
+  model: "gemini-3.5-flash",
+  // Cap raised from 1.5 → 2.5: live-demo 2026-05-14 observed Gemini 3.5 Flash
   // hitting the cap during the search loop (2-4 queries + blacklist
   // check + revise) on briefs with multiple hashtags. Same reasoning
-  // as outreach-writer's cap raise — Haiku-pricing intuition was off.
+  // as outreach-writer's cap raise — Flash-Lite-pricing intuition was off.
   maxUsd: 2.5,
   input: z.object({
     brief: CampaignBriefSchema,

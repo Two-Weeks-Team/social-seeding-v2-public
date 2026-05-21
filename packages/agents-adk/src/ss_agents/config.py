@@ -4,15 +4,24 @@ Loaded via pydantic-settings so env vars are validated once at startup and the
 rest of the package uses typed accessors.
 
 Citations:
-    D5  — Gemini 2.5 baseline; 3.1 Preview only for final demo.
+    D5  — Gemini model tiers. (Superseded by D53: Google AI Agents Challenge
+          mandates the Gemini 3.x series exclusively, so the fleet runs on
+          gemini-3.5-flash and gemini-3.1-flash-lite — no 2.5 ids remain.)
+    D53 — Gemini 3.x-only mandate (operator override, 2026-05-20; revised
+          2026-05-21). The previously-mandated 3.1 Pro id is NOT callable in our
+          GCP project (404, Preview access not granted), but gemini-3.5-flash
+          (GA 2026-05-19) IS callable on the `global` endpoint. So the judgment
+          tier moved to gemini-3.5-flash. Every agent now uses exactly one of two
+          ids: `gemini-3.5-flash` (judgment tier) or `gemini-3.1-flash-lite`
+          (bulk/flash tier).
     D17 — Vertex AI Agent Runtime.
     D39 — $1500 GCP credits (default daily ceiling lifted from $5 to $25).
     D47 — Route LLM reasoning through Model Garden (Track 3 designed_guide.pdf
           requirement #3). When `MODEL_GARDEN_ROUTING=true` the runtime rewrites
-          each agent's short Gemini id (e.g. `gemini-2.5-flash`) into the Vertex
-          AI Model Garden publisher-model resource path
+          each agent's short Gemini id (e.g. `gemini-3.1-flash-lite`) into the
+          Vertex AI Model Garden publisher-model resource path
           (`projects/{project}/locations/{location}/publishers/google/models/
-          gemini-2.5-flash`) before constructing the ADK `LlmAgent`. This pins
+          gemini-3.1-flash-lite`) before constructing the ADK `LlmAgent`. This pins
           reasoning to the Vertex-served Model Garden plane — the same plane the
           "strict data security" controls (VPC Service Controls perimeter, CMEK,
           data residency per D13/D20) are enforced on — rather than the public
@@ -28,46 +37,37 @@ from typing import Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Default GCP region matches ADK-GUIDE.md §1.1 example and most Vertex AI quickstarts.
-DEFAULT_REGION = "us-central1"
+# Gemini 3.x is served on the `global` endpoint (not us-central1), so the
+# default Vertex AI location is `global` — that's where gemini-3.5-flash and
+# gemini-3.1-flash-lite are callable.
+DEFAULT_REGION = "global"
 
 # Per spec/sourcing.spec.md and intake.spec.md, the production model for
-# conversational agents is gemini-2.5-flash. Pro/Flash-Lite are agent-specific.
-DEFAULT_INTAKE_MODEL = "gemini-2.5-flash"
+# conversational/bulk agents is gemini-3.1-flash-lite. The judgment tier is
+# agent-specific (gemini-3.5-flash).
+# D53: the fleet is Gemini 3.x-only (Google AI Agents Challenge mandate).
+DEFAULT_INTAKE_MODEL = "gemini-3.1-flash-lite"
 
-# Gemini 2.5 Flash pricing (2026 H1, Vertex AI list).
+# Gemini 3.5 Flash pricing (GA 2026-05-19, Vertex AI list).
 # https://cloud.google.com/vertex-ai/generative-ai/pricing
-GEMINI_25_FLASH_INPUT_PER_TOKEN = 0.30 / 1_000_000   # $0.30 / 1M input tokens
-GEMINI_25_FLASH_OUTPUT_PER_TOKEN = 2.50 / 1_000_000  # $2.50 / 1M output tokens
+GEMINI_35_FLASH_INPUT_PER_TOKEN = 1.50 / 1_000_000   # $1.50 / 1M input tokens
+GEMINI_35_FLASH_OUTPUT_PER_TOKEN = 9.00 / 1_000_000  # $9.00 / 1M output tokens
 
-# Gemini 2.5 Pro pricing (2026 H1).
-GEMINI_25_PRO_INPUT_PER_TOKEN = 1.25 / 1_000_000     # $1.25 / 1M input tokens
-GEMINI_25_PRO_OUTPUT_PER_TOKEN = 10.00 / 1_000_000   # $10.00 / 1M output tokens
-
-# Gemini 2.5 Flash-Lite pricing (2026 H1).
-GEMINI_25_FLASH_LITE_INPUT_PER_TOKEN = 0.10 / 1_000_000
-GEMINI_25_FLASH_LITE_OUTPUT_PER_TOKEN = 0.40 / 1_000_000
+# Gemini 3.1 Flash-Lite pricing (GA Apr 2026).
+GEMINI_31_FLASH_LITE_INPUT_PER_TOKEN = 0.25 / 1_000_000   # $0.25 / 1M input tokens
+GEMINI_31_FLASH_LITE_OUTPUT_PER_TOKEN = 1.50 / 1_000_000  # $1.50 / 1M output tokens
 
 
 # Map model id → (input_$/tok, output_$/tok). Used by cost_record callback.
+# D53: exactly two ids — gemini-3.5-flash (judgment) and gemini-3.1-flash-lite (bulk).
 MODEL_PRICING: dict[str, tuple[float, float]] = {
-    "gemini-2.5-pro": (
-        GEMINI_25_PRO_INPUT_PER_TOKEN,
-        GEMINI_25_PRO_OUTPUT_PER_TOKEN,
+    "gemini-3.5-flash": (
+        GEMINI_35_FLASH_INPUT_PER_TOKEN,
+        GEMINI_35_FLASH_OUTPUT_PER_TOKEN,
     ),
-    "gemini-2.5-flash": (
-        GEMINI_25_FLASH_INPUT_PER_TOKEN,
-        GEMINI_25_FLASH_OUTPUT_PER_TOKEN,
-    ),
-    "gemini-2.5-flash-lite": (
-        GEMINI_25_FLASH_LITE_INPUT_PER_TOKEN,
-        GEMINI_25_FLASH_LITE_OUTPUT_PER_TOKEN,
-    ),
-    # Preview model — pricing same as 2.5 Pro per Gemini 3.1 Pro Preview pricing
-    # notice (2026-Q2 console announcement). Update when GA hits.
-    "gemini-3.1-pro-preview": (
-        GEMINI_25_PRO_INPUT_PER_TOKEN,
-        GEMINI_25_PRO_OUTPUT_PER_TOKEN,
+    "gemini-3.1-flash-lite": (
+        GEMINI_31_FLASH_LITE_INPUT_PER_TOKEN,
+        GEMINI_31_FLASH_LITE_OUTPUT_PER_TOKEN,
     ),
 }
 
@@ -183,10 +183,10 @@ MODEL_GARDEN_PUBLISHER = "google"
 def canonical_model_id(model_ref: str) -> str:
     """Normalize any model reference to its bare Gemini id.
 
-    Accepts the short id (`gemini-2.5-flash`), a Model Garden publisher path
-    (`publishers/google/models/gemini-2.5-flash`), or a fully-qualified
+    Accepts the short id (`gemini-3.1-flash-lite`), a Model Garden publisher path
+    (`publishers/google/models/gemini-3.1-flash-lite`), or a fully-qualified
     publisher resource (`projects/p/locations/l/publishers/google/models/
-    gemini-2.5-flash`) and returns just `gemini-2.5-flash`. Endpoint resources
+    gemini-3.1-flash-lite`) and returns just `gemini-3.1-flash-lite`. Endpoint resources
     (`projects/.../endpoints/...`) have no resolvable short id, so they are
     returned unchanged — `model_pricing` will then KeyError loudly, which is the
     intended signal that a self-deployed endpoint needs an explicit pricing row.

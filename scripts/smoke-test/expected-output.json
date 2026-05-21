@@ -43,154 +43,154 @@
             "agent_id": "sourcing",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:45Z",
-            "model": "gemini-2.5-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
             "agent_id": "vetting",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:42Z",
-            "model": "gemini-2.5-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
             "agent_id": "outreach_writer",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:38Z",
-            "model": "gemini-2.5-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
             "agent_id": "conversation",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:49Z",
-            "model": "gemini-2.5-flash-lite",
+            "model": "gemini-3.1-flash-lite",
             "tier": 1
           },
           {
             "agent_id": "conversation_responder",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:35Z",
-            "model": "gemini-2.5-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
             "agent_id": "logistics",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:47Z",
-            "model": "gemini-2.5-flash",
+            "model": "gemini-3.1-flash-lite",
             "tier": 1
           },
           {
             "agent_id": "content_verify",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:43Z",
-            "model": "gemini-2.5-flash",
+            "model": "gemini-3.1-flash-lite",
             "tier": 1
           },
           {
             "agent_id": "analyst",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:29Z",
-            "model": "gemini-2.5-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
             "agent_id": "research",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:36Z",
-            "model": "gemini-2.5-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
             "agent_id": "intake",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:51Z",
-            "model": "gemini-2.5-flash",
+            "model": "gemini-3.1-flash-lite",
             "tier": 1
           },
           {
             "agent_id": "lead_outreach_writer",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:32Z",
-            "model": "gemini-2.5-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
             "agent_id": "payment_mandate",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:40Z",
-            "model": "gemini-2.5-flash",
+            "model": "gemini-3.1-flash-lite",
             "tier": 1
           },
           {
             "agent_id": "compliance",
             "current_status": "degraded",
             "last_heartbeat": "2026-05-19T11:58:25Z",
-            "model": "gemini-2.5-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
             "agent_id": "creative",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:26Z",
-            "model": "gemini-2.5-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
             "agent_id": "a11y",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:48Z",
-            "model": "gemini-2.5-flash",
+            "model": "gemini-3.1-flash-lite",
             "tier": 1
           },
           {
             "agent_id": "customer_success",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:20Z",
-            "model": "gemini-2.5-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
             "agent_id": "coordinator",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:53Z",
-            "model": "gemini-2.5-flash",
+            "model": "gemini-3.1-flash-lite",
             "tier": 2
           },
           {
             "agent_id": "critic",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:41Z",
-            "model": "gemini-2.5-pro",
+            "model": "gemini-3.5-flash",
             "tier": 2
           },
           {
             "agent_id": "optimizer",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:15Z",
-            "model": "gemini-2.5-pro",
+            "model": "gemini-3.5-flash",
             "tier": 2
           },
           {
             "agent_id": "anomaly_watch",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:50Z",
-            "model": "gemini-2.5-flash",
+            "model": "gemini-3.1-flash-lite",
             "tier": 3
           },
           {
             "agent_id": "cost_watch",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:52Z",
-            "model": "gemini-2.5-flash",
+            "model": "gemini-3.1-flash-lite",
             "tier": 3
           },
           {
             "agent_id": "security_watch",
             "current_status": "down",
             "last_heartbeat": "2026-05-19T11:53:20Z",
-            "model": "gemini-2.5-flash",
+            "model": "gemini-3.1-flash-lite",
             "tier": 3
           }
         ],

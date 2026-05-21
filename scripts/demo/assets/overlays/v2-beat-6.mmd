@@ -1,6 +1,6 @@
 %% Beat 6 — Analyst report + cost ledger  (SCRIPT.md §3 Beat 6)
 flowchart LR
-  unlock[payout unlocked] --> analyst[analyst<br/>Gemini 2.5 Pro]:::active
+  unlock[payout unlocked] --> analyst[analyst<br/>Gemini 3.5 Flash]:::active
   analyst --> bq[BigQuery aggregations]
   analyst --> vvs[Vertex Vector Search<br/>competitor compare]
   bq & vvs --> report[campaign report]

@@ -6,7 +6,7 @@ Phase 4 capability-layer tool wired into the **creative** agent
 a GCS URI + SHA-256 digest + sample rate.
 
 Citations:
-    D5  — Gemini 2.5 family multimodal baseline. Lyria ships on Vertex AI
+    D5  — Gemini 3.1 family multimodal baseline. Lyria ships on Vertex AI
           alongside the Gemini family.
     D13 — Multi-region active-active. Lyria endpoints exist in a subset
           of regions at 2026 H1; live wiring will route per tenant region.

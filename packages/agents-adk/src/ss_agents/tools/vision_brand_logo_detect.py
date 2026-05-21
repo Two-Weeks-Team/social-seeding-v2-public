@@ -6,7 +6,7 @@ video frame contains the seeded brand's logo and returns a structured score
 the agent reasons over alongside the post desc + hashtags.
 
 Citations:
-    D5  — Gemini 2.5 Flash multimodal (content-verify is the first multimodal
+    D5  — Gemini 3.1 Flash-Lite multimodal (content-verify is the first multimodal
           Tier-1 agent; this tool is its visual channel).
     D23 — Tier-1 agent #7 (content_verify) listed `vision.brand_logo_detect`
           as one of two callable capabilities.

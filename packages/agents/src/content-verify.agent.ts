@@ -16,7 +16,7 @@ import { defineAgent } from "./runtime";
  *                          hashtag relevance.
  *   · flags              : enumerated issues for the operator UI.
  *
- * Cheap on Haiku (\$0.05 cap) — judgment is text-content, not strategy.
+ * Cheap on Gemini 3.1 Flash-Lite (\$0.05 cap) — judgment is text-content, not strategy.
  * No tools: the agent reads the post desc + hashtags + the brief and decides.
  * The numeric ranking math (avgViews / engagementRate / influenceScore) is
  * deterministic and lives in the `ranking.score` capability — Phase 4's
@@ -58,7 +58,7 @@ export const contentVerifyAgent = defineAgent({
   description:
     "Decide if a detected TikTok post genuinely covers the brand we shipped. Outputs { matches, mentionsBrand, performanceScore, flags, rationale }.",
   tools: [], // pure judgment from text — no I/O. ranking.score math is composed by the workflow.
-  model: "claude-haiku-4-5",
+  model: "gemini-3.1-flash-lite",
   maxUsd: 0.05,
   input: z.object({
     brief: CampaignBriefSchema,

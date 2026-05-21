@@ -9,7 +9,7 @@ import { vettingAgent } from "./vetting.agent";
 /**
  * A-vetting golden set — 3 (brief, creator) → expected fitScore bucket + flags
  * scenarios. With a fake ModelClient these pin the agent's plumbing across
- * diverse inputs; real LLM decision-quality eval needs ANTHROPIC_API_KEY +
+ * diverse inputs; real LLM decision-quality eval needs GEMINI_API_KEY +
  * the full v1 cold-mail style judge tournament (Phase-1 follow-up).
  */
 

@@ -20,7 +20,7 @@ const echoAgent = defineAgent({
   id: "echo",
   description: "Uppercase the input text and return it.",
   tools: [], // no capabilities — keeps this a pure runtime test
-  model: "claude-haiku-4-5",
+  model: "gemini-3.1-flash-lite",
   maxUsd: 0.01,
   input: z.object({ text: z.string() }),
   output: z.object({ upper: z.string() }),
@@ -102,7 +102,7 @@ describe("runAgent (echo agent)", () => {
   });
 
   it("aborts (escalates) when a call pushes spend past the agent's USD cap", async () => {
-    // 12M Haiku input tokens ≈ $12 ≫ maxUsd 0.01
+    // 12M Gemini 3.1 Flash-Lite input tokens ≈ $3 ≫ maxUsd 0.01
     const ctx = testCtx(fixedClient({ kind: "text", text: JSON.stringify({ upper: "OK" }), inputTokens: 12_000_000, outputTokens: 0 }));
     const out = await runAgent(echoAgent, { text: "ok" }, ctx);
     expect(out.kind).toBe("escalate");

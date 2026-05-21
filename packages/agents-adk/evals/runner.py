@@ -6,7 +6,7 @@ scores each case against the case's `metadata` expected fields, splits the resul
 into train/dev vs holdout slices, and prints a pass/score summary.
 
 D25 (Agent-Evaluation rung of the learning loop) · D37 (Layer-1 of the TDD
-pyramid, run offline) · D5 (coordinator = gemini-2.5-flash; scored predictor is
+pyramid, run offline) · D5 (coordinator = gemini-3.1-flash-lite; scored predictor is
 deterministic so the gate is free + reproducible).
 
 ──────────────────────────────────────────────────────────────────────────────

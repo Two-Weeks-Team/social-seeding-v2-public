@@ -16,20 +16,20 @@ executes.
 
 Behavior (security_watch.spec.md §1):
     Non-conversational, single-shot agent triggered by Cloud Workflows
-    (security-handler). One invocation per arriving signal. Gemini 2.5
+    (security-handler). One invocation per arriving signal. Gemini 3.1
     Flash for the rationale step over deterministic signal counts; the
     output is small (≤ 1200-char rationale + structured decision) so a
     Flash run costs ~$0.0003 typical, well under the $0.10 cap.
 
 Citations:
-    D5  — Gemini 2.5 Flash baseline (judgment over deterministic signals).
+    D5  — Gemini 3.1 Flash-Lite baseline (judgment over deterministic signals).
     D21 — Model Armor MAX policy + custom regex; this agent is the human-
           readable layer over Armor's block stream.
     D23 — Tier-3 watchdog #3 (W3).
     D32 — Chronicle SecOps SIEM — cross-source correlation feed.
     D20 — CMEK + Secret Manager — quarantine flips tenant key access.
     ARCHITECTURE.md §3 row 22:
-        security_watch (W3) | 3 | Gemini 2.5 Flash | model_armor.query_blocks,
+        security_watch (W3) | 3 | Gemini 3.1 Flash-Lite | model_armor.query_blocks,
         chronicle.query, tenant.quarantine | None | TTR (time to remediate).
 
 Spec deltas from the parent brief and the canonical spec:
@@ -69,10 +69,10 @@ from ss_agents.runtime import AgentDef
 logger = logging.getLogger(__name__)
 
 
-# Gemini 2.5 Flash per ARCHITECTURE.md §3 row 22. The watchdog is a Tier-3
-# *judgment-over-deterministic-signals* agent — Flash is the right tier
+# Gemini 3.1 Flash-Lite per ARCHITECTURE.md §3 row 22. The watchdog is a Tier-3
+# *judgment-over-deterministic-signals* agent — Flash-Lite is the right tier
 # (fast + cheap; the deterministic counts already happened upstream).
-DEFAULT_SECURITY_WATCH_MODEL = "gemini-2.5-flash"
+DEFAULT_SECURITY_WATCH_MODEL = "gemini-3.1-flash-lite"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -656,7 +656,7 @@ security_watch_agent_def: AgentDef[SecurityWatchInput, SecurityWatchOutput] = Ag
         "(D21) + Chronicle SecOps alerts (D32), decides severity + "
         "recommended action (log/warn/page/quarantine/disable_workspace), "
         "and hands the result to the security-handler workflow. "
-        "Gemini 2.5 Flash per ARCHITECTURE.md §3 row 22. Owns "
+        "Gemini 3.1 Flash-Lite per ARCHITECTURE.md §3 row 22. Owns "
         "model_armor.query_blocks, chronicle.query, tenant.quarantine "
         "(per spec §6 usually invoked UPSTREAM by the workflow)."
     ),

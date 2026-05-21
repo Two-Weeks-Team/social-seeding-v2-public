@@ -29,7 +29,7 @@ Spec deviations recorded by the Phase-3 brief (brief wins over spec):
       explicit `icpFitScore` becomes a first-class input field).
 
 Citations:
-    D5  — Gemini 2.5 Pro (judgment-heavy creative drafting; B2B copy
+    D5  — Gemini 3.5 Flash (judgment-heavy creative drafting; B2B copy
           benefits from the Pro tier vs Flash even at the higher cost).
     D17 — Vertex AI Agent Runtime.
     D23 — Tier-1 agent #11.
@@ -39,7 +39,7 @@ Citations:
     D34 — Drafts in the lead's locale (ko/en/ja/zh-CN); JP recipients
           default to formal register per spec §8 edge case 6.
     ARCHITECTURE.md §3 row 11:
-        lead_outreach_writer | 1 | Gemini 2.5 Pro | templates.list,
+        lead_outreach_writer | 1 | Gemini 3.5 Flash | templates.list,
                               outreach.render, crm.enrich | Memory Bank |
                               response_match_v2
 """
@@ -57,8 +57,8 @@ from ss_agents.tools.crm_enrich import crm_enrich
 logger = logging.getLogger(__name__)
 
 
-# Gemini 2.5 Pro per DECISIONS.md D5 / ARCHITECTURE.md §3 row 11.
-LEAD_OUTREACH_WRITER_MODEL = "gemini-2.5-pro"
+# Gemini 3.5 Flash per DECISIONS.md D53 / ARCHITECTURE.md §3 row 11.
+LEAD_OUTREACH_WRITER_MODEL = "gemini-3.5-flash"
 
 # B2B tone enum — distinct from the responder's `warm/urgent/formal`. The
 # brief calls these out explicitly. `formal` for JP/regulated industries,

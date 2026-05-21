@@ -22,8 +22,8 @@ import {
  *
  * The LLM call goes through an injectable `ModelClient` (`ctx.model`), so tests
  * run with no API key and a different provider is a one-file swap (see
- * `model.ts`). Model routing — Opus 4.7 for judgment, Haiku 4.5 for bulk —
- * comes from `def.model`.
+ * `model.ts`). Model routing — Gemini 3.5 Flash for judgment, Gemini 3.1
+ * Flash-Lite for bulk — comes from `def.model`.
  */
 export interface AgentDef<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
   id: string;
@@ -42,7 +42,7 @@ export interface AgentDef<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
 export interface AgentRunContext {
   capabilityCtx: CapabilityContext;
   trace: RunTrace;
-  /** injected in tests / for alternate providers; defaults to the Anthropic-backed client */
+  /** injected in tests / for alternate providers; defaults to the Gemini-backed client */
   model?: ModelClient;
   /** when set, runAgent calls assertWithinBudget(trace.campaignId, this) before the first LLM call */
   campaignBudgetUsd?: number;
@@ -82,11 +82,11 @@ export async function runAgent<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     /**
      * Tracks whether the agent has produced ANY tool call yet on this run.
      * On the FIRST turn — when tools are present + nothing has been called
-     * yet — we set `tool_choice: any` so Opus emits a native tool_use
+     * yet — we set `tool_choice: any` so Gemini 3.5 Flash emits a native tool_use
      * block instead of pseudo-tool-calling via text. Once the model has
      * called at least one tool (or made it past the first turn), we drop
      * back to `auto` so it can produce the final text answer.
-     * Live-demo lesson 2026-05-14: without this, Opus 4.7 with long
+     * Live-demo lesson 2026-05-14: without this, Gemini 3.5 Flash with long
      * system prompts sometimes "thinks out loud" by writing
      * `[calling tool X: {...}]` as text content, which the runtime then
      * tries to parse as the agent's final output → escalate.
@@ -137,10 +137,10 @@ export async function runAgent<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 
     // ── tool loop ──────────────────────────────────────────────────────────
     /**
-     * The model is text-only (ModelClient deliberately doesn't expose Anthropic's
-     * native tool_use/tool_result content blocks — see model.ts). We render the
+     * The model is text-only (ModelClient deliberately doesn't expose the
+     * provider's native tool_use/tool_result content blocks — see model.ts). We render the
      * model's prior tool call as a parenthetical aside on the assistant turn,
-     * NOT as a bracket-prefixed pseudo-syntax — Opus 4.7 was observed (live-demo
+     * NOT as a bracket-prefixed pseudo-syntax — Gemini 3.5 Flash was observed (live-demo
      * 2026-05-14) copying our previous `[calling tool X: {...}]` synthetic
      * format on the next turn as TEXT, which the runtime then can't route as a
      * tool call. A parenthetical reads as commentary the model is less likely

@@ -11,7 +11,7 @@ import { sourcingAgent } from "./sourcing.agent";
  * coverageNote shape scenarios. Pins the agent's plumbing across (a) the
  * comfortable-margin happy case, (b) a tight follower range that narrows the
  * pool, (c) excludeCreatorIds filtering. Real LLM evaluation of query quality
- * is a Phase-1 follow-up (needs ANTHROPIC_API_KEY).
+ * is a Phase-1 follow-up (needs GEMINI_API_KEY).
  */
 
 type SourcingOutput = z.infer<typeof sourcingAgent.output>;

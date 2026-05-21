@@ -12,7 +12,7 @@ detectable.
 
 D-IDs: **D25** (Agent-Evaluation rung of the learning loop), **D37** (Layer-1 of
 the 5-layer TDD pyramid, run offline as a PR gate), **D5** (the coordinator runs
-on `gemini-2.5-flash`; the runner scores a deterministic predictor, not the live
+on `gemini-3.1-flash-lite`; the runner scores a deterministic predictor, not the live
 Flash call, so the gate is free and reproducible).
 
 ## How to run

@@ -1,7 +1,7 @@
 """Intake agent — Phase 2's working agent.
 
 Direct port of v2's `packages/agents/src/intake.agent.ts:23-57` onto ADK +
-Gemini 2.5 Flash + Pydantic, following the contract in
+Gemini 3.1 Flash-Lite + Pydantic, following the contract in
 `gcp-research/specs/tier1/intake.spec.md`.
 
 Behavior (intake.spec.md §1):
@@ -10,11 +10,11 @@ Behavior (intake.spec.md §1):
     and re-invokes after each user reply until status === "done".
 
 Citations:
-    D5  — Gemini 2.5 Flash (short conversational turn).
+    D5  — Gemini 3.1 Flash-Lite (short conversational turn).
     D23 — Tier-1 agent #10.
     D34 — Operates in operator's locale (ko/en/ja/zh-CN).
     ARCHITECTURE.md §3 row 10:
-        intake | 1 | Gemini 2.5 Flash | forms.upsert | Session | task_completion
+        intake | 1 | Gemini 3.1 Flash-Lite | forms.upsert | Session | task_completion
 """
 from __future__ import annotations
 

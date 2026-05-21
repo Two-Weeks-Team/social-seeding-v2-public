@@ -10,7 +10,7 @@ Behavior (compliance.spec.md §1 + §5):
     Bounded single-turn judge. Agent receives ONE draft message + recipient
     metadata + consent record + (operator) tenant business identity, fires
     THREE deterministic gates (PIPA/CAN-SPAM/DLP) over the text, then asks
-    Gemini 2.5 Pro to reason about ambiguity. Output is a strict decision:
+    Gemini 3.5 Flash to reason about ambiguity. Output is a strict decision:
 
         - "clear"                 → safe to send today; gmail.send may fire.
         - "block"                 → critical violation; never send; persist
@@ -23,7 +23,7 @@ Behavior (compliance.spec.md §1 + §5):
     workflow re-invokes compliance for a second pass).
 
 Citations:
-    D5  — Gemini 2.5 Pro (judgment-heavy reasoning; false-clear cost is high).
+    D5  — Gemini 3.5 Flash (judgment-heavy reasoning; false-clear cost is high).
     D10 — Gmail demo restricted to test-account-only; compliance still runs
           even on test sends so the audit trail is consistent.
     D17 — Vertex AI Agent Runtime (managed).
@@ -38,7 +38,7 @@ Citations:
           on `jurisdictionInferred="KR"` regardless of UI locale because
           jurisdiction is the recipient's country, not the operator's UI.
     ARCHITECTURE.md §3 row 13:
-        compliance (NEW) | 1 | Gemini 2.5 Pro
+        compliance (NEW) | 1 | Gemini 3.5 Flash
                          | pipa.check_consent, canspam.check_unsubscribe,
                            dlp.inspect
                          | Memory Bank | precision (no false-clear)
@@ -649,7 +649,7 @@ def build_compliance_system_prompt(payload: BaseModel) -> str:
     """Per compliance.spec.md §6.
 
     The system prompt embeds the pre-computed deterministic-gate outputs
-    so Gemini 2.5 Pro reasons OVER them (rather than re-running regex). The
+    so Gemini 3.5 Flash reasons OVER them (rather than re-running regex). The
     agent's job is to:
 
       1. Confirm the decision is consistent with the rules cited.
@@ -865,9 +865,9 @@ compliance_agent_def: AgentDef[ComplianceInput, ComplianceOutput] = AgentDef(
         "CAN-SPAM + GDPR fast-fail + DLP PII scan). Returns "
         "{decision: clear|block|require_human_review, findings, "
         "evidencePackId, rationale}. Per compliance.spec.md (D23 Tier-1 #13, "
-        "D22 PIPA + Marketplace minimal, D5 Gemini 2.5 Pro for judgment)."
+        "D22 PIPA + Marketplace minimal, D53 Gemini 3.5 Flash for judgment)."
     ),
-    model="gemini-2.5-pro",  # D5 — Pro for judgment; false-clear cost is high
+    model="gemini-3.5-flash",  # D53 — judgment tier; false-clear cost is high
     max_usd=0.03,  # deliverable spec: $0.03 cap (under spec.md §6 $0.15 ceiling)
     input_schema=ComplianceInput,
     output_schema=ComplianceOutput,

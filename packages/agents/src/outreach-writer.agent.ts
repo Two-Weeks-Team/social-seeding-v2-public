@@ -36,8 +36,8 @@ export const outreachWriterAgent = defineAgent({
   description:
     "Write a grounded, personalized outreach email for one creator. Drafts ≤5 angles internally, scores each with the 4 deterministic judges (brand/conversion/deliverability/skeptic), returns the weighted winner with its judge scorecards attached.",
   tools: ["outreach.extractFacts", "outreach.judge", "templates.render"],
-  model: "claude-opus-4-7",
-  // Live-demo lesson 2026-05-14: Opus 4.7 in the multi-tool tournament
+  model: "gemini-3.5-flash",
+  // Live-demo lesson 2026-05-14: Gemini 3.5 Flash in the multi-tool tournament
   // mode (extractFacts + 5 angles × 4 judges) sometimes emits XML-style
   // tool calls as TEXT instead of native tool_use blocks, breaking
   // the runtime's tool-result loop. Mitigations:
@@ -47,12 +47,12 @@ export const outreachWriterAgent = defineAgent({
   //   · The single-angle prompt path replaces the 5-angle tournament
   //     when facts are pre-computed (the workflow already did the
   //     extractFacts work; tournament-style judging adds more cost than
-  //     value at $15/MTok input).
+  //     value at $2/MTok input).
   //   · Tools STAY in the curated list — fake ModelClients in unit
   //     tests script extractFacts + judge tool_use to exercise the
-  //     tournament shape; live Opus follows the prompt and skips them.
-  // Cap raised from $0.80 to $1.5: Opus is more expensive than the
-  // Haiku-pricing intuition the original cap was set on.
+  //     tournament shape; live Gemini 3.5 Flash follows the prompt and skips them.
+  // Cap raised from $0.80 to $1.5: Gemini 3.5 Flash is more expensive than the
+  // Flash-Lite-pricing intuition the original cap was set on.
   maxUsd: 1.5,
   input: z.object({
     brief: CampaignBriefSchema,
@@ -67,7 +67,7 @@ export const outreachWriterAgent = defineAgent({
      * it) and uses these facts directly. This is the production path —
      * creator-track already calls `outreach.extractFacts` before invoking
      * the writer to early-exit on `hasMinimumContext=false`, so passing
-     * the result through here saves a round-trip + sidesteps Opus's
+     * the result through here saves a round-trip + sidesteps Gemini 3.5 Flash's
      * occasional refusal to call the tool (live-demo lesson 2026-05-14).
      */
     facts: OutreachFactsSchema.optional(),

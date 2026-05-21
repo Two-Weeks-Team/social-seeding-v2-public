@@ -85,11 +85,11 @@ OPTIMIZATION_MODE: str = "instruction"
 
 # Default target/eval region + model for the data-driven optimizer job. The
 # target_model is the model whose responses the optimizer scores while it
-# rewrites the instruction; the optimizer agent (M3) runs Gemini 2.5 Pro, but
-# the *Tier-1 agents it tunes* run on the Gemini 2.5 family (D5), so the GA job
-# targets gemini-2.5-flash by default (overridable by the operator).
+# rewrites the instruction; the optimizer agent (M3) runs Gemini 3.5 Flash, but
+# the *Tier-1 agents it tunes* run on the Gemini 3.1 family (D5), so the GA job
+# targets gemini-3.1-flash-lite by default (overridable by the operator).
 DEFAULT_OPTIMIZER_LOCATION: str = "us-central1"
-DEFAULT_TARGET_MODEL: str = "gemini-2.5-flash"
+DEFAULT_TARGET_MODEL: str = "gemini-3.1-flash-lite"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -131,7 +131,7 @@ class AgentOptimizerTuneInput(BaseModel):
     Attributes:
         agent_id: The agent being tuned. Forms the deterministic stub job id.
         current_prompt: The system instruction to rewrite. Capped at 60_000
-            chars (Gemini 2.5 Pro context-window leeway accounting for trace
+            chars (Gemini 3.5 Flash context-window leeway accounting for trace
             data). In live mode this is the data-driven optimizer's
             `system_instruction`.
         observed_failures: List of failure patterns from Agent Observability.

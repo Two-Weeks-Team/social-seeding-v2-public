@@ -25,7 +25,7 @@ Behavior (a11y.spec.md §1):
     FunctionTools and the agent CALLS them.
 
 Citations:
-    D5  — Gemini 2.5 Flash (multimodal: text + image + video + audio URIs).
+    D5  — Gemini 3.1 Flash-Lite (multimodal: text + image + video + audio URIs).
     D17 — Vertex AI Agent Runtime (managed).
     D22 — PIPA-friendly: transcripts are operator-bounded; no transcript
           leaves the trace without explicit operator approval.
@@ -36,7 +36,7 @@ Citations:
     D33 — Asset media stored 30d in Cloud Storage (lifecycle rule).
     D34 — 4-locale mandatory: ko / en / ja / zh-CN.
     ARCHITECTURE.md §3 row 15:
-        a11y (NEW) | 1 | Gemini 2.5 Flash
+        a11y (NEW) | 1 | Gemini 3.1 Flash-Lite
                    | vision.describe, stt.transcribe, tts.synthesize, translation.translate
                    | None | a11y_compliance_score
 
@@ -592,7 +592,7 @@ a11y_agent_def: AgentDef[A11yInput, A11yOutputWrapper] = AgentDef(
         "corrupt, audio uncaptionable, or content flagged. Per a11y.spec.md "
         "(D23 Tier-1 agent #15, NEW)."
     ),
-    model="gemini-2.5-flash",  # D5 — multimodal Flash, NOT Pro (cost ceiling)
+    model="gemini-3.1-flash-lite",  # D53 — multimodal flash-lite tier, NOT Pro (cost ceiling)
     max_usd=0.02,  # task brief: $0.02 per invocation (single-locale fan-out)
     input_schema=A11yInput,
     output_schema=A11yOutputWrapper,

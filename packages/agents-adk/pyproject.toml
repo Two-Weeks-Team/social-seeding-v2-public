@@ -13,7 +13,7 @@ authors = [{ name = "Social Seeding", email = "app.2weeks@gmail.com" }]
 keywords = ["adk", "vertex-ai", "gemini", "agents", "social-seeding"]
 
 # Citations:
-#   D5  — Gemini 2.5 family production baseline
+#   D5  — Gemini 3.1 family production baseline
 #   D17 — Vertex AI Agent Runtime
 #   D35 — Hybrid codebase strategy (this package is the "rebuild from zero" half)
 #   D36 — SDD via JSON Schema (we mirror the schemas as Pydantic models here)

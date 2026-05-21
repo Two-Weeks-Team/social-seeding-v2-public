@@ -917,7 +917,7 @@ class TestComplianceEscalation:
 
     def test_agent_def_model_is_gemini_pro(self) -> None:
         """D5 — Pro for judgment-heavy reasoning; false-clear cost is high."""
-        assert compliance_agent_def.model == "gemini-2.5-pro"
+        assert compliance_agent_def.model == "gemini-3.5-flash"
 
     def test_agent_def_id_matches_spec(self) -> None:
         """compliance.spec.md §3 OpenAPI operationId = invokeCompliance; id = 'compliance'."""

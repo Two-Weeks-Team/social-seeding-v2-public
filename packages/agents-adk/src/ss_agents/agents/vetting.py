@@ -6,19 +6,19 @@ brand-campaign workflow fans this out one Pub/Sub message per candidate (D18
 workflow layer (TF-8 integration module) — the agent itself is single-input.
 
 Direct port of v2's `packages/agents/src/vetting.agent.ts:16-40` onto ADK +
-Gemini 2.5 Pro + Pydantic, following the contract in
+Gemini 3.5 Flash + Pydantic, following the contract in
 `gcp-research/specs/tier1/vetting.spec.md`.
 
 Citations:
-    D5  — Gemini 2.5 Pro for judgment-grade scoring.
+    D5  — Gemini 3.5 Flash for judgment-grade scoring.
     D17 — Vertex AI Agent Runtime (parallel fan-out).
     D23 — Tier-1 agent #2 (high-volume role).
     D24 — Parallel fan-out is the canonical 1→100 example.
     ARCHITECTURE.md §3 row 2:
-        vetting | 1 | Gemini 2.5 Pro (parallel) | rapidapi.get_user_info,
+        vetting | 1 | Gemini 3.5 Flash (parallel) | rapidapi.get_user_info,
         ranking.score, vector_search.brand_fit | Session | tool_trajectory_avg_score
     v2 reference: packages/agents/src/vetting.agent.ts — schema mirrored, model
-    upgraded Haiku → Gemini 2.5 Pro per D5.
+    upgraded Haiku → Gemini 3.5 Flash per D5.
 """
 from __future__ import annotations
 
@@ -262,7 +262,7 @@ vetting_agent_def: AgentDef[VettingInput, VettedCandidate] = AgentDef(
         "Per vetting.spec.md (D23 Tier-1 agent #2). Designed for N-way "
         "Pub/Sub fan-out at the workflow layer (D18 + D24)."
     ),
-    model="gemini-2.5-pro",  # D5 — judgment role.
+    model="gemini-3.5-flash",  # D53 — judgment role.
     max_usd=VETTING_MAX_USD,
     input_schema=VettingInput,
     output_schema=VettedCandidate,

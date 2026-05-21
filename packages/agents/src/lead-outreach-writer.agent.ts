@@ -28,7 +28,7 @@ import { defineAgent } from "./runtime";
  *    SaaS product to a business decision-maker" — not "you are inviting
  *    a creator to a free sample."
  *
- * Opus 4.7 — same as brand writer; judgment quality is what we pay for.
+ * Gemini 3.5 Flash — same as brand writer; judgment quality is what we pay for.
  * Higher cap ($1.20) than the brand writer because B2B emails are
  * longer + go through more revision passes.
  */
@@ -37,7 +37,7 @@ export const leadOutreachWriterAgent = defineAgent({
   description:
     "Write a grounded, personalized cold-sales email for one B2B lead from its research summary. Scores draft with the 4 judges; returns the weighted winner.",
   tools: ["outreach.judge", "templates.render"],
-  model: "claude-opus-4-7",
+  model: "gemini-3.5-flash",
   maxUsd: 1.2,
   input: z.object({
     brief: LeadCampaignBriefSchema,

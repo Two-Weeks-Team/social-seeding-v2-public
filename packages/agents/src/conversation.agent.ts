@@ -7,16 +7,16 @@ import { defineAgent } from "./runtime";
  * extracts the structured signals the workflow needs to branch on (shipping
  * address, proposed rate, the question being asked).
  *
- * Haiku 4.5 by design: this fires on every inbound message and runs hot. The
- * agent itself never drafts a reply — that's the Opus-grade
- * `conversationResponderAgent` (next file), which the workflow invokes only
- * when the classification calls for one (`interested` / `needs_info` /
- * `negotiating`).
+ * Gemini 3.1 Flash-Lite by design: this fires on every inbound message and
+ * runs hot. The agent itself never drafts a reply — that's the
+ * Gemini-3.1-Pro-grade `conversationResponderAgent` (next file), which the
+ * workflow invokes only when the classification calls for one (`interested` /
+ * `needs_info` / `negotiating`).
  *
  * Split rationale (port of v1's email-handling discipline): keep the
- * thread-classifier cheap, predictable, and JSON-shaped; reserve Opus for
- * the actual creative judgment-call of replying. ARCHITECTURE.md routing:
- * Haiku for bulk, Opus for judgment.
+ * thread-classifier cheap, predictable, and JSON-shaped; reserve Gemini 3.5 Flash
+ * for the actual creative judgment-call of replying. ARCHITECTURE.md routing:
+ * Gemini 3.1 Flash-Lite for bulk, Gemini 3.5 Flash for judgment.
  *
  * Extraction targets — only what the workflow branches on:
  *   · `shippingAddress`  → unlocks `shipment.create` (Phase 3) when classification = "interested".
@@ -32,8 +32,8 @@ export const conversationAgent = defineAgent({
   description:
     "Classify an inbound creator reply and extract structured signals (address / rate / question) for the workflow to branch on. Never drafts — that's the responder agent.",
   tools: [], // pure classification — no I/O
-  model: "claude-haiku-4-5",
-  maxUsd: 0.02, // tight cap; Haiku on a short reply should be << $0.01
+  model: "gemini-3.1-flash-lite",
+  maxUsd: 0.02, // tight cap; Gemini 3.1 Flash-Lite on a short reply should be << $0.01
   input: z.object({
     threadId: z.string().min(1),
     creatorId: z.string().min(1),
@@ -65,7 +65,7 @@ export const conversationAgent = defineAgent({
   // draftedReply is always left undefined here; the responder agent fills it
   // in a separate workflow step when applicable. We omit it from the contract
   // shape the agent has to produce, so the output stays simple and the
-  // Haiku prompt stays cheap.
+  // Gemini 3.1 Flash-Lite prompt stays cheap.
   output: ConversationTurnSchema.omit({ draftedReply: true }),
   systemPrompt: ({ incomingMessage, threadHistory, creatorHandle }) =>
     [

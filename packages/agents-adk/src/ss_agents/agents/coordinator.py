@@ -24,7 +24,7 @@ Brief vs spec reconciliation:
     Tier-1 kinds without forcing the caller to label them upfront.
 
 Citations:
-    D5  — Gemini 2.5 Flash (tiny routing decisions, cheap + fast).
+    D5  — Gemini 3.1 Flash-Lite (tiny routing decisions, cheap + fast).
     D17 — Vertex AI Agent Runtime (deployment target).
     D23 — Tier-2 meta agent M1.
     D24 — Phased coordination: hybrid in-process for 0→1, RemoteA2AAgent for 1→100.
@@ -32,7 +32,7 @@ Citations:
     D38 — PM-style hierarchy (M3 PM / leads / workers); M1 is the workflow's
           "lead" picker.
     ARCHITECTURE.md §3 row 17:
-        coordinator (M1) | 2 | Gemini 2.5 Flash | agent_registry.list, a2a.invoke
+        coordinator (M1) | 2 | Gemini 3.1 Flash-Lite | agent_registry.list, a2a.invoke
                           | Session | routing_accuracy
 """
 from __future__ import annotations
@@ -49,10 +49,11 @@ from ss_agents.tools.agent_registry_list import agent_registry_list
 logger = logging.getLogger(__name__)
 
 
-# Model id — D5: Flash is the right tier for routing decisions (single turn,
-# small structured output, low latency target). Pinned to a concrete id so the
-# eval set is reproducible.
-COORDINATOR_MODEL = "gemini-2.5-flash"
+# Model id — D53: routing is a judgment task; gemini-3.5-flash (GA 2026-05-19,
+# leads the Pro tier on agent benchmarks) is the right model and is callable on
+# the global Vertex endpoint. Pinned to a concrete id so the eval set is
+# reproducible.
+COORDINATOR_MODEL = "gemini-3.5-flash"
 
 
 # Hard USD cap per the Phase-4 brief: $0.005. Routing overhead must stay tiny

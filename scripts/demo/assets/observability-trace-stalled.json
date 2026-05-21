@@ -11,7 +11,7 @@
     "name": "agent:conversation-responder",
     "attributes": {
       "agent.id": "conversation-responder",
-      "agent.model": "gemini-2.5-pro",
+      "agent.model": "gemini-3.5-flash",
       "agent.trace_id": "trace-hardening-rate-positive-en-01-baseline",
       "agent.outcome": "ok",
       "triage.action": "respond",
@@ -42,7 +42,7 @@
       "value": null,
       "branch": "fallthrough → respond",
       "stall": true,
-      "stall_note": "STALL: a proposed rate of USD 800.0 is present, but the baseline has no rule to read it. The turn is routed to `respond`, then the Pro drafter is told in prompt step 7 to escalate negotiations — it has already been sent down the drafting path with no rate-handling fact, so it oscillates at the auto-respond ↔ escalate boundary."
+      "stall_note": "STALL: a proposed rate of USD 800.0 is present, but the baseline has no rule to read it. The turn is routed to `respond`, then the judgment-tier (gemini-3.5-flash) drafter is told in prompt step 7 to escalate negotiations — it has already been sent down the drafting path with no rate-handling fact, so it oscillates at the auto-respond ↔ escalate boundary."
     }
   ],
   "case": {

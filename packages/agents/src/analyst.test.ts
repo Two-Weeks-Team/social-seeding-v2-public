@@ -168,8 +168,8 @@ describe("analystAgent — unit", () => {
     expect(out.reason).toMatch(/inconsistent/);
   });
 
-  it("agent definition: Haiku, no tools, ≤$0.10 cap", () => {
-    expect(analystAgent.model).toBe("claude-haiku-4-5");
+  it("agent definition: Gemini 3.1 Flash-Lite, no tools, ≤$0.10 cap", () => {
+    expect(analystAgent.model).toBe("gemini-3.1-flash-lite");
     expect(analystAgent.tools).toEqual([]);
     expect(analystAgent.maxUsd).toBeLessThanOrEqual(0.1);
   });

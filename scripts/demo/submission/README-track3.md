@@ -35,7 +35,7 @@ Pricing:
 ## What did we build (for this Challenge)
 
 - **MCP server on Cloud Run + Cloud Armor** — Global LB-fronted, mTLS to the scraper backend via Cloud Service Mesh, IAP for the admin endpoints.
-- **ADK orchestration agent on Vertex AI Agent Runtime (D17)** — Gemini 2.5 Flash for tool selection, Gemini 2.5 Flash-Lite for malformed-intent classification, no Agent Memory Bank dependency (stateless connector agent per D33).
+- **ADK orchestration agent on Vertex AI Agent Runtime (D17)** — Gemini 3.1 Flash-Lite for tool selection and for malformed-intent classification, no Agent Memory Bank dependency (stateless connector agent per D33).
 - **Model Armor max policy (D21) on every model call** — PI / JB block, PII block, RAI default, custom regex (brand / competitor / influencer-handle), Agent Anomaly Detection feeding the W3 security_watch agent.
 - **Identity Platform multi-tenant OAuth (D19)** replaces the v1 better-sqlite OAuth store entirely. Per-tenant API keys minted into Secret Manager with CMEK encryption.
 - **Apigee X per-call meter (D28)** with usage events into Pub/Sub → Dataflow → BigQuery for $0.01 / view rate-card aggregation; **Dataform** SQL transforms; **API Hub** (Apigee) holds the OpenAPI 3.1 + MCP spec catalog (D36).

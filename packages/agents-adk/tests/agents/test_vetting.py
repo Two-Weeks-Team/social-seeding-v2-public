@@ -419,8 +419,8 @@ class TestPlumbing:
         assert str(min_er) in rendered
 
     def test_agent_def_uses_pro_model_and_tight_cap(self) -> None:
-        """Per D5 (Gemini 2.5 Pro for judgment) + task brief ($0.03 cap)."""
-        assert vetting_agent_def.model == "gemini-2.5-pro"
+        """Per D5 (Gemini 3.5 Flash for judgment) + task brief ($0.03 cap)."""
+        assert vetting_agent_def.model == "gemini-3.5-flash"
         assert vetting_agent_def.max_usd == VETTING_MAX_USD == 0.03
 
 

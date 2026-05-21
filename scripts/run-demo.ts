@@ -23,7 +23,7 @@
  * Pre-flight checks (always):
  *
  *   1. MONGODB_URI reachable (init-indexes runs idempotently first).
- *   2. ANTHROPIC_API_KEY present (else workflows throw at the first agent
+ *   2. GEMINI_API_KEY present (else workflows throw at the first agent
  *      call — surfaced clearly).
  *   3. Inngest reachable on http://localhost:8288 (the dev server). When
  *      this fails the demo still emits the event — but no workflow runs
@@ -106,7 +106,7 @@ function envCheck(opts: CliOpts): EnvCheck[] {
   const common: EnvCheck[] = [
     { name: "MONGODB_URI", required: true, present: has("MONGODB_URI"),
       gates: "everything (workspace + workflow state)" },
-    { name: "ANTHROPIC_API_KEY", required: true, present: has("ANTHROPIC_API_KEY"),
+    { name: "GEMINI_API_KEY", required: true, present: has("GEMINI_API_KEY"),
       gates: "every agent run (sourcing / writer / classifier / responder / analyst …)" },
     { name: "EMAIL_UNSUBSCRIBE_HMAC_SECRET", required: false, present: has("EMAIL_UNSUBSCRIBE_HMAC_SECRET"),
       gates: "gmail.send (CAN-SPAM unsubscribe footer; can be a 16-char placeholder for tests)" },

@@ -60,19 +60,19 @@ def test_routing_gate_enabled(monkeypatch: pytest.MonkeyPatch, truthy: str) -> N
 def test_short_form_publisher_path() -> None:
     """No project/location → location-free publisher path."""
     assert (
-        model_garden_model_path("gemini-2.5-flash")
-        == "publishers/google/models/gemini-2.5-flash"
+        model_garden_model_path("gemini-3.1-flash-lite")
+        == "publishers/google/models/gemini-3.1-flash-lite"
     )
 
 
 def test_fully_qualified_publisher_path() -> None:
     assert model_garden_model_path(
-        "gemini-2.5-pro",
+        "gemini-3.5-flash",
         project="ss-v2-prod",
         location="us-central1",
     ) == (
         "projects/ss-v2-prod/locations/us-central1"
-        "/publishers/google/models/gemini-2.5-pro"
+        "/publishers/google/models/gemini-3.5-flash"
     )
 
 
@@ -81,7 +81,7 @@ def test_already_qualified_path_passes_through() -> None:
     returned unchanged — we must not double-wrap or mangle it."""
     endpoint = "projects/ss-v2-prod/locations/us-central1/endpoints/123456"
     assert model_garden_model_path(endpoint) == endpoint
-    pub = "publishers/google/models/gemini-2.5-flash"
+    pub = "publishers/google/models/gemini-3.1-flash-lite"
     assert model_garden_model_path(pub) == pub
 
 
@@ -93,7 +93,7 @@ def test_already_qualified_path_passes_through() -> None:
 def test_resolve_runtime_model_off_is_identity(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("MODEL_GARDEN_ROUTING", raising=False)
     reset_settings_cache()
-    assert resolve_runtime_model("gemini-2.5-flash") == "gemini-2.5-flash"
+    assert resolve_runtime_model("gemini-3.1-flash-lite") == "gemini-3.1-flash-lite"
 
 
 def test_resolve_runtime_model_on_rewrites(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -101,9 +101,9 @@ def test_resolve_runtime_model_on_rewrites(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "ss-v2-prod")
     monkeypatch.setenv("GOOGLE_CLOUD_LOCATION", "europe-west1")
     reset_settings_cache()
-    assert resolve_runtime_model("gemini-2.5-flash") == (
+    assert resolve_runtime_model("gemini-3.1-flash-lite") == (
         "projects/ss-v2-prod/locations/europe-west1"
-        "/publishers/google/models/gemini-2.5-flash"
+        "/publishers/google/models/gemini-3.1-flash-lite"
     )
 
 
@@ -139,13 +139,13 @@ def test_pricing_identical_for_short_and_publisher_path(model_id: str) -> None:
 def test_intake_agent_routes_through_model_garden(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The intake agent (Gemini 2.5 Flash) resolves to a Model Garden publisher
+    """The intake agent (Gemini 3.1 Flash-Lite) resolves to a Model Garden publisher
     path when routing is on, and to its short id when off — the model_pricing
     lookup must succeed in both cases (proving the budget guard is intact)."""
     from ss_agents.agents.intake import intake_agent_def
 
     declared = intake_agent_def.model
-    assert declared == "gemini-2.5-flash"
+    assert declared == "gemini-3.1-flash-lite"
 
     monkeypatch.setenv("MODEL_GARDEN_ROUTING", "true")
     monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "ss-v2-prod")
@@ -155,10 +155,10 @@ def test_intake_agent_routes_through_model_garden(
     routed = resolve_runtime_model(declared)
     assert routed == (
         "projects/ss-v2-prod/locations/us-central1"
-        "/publishers/google/models/gemini-2.5-flash"
+        "/publishers/google/models/gemini-3.1-flash-lite"
     )
     # Cost accounting still keys off the declared short id — must not KeyError.
-    assert model_pricing(declared) == MODEL_PRICING["gemini-2.5-flash"]
+    assert model_pricing(declared) == MODEL_PRICING["gemini-3.1-flash-lite"]
 
     monkeypatch.setenv("MODEL_GARDEN_ROUTING", "false")
     reset_settings_cache()

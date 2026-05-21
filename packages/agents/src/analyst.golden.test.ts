@@ -14,7 +14,7 @@ import { analystAgent, type AnalystOutput } from "./analyst.agent";
  *   · in_flight       — early-state (no verified yet), recs lean on funnel
  *
  * With a scripted ModelClient: real LLM quality eval is gated on
- * ANTHROPIC_API_KEY (P4 follow-up). What this pins is the output schema
+ * GEMINI_API_KEY (P4 follow-up). What this pins is the output schema
  * + the agent's contract: concerns ≤ fired-flags + 1, recommendations
  * 1..3, summary cites the headline number, markdown starts with the
  * branded H1.
@@ -177,7 +177,7 @@ const cases: GoldenCase[] = [
       concerns: ["budget_exceeded — spent $62 against $50 budget (124%)."],
       recommendations: [
         "Cap the next campaign budget at $50 with a hard stop at 5 outreach batches.",
-        "Skip the second responder-Opus revision when conversation is straightforward.",
+        "Skip the second responder-Gemini-3.1-Pro revision when conversation is straightforward.",
       ],
       markdown: "# Hydra Serum — Campaign Report\n\nOver budget • 2/3\n\n## Summary\nOver budget.",
     },

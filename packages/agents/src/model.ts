@@ -3,16 +3,16 @@
  *
  * `runAgent` only ever talks to a `ModelClient` — never to a vendor SDK
  * directly — so a fake client makes the agent tests run with no API key, and a
- * different provider is a one-file swap. The default client wraps the Anthropic
- * Messages API via the raw `@anthropic-ai/sdk` (the heavier
- * `@anthropic-ai/claude-agent-sdk` is reserved for agents that need Claude
- * Code's filesystem/bash tools — campaign agents don't; see SCOPE-DECISIONS.md).
+ * different provider is a one-file swap. The default client wraps the Gemini
+ * `generateContent` API via the `@google/genai` SDK (text + function-calling +
+ * usage metadata is all the campaign agents need; see SCOPE-DECISIONS.md).
  *
- * Model routing (carried from ARCHITECTURE.md): Opus 4.7 for judgment-heavy
- * agents, Haiku 4.5 for high-volume extraction/classification.
+ * Model routing (carried from ARCHITECTURE.md): Gemini 3.5 Flash for
+ * judgment-heavy agents, Gemini 3.1 Flash-Lite for high-volume
+ * extraction/classification.
  */
 
-export type ModelId = "claude-opus-4-7" | "claude-haiku-4-5";
+export type ModelId = "gemini-3.5-flash" | "gemini-3.1-flash-lite";
 
 /** A conversation turn. `content` is plain text — tool results are fed back as text user turns. */
 export interface ModelMessage {
@@ -39,10 +39,10 @@ export interface ModelCompleteArgs {
   maxTokens: number;
   /**
    * Force the model to use a tool (when `any`) or any tool/text (`auto` —
-   * the default). Live-demo lesson 2026-05-14: Opus 4.7 with long system
-   * prompts sometimes "thinks out loud" by emitting tool-call shaped TEXT
-   * instead of a native `tool_use` block, breaking the runtime's
-   * tool-result loop. `tool_choice: any` is the SDK-level fix — Anthropic
+   * the default). Live-demo lesson 2026-05-14: Gemini 3.5 Flash with long
+   * system prompts sometimes "thinks out loud" by emitting tool-call shaped
+   * TEXT instead of a native `tool_use` block, breaking the runtime's
+   * tool-result loop. `tool_choice: any` is the SDK-level fix — the model
    * forces the response to include a real tool_use block when tools are
    * available.
    *
@@ -59,12 +59,12 @@ export interface ModelClient {
 
 /**
  * Approximate published $/MTok, by model. Used for the per-invocation USD cap
- * and the cost ledger. Treat as estimates — verify against current Anthropic
- * pricing before relying on these for hard budget enforcement.
+ * and the cost ledger. Treat as estimates — verify against current Gemini /
+ * Vertex AI pricing before relying on these for hard budget enforcement.
  */
 export const MODEL_PRICING: Record<ModelId, { inputPerMTok: number; outputPerMTok: number }> = {
-  "claude-opus-4-7": { inputPerMTok: 15, outputPerMTok: 75 },
-  "claude-haiku-4-5": { inputPerMTok: 1, outputPerMTok: 5 },
+  "gemini-3.5-flash": { inputPerMTok: 1.5, outputPerMTok: 9 },
+  "gemini-3.1-flash-lite": { inputPerMTok: 0.25, outputPerMTok: 1.5 },
 };
 
 export function estimateUsd(model: ModelId, inputTokens: number, outputTokens: number): number {
@@ -74,81 +74,109 @@ export function estimateUsd(model: ModelId, inputTokens: number, outputTokens: n
 
 /** API model identifiers (kept separate from our routing keys in case they diverge). */
 const MODEL_API_ID: Record<ModelId, string> = {
-  "claude-opus-4-7": "claude-opus-4-7",
-  "claude-haiku-4-5": "claude-haiku-4-5",
+  "gemini-3.5-flash": "gemini-3.5-flash",
+  "gemini-3.1-flash-lite": "gemini-3.1-flash-lite",
 };
 
-// Anthropic dots aren't legal in tool names; map "tiktok.search" <-> "tiktok__search".
+// Gemini dots aren't legal in function names; map "tiktok.search" <-> "tiktok__search".
 const encodeToolName = (n: string): string => n.replace(/\./g, "__");
 const decodeToolName = (n: string): string => n.replace(/__/g, ".");
 
-/** The minimal slice of the Anthropic SDK surface we use — keeps us off its exact type shapes. */
-interface AnthropicLike {
-  messages: {
-    create(args: {
+/**
+ * The minimal slice of the Gemini (`@google/genai`) SDK surface we use — keeps
+ * us off its exact type shapes. We talk to `models.generateContent` with a
+ * single `functionDeclarations` tool block; the response carries either
+ * `functionCalls` (when the model invoked a tool) or `text`, plus
+ * `usageMetadata` token counts for the cost ledger.
+ */
+interface GeminiPart {
+  text?: string;
+  functionCall?: { name?: string; args?: unknown };
+}
+interface GeminiLike {
+  models: {
+    generateContent(args: {
       model: string;
-      max_tokens: number;
-      system: string;
-      messages: { role: "user" | "assistant"; content: string }[];
-      tools?: { name: string; description: string; input_schema: Record<string, unknown> }[];
-      tool_choice?: { type: "auto" | "any" | "tool"; name?: string };
+      contents: { role: "user" | "model"; parts: { text: string }[] }[];
+      config?: {
+        systemInstruction?: string;
+        maxOutputTokens?: number;
+        tools?: { functionDeclarations: { name: string; description: string; parameters: Record<string, unknown> }[] }[];
+        toolConfig?: { functionCallingConfig: { mode: "AUTO" | "ANY" | "NONE" } };
+      };
     }): Promise<{
-      content: { type: string; text?: string; id?: string; name?: string; input?: unknown }[];
-      usage: { input_tokens: number; output_tokens: number };
+      candidates?: { content?: { parts?: GeminiPart[] } }[];
+      functionCalls?: { name?: string; args?: unknown }[];
+      text?: string;
+      usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
     }>;
   };
 }
 
-let _anthropic: AnthropicLike | undefined;
+let _gemini: GeminiLike | undefined;
 
 /**
- * The production client. Lazily constructs the Anthropic SDK so importing this
+ * The production client. Lazily constructs the Gemini SDK so importing this
  * module (and running the tests) never requires a key — it throws, clearly,
- * only when actually invoked without `ANTHROPIC_API_KEY`.
+ * only when actually invoked without `GEMINI_API_KEY`.
  */
 export function defaultModelClient(): ModelClient {
   return {
     async complete({ model, system, messages, tools, maxTokens, toolChoice }) {
-      if (!_anthropic) {
-        const key = process.env.ANTHROPIC_API_KEY;
+      if (!_gemini) {
+        const key = process.env.GEMINI_API_KEY;
         if (!key) {
           throw new Error(
-            "ANTHROPIC_API_KEY is not set — runAgent needs it at runtime (tests should inject a fake ModelClient via ctx.model)",
+            "GEMINI_API_KEY is not set — runAgent needs it at runtime (tests should inject a fake ModelClient via ctx.model)",
           );
         }
-        const mod = (await import("@anthropic-ai/sdk")) as unknown as { default: new (o: { apiKey: string }) => AnthropicLike };
-        _anthropic = new mod.default({ apiKey: key });
+        const mod = (await import("@google/genai")) as unknown as { GoogleGenAI: new (o: { apiKey: string }) => GeminiLike };
+        _gemini = new mod.GoogleGenAI({ apiKey: key });
       }
-      const toolList = tools.length
-        ? tools.map((t) => ({ name: encodeToolName(t.name), description: t.description, input_schema: t.inputSchema }))
+      const functionDeclarations = tools.length
+        ? tools.map((t) => ({ name: encodeToolName(t.name), description: t.description, parameters: t.inputSchema }))
         : undefined;
-      const sendToolChoice = toolChoice === "any" && Boolean(toolList);
+      // Force a tool call (`ANY`) only when the caller asked for it AND tools
+      // exist; otherwise let the model decide (`AUTO`, the SDK default).
+      const sendToolChoice = toolChoice === "any" && Boolean(functionDeclarations);
       if (process.env.SS_DEBUG_MODEL === "1") {
-        console.log(`[model] complete ${model} tools=${toolList?.length ?? 0} tool_choice=${sendToolChoice ? "any" : "auto"} messages=${messages.length}`);
+        console.log(`[model] complete ${model} tools=${functionDeclarations?.length ?? 0} tool_choice=${sendToolChoice ? "ANY" : "AUTO"} messages=${messages.length}`);
       }
-      const res = await _anthropic.messages.create({
+      const res = await _gemini.models.generateContent({
         model: MODEL_API_ID[model],
-        max_tokens: maxTokens,
-        system,
-        messages,
-        tools: toolList,
-        // Forward `tool_choice` only when caller asked for `any` AND tools
-        // exist. Default `auto` matches the SDK default; we don't send it
-        // explicitly to keep the payload minimal.
-        ...(sendToolChoice ? { tool_choice: { type: "any" as const } } : {}),
+        // Gemini uses "model" (not "assistant") for the model's own turns.
+        contents: messages.map((m) => ({
+          role: m.role === "assistant" ? ("model" as const) : ("user" as const),
+          parts: [{ text: m.content }],
+        })),
+        config: {
+          systemInstruction: system,
+          maxOutputTokens: maxTokens,
+          ...(functionDeclarations ? { tools: [{ functionDeclarations }] } : {}),
+          ...(sendToolChoice ? { toolConfig: { functionCallingConfig: { mode: "ANY" as const } } } : {}),
+        },
       });
+      const usage = {
+        inputTokens: res.usageMetadata?.promptTokenCount ?? 0,
+        outputTokens: res.usageMetadata?.candidatesTokenCount ?? 0,
+      };
+      const parts = res.candidates?.[0]?.content?.parts ?? [];
+      const fnCall = res.functionCalls?.[0] ?? parts.find((p) => p.functionCall)?.functionCall;
       if (process.env.SS_DEBUG_MODEL === "1") {
-        console.log(`[model] response types=[${res.content.map((b) => b.type).join(",")}]`);
+        console.log(`[model] response ${fnCall ? `functionCall=${fnCall.name}` : "text"}`);
       }
-      const usage = { inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens };
-      const toolUse = res.content.find((b) => b.type === "tool_use");
-      if (toolUse && toolUse.id && toolUse.name) {
-        return { kind: "tool_use", toolUseId: toolUse.id, toolName: decodeToolName(toolUse.name), toolInput: toolUse.input, ...usage };
+      if (fnCall && fnCall.name) {
+        // Gemini doesn't surface a per-call tool-use id like the Messages API
+        // did; synthesize a stable one from the (decoded) function name.
+        return {
+          kind: "tool_use",
+          toolUseId: `gemini_${decodeToolName(fnCall.name)}`,
+          toolName: decodeToolName(fnCall.name),
+          toolInput: fnCall.args,
+          ...usage,
+        };
       }
-      const text = res.content
-        .filter((b) => b.type === "text" && typeof b.text === "string")
-        .map((b) => b.text as string)
-        .join("");
+      const text = res.text ?? parts.map((p) => p.text ?? "").join("");
       return { kind: "text", text, ...usage };
     },
   };

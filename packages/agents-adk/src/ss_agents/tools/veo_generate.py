@@ -7,8 +7,8 @@ typically ≤ 8 sec per Veo 3 single-clip cap) from a text prompt + duration
 provenance (SynthID).
 
 Citations:
-    D5  — Gemini 2.5 family multimodal baseline. Veo 3 ships on Vertex AI
-          alongside the Gemini family; the creative agent (Gemini 2.5 Pro)
+    D5  — Gemini 3.1 family multimodal baseline. Veo 3 ships on Vertex AI
+          alongside the Gemini family; the creative agent (Gemini 3.5 Flash)
           composes the prompt, this tool dispatches the rendering.
     D13 — Multi-region active-active. Veo 3 endpoints exist in a subset
           of regions (us-central1 / europe-west4) at 2026 H1; the live

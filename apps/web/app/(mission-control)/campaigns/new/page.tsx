@@ -15,7 +15,7 @@ import { inngest } from "@ss/workflows";
  * W2 — New campaign. Two entry paths:
  *   1. Manual form (what this page renders) — always works, no API key needed.
  *   2. Intake conversation (POST /api/campaigns/intake → A-intake agent) —
- *      requires ANTHROPIC_API_KEY; the chat UI lands in a Phase-2 polish pass.
+ *      requires GEMINI_API_KEY; the chat UI lands in a Phase-2 polish pass.
  *
  * The mockup (docs/previews/mission-control-timeline.html) shows the chat
  * pattern as the future direction. For Phase 1's exit demo, the manual form
@@ -96,7 +96,7 @@ export default async function NewCampaignPage() {
         </p>
         <div className="mt-3 inline-flex items-center gap-2 text-[11px] text-slate-500">
           <Badge variant="slate">Phase 2</Badge>
-          <span>대화형 intake (A-intake agent + SSE) 는 ANTHROPIC_API_KEY 가 들어오는 시점에 합쳐집니다.</span>
+          <span>대화형 intake (A-intake agent + SSE) 는 GEMINI_API_KEY 가 들어오는 시점에 합쳐집니다.</span>
         </div>
       </header>
 

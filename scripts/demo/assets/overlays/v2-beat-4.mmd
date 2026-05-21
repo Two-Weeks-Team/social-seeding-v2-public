@@ -4,7 +4,7 @@ flowchart LR
   send --> sent[Gmail Sent folder]
   sent --> wait[Cloud Workflows<br/>waitForEvent]
   wait --> reply[real reply arrives]:::active
-  reply --> conv[conversation<br/>Gemini 2.5 Flash-Lite]:::active
+  reply --> conv[conversation<br/>Gemini 3.1 Flash-Lite]:::active
   conv --> classify[intent=interested · constraint=shipping]
   classify --> responder[conversation_responder]
 

@@ -505,7 +505,7 @@ class TestSystemPrompt:
 
     def test_agent_def_metadata(self) -> None:
         assert anomaly_watch_agent_def.id == "anomaly-watch"
-        assert anomaly_watch_agent_def.model == "gemini-2.5-flash"
+        assert anomaly_watch_agent_def.model == "gemini-3.1-flash-lite"
         assert anomaly_watch_agent_def.max_usd == ANOMALY_WATCH_MAX_USD == 0.01
         # W2-C1: anomaly_watch owns metrics.query + runbook.execute per
         # anomaly_watch.spec.md §6. The capabilities are exposed as tools

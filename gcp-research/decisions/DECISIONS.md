@@ -29,7 +29,7 @@
 
 ---
 
-## 2. Decisions of record (52)
+## 2. Decisions of record (53)
 
 Status legend: ✅ active · 🔁 superseded · ⏸ deferred · ❓ outstanding
 
@@ -41,7 +41,7 @@ Status legend: ✅ active · 🔁 superseded · ⏸ deferred · ❓ outstanding
 | **D2** | **Korean legal entity** — Marketplace direct listing impossible (payment-region exclusion) | TRACK3-PLAYBOOK §1.1 · user-confirmed | ✅ | Track 3 cannot deliver paid Marketplace listing on the timeline |
 | **D3** | **Reframe listing-gap as innovation** — "A2A-only distribution path for non-Marketplace-region startups" | user-confirmed 2026-05-19 | ✅ | Becomes Innovation-20% talking point in Devpost write-up |
 | **D4** | ~~Keep Inngest durable orchestration in v2~~ | PORTING-V2 §6 | 🔁 superseded by **D18** | — |
-| **D5** | **Gemini 2.5 family as production baseline**; 3.1 Preview only for final demo | GEMINI-MODELS §4 | ✅ | Stable + cheap + tunable; 3.x revisited post-2026-07-01 |
+| **D5** | ~~**Gemini 2.5 family as production baseline**; 3.1 Preview only for final demo~~ | GEMINI-MODELS §4 | 🔁 superseded by **D53** | Stable + cheap + tunable; 3.x revisited post-2026-07-01 |
 | **D6** | **Devpost gated invite accepted**; 10 GAPs to confirm in console | CHALLENGE-RULES §12 | ✅ | User confirmed registration; GAPs are Day-1 task |
 | **D7** | **Engineering via background-agent automation** (SDD + TDD + edge-case prediction); calendar-day constraints ignored | user-confirmed 2026-05-19 | ✅ | Quality > deadline; agents do the work, user supervises |
 | **D8** | **TikTok scraping**: "public data only" framing — keep current RapidAPI-based path | user-confirmed 2026-05-19 | ✅ | No TikTok Research API migration; Devpost write-up declares public-only access |
@@ -167,6 +167,16 @@ Status legend: ✅ active · 🔁 superseded · ⏸ deferred · ❓ outstanding
 |---|---|---|---|---|
 | **D51** | **G/H-series closed; the Optimize "hardening" before/after is a LOCAL DETERMINISTIC pass, not a live Vertex run.** The 40.5%→100.0% (+59.5pp, TRAIN slice) triage before/after — on a 56-case multilingual synthetic set (42 train / 14 adversarial holdout) — is measured by a committed, re-runnable offline script (`scripts/smoke-test/run-hardening-measure.sh`); the live **Vertex AI Prompt Optimizer (data-driven)** is the production path and is **wired (operator-gated — ADC + a GCS bucket; not run in CI)**, with `agent_optimizer_tune` defaulting to a deterministic stub receipt — disclosed as such everywhere it appears. A2A is now wired into the **brand-campaign Cloud Workflow** orchestration (coordinator routing → transport switch → `a2a_invoke` → tiktok-mcp), validated live (task completed, ~3.7s, 5 creators). Model Garden routing proven by an offline test asserting the publisher path reaches `LlmAgent` (live smoke operator-gated). Honesty corrections: `a2a_invoke._live()` is implemented (doc was stale); mTLS is **declared-not-enforced** on the demo (`x-securityPosture` in `agent.json`); `REQUIRE_AUTH` = code-default `true` / demo `false` / prod `true`. CI restored with an offline pytest gate + a golden-set **holdout** gate. | autonomous /goal session (Wave A-E) | ✅ | Implements D45/D47/D48/D49/D50 + D21/D23/D25/D27/D32/D37/D44. No new live GCP capability is claimed beyond what a re-runnable proof demonstrates. |
 | **D52** | **Anti-overfit holdout made real (Wave 3 / Seam B; closes the overfit-theater seam in D51).** The old "42.3% → 100.0% on 26 hand-authored cases" read as theater (a perfect round number on a tiny self-authored set). Fixed by (1) expanding the synthetic set to **56 cases** with genuinely adversarial variants (obfuscated rate "discuss the comp?", rate only in free text the extractor missed, mid-thread rate, sarcasm, accept+negotiate, follower-count false-positive bait, code-switching, non-USD locale rate forms), and (2) carving out a **14-case holdout** (`split=holdout`) NOT used to author the `_optimized_triage` rules. Honest re-measure: **train 40.5% → 100.0%; holdout 71.4%** (10/14), a **28.6pp** train↔holdout gap left visible. The 4 holdout misses are negotiation intents with NO structured `proposed_rate_usd` (the rate-signal rule keys on the structured field) — kept as misses, **NOT tuned away** (tuning to ace the holdout would defeat it). The submission now leads with the holdout 71.4% as the honest headline. | Wave 3 / Seam B (Quality) | ✅ | Implements D25 (learning loop) + D37 (anti-overfit holdout). The holdout mitigates but does not eliminate self-authoring risk; the real next step is scoring against labeled production threads. |
+
+---
+
+### Round 15 — Gemini 3.x model mandate, judgment tier verified (D53)
+
+> Source: operator mandate 2026-05-21, updated with the verified Vertex access reality. Collapses the v2 model fleet onto the Gemini 3.x series and retires every remaining Anthropic-Claude transport from the product so no stale runtime-model reference survives in any judge-visible surface (demo, docs, asset JSON, decisions).
+
+| ID | Decision | Source | Status | Implication |
+|---|---|---|---|---|
+| **D53** | **Gemini 3.1/3.5 series only (operator mandate, 2026-05-21). Judgment tier = `gemini-3.5-flash` (GA 2026-05-19, callable on the global Vertex endpoint); bulk tier = `gemini-3.1-flash-lite`. `gemini-*-pro` is NOT accessible in ss-v2-prod (404, Preview allowlist not granted) and is therefore not used. Gemini 3.x is served on the `global` endpoint (not us-central1). No Gemini 2.5 and no Anthropic Claude models remain in the product. Supersedes D5.** | operator 2026-05-21 | ✅ | Supersedes D5. The TypeScript `packages/agents` Anthropic-Claude transport (`@anthropic-ai/sdk`) was replaced with `@google/genai`. Demo/docs/asset-JSON model labels migrated: every `gemini-2.5-pro`/`gemini-3.1-pro`/`opus-4.7` → `gemini-3.5-flash`; every `gemini-2.5-flash`(-lite)/`haiku-4.5` → `gemini-3.1-flash-lite`. Net product model ids = `gemini-3.5-flash` + `gemini-3.1-flash-lite`. The GEMINI-MODELS catalog keeps 2.5 as historical reference; only its "production default" statement now points to `gemini-3.5-flash` on the global endpoint. |
 
 ---
 
@@ -351,3 +361,4 @@ Per user directive 2026-05-19 ("실제 코드를 적용하기 전에 반드시 �
 | 2026-05-20 | D50 | Single grand-narrative Track 3 (Grand Prize); dual submission rejected; Optimize folded in as Technical evidence | official Rules PDF + user |
 | 2026-05-20 | D51 | G/H-series closed; hardening before/after is local-deterministic (live Optimizer stubbed); A2A wired into Cloud Workflow; honesty fixes; CI+holdout gate; SSRF allowlist | autonomous /goal session |
 | 2026-05-20 | D52 | Anti-overfit holdout made real: 56-case set + 14-case adversarial holdout; train 40.5%→100%, holdout 71.4% (non-round, 28.6pp gap, 4 misses not tuned away) | autonomous /goal session (Wave 3 / Seam B) |
+| 2026-05-21 | D53 | Gemini 3.1/3.5 series only; **D5 superseded by D53**; judgment tier = `gemini-3.5-flash` (GA 2026-05-19, global Vertex endpoint), bulk tier = `gemini-3.1-flash-lite`; `gemini-*-pro` NOT accessible in ss-v2-prod (404); Anthropic-Claude transport replaced with `@google/genai`; demo/docs/asset-JSON model labels swept to gemini-3.5-flash / gemini-3.1-flash-lite | operator mandate |

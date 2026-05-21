@@ -1,7 +1,7 @@
 """Logistics agent — Phase 3.1 port.
 
 Direct port of v2's `packages/agents/src/logistics.agent.ts:36-99` onto ADK +
-Gemini 2.5 Flash + Pydantic, following the contract in
+Gemini 3.1 Flash-Lite + Pydantic, following the contract in
 `gcp-research/specs/tier1/logistics.spec.md`.
 
 Behavior (logistics.spec.md §1):
@@ -17,14 +17,14 @@ Behavior (logistics.spec.md §1):
     at the Vertex gateway.
 
 Citations:
-    D5  — Gemini 2.5 Flash (bulk / structured-extract role; NOT creative).
+    D5  — Gemini 3.1 Flash-Lite (bulk / structured-extract role; NOT creative).
     D17 — Vertex AI Agent Runtime (managed).
     D23 — Tier-1 agent #6 (logistics).
     D34 — 4-locale input handling: 한국어 / English / 日本語 / 中文(简).
     D21 — Address text is creator-controlled DATA — prompt-injection guard
           in system prompt; Model Armor input scan at gateway.
     ARCHITECTURE.md §3 row 6:
-        logistics | 1 | Gemini 2.5 Flash | address.normalize, carrier.create
+        logistics | 1 | Gemini 3.1 Flash-Lite | address.normalize, carrier.create
                   | Session | structured_extract_accuracy
 
 Compared to `intake.py`:
@@ -450,7 +450,7 @@ logistics_agent_def: AgentDef[LogisticsInput, LogisticsOutputWrapper] = AgentDef
         "the address is ambiguous / on a sanction list / fails format. "
         "Per logistics.spec.md (D23 Tier-1 agent #6)."
     ),
-    model="gemini-2.5-flash",  # D5 — structured extraction, not creative
+    model="gemini-3.1-flash-lite",  # D53 — structured extraction, not creative
     max_usd=0.05,  # logistics.spec.md §6: $0.05 per invocation (single turn + ≤2 tools)
     input_schema=LogisticsInput,
     output_schema=LogisticsOutputWrapper,

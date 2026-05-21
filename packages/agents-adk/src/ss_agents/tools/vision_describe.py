@@ -6,7 +6,7 @@ description + detected-object list for an image asset in the operator's
 target locale. The a11y agent calls this on every requested locale (D34).
 
 Citations:
-    D5  — Gemini 2.5 Flash (multimodal: text + image). Vision.describe is
+    D5  — Gemini 3.1 Flash-Lite (multimodal: text + image). Vision.describe is
           a thin wrapper over Gemini multimodal for image captioning OR
           Cloud Vision LABEL_DETECTION when label-only confidence suffices.
     D23 — Tier-1 agent #15 (a11y) lists `vision.describe` as a callable
@@ -44,7 +44,7 @@ Stub determinism (D41):
 
 Live mode:
     Raises `NotImplementedError` with a Phase-4 wiring pointer. The
-    eventual implementation will call Gemini 2.5 Flash multimodal via
+    eventual implementation will call Gemini 3.1 Flash-Lite multimodal via
     Vertex AI (image + locale-pinned prompt) or fall back to Cloud
     Vision LABEL_DETECTION for the label-only fast path.
 """
@@ -187,7 +187,7 @@ class VisionDescribeOutput(BaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-# Gemini 2.5 Flash multimodal price (2026 H1 list, single-image describe).
+# Gemini 3.1 Flash-Lite multimodal price (2026 H1 list, single-image describe).
 # Documented for cost_watch aggregation per D41.
 _CAPABILITY_COST_USD = 0.0008
 
@@ -239,7 +239,7 @@ def vision_describe(input: VisionDescribeInput) -> VisionDescribeOutput:
           ``input.max_length`` at a word boundary when the canned string
           exceeds the cap.
         * ``"live"`` — raises ``NotImplementedError`` until Phase 4 wires
-          the real Gemini 2.5 Flash multimodal call (or Cloud Vision
+          the real Gemini 3.1 Flash-Lite multimodal call (or Cloud Vision
           LABEL_DETECTION for label-only fast path).
 
     Example:
@@ -255,7 +255,7 @@ def vision_describe(input: VisionDescribeInput) -> VisionDescribeOutput:
     if mode == "live":
         raise NotImplementedError(
             "vision_describe live mode not yet implemented. Phase 4 will "
-            "wire Gemini 2.5 Flash multimodal via Vertex AI for "
+            "wire Gemini 3.1 Flash-Lite multimodal via Vertex AI for "
             "image-with-locale captioning. Until then run with "
             "CAPABILITY_LAYER_MODE=stub (the default)."
         )

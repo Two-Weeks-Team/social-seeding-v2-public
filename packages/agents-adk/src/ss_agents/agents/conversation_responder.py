@@ -1,7 +1,7 @@
 """Conversation Responder agent — Tier-1 agent #5.
 
 Direct port of v2's `packages/agents/src/conversation-responder.agent.ts:28-119`
-onto ADK + Gemini 2.5 Pro + Pydantic, following the contract in
+onto ADK + Gemini 3.5 Flash + Pydantic, following the contract in
 `gcp-research/specs/tier1/conversation_responder.spec.md`.
 
 Behavior (conversation_responder.spec.md §1):
@@ -19,7 +19,7 @@ Why a separate agent (not part of conversation #4):
       tone + judgment (Pro). Model routing carried from ARCHITECTURE.md §3.
 
 Citations:
-    D5  — Gemini 2.5 Pro (judgment-heavy creative drafting).
+    D5  — Gemini 3.5 Flash (judgment-heavy creative drafting).
     D17 — Vertex AI Agent Runtime.
     D23 — Tier-1 agent #5 (Tier-1 #5 in the §4 fleet inventory).
     D25 — Learning loop: the `_OPTIMIZED` triage below is the deterministic,
@@ -36,7 +36,7 @@ Citations:
           so the stall→repair path is a span attribute, not buried in prose.
     D34 — Replies in the inbound's locale (ko/en/ja/zh-CN).
     ARCHITECTURE.md §3 row 5:
-        conversation_responder | 1 | Gemini 2.5 Pro | templates.list,
+        conversation_responder | 1 | Gemini 3.5 Flash | templates.list,
                                   outreach.render | Memory Bank | response_match_v2
 
 Hardening chapter (H1, GRAND-NARRATIVE-PLAN §5-1):
@@ -564,9 +564,9 @@ def build_responder_system_prompt(payload: BaseModel) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-# D5: Gemini 2.5 Pro for judgment-heavy drafting. Per
+# D53: Gemini 3.5 Flash for judgment-heavy drafting. Per
 # `gcp-research/decisions/DECISIONS.md` line 44 + ARCHITECTURE.md §3 row 5.
-RESPONDER_MODEL = "gemini-2.5-pro"
+RESPONDER_MODEL = "gemini-3.5-flash"
 
 
 conversation_responder_agent_def: AgentDef[
