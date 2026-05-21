@@ -13,9 +13,13 @@ agents-cli/ADK discovery surface for `playground` / `eval` / `deploy`.
 - **Do not fork `ss_agents`.** Import the real capabilities from
   `../packages/agents-adk/src/ss_agents`; never copy/reimplement their logic.
   The path dependency is editable on purpose.
-- **Grounding is real.** `google_search` (ADK built-in) and `research_brand`
-  (→ `ss_agents.tools.web_search`) ground against the live web. Cite sources;
-  never state grounded facts from memory.
+- **Grounding is real.** `research_brand` (→ `ss_agents.tools.web_search`)
+  performs Google Search grounding and returns explicit `Source: <url>` lines.
+  Always cite those real URLs inline + in a "Sources" section; state ONLY facts
+  present in the tool output (never from memory). Do NOT also attach the ADK
+  built-in `google_search` tool: mixing it with the function tools disables AFC
+  and yields uncitable grounding-chunk markers — `research_brand` is the single,
+  citable grounding path (this is what makes the eval `grounded` rubric pass).
 - **Capability mode.** `CAPABILITY_LAYER_MODE=stub` (default) is offline +
   deterministic for dev/CI; `live` enables real Google Search grounding and the
   live ss-mcp A2A creator search. Unit tests mock the capabilities and stay
@@ -24,9 +28,10 @@ agents-cli/ADK discovery surface for `playground` / `eval` / `deploy`.
 ## The loop
 
 Social Seeding campaigns run: **source → vet → outreach → verify**. The
-orchestrator grounds market claims (`research_brand` / `google_search`), sources
-creators (`search_creators` → ss-mcp A2A `plan_creator_search`, RapidAPI
-fallback), and reasons about the next step in that loop.
+orchestrator grounds market claims with `research_brand` (real Google Search
+grounding, citable URLs), sources creators (`search_creators` → ss-mcp A2A
+`plan_creator_search`, RapidAPI fallback), and reasons about the next step in
+that loop.
 
 ## Editing
 

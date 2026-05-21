@@ -5,8 +5,12 @@ Network-free: the wrapped ss_agents capabilities (`web_search`, `a2a_invoke`,
 ss-mcp Cloud Run endpoint, or RapidAPI. We assert:
 
   1. `root_agent.model` resolves to the required `gemini-3.5-flash`.
-  2. `root_agent.tools` exposes `google_search` (built-in grounding) plus the
-     two ss_agents wrappers `research_brand` + `search_creators`.
+  2. `root_agent.tools` is exactly the two ss_agents wrappers `research_brand`
+     (REAL Google Search grounding with citable URLs) + `search_creators`. The
+     ADK built-in `google_search` tool is deliberately NOT attached — mixing a
+     built-in grounding tool with custom function tools disables AFC and yields
+     uncitable grounding-chunk markers; `research_brand` returns explicit source
+     URLs the model can cite.
   3. Vertex is wired to the `global` endpoint (Gemini 3.x lives there).
   4. The wrappers delegate to the real ss_agents capabilities and degrade to
      an error STRING (never raise) on failure.
@@ -37,11 +41,14 @@ def test_model_is_gemini_3_5_flash() -> None:
     assert "pro" not in str(model_id).lower()
 
 
-def test_tools_include_grounding_and_both_wrappers() -> None:
+def test_tools_are_the_two_grounded_wrappers() -> None:
     names = {_tool_name(t) for t in root_agent.tools}
-    assert "google_search" in names, f"missing built-in grounding tool; got {names}"
     assert "research_brand" in names, f"missing research_brand wrapper; got {names}"
     assert "search_creators" in names, f"missing search_creators wrapper; got {names}"
+    # The built-in google_search is intentionally absent (see module docstring):
+    # it disables AFC when mixed with function tools and yields uncitable markers.
+    assert "google_search" not in names, f"built-in google_search should not be attached; got {names}"
+    assert names == {"research_brand", "search_creators"}, f"unexpected tool set: {names}"
 
 
 def test_vertex_wired_to_global_endpoint() -> None:

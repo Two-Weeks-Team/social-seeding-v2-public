@@ -94,13 +94,16 @@ Runtime/Cloud Run/GKE + **publish gemini-enterprise**.
 
 **Integrated** as `agents-cli-app/` — a real agents-cli project (`agents-cli-manifest.yaml`,
 `app/agent.py` `root_agent`) that **wraps the real `ss_agents` fleet** (imported, not forked): a
-Social Seeding campaign-orchestrator `Agent` on **`gemini-3.5-flash`** (global) with the built-in
-**`google_search` grounding** tool + `research_brand` (→ our `web.search` grounding) + `search_creators`
-(→ live ss-mcp A2A `plan_creator_search`, RapidAPI fallback).
+Social Seeding campaign-orchestrator `Agent` on **`gemini-3.5-flash`** (global) with `research_brand`
+(→ our `web.search` **real Google Search grounding**, returns citable `Source: <url>` lines) +
+`search_creators` (→ live ss-mcp A2A `plan_creator_search`, RapidAPI fallback). We deliberately do
+**not** attach the ADK built-in `google_search` tool at the orchestrator level — mixing a built-in
+grounding tool with function tools disables AFC and yields uncitable grounding-chunk markers;
+`research_brand` runs the same Google Search grounding under the hood but returns explicit URLs.
 
 **Trialed live (2026-05-21):**
 - `agents-cli install` → `uv sync` OK (reuses `ss-agents-adk` via editable path source).
-- `agents-cli eval run --all` → ran end-to-end on **gemini-3.5-flash** (Vertex `global`, AFC tool calls) with the GA **rubric judge** (relevance + grounded, threshold 0.7). **Baseline: 1 passed / 3 failed** — honest first-run score; lifting it is exactly the **Agent Optimizer / hardening** loop.
+- `agents-cli eval run --all` → runs end-to-end on **gemini-3.5-flash** (Vertex `global`) with the GA **rubric judge** (relevance + grounded, threshold 0.7). First run scored **1/4** because the model emitted opaque `[1.1.1]` citation markers without surfacing the real source URLs (grounded = 0/4). After hardening the orchestrator (mandatory grounding calls, cite the real `Source:` URLs inline + in a "Sources" section, report only tool-returned facts/creators — no fabrication), it scores **4/4** (relevance 1.0 + grounded 1.0 on every case, confirmed on two consecutive runs).
 - 8/8 offline unit tests pass (`tests/unit`, ss_agents mocked).
 
 **Next (operator):** `agents-cli playground` (live UI demo), `agents-cli deploy` (cloud_run target in the manifest), `agents-cli publish gemini-enterprise` (O7 allowlist). Maps directly onto the **Optimize** + **Scale** (Agent Runtime) columns above.

@@ -3,9 +3,17 @@
 This is the `agents-cli`-discoverable surface for Social Seeding v2's REAL agent
 fleet. It does NOT reimplement campaign logic — it wraps the production
 capability functions that live in `../packages/agents-adk/src/ss_agents` (imported,
-never forked) behind ADK-auto-function-calling-friendly `str -> str` tools, and
-adds the ADK built-in `google_search` GROUNDING tool so the orchestrator can ground
-2026 market/trend claims against the live web (not a chat completion).
+never forked) behind ADK-auto-function-calling-friendly `str -> str` tools.
+
+Grounding is REAL (not a chat completion): the `research_brand` tool delegates to
+Social Seeding's `web.search` capability, which performs Google Search grounding
+via gemini-3.5-flash and returns the cited source URLs lifted from the grounding
+metadata. The orchestrator grounds 2026 market/trend claims through that single
+tool and cites the real URLs it returns. (We deliberately do NOT also attach the
+ADK built-in `google_search` tool: mixing a built-in grounding tool with custom
+function tools disables automatic function calling and makes the model emit opaque
+grounding-chunk markers like `[1.1.1]` that carry no citable URL — `research_brand`
+returns explicit `Source: <url>` lines the model can cite verbatim.)
 
 Model policy (hard requirement):
     * Gemini 3.x ONLY — `gemini-3.5-flash` for judgment/orchestration.
@@ -35,7 +43,6 @@ import google.auth
 from google.adk.agents import Agent
 from google.adk.apps import App
 from google.adk.models import Gemini
-from google.adk.tools import google_search  # ADK built-in GROUNDING tool
 from google.genai import types
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -270,28 +277,51 @@ def _format_a2a_creators(data: object) -> str:
 
 _INSTRUCTION = """\
 You are the Social Seeding campaign orchestrator. Social Seeding runs TikTok
-influencer-seeding campaigns through one loop: SOURCE creators → VET them → reach
+influencer-seeding campaigns through one loop: SOURCE creators → VET them →
 OUTREACH → VERIFY the resulting posts. You help the operator plan and reason about
 this loop.
 
-Grounding is mandatory for facts. Whenever you make a claim about a market, a
-2026 trend, a brand, a competitor, funding, or anything else that is not common
-knowledge, you MUST first ground it:
-  - Use the `research_brand` tool (Social Seeding's real Google-Search-grounded
-    web search) for brand/market/trend/competitor questions, and
-  - Use the built-in `google_search` tool for broader, fast web grounding.
-Cite the source URLs the tools return. Do NOT state grounded claims from memory.
+You have exactly two tools. Use them — never answer from memory:
+  • research_brand(query): REAL Google-Search-grounded web research. Returns a
+    numbered list of sources, each line ending with "Source: <url>".
+  • search_creators(brand_brief): ranked TikTok creators from the live sourcing
+    pipeline (real handles + metrics).
 
-Sourcing creators: when the operator asks who to seed, call `search_creators`
-with the campaign brief. It returns ranked TikTok creators from the live Social
-Seeding sourcing pipeline. Present the ranked creators and explain why they fit
-the brief; never invent handles or follower counts — only report what the tool
-returns.
+GROUNDING RULES (non-negotiable — these are graded):
+  1. ALWAYS call research_brand BEFORE stating any claim about a market, a 2026
+     trend, a brand, a competitor, an ingredient, funding, or anything not common
+     knowledge. Even when the operator only asks you to "plan" or "source", if your
+     answer contains such a claim you must ground it with a research_brand call
+     first. When useful, call research_brand more than once (e.g. once per brand or
+     sub-topic).
+  2. State ONLY facts that actually appear in a research_brand result. If a fact is
+     not in the tool output, DO NOT state it — no memory, no guessing, no filling
+     in plausible details. If research_brand returns nothing for a point, say that
+     point is unverified instead of asserting it.
+  3. CITE REAL URLS. For every grounded claim, cite the actual `Source: <url>` URL
+     returned by research_brand — inline, e.g. "(https://site.com/article)". Then
+     end the whole answer with a "Sources" section that lists every URL you used,
+     copied verbatim from the tool output. NEVER use a bare "[1]" / "[1.1.1]" marker
+     that is not backed by a URL listed in your Sources section.
 
-Be honest: if a tool returns an error string or no results, say so plainly and
-mark the claim as unverified rather than fabricating data. Keep answers concise
-and structured (a short grounded summary, then the creator shortlist, then a
-one-line next step in the source→vet→outreach→verify loop).
+CREATOR RULES (report only what the tool returns):
+  • Call search_creators with the campaign brief. Present EXACTLY the creators it
+    returns — their real handles and metrics. NEVER invent a handle, a follower
+    count, or an extra creator to pad a list.
+  • If the operator asks for N creators and search_creators returns fewer, present
+    the ones returned and state plainly how many were sourced (e.g. "The pipeline
+    returned 5 creators — here they are; I can broaden the brief to source more").
+    Do NOT fabricate the difference.
+  • If a tool returns an error string or no results, say so plainly.
+
+ANSWER FORMAT (keep it concise):
+  1. A short grounded summary — every market/trend/brand claim cited inline to a
+     real research_brand URL.
+  2. The creator shortlist — only tool-returned creators, one-line fit reason each.
+  3. One line: the next step in the source → vet → outreach → verify loop.
+  4. A "Sources" section listing the real URLs you cited (verbatim from the tools).
+
+Honesty about gaps always beats a polished but fabricated answer.
 """
 
 
@@ -307,8 +337,7 @@ root_agent = Agent(
     ),
     instruction=_INSTRUCTION,
     tools=[
-        google_search,  # ADK built-in GROUNDING (real, headline feature)
-        research_brand,  # → ss_agents web.search (Google Search grounding)
+        research_brand,  # → ss_agents web.search (REAL Google Search grounding, cited URLs)
         search_creators,  # → ss-mcp A2A plan_creator_search / RapidAPI fallback
     ],
 )
