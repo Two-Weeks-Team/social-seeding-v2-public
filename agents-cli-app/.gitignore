@@ -1,0 +1,10 @@
+# agents-cli-app — local artifacts (not committed)
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+# ADK eval history + agents-cli local run artifacts
+.adk/
+**/.adk/
+deployment_metadata.json

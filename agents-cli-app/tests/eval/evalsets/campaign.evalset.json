@@ -1,0 +1,83 @@
+{
+  "eval_set_id": "ss_campaign_orchestrator_v0_1",
+  "name": "Social Seeding campaign orchestrator — grounded sourcing golden set",
+  "description": "4 real cases exercising the source->vet->outreach->verify loop with mandatory web grounding. Cases require the orchestrator to ground 2026 K-beauty / TikTok market claims via research_brand + google_search and to source ranked creators via search_creators (live ss-mcp A2A plan_creator_search, RapidAPI fallback). Judged by the gemini-3.5-flash rubric LLM-judge in ../eval_config.json.",
+  "eval_cases": [
+    {
+      "eval_id": "campaign_kbeauty_vegan_vitc_creators",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "I'm launching a Korean vegan Vitamin C serum on TikTok. Find Korean vegan skincare TikTok creators to seed, and ground the 2026 K-beauty Vitamin C trend with sources before you recommend anyone."
+              }
+            ]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "campaign_kbeauty_tiktok_trend_research",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "Research the 2026 K-beauty TikTok trends I should know about before planning a seeding campaign. Cite your sources."
+              }
+            ]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "campaign_competitor_then_source",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "Numbuzin is our main competitor in K-beauty serums. Research their recent TikTok positioning with sources, then find creators we could seed who do NOT already post about Numbuzin."
+              }
+            ]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "campaign_loop_next_step",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "Source 10 TikTok creators for a sample-only seeding deal on a post-laser recovery cream, and tell me the next step in the source->vet->outreach->verify loop after sourcing."
+              }
+            ]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    }
+  ]
+}
