@@ -3,7 +3,7 @@
 Parse a free-text shipping address into ISO-standard components. Implements
 the `address.normalize` capability declared in
 `gcp-research/specs/tier1/logistics.spec.md §6` (ARCHITECTURE.md §3 row 6:
-`logistics | 1 | Gemini 2.5 Flash | address.normalize, carrier.create`).
+`logistics | 1 | Gemini 3.1 Flash-Lite | address.normalize, carrier.create`).
 
 Stub mode (CAPABILITY_LAYER_MODE=stub, default in dev/CI):
     Deterministic canned parse. The known Korean test address

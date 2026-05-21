@@ -15,7 +15,7 @@ Behavior (anomaly_watch.spec.md §1 + §6):
     what to do once a metric has tripped a baseline boundary.
 
     The agent stays cheap on purpose: $0.01 USD per call, ≤ 1 model turn,
-    Gemini 2.5 Flash. Every 5-minute tick costs ≤ $2.88/day per region —
+    Gemini 3.1 Flash-Lite. Every 5-minute tick costs ≤ $2.88/day per region —
     well inside the D39 $25/day default ceiling.
 
 Citations:
@@ -29,7 +29,7 @@ Citations:
           the operator's locale for the dashboard timeline).
     D37 — Agent Anomaly Detection signals feed back into chaos test results.
     ARCHITECTURE.md §3 row 20:
-        anomaly_watch (W1) | 3 | Gemini 2.5 Flash | metrics.query,
+        anomaly_watch (W1) | 3 | Gemini 3.1 Flash-Lite | metrics.query,
             runbook.execute | None | precision (alert vs false)
 
 Eval criteria (anomaly_watch.spec.md §7):
@@ -56,8 +56,8 @@ logger = logging.getLogger(__name__)
 # Constants — model + USD cap come from anomaly_watch.spec.md §6 + the brief.
 # ─────────────────────────────────────────────────────────────────────────────
 
-DEFAULT_ANOMALY_WATCH_MODEL = "gemini-2.5-flash"
-"""ARCHITECTURE.md §3 row 20 — Flash. 2.5 Pro would blow the per-call cap."""
+DEFAULT_ANOMALY_WATCH_MODEL = "gemini-3.1-flash-lite"
+"""ARCHITECTURE.md §3 row 20 — flash-lite tier. Pro would blow the per-call cap."""
 
 ANOMALY_WATCH_MAX_USD = 0.01
 """Per-tick USD cap from the brief. Strict -- runs every 5 min, ~288 calls/day."""

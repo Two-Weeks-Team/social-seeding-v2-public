@@ -90,7 +90,7 @@ This is the part most submissions skip. We built the fleet, then we treated it l
 system and hardened a real reliability gap.
 
 **The stall.** When a creator reply was ambiguous — interested, but quietly negotiating a rate
-("Love it! my rate is ~$800, ok?") — the `conversation_responder` (Tier-1 #5, Gemini 2.5 Pro)
+("Love it! my rate is ~$800, ok?") — the `conversation_responder` (Tier-1 #5, Gemini 3.1 Pro)
 **stalled at the auto-respond ↔ escalate boundary**. The 8-intent classifier rounded the reply down
 to `interested`, so the rate signal never triggered an escalation; the responder was sent down the
 auto-draft path while its own prompt said escalate negotiations. The correct outcome for a
@@ -167,7 +167,7 @@ makes the official Guide's Build Example #2 transport-exact, not a local stand-i
 **The fleet.** Each agent is a typed function (curated tool list + Pydantic/Zod input/output contract
 + per-invocation USD ceiling + named escalation policy, `always_ask` by default per D7), never a free
 ReAct loop. Tier-1 (16) covers the domain (sourcing, vetting, outreach_writer with a tournament +
-LLM-as-judge, conversation classifier, logistics, content_verify with multimodal Gemini 2.5 Flash +
+LLM-as-judge, conversation classifier, logistics, content_verify with multimodal Gemini 3.1 Flash-Lite +
 Vision AI brand-logo detection, analyst, research, intake, lead_outreach_writer, payment_mandate,
 compliance, creative, a11y, customer_success). Tier-2 meta-agents (coordinator routes A2A v0.3 calls;
 critic LLM-as-judge; optimizer rewrites prompts). Tier-3 watchdogs (anomaly_watch, cost_watch,
@@ -232,7 +232,7 @@ Social Seeding implements this 1:1 with the **`content_verify`** agent:
 | PDF Build Example #2 element | Social Seeding implementation |
 |---|---|
 | Marketing agent on Cloud Run / GKE | 22-agent fleet on Vertex AI Agent Runtime; refactored agent on Cloud Run (D17) |
-| Powered by Gemini, multi-modal | `content_verify` runs Gemini 2.5 Flash multimodal (text + image + video) — the first multimodal Tier-1 agent |
+| Powered by Gemini, multi-modal | `content_verify` runs Gemini 3.1 Flash-Lite multimodal (text + image + video) — the first multimodal Tier-1 agent |
 | Analyze PDF briefs | `intake` agent parses brand briefs into structured campaign intent |
 | A2A → DAM agent for approved brand logos | `content_verify` → **`get_brand_assets` (a real A2A v0.3 hop on `ss-mcp`)** retrieves the approved brand assets, then `vision.brand_logo_detect` (Cloud Vision `LOGO_DETECTION`) verifies them against post media |
 | "remains on-brand and compliant" | `content_verify` returns `{matches, mentionsBrand, logoDetected, performanceScore, flags[8], rationale}` — the explicit on-brand/compliance verdict |
@@ -328,7 +328,7 @@ clean-text safety check are pinned in `tests/tools/test_prompt_guard.py`.
 
 See [`built-with-tags.txt`](built-with-tags.txt). Headline GCP stack:
 
-- **Build**: ADK 2.0 Python · Gemini 2.5 Pro/Flash/Flash-Lite · Model Context Protocol · A2A v0.3 ·
+- **Build**: ADK 2.0 Python · Gemini 3.1 Pro/Flash-Lite · Model Context Protocol · A2A v0.3 ·
   AP2 v0.2 · Model Garden · Cloud Marketplace
 - **Scale/Govern/Optimize**: Vertex AI Agent Runtime · Agent Gateway · Agent Identity (SPIFFE) ·
   Agent Registry · Vertex AI Prompt Optimizer (data-driven) · Agent Evaluation · Agent Observability

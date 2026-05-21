@@ -1,9 +1,9 @@
 %% Beat 5 — Logistics + verify  (SCRIPT.md §3 Beat 5)
 flowchart LR
-  address[creator confirms address] --> logistics[logistics<br/>Gemini 2.5 Flash]:::active
+  address[creator confirms address] --> logistics[logistics<br/>Gemini 3.1 Flash-Lite]:::active
   logistics --> ship[shipment record]
   ship --> timer[Cloud Workflows<br/>+5d durable timer]:::active
-  timer --> verify[content_verify<br/>Gemini 2.5 Flash · Vision AI]:::active
+  timer --> verify[content_verify<br/>Gemini 3.1 Flash-Lite · Vision AI]:::active
   verify --> bbox[brand logo bbox match]
   bbox --> unlock[payout unlocked]
 

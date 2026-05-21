@@ -4,7 +4,7 @@
     "authority": "GRAND-NARRATIVE-PLAN.md §5-1 (H4, H5) + §2 arc; D50. D25, D37.",
     "honesty_note": "before/after produced by a LOCAL deterministic optimization pass over the synthetic set (test-harness/hardening/synthetic_cases.json) — it emulates the optimize loop offline. It is NOT the GA Vertex AI Prompt Optimizer (data-driven). The GA Prompt Optimizer is the production path (agent_optimizer_tune live mode is wired, operator-gated). No fabricated metrics: every number here is printed by the re-runnable smoke script. ANTI-OVERFIT: the after (train) number is measured on the SAME cases the optimized rules were authored against, so it is expectedly high; the holdout number is the honest GENERALIZATION result on an adversarial slice the rules never saw — it is below the train number ON PURPOSE, and the misses were NOT tuned away (that would defeat the holdout).",
     "agent_id": "conversation-responder",
-    "model": "gemini-2.5-pro",
+    "model": "gemini-3.1-pro",
     "target_metric": "triage_routing_accuracy",
     "split_design": "TRAIN = the patterns the _optimized_triage rules were authored against. HOLDOUT = an adversarial slice carved out AFTER the rules were written (obfuscated 'comp', rate only in free text the extractor missed, mid-thread rate, sarcasm, follower-count false-positive bait, code-switching, non-USD locale rate forms) and NOT used to design them. Measures generalization, not memorization.",
     "generated_at_utc": "2026-05-20T11:07:36.778862+00:00"

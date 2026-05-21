@@ -6,8 +6,9 @@ meta/watchdog agents.
 
 **Decision citations** (`gcp-research/decisions/DECISIONS.md`):
 
-- **D5**  — Gemini 2.5 family is the production baseline. `intake` runs on
-  `gemini-2.5-flash` (short conversational turn per ARCHITECTURE.md §3 row 10).
+- **D5/D53** — Gemini 3.1 family is the production baseline (D53 mandates the
+  3.1 series exclusively for the Google AI Agents Challenge). `intake` runs on
+  `gemini-3.1-flash-lite` (short conversational turn per ARCHITECTURE.md §3 row 10).
 - **D17** — Vertex AI Agent Runtime is the target deployment surface.
   `runtime.py` mirrors v2's `runAgent` contract so the calling Cloud Workflow
   doesn't care whether the agent executes locally, on Cloud Run, or on Agent
@@ -61,7 +62,7 @@ adk eval src/ss_agents/agents/intake.py eval/intake.evalset.json
 │       ├── 1. prompt_guard(input)  ─── D8 + D21 input sanitizer     │
 │       ├── 2. assert_within_budget(budgetCapUsd) ─── D39 cost cap   │
 │       ├── 3. before_model: cost_guard (project next call's cost)   │
-│       ├── 4. LlmAgent.run_async() — Gemini 2.5 + responseSchema    │
+│       ├── 4. LlmAgent.run_async() — Gemini 3.1 + responseSchema    │
 │       ├── 5. after_model: cost_record + OTel span                  │
 │       ├── 6. pydantic.validate(output)                             │
 │       └── 7. emit Pub/Sub event (AsyncAPI 3.0, D36)                │

@@ -192,7 +192,7 @@ either old track file — it is the Optimize/Track-2 hardening work, folded into
 
 1. **The stall.** A creator replies *"Love it! my rate is ~$800, ok?"* — interested, but quietly
    negotiating. The 8-intent classifier rounds it down to `interested`, so the rate signal never
-   fires; the `conversation_responder` (Tier-1 #5, Gemini 2.5 Pro) is sent down the auto-draft path
+   fires; the `conversation_responder` (Tier-1 #5, Gemini 3.1 Pro) is sent down the auto-draft path
    while its own prompt says escalate negotiations. The Observability trace
    (`observability-trace-stalled.json`) renders the reasoning graph **halting** at step 3, flagged
    `"stall": true`: `triage.action = respond`, the proposed rate (USD 800) present but unread.

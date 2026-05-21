@@ -12,7 +12,7 @@ import { defineAgent } from "./runtime";
  *  · No tools. The numbers are already in the input (we don't want the
  *    analyst re-running `analytics.compile` and getting a slightly
  *    different snapshot — the input is the canonical view).
- *  · Haiku, $0.10 cap. This is data-narration, not strategy.
+ *  · Gemini 3.1 Flash-Lite, $0.10 cap. This is data-narration, not strategy.
  *  · Markdown is for share/preview. Structured fields are for the MC view
  *    so the operator can scan in 10 seconds without parsing prose.
  *  · `flags` is precomputed by the capability (deterministic rules) —
@@ -63,7 +63,7 @@ export const analystAgent = defineAgent({
   description:
     "Compose a human-readable campaign report from the AnalyticsReport + brief. Pure text agent — no tools. Returns { summary, highlights, concerns, recommendations, markdown }.",
   tools: [],
-  model: "claude-haiku-4-5",
+  model: "gemini-3.1-flash-lite",
   maxUsd: 0.10,
   input: z.object({
     brief: CampaignBriefSchema,

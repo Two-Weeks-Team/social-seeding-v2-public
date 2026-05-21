@@ -11,7 +11,7 @@
     "name": "agent:conversation-responder",
     "attributes": {
       "agent.id": "conversation-responder",
-      "agent.model": "gemini-2.5-pro",
+      "agent.model": "gemini-3.1-pro",
       "agent.trace_id": "trace-hardening-rate-positive-en-01-optimized",
       "agent.outcome": "escalate",
       "triage.action": "escalate",

@@ -6,7 +6,7 @@ import { conversationAgent, needsResponseDraft } from "./conversation.agent";
 
 /**
  * P2-C4a — conversationAgent unit. Drives the classifier through scripted
- * Haiku responses; verifies the shape of `ConversationTurn` output, the
+ * Gemini 3.1 Flash-Lite responses; verifies the shape of `ConversationTurn` output, the
  * extraction targets, and the `needsHumanReason` escalation rule.
  */
 
@@ -236,8 +236,8 @@ describe("conversationAgent — unit", () => {
     expect(needsResponseDraft(out.value)).toBe(false);
   });
 
-  it("agent definition is bounded: Haiku, no tools, sub-$0.05 cap", () => {
-    expect(conversationAgent.model).toBe("claude-haiku-4-5");
+  it("agent definition is bounded: Gemini 3.1 Flash-Lite, no tools, sub-$0.05 cap", () => {
+    expect(conversationAgent.model).toBe("gemini-3.1-flash-lite");
     expect(conversationAgent.tools).toEqual([]);
     expect(conversationAgent.maxUsd).toBeLessThan(0.05);
   });

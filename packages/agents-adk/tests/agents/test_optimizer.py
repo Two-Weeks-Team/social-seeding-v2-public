@@ -889,7 +889,7 @@ def test_agent_def_metadata_matches_spec() -> None:
     from ss_agents.tools.prompt_registry_update import prompt_registry_update
 
     assert optimizer_agent_def.id == "optimizer"
-    assert optimizer_agent_def.model == "gemini-2.5-pro"
+    assert optimizer_agent_def.model == "gemini-3.1-pro"
     assert optimizer_agent_def.max_usd == pytest.approx(0.10)
     assert optimizer_agent_def.tools == [agent_optimizer_tune, prompt_registry_update]
     assert len(optimizer_agent_def.tools) == 2

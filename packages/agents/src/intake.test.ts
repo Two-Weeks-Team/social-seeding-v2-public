@@ -10,7 +10,7 @@ import { intakeAgent } from "./intake.agent";
  * "asking" responses are mid-conversation, "done" responses are when the
  * agent decides the brief is complete. With a fake ModelClient these pin
  * schema validation across the two output branches; real LLM brief-extraction
- * quality is a Phase-1 follow-up (needs ANTHROPIC_API_KEY).
+ * quality is a Phase-1 follow-up (needs GEMINI_API_KEY).
  */
 
 type IntakeInput = z.infer<typeof intakeAgent.input>;

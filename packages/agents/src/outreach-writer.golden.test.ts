@@ -15,7 +15,7 @@ import { outreachWriterAgent } from "./outreach-writer.agent";
  * P2-C3d — outreachWriterAgent golden set. Three pinned scenarios that
  * exercise the contract end-to-end against the real deterministic judges:
  *
- *   1. Happy path — Opus drafts a clean angle, all 4 judges score high.
+ *   1. Happy path — Gemini 3.1 Pro drafts a clean angle, all 4 judges score high.
  *   2. Revision path — first draft fires a spam rule; agent revises once,
  *      second draft clears, weighted score improves.
  *   3. Escalation — creator has no signature + no recent posts → the agent
@@ -23,7 +23,7 @@ import { outreachWriterAgent } from "./outreach-writer.agent";
  *      without burning the rest of its turn budget.
  *
  * Real LLM evaluation of writer prompt quality is a Phase-2 follow-up (needs
- * ANTHROPIC_API_KEY); these tests pin the *plumbing* — tools called in the
+ * GEMINI_API_KEY); these tests pin the *plumbing* — tools called in the
  * right order, judge weights honored, escalation surfaces cleanly.
  */
 

@@ -3,7 +3,7 @@
 Compose an AP2 v0.2 **Intent Mandate** draft from an agent's planned action.
 Implements the `ap2.compose_intent_mandate` capability declared in
 `gcp-research/specs/tier1/payment_mandate.spec.md §6` (ARCHITECTURE.md §3
-row 12: `payment_mandate (NEW) | 1 | Gemini 2.5 Flash |
+row 12: `payment_mandate (NEW) | 1 | Gemini 3.1 Flash-Lite |
 ap2.compose_intent_mandate, gate.approveOutreachSend | Session |
 mandate_validity`).
 

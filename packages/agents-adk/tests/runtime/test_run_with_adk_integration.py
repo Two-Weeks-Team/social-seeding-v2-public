@@ -29,7 +29,7 @@ smoke `scripts/smoke-test/model_garden_live_smoke.py` (~$0.01/run).
 
 Citations:
     D47 — Route LLM reasoning through Model Garden (designed_guide.pdf req #3).
-    D5  — Gemini 2.5 Flash baseline for the intake agent.
+    D5  — Gemini 3.1 Flash-Lite baseline for the intake agent.
     D17 — Vertex AI Agent Runtime is the path `_run_with_adk` constructs against.
 """
 from __future__ import annotations
@@ -234,7 +234,7 @@ async def test_run_with_adk_routes_model_garden_path_to_llm_agent(
     )
     assert expected_model == (
         "projects/ss-v2-prod/locations/us-central1"
-        "/publishers/google/models/gemini-2.5-flash"
+        "/publishers/google/models/gemini-3.1-flash-lite"
     )
     assert captured["llm_agent_kwargs"]["model"] == expected_model
 
@@ -254,7 +254,7 @@ async def test_run_with_adk_routes_model_garden_path_to_llm_agent(
     # still resolves (the budget guard never KeyErrors on the routed path).
     from ss_agents.config import canonical_model_id, model_pricing
 
-    assert canonical_model_id(captured["llm_agent_kwargs"]["model"]) == "gemini-2.5-flash"
+    assert canonical_model_id(captured["llm_agent_kwargs"]["model"]) == "gemini-3.1-flash-lite"
     assert model_pricing(captured["llm_agent_kwargs"]["model"]) == model_pricing(
         intake_agent_def.model
     )
@@ -276,7 +276,7 @@ async def test_run_with_adk_passes_short_id_when_routing_off(
     outcome = await run_agent(intake_agent_def, intake_input_ko, run_context)
 
     assert captured["llm_agent_kwargs"]["model"] == intake_agent_def.model
-    assert captured["llm_agent_kwargs"]["model"] == "gemini-2.5-flash"
+    assert captured["llm_agent_kwargs"]["model"] == "gemini-3.1-flash-lite"
     # "/" is the publisher/endpoint marker; the short id must NOT contain one.
     assert "/" not in captured["llm_agent_kwargs"]["model"]
 

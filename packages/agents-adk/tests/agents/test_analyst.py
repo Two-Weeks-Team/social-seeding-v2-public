@@ -745,8 +745,8 @@ class TestPlumbing:
         assert analyst_agent_def.id == "analyst"
 
     def test_agent_def_model_is_pro(self) -> None:
-        """ARCHITECTURE.md §3 row 8: analyst on Gemini 2.5 Pro (D5)."""
-        assert analyst_agent_def.model == "gemini-2.5-pro"
+        """ARCHITECTURE.md §3 row 8: analyst on Gemini 3.1 Pro (D5)."""
+        assert analyst_agent_def.model == "gemini-3.1-pro"
 
     def test_agent_def_max_usd_matches_spec(self) -> None:
         """analyst.spec.md §6: $0.20 cap (long-context Pro)."""

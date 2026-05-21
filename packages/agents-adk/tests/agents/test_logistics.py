@@ -789,8 +789,8 @@ class TestLogisticsEscalation:
         assert logistics_agent_def.max_usd == 0.05
 
     def test_agent_def_model_is_gemini_flash(self) -> None:
-        """D5 — logistics uses Gemini 2.5 Flash (structured extraction)."""
-        assert logistics_agent_def.model == "gemini-2.5-flash"
+        """D5 — logistics uses Gemini 3.1 Flash-Lite (structured extraction)."""
+        assert logistics_agent_def.model == "gemini-3.1-flash-lite"
 
     def test_agent_def_id_matches_spec(self) -> None:
         assert logistics_agent_def.id == "logistics"

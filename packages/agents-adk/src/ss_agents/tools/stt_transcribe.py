@@ -6,7 +6,7 @@ diarization stream for an audio asset stored in Cloud Storage. Drives the
 transcript + captionCues halves of the a11y bundle.
 
 Citations:
-    D5  — Gemini 2.5 Flash (multimodal: text + audio) OR Google Cloud
+    D5  — Gemini 3.1 Flash-Lite (multimodal: text + audio) OR Google Cloud
           Speech-to-Text v2 with `latest_long` recogniser — the live
           implementation picks whichever has lower WER on the test
           golden set (a11y.spec.md §7 caption_wer ≤ 0.10).

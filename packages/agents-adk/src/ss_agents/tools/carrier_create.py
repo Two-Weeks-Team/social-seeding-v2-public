@@ -2,7 +2,7 @@
 
 Create a shipment label via a carrier API. Implements the `carrier.create`
 capability declared in `gcp-research/specs/tier1/logistics.spec.md §6`
-(ARCHITECTURE.md §3 row 6: `logistics | 1 | Gemini 2.5 Flash |
+(ARCHITECTURE.md §3 row 6: `logistics | 1 | Gemini 3.1 Flash-Lite |
 address.normalize, carrier.create`).
 
 Stub mode (CAPABILITY_LAYER_MODE=stub, default in dev/CI):

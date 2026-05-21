@@ -897,8 +897,8 @@ class TestCoordinatorEscalation:
         assert coordinator_agent_def.max_usd == COORDINATOR_MAX_USD == 0.005
 
     def test_agent_def_model_is_gemini_flash(self) -> None:
-        """ARCHITECTURE.md §3 row 17: coordinator runs on Gemini 2.5 Flash."""
-        assert coordinator_agent_def.model == COORDINATOR_MODEL == "gemini-2.5-flash"
+        """ARCHITECTURE.md §3 row 17: coordinator runs on Gemini 3.1 Flash-Lite."""
+        assert coordinator_agent_def.model == COORDINATOR_MODEL == "gemini-3.1-flash-lite"
 
     def test_agent_def_id_matches_spec(self) -> None:
         """Per coordinator.spec.md the agent id is the literal string 'coordinator'."""

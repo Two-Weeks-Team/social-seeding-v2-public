@@ -17,7 +17,7 @@ import {
 import { logisticsAgent } from "./logistics.agent";
 
 /**
- * P3-C3 — logistics agent. Drives the agent through scripted Haiku
+ * P3-C3 — logistics agent. Drives the agent through scripted Gemini 3.1 Flash-Lite
  * responses: one shipment.create tool call (or one escalation), then a
  * final text answer that echoes the tool's Shipment back. The carrier
  * client is faked via setCarrierClientFactory so no real carrier hit.
@@ -97,7 +97,7 @@ afterEach(() => {
 
 afterAll(async () => { await closeMongo(); });
 
-/** Scripted Haiku: 1 tool_use (shipment.create) + 1 final text echoing the result. */
+/** Scripted Gemini 3.1 Flash-Lite: 1 tool_use (shipment.create) + 1 final text echoing the result. */
 function happyScript(parsedAddress: {
   recipientName: string;
   phone: string;
@@ -208,8 +208,8 @@ describe("logisticsAgent — unit", () => {
     expect(out.reason).toMatch(/address_unparseable/);
   });
 
-  it("agent definition: Haiku, single tool, sub-$0.10 cap", () => {
-    expect(logisticsAgent.model).toBe("claude-haiku-4-5");
+  it("agent definition: Gemini 3.1 Flash-Lite, single tool, sub-$0.10 cap", () => {
+    expect(logisticsAgent.model).toBe("gemini-3.1-flash-lite");
     expect(logisticsAgent.tools).toEqual(["shipment.create"]);
     expect(logisticsAgent.maxUsd).toBeLessThanOrEqual(0.1);
   });

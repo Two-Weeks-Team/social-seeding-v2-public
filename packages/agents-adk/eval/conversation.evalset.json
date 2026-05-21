@@ -11,7 +11,7 @@
     "agent_id": "conversation",
     "spec": "gcp-research/specs/tier1/conversation.spec.md",
     "decisions": ["D5", "D17", "D23", "D34"],
-    "model": "gemini-2.5-flash-lite",
+    "model": "gemini-3.1-flash-lite",
     "locales_covered": ["en", "en", "en", "ko", "ko", "ja", "ja", "zh-CN"],
     "classes_covered": ["interested", "needs_info", "negotiating", "not_now", "declined", "out_of_office", "unsubscribe", "unrelated"]
   },

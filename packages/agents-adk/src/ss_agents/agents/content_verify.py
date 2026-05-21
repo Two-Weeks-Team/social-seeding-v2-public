@@ -1,7 +1,7 @@
 """Content-verify agent — Phase 3.6 port (first MULTIMODAL agent).
 
 Direct port of v2's `packages/agents/src/content-verify.agent.ts:36-139` onto
-ADK + Gemini 2.5 Flash (multimodal: text + image + video) + Pydantic,
+ADK + Gemini 3.1 Flash-Lite (multimodal: text + image + video) + Pydantic,
 following the contract in `gcp-research/specs/tier1/content_verify.spec.md`.
 
 Behavior (content_verify.spec.md §1):
@@ -26,7 +26,7 @@ Behavior (content_verify.spec.md §1):
     Vertex gateway.
 
 Citations:
-    D5  — Gemini 2.5 Flash multimodal (text + image + video URIs).
+    D5  — Gemini 3.1 Flash-Lite multimodal (text + image + video URIs).
     D17 — Vertex AI Agent Runtime (managed).
     D21 — post.desc is creator-controlled DATA — Model Armor + in-process
           prompt_guard + `prompt_injection` flag in the output schema.
@@ -36,7 +36,7 @@ Citations:
     D34 — Multilingual brand-name matching (한국어 / English / 日本語 /
           中文(简)) plus romanised transliterations ("Freshly" ⇄ "프레슬리").
     ARCHITECTURE.md §3 row 7:
-        content_verify | 1 | Gemini 2.5 Flash multimodal
+        content_verify | 1 | Gemini 3.1 Flash-Lite multimodal
                         | rapidapi.post_detail, vision.brand_logo_detect
                         | None | precision + recall vs holdout
 
@@ -514,10 +514,10 @@ content_verify_agent_def: AgentDef[ContentVerifyInput, ContentVerifyOutput] = Ag
         "optional thumbnail/video URIs. Retrieves approved brand assets + an "
         "on-brand verdict from the DAM Agent over a real A2A v0.3 hop "
         "(dam_get_brand_assets → a2a_invoke). Per content_verify.spec.md "
-        "(D23 Tier-1 #7, D5 Flash multimodal; D45/D48 Build Example #2)."
+        "(D23 Tier-1 #7, D53 flash-lite multimodal; D45/D48 Build Example #2)."
     ),
-    model="gemini-2.5-flash",  # D5 — multimodal Flash, not Pro
-    max_usd=0.05,  # content_verify.spec.md §6: $0.05 per post (Flash mm + 1-2 tools)
+    model="gemini-3.1-flash-lite",  # D53 — multimodal flash-lite tier, not Pro
+    max_usd=0.05,  # content_verify.spec.md §6: $0.05 per post (flash-lite mm + 1-2 tools)
     input_schema=ContentVerifyInput,
     output_schema=ContentVerifyOutput,
     system_prompt=build_content_verify_system_prompt,

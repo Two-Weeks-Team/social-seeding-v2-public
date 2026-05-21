@@ -16,8 +16,8 @@ import {
 /**
  * P2-C4 golden — the classifier × responder handoff pinned across the
  * branching matrix that drives Phase-2 creator-track. Real LLM evaluation
- * (Haiku for classification, Opus for the reply) is a follow-up that needs
- * ANTHROPIC_API_KEY; these tests pin the plumbing — handoff direction, the
+ * (Gemini 3.1 Flash-Lite for classification, Gemini 3.1 Pro for the reply) is a follow-up that needs
+ * GEMINI_API_KEY; these tests pin the plumbing — handoff direction, the
  * draft-only-when-warranted contract, and trace shape.
  */
 

@@ -13,7 +13,7 @@
 | Execution id | `9cc843c1-44b9-4551-a5ab-256f84b13cf6` |
 | State / duration | **SUCCEEDED** / 11.98s |
 | Route taken | `a2a_remote` |
-| Coordinator decision | `chosenAgentId = tiktok-mcp-search` (real Gemini 2.5 Flash, served by `ss-agents` Cloud Run) |
+| Coordinator decision | `chosenAgentId = tiktok-mcp-search` (real Gemini 3.1 Flash-Lite, served by `ss-agents` Cloud Run) |
 | Routing rationale (verbatim, model-generated) | *"Selected 'tiktok-mcp-search' as it offers the best combination of lower latency and cost for sourcing TikTok creators, and fully matches the task capabilities."* |
 | A2A hop | A2A v0.3 `message:send` → `https://ss-mcp-server-…run.app/v1/message:send` |
 | A2A task state | `completed` |
@@ -34,10 +34,10 @@
 ## Model Garden routing — live proof (D47, Track 3 req #3)
 
 `scripts/smoke-test/run-model-garden-live.sh` (operator-gated, ADC) ran ONE real Gemini
-2.5 Flash call through the Model Garden publisher plane and returned a validated outcome:
+3.1 Flash-Lite call through the Model Garden publisher plane and returned a validated outcome:
 
 ```
-resolved model path : projects/ss-v2-prod/locations/us-central1/publishers/google/models/gemini-2.5-flash
+resolved model path : projects/ss-v2-prod/locations/us-central1/publishers/google/models/gemini-3.1-flash-lite
 outcome kind        : ok
 value: {"chosenAgentId":"tiktok-mcp-search","routingRationale":"tiktok-mcp-search is chosen
         for its lower latency and cost, while perfectly matching the creator sourcing
@@ -50,7 +50,7 @@ The deployed `ss-agents` service ran the workflow coordinator with the same
 `MODEL_GARDEN_ROUTING=true`, so the live orchestration above ALSO reasoned via the Model
 Garden plane. (`usd_spent` reads `$0.00` because the ADK path did not surface
 `usage_metadata` for this call — the call itself succeeded and returned a validated
-`CoordinatorOutput`; cost for one Flash turn is sub-cent regardless.)
+`CoordinatorOutput`; cost for one Flash-Lite turn is sub-cent regardless.)
 
 ## Observability → Cloud Trace (live)
 

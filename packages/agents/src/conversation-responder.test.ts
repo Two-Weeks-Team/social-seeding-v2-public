@@ -14,7 +14,7 @@ import { conversationResponderAgent } from "./conversation-responder.agent";
 /**
  * P2-C4b — conversationResponderAgent unit. Drives the responder through
  * the real outreach.judge capability with a scripted ModelClient, mirroring
- * the same self-check loop the live Opus 4.7 path will run.
+ * the same self-check loop the live Gemini 3.1 Pro path will run.
  *
  * What we pin:
  *   · the deliverabilityScore is captured from the real judge result
@@ -179,11 +179,11 @@ describe("conversationResponderAgent — unit", () => {
     expect(out.reason).toMatch(/hostile_inbound/);
   });
 
-  it("agent definition: Opus 4.7, curated tools = [outreach.judge, templates.render], maxUsd ≤ 1.0", () => {
+  it("agent definition: Gemini 3.1 Pro, curated tools = [outreach.judge, templates.render], maxUsd ≤ 1.0", () => {
     // Cap raised 0.5 → 1.0 over two live-demo iterations 2026-05-14
-    // (see agent file comment). 4-6 Opus turns reliably consume
+    // (see agent file comment). 4-6 Gemini 3.1 Pro turns reliably consume
     // ~$0.5-0.7; the ceiling has to budget for a self-check + revise.
-    expect(conversationResponderAgent.model).toBe("claude-opus-4-7");
+    expect(conversationResponderAgent.model).toBe("gemini-3.1-pro");
     expect(conversationResponderAgent.tools.sort()).toEqual(
       ["outreach.judge", "templates.render"].sort(),
     );

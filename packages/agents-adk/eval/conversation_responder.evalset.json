@@ -10,7 +10,7 @@
     "agent_id": "conversation-responder",
     "spec": "gcp-research/specs/tier1/conversation_responder.spec.md",
     "decisions": ["D5", "D17", "D23", "D27", "D34"],
-    "model": "gemini-2.5-pro",
+    "model": "gemini-3.1-pro",
     "max_usd": 0.05,
     "locales_covered": ["en", "en", "en", "ko", "ko", "ja", "zh-CN", "en"],
     "thresholds": {

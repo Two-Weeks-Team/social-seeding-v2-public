@@ -28,7 +28,7 @@ Behavior (critic.spec.md §1 + Phase-4 brief):
                                        compact snippet Mission Control renders
 
 Citations:
-    D5  — Gemini 2.5 Pro (judgment quality matters more than per-call cost).
+    D5  — Gemini 3.1 Pro (judgment quality matters more than per-call cost).
     D23 — Tier-2 meta agent M2.
     D25 — Vertex AI Agent Evaluation feeds the critic's golden bench; this
           module IS the LLM-as-judge that closes the eval-driven-development
@@ -36,7 +36,7 @@ Citations:
     D34 — Operator locale (ko/en/ja/zh-CN).
     D38 — M2 sits between Tier-1 outputs and the human-approval stream.
     ARCHITECTURE.md §3 row 18:
-        critic (M2) | 2 | Gemini 2.5 Pro
+        critic (M2) | 2 | Gemini 3.1 Pro
                     | evaluation.score, gate.escalate
                     | judge_agreement_v_human
     MATRIX.md §2.5 — "T2 agents are evaluated transitively via L4
@@ -47,7 +47,7 @@ Deviation from critic.spec.md §6 ($0.30 USD cap):
     The Phase-4 brief tightens the cap to $0.02 per critique. Rationale —
     the critic runs once per Tier-1 invocation; at 1000+ campaigns/day a
     $0.30 cap would dominate the cost envelope (D39 $1500 month-1 budget).
-    $0.02 forces concise rationales (~600 output tokens on 2.5 Pro pricing,
+    $0.02 forces concise rationales (~600 output tokens on 3.1 Pro pricing,
     plus the ~3000-token candidate-output input) and lines up with the
     cost_watch (W2) per-agent ceiling. See critic.spec.md §8 edge case 7
     ("Critic cost exceeds writer cost — cost_watch flags pattern; M3
@@ -79,10 +79,10 @@ from ss_agents.tools.gate_escalate import gate_escalate
 logger = logging.getLogger(__name__)
 
 
-# Gemini 2.5 Pro per DECISIONS.md D5 / ARCHITECTURE.md §3 row 18. The critic
+# Gemini 3.1 Pro per DECISIONS.md D5 / ARCHITECTURE.md §3 row 18. The critic
 # is the only judgment-heavy meta agent — Flash-Lite is too brittle on
 # nuanced rubric application. Pricing wired into MODEL_PRICING.
-DEFAULT_CRITIC_MODEL = "gemini-2.5-pro"
+DEFAULT_CRITIC_MODEL = "gemini-3.1-pro"
 
 # Reusable locale enum — D34 four-locale support.
 CriticLocale = Literal["ko", "en", "ja", "zh-CN"]

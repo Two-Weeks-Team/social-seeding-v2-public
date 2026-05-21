@@ -24,7 +24,7 @@ Behaviour (creative.spec.md §1 + task brief):
       brand_safety_check: { ip_concerns[], deepfake_risks[], cultural_sensitivities[] }
 
 Citations:
-    D5  — Gemini 2.5 Pro for creative planning (multimodal Pro chosen over
+    D5  — Gemini 3.1 Pro for creative planning (multimodal Pro chosen over
           Flash because the task requires sustained creative reasoning across
           palette + shot list + multimodal prompts; outweighs the 5× cost
           delta given the $0.30 cap).
@@ -40,7 +40,7 @@ Citations:
           the $0.30 cap leaves headroom for the workflow's later asset-gen
           step ($3.00/full pack per spec.md §6) plus 4× retries.
     ARCHITECTURE.md §3 row 14:
-        creative | 1 | Gemini 2.5 Pro + Imagen 4 + Veo 3
+        creative | 1 | Gemini 3.1 Pro + Imagen 4 + Veo 3
                  | imagen.generate, veo.generate, lyria.generate, assets.upload
                  | Memory Bank (brand)
                  | safety_v1 + brand_consistency
@@ -469,7 +469,7 @@ _LOCALE_CULTURAL_HINTS = {
 def build_creative_system_prompt(payload: BaseModel) -> str:
     """Per task brief §Spec + creative.spec.md §6.
 
-    Composes the Gemini 2.5 Pro system prompt with:
+    Composes the Gemini 3.1 Pro system prompt with:
       · Brand context (name + category + description + key claims).
       · Operator-supplied mood keywords + target duration + locale.
       · Output schema + invariants (palette WCAG AA, Veo 3 clip cap, Lyria
@@ -601,10 +601,10 @@ creative_agent_def: AgentDef[CreativeInput, CreativeOutput] = AgentDef(
         "operator mood keywords. Phase 3 boundary: Imagen 4 / Veo 3 / Lyria "
         "are capability-layer tools (Phase 4 wiring); this agent computes "
         "the PROMPTS + safety logic without invoking them. Per "
-        "creative.spec.md (D23 Tier-1 agent #14, D5 Gemini 2.5 Pro, D29 "
+        "creative.spec.md (D23 Tier-1 agent #14, D5 Gemini 3.1 Pro, D29 "
         "multimodal differentiator)."
     ),
-    model="gemini-2.5-pro",  # D5 — Pro for sustained creative reasoning
+    model="gemini-3.1-pro",  # D53 — Pro for sustained creative reasoning
     max_usd=0.30,  # task brief: $0.30; spec.md §6 reserves $3 for full-asset
     #                workflow run (Imagen + Veo + Lyria). $0.30 is the
     #                AGENT-only cap; capability calls happen outside it.

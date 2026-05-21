@@ -10,14 +10,15 @@ import { defineAgent } from "./runtime";
  * wrong_language / brand_unsafe / prior_flake / data_stale). Replaces the
  * human eyeballing v1's Step 2 table.
  *
- * Cheap, high-volume — Haiku. The brand-campaign workflow fans this out one
- * call per candidate (see WF1 in PHASE-1-PLAN), so maxUsd is per-invocation.
+ * Cheap, high-volume — Gemini 3.1 Flash-Lite. The brand-campaign workflow
+ * fans this out one call per candidate (see WF1 in PHASE-1-PLAN), so maxUsd
+ * is per-invocation.
  */
 export const vettingAgent = defineAgent({
   id: "vetting",
   description: "Score a candidate's brand-fit and surface risk flags using profile + recent-post data.",
   tools: ["tiktok.getCreator", "blacklist.check", "ranking.score"],
-  model: "claude-haiku-4-5",
+  model: "gemini-3.1-flash-lite",
   maxUsd: 0.1, // per candidate
   input: z.object({
     brief: CampaignBriefSchema,

@@ -12,7 +12,7 @@ D-IDs:
           gates PRs without billing a live model (the live `gcloud aiplatform
           evaluation-runs create` path stays an operator/nightly job — see
           README.md "Honest scope").
-    D5  — Gemini model tiers. The coordinator runs on gemini-2.5-flash; the
+    D5  — Gemini model tiers. The coordinator runs on gemini-3.1-flash-lite; the
           eval scores a deterministic predictor (NOT the live Flash call) so the
           gate is reproducible and free.
 

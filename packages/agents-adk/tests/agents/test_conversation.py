@@ -603,7 +603,7 @@ class TestAgentDefShape:
 
     def test_uses_flash_lite_per_d5(self) -> None:
         # D5: Flash-Lite is the cheapest production tier.
-        assert conversation_agent_def.model == "gemini-2.5-flash-lite"
+        assert conversation_agent_def.model == "gemini-3.1-flash-lite"
 
     def test_usd_cap_matches_spec(self) -> None:
         # conversation.spec.md §6: $0.02 per invocation.

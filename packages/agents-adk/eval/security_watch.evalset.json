@@ -14,7 +14,7 @@
     "agent_id": "security_watch",
     "spec": "gcp-research/specs/tier3/security_watch.spec.md",
     "decisions": ["D5", "D17", "D20", "D21", "D23", "D32"],
-    "architecture_ref": "ARCHITECTURE.md §3 row 22 — security_watch (W3) | Gemini 2.5 Flash | model_armor.query_blocks, chronicle.query, tenant.quarantine | None | TTR (time to remediate)",
+    "architecture_ref": "ARCHITECTURE.md §3 row 22 — security_watch (W3) | Gemini 3.1 Flash-Lite | model_armor.query_blocks, chronicle.query, tenant.quarantine | None | TTR (time to remediate)",
     "v2_reference": "No v2 predecessor — v2 had no security agents (spec §1 'v2 reference: No v2 predecessor').",
     "decision_bands": {
       "log_only": 2,

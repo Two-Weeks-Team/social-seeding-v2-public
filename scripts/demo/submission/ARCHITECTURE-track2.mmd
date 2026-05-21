@@ -16,13 +16,13 @@ flowchart LR
 
   gw --> orch[Cloud Workflows · Pub/Sub<br/>Cloud Tasks · Eventarc Advanced<br/>D18 durable orchestration]
 
-  orch --> fleet{22-agent fleet on Vertex AI Agent Runtime<br/>16 domain · 3 meta M1-M3 · 3 watchdog W1-W3<br/>Gemini 2.5 Pro · Flash · Flash-Lite · D23}
+  orch --> fleet{22-agent fleet on Vertex AI Agent Runtime<br/>16 domain · 3 meta M1-M3 · 3 watchdog W1-W3<br/>Gemini 3.1 Pro · Flash-Lite · D23}
 
   fleet -. inline guardrail .-> armor[Model Armor max policy<br/>PI / JB / PII / Custom regex<br/>Agent Anomaly Detection · D21]
 
   fleet --> data[(Spanner Multi-region · D15<br/>AlloyDB AI + Vertex Vector Search<br/>Firestore Memory Bank · D16)]
 
-  fleet --> ai[Gemini 2.5 + Imagen 4 + Veo 3 + Lyria<br/>Vision AI · Document AI · Translation API<br/>i18n D34: ko · en · ja · zh]
+  fleet --> ai[Gemini 3.1 + Imagen 4 + Veo 3 + Lyria<br/>Vision AI · Document AI · Translation API<br/>i18n D34: ko · en · ja · zh]
 
   fleet --> side[Gmail send · D10 test only<br/>Apigee X $0.01 / view meter · D28<br/>BigQuery streaming via Dataflow]
 

@@ -7,14 +7,14 @@ on Mission Control's `payment_mandate` approval surface, where a human
 operator performs the WebAuthn ceremony.
 
 Citations:
-    D5  — Gemini 2.5 Flash (D5; structured mandate composition is bulk).
+    D5  — Gemini 3.1 Flash-Lite (D5; structured mandate composition is bulk).
     D12 — AP2 + multi-tenant.
     D23 — NEW Tier-1 agent #12 (no v2 predecessor).
     D27 — Intent Mandate ONLY; agent plans, human approves payment.
     D28 — $0.01/view pricing model — Intent Mandate carries the forecast.
     D34 — Locale-aware claim text (한국어 / English / 日本語 / 简体中文).
     ARCHITECTURE.md §3 row 12:
-        payment_mandate (NEW) | 1 | Gemini 2.5 Flash | ap2.compose_intent_mandate,
+        payment_mandate (NEW) | 1 | Gemini 3.1 Flash-Lite | ap2.compose_intent_mandate,
                                 gate.approveOutreachSend | Session | mandate_validity
 
 References:
@@ -934,7 +934,7 @@ payment_mandate_agent_def: AgentDef[
         "on success or {kind:'escalate', reason, detail} when input is invalid. "
         "Per payment_mandate.spec.md (D23 Tier-1 agent #12)."
     ),
-    model="gemini-2.5-flash",  # D5 — structured mandate composition is a bulk role
+    model="gemini-3.1-flash-lite",  # D53 — structured mandate composition is a bulk role
     max_usd=0.01,  # Brief: $0.01 per mandate (cheap, structured)
     input_schema=PaymentMandateInput,
     output_schema=PaymentMandateOutputWrapper,

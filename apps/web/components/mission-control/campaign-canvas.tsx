@@ -216,7 +216,7 @@ function buildGraph(a: BuildArgs): { nodes: Node<SsNodeData>[]; edges: Edge[] } 
         tone: "violet",
         status: sourcingStatus,
         attrs: [
-          { label: "opus-4.7", tone: "violet", mono: true },
+          { label: "gemini-3.1-pro", tone: "violet", mono: true },
           { label: "tiktok.search", tone: "cyan" },
           { label: "blacklist.check", tone: "cyan" },
         ],
@@ -231,7 +231,7 @@ function buildGraph(a: BuildArgs): { nodes: Node<SsNodeData>[]; edges: Edge[] } 
         kind: "group",
         tone: "violet",
         status: vetGroupStatus,
-        attrs: [{ label: "haiku-4.5", tone: "violet", mono: true }],
+        attrs: [{ label: "gemini-3.1-flash-lite", tone: "violet", mono: true }],
         hint: a.vetCount > 0 ? `${a.vetCount} candidates evaluated` : "fan-out per candidate",
       },
     },
@@ -278,11 +278,11 @@ function buildGraph(a: BuildArgs): { nodes: Node<SsNodeData>[]; edges: Edge[] } 
         status: outreachStatus,
         attrs: buckets
           ? [
-              { label: "opus-4.7", tone: "violet", mono: true },
+              { label: "gemini-3.1-pro", tone: "violet", mono: true },
               { label: `${buckets.outreach_sent + buckets.in_conversation + buckets.agreed + buckets.declined + buckets.no_response}/${a.trackCount}`, tone: "slate", mono: true },
             ]
           : [
-              { label: "opus-4.7", tone: "violet", mono: true },
+              { label: "gemini-3.1-pro", tone: "violet", mono: true },
               { label: "gmail.send", tone: "cyan" },
             ],
         hint: outreachStarted
@@ -321,7 +321,7 @@ function buildGraph(a: BuildArgs): { nodes: Node<SsNodeData>[]; edges: Edge[] } 
           : stageStatus("shipping"),
         attrs: buckets
           ? [
-              { label: "haiku-4.5", tone: "violet", mono: true },
+              { label: "gemini-3.1-flash-lite", tone: "violet", mono: true },
               { label: `${buckets.delivered + buckets.posted + buckets.verified + buckets.flaked}/${a.trackCount}`, tone: "slate", mono: true },
             ]
           : [{ label: "shipment.create", tone: "cyan" }],
@@ -349,7 +349,7 @@ function buildGraph(a: BuildArgs): { nodes: Node<SsNodeData>[]; edges: Edge[] } 
           : stageStatus("content_review"),
         attrs: buckets
           ? [
-              { label: "haiku-4.5", tone: "violet", mono: true },
+              { label: "gemini-3.1-flash-lite", tone: "violet", mono: true },
               { label: `${buckets.verified} ✓ · ${buckets.flaked} ✕`, tone: "slate", mono: true },
             ]
           : [{ label: "tiktok.getCreator", tone: "cyan" }],

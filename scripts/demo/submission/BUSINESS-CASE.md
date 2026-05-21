@@ -66,8 +66,8 @@ and the per-call USD constants committed in `packages/agents-adk/src/ss_agents/t
 
 | Cell | Value | Formula / source |
 |---|---|---|
-| One full brand-campaign LLM loop | **$0.62** | [DERIVED, grounded] COST-PLAN.md §2 call-by-call total on Gemini 3.1 Pro for the final demo; $0.42 on 2.5 Pro. Sourcing → vet → 5×4 outreach tournament → classify → follow-up → logistics → verify → report. |
-| Per-creator fan-out (vetting + outreach draft × 20) | **+$6.40** | [DERIVED] 20 creators × ≈$0.32 incremental (vetting `vector_search_creator` $0.0002 + `ranking_score` $0.0001 + a per-creator Gemini 2.5 Flash vet+draft ≈ $0.30, from COST-PLAN.md Flash rates $0.30/$2.50 per 1M tok). [ASSUMPTION] linear fan-out at 20×. |
+| One full brand-campaign LLM loop | **$0.62** | [DERIVED, grounded] COST-PLAN.md §2 call-by-call total on Gemini 3.1 Pro for the final demo. Sourcing → vet → 5×4 outreach tournament → classify → follow-up → logistics → verify → report. |
+| Per-creator fan-out (vetting + outreach draft × 20) | **+$6.40** | [DERIVED] 20 creators × ≈$0.32 incremental (vetting `vector_search_creator` $0.0002 + `ranking_score` $0.0001 + a per-creator Gemini 3.1 Flash-Lite vet+draft ≈ $0.30, from COST-PLAN.md Flash-Lite rates $0.30/$2.50 per 1M tok). [ASSUMPTION] linear fan-out at 20×. |
 | Capability tool calls (real code constants) | **+$0.30** | [DERIVED, grounded] e.g. `rapidapi_tiktok_search` $0.001, `a2a_invoke` $0.0005, `vision_brand_logo_detect` $0.0015, `gmail_send_reply` $0.0001 × ~dozens of calls. Constants are real (`packages/agents-adk/.../tools/*.py`). |
 | Infra amortized per campaign | **+$0.08** | [DERIVED, grounded] COST-PLAN.md: ~$0.02 Firestore/campaign + Cloud Run/Logging/GCS ≈ $0; idle infra **$1–5/mo** (D46, all Cloud Run `min=0`) amortized over modest campaign volume. |
 | Human review time | **~2 hours** | [ASSUMPTION] operator clears the AP2 Intent Mandate + escalation gates (D27); not zero — the human-in-the-loop is the product (§6). |

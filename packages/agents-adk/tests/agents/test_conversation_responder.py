@@ -302,7 +302,7 @@ class TestInputContract:
         """Sanity-check the AgentDef itself against the spec."""
         assert conversation_responder_agent_def.id == "conversation-responder"
         assert conversation_responder_agent_def.model == RESPONDER_MODEL
-        assert conversation_responder_agent_def.model == "gemini-2.5-pro"
+        assert conversation_responder_agent_def.model == "gemini-3.1-pro"
         assert conversation_responder_agent_def.max_usd == pytest.approx(0.05)
         assert conversation_responder_agent_def.input_schema is ConversationResponderInput
         assert conversation_responder_agent_def.output_schema is ConversationResponderOutput

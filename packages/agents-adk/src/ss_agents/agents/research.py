@@ -1,6 +1,6 @@
 """Research agent — Phase 3 brand/competitor background research.
 
-Port of v2's `packages/agents/src/research.agent.ts` onto ADK + Gemini 2.5 Pro
+Port of v2's `packages/agents/src/research.agent.ts` onto ADK + Gemini 3.1 Pro
 + Pydantic. Shape adapted for the **brand-research** entry point per the
 Phase-3 brief (the lead-research variant in research.spec.md §2 stays as the
 Phase-5 sister agent; both share this module).
@@ -12,13 +12,13 @@ Behavior:
     `recent_news[≤10]`, `sources[]`).
 
 Citations:
-    D5    — Gemini 2.5 Pro baseline (production model for v2 research).
+    D5    — Gemini 3.1 Pro baseline (production model for v2 research).
     D23   — Tier-1 agent #9 (`research`).
     GEMINI-MODELS §2.5, §6.5 — grounding is billed **$35 / 1 000 queries**
-            on 2.5 models; fan-out per prompt is *not* per-prompt. Default
+            on 3.1 models; fan-out per prompt is *not* per-prompt. Default
             grounding OFF; operator opts in per tenant via
             `grounding_enabled` on the input.
-    ARCHITECTURE.md §3 row 9 — model = Gemini 2.5 Pro; tools =
+    ARCHITECTURE.md §3 row 9 — model = Gemini 3.1 Pro; tools =
             `web.search` (Google grounding) + `vector_search.competitor`;
             memory = Memory Bank; eval = `hallucinations_v1`.
 
@@ -44,9 +44,9 @@ from ss_agents.tools.web_search import web_search
 logger = logging.getLogger(__name__)
 
 
-# Gemini 2.5 Pro per DECISIONS.md D5 / GEMINI-MODELS §4 (Vertex AI v1
+# Gemini 3.1 Pro per DECISIONS.md D53 / GEMINI-MODELS §4 (Vertex AI v1
 # baseline). Pricing wired into MODEL_PRICING in config.py.
-DEFAULT_RESEARCH_MODEL = "gemini-2.5-pro"
+DEFAULT_RESEARCH_MODEL = "gemini-3.1-pro"
 
 # Reusable locale enum (mirrors intake.py — D34: ko/en/ja/zh-CN).
 ResearchLocale = Literal["ko", "en", "ja", "zh-CN"]
@@ -310,7 +310,7 @@ research_agent_def: AgentDef[ResearchInput, ResearchOutput] = AgentDef(
     description=(
         "Brand/competitor background research. Given a brand name + 3-5 "
         "research questions, returns brandOverview, topCompetitors[≤5], "
-        "marketPosition, recentNews[≤10], sources[]. Gemini 2.5 Pro; "
+        "marketPosition, recentNews[≤10], sources[]. Gemini 3.1 Pro; "
         "Google Search grounding OFF by default per GEMINI-MODELS §6.5. "
         "Per ARCHITECTURE.md §3 row 9 (D23 Tier-1 agent #9, D5 model)."
     ),

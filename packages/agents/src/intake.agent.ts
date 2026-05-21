@@ -24,7 +24,7 @@ export const intakeAgent = defineAgent({
   id: "intake",
   description: "Conversational agent that assembles a CampaignBrief from a short user conversation.",
   tools: [], // pure conversational — no I/O
-  model: "claude-opus-4-7",
+  model: "gemini-3.1-pro",
   maxUsd: 0.2, // bounded conversation
   input: z.object({
     messages: z.array(IntakeMessageSchema).min(1).max(20),

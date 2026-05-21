@@ -21,7 +21,7 @@ afterEach(() => {
 });
 
 function costEntry(campaignId: string, usd: number, workspaceId = "ws"): CostEntry {
-  return { campaignId, workspaceId, agent: "a", model: "claude-haiku-4-5", inputTokens: 10, outputTokens: 5, usd, at: Date.now() };
+  return { campaignId, workspaceId, agent: "a", model: "gemini-3.1-flash-lite", inputTokens: 10, outputTokens: 5, usd, at: Date.now() };
 }
 
 describe("@ss/observability cost ledger", () => {

@@ -1,7 +1,7 @@
 """Analyst agent — Phase 3 final-report generator.
 
 Port of v2's `packages/agents/src/analyst.agent.ts:61-155` onto ADK +
-Gemini 2.5 Pro + Pydantic, following the contract in
+Gemini 3.1 Pro + Pydantic, following the contract in
 `gcp-research/specs/tier1/analyst.spec.md`.
 
 Behavior (analyst.spec.md §1):
@@ -17,7 +17,7 @@ Behavior (analyst.spec.md §1):
     "do not recompute" discipline mirrors v2's analyst at line 96-101.
 
 Citations:
-    D5   — Gemini 2.5 Pro (judgment + long-context per ARCHITECTURE.md §3 row 8).
+    D5   — Gemini 3.1 Pro (judgment + long-context per ARCHITECTURE.md §3 row 8).
            v2 used Haiku; ARCHITECTURE.md upgrades to Pro for prose quality.
     D17  — Vertex AI Agent Runtime (managed).
     D23  — Tier-1 agent #8 (analyst).
@@ -25,7 +25,7 @@ Citations:
     D32  — Output feeds the weekly report email via Eventarc.
     D34  — Multi-locale narration (ko / en / ja / zh-CN).
     ARCHITECTURE.md §3 row 8:
-        analyst | 1 | Gemini 2.5 Pro | bigquery.query, view_metrics.aggregate
+        analyst | 1 | Gemini 3.1 Pro | bigquery.query, view_metrics.aggregate
                 | Memory Bank | accuracy + grounding score
 
 Compared to `intake.py` / `logistics.py`:
@@ -53,11 +53,11 @@ from ss_agents.tools.view_metrics_aggregate import view_metrics_aggregate
 logger = logging.getLogger(__name__)
 
 
-# Gemini 2.5 Pro per DECISIONS.md D5 / ARCHITECTURE.md §3 row 8. The
+# Gemini 3.1 Pro per DECISIONS.md D5 / ARCHITECTURE.md §3 row 8. The
 # analyst is the only Tier-1 prose-generation agent on Pro (vs. Flash) —
 # the report is the operator's primary share artefact, prose quality
 # matters more than the per-call cost.
-DEFAULT_ANALYST_MODEL = "gemini-2.5-pro"
+DEFAULT_ANALYST_MODEL = "gemini-3.1-pro"
 
 # Reusable locale enum — D34 four-locale support, identical pattern to
 # intake.py / research.py / logistics.py.
@@ -635,7 +635,7 @@ analyst_agent_def: AgentDef[AnalystInput, AnalystOutput] = AgentDef(
         "+ brief. No tools (numbers come from the deterministic "
         "analytics.compile capability — agent never recomputes). Returns "
         "{summary, highlights, concerns, recommendations, markdown}. "
-        "Gemini 2.5 Pro for prose quality + long-context support per "
+        "Gemini 3.1 Pro for prose quality + long-context support per "
         "ARCHITECTURE.md §3 row 8 (D5 model, D23 Tier-1 agent #8)."
     ),
     model=DEFAULT_ANALYST_MODEL,

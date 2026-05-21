@@ -20,8 +20,8 @@ import { defineAgent } from "./runtime";
  *   4. Return the persisted shipment row (capability already gives us the
  *      v2_shipments doc with status='shipped' + tracking number).
  *
- * Cheap on Haiku — this is structured extraction, not creative generation.
- * \$0.05 cap. Always one shipment.create tool call.
+ * Cheap on Gemini 3.1 Flash-Lite — this is structured extraction, not
+ * creative generation. \$0.05 cap. Always one shipment.create tool call.
  *
  * Escalation: when the agent can't parse a usable address (recipient name +
  * line1 missing, postal-code looks wrong, country can't be inferred), it
@@ -38,7 +38,7 @@ export const logisticsAgent = defineAgent({
   description:
     "Parse a creator's free-text shipping address into a structured carrier-ready address, then create the shipment via shipment.create.",
   tools: ["shipment.create"],
-  model: "claude-haiku-4-5",
+  model: "gemini-3.1-flash-lite",
   maxUsd: 0.05,
   input: z.object({
     brief: CampaignBriefSchema,

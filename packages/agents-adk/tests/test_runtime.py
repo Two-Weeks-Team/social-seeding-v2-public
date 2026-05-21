@@ -299,7 +299,7 @@ class TestAgentDefShape:
             AgentDef(
                 id="INVALID",  # uppercase not allowed
                 description="x",
-                model="gemini-2.5-flash",
+                model="gemini-3.1-flash-lite",
                 max_usd=0.1,
                 input_schema=IntakeInput,
                 output_schema=IntakeOutputWrapper,
@@ -311,7 +311,7 @@ class TestAgentDefShape:
             AgentDef(
                 id="x",
                 description="x",
-                model="gemini-2.5-flash",
+                model="gemini-3.1-flash-lite",
                 max_usd=0.0,  # must be > 0
                 input_schema=IntakeInput,
                 output_schema=IntakeOutputWrapper,

@@ -1,7 +1,7 @@
 """Conversation agent — Tier-1 agent #4 (the 8-way reply classifier).
 
 Direct port of v2's `packages/agents/src/conversation.agent.ts:30-118` onto
-ADK + Gemini 2.5 Flash-Lite + Pydantic, following the contract in
+ADK + Gemini 3.1 Flash-Lite + Pydantic, following the contract in
 `gcp-research/specs/tier1/conversation.spec.md`.
 
 Behavior (conversation.spec.md §1):
@@ -15,13 +15,13 @@ Behavior (conversation.spec.md §1):
     for bulk classification, Pro for judgment.
 
 Citations:
-    D5  — Gemini 2.5 Flash-Lite (cheapest production tier — picked because
+    D5  — Gemini 3.1 Flash-Lite (cheapest production tier — picked because
           this agent fires on every inbound reply and runs hot).
     D17 — Vertex AI Agent Runtime (deployment target for Phase 4).
     D23 — Tier-1 agent #4.
     D34 — Locale-aware (ko/en/ja/zh-CN) — operator's inbox spans 4 locales.
     ARCHITECTURE.md §3 row 4:
-        conversation | 1 | Gemini 2.5 Flash-Lite | nlp.classify_intent
+        conversation | 1 | Gemini 3.1 Flash-Lite | nlp.classify_intent
                      | Session | classification_f1
 """
 from __future__ import annotations
@@ -38,9 +38,9 @@ from ss_agents.tools.memory_bank_search import memory_bank_search
 logger = logging.getLogger(__name__)
 
 
-# Model id — D5: Flash-Lite is the cheapest production tier. Pinned to a
+# Model id — D53: Flash-Lite is the cheapest production tier. Pinned to a
 # concrete id (not `*-latest`) so the eval set is reproducible.
-CONVERSATION_MODEL = "gemini-2.5-flash-lite"
+CONVERSATION_MODEL = "gemini-3.1-flash-lite"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -243,31 +243,31 @@ After re-reading my own code three times, the closest things to a tripwire are:
 
 Per `EXECUTION-CALENDAR.md` and the ARCHITECTURE.md fleet table:
 
-1. **`logistics`** (`gemini-2.5-flash`, 0 tools, single-turn) — same shape as
+1. **`logistics`** (`gemini-3.1-flash-lite`, 0 tools, single-turn) — same shape as
    `intake` (single bounded turn, Pydantic-only). Smallest delta from this
    scaffold. **Phase 3.1**.
 
-2. **`conversation`** (`gemini-2.5-flash-lite`, 0 tools, classification) —
+2. **`conversation`** (`gemini-3.1-flash-lite`, 0 tools, classification) —
    8-category classifier. Exercises the cheapest model in the fleet and
    confirms the pricing table covers Flash-Lite. **Phase 3.2**.
 
-3. **`research`** (`gemini-2.5-pro`, 1 tool: `google_search`) — first agent
+3. **`research`** (`gemini-3.1-pro`, 1 tool: `google_search`) — first agent
    with a real ADK first-party tool. Unblocks `vetting`. **Phase 3.3**.
 
-4. **`vetting`** (`gemini-2.5-pro`, parallel fan-out across creators) — first
+4. **`vetting`** (`gemini-3.1-pro`, parallel fan-out across creators) — first
    agent that needs `ParallelAgent` orchestration in the workflow layer.
    Coordination with Phase 5 (D24 1→100 coordinator) required. **Phase 3.4**.
 
-5. **`outreach_writer`** (`gemini-2.5-pro`, 0 tools, output_schema-heavy) —
+5. **`outreach_writer`** (`gemini-3.1-pro`, 0 tools, output_schema-heavy) —
    per PORTING-V2.md §5 the 130-line template lands almost verbatim. Add
    the 4-judge deterministic eval as workflow steps (NOT inside the agent),
    matching the v2 split. **Phase 3.5**.
 
-6. **`content_verify`** (`gemini-2.5-flash`, multimodal — image + text) —
+6. **`content_verify`** (`gemini-3.1-flash-lite`, multimodal — image + text) —
    first multimodal agent. Establishes the pattern for `creative` (Imagen 4
    + Veo 3). **Phase 3.6**.
 
-7. **`analyst`** (`gemini-2.5-pro`, BigQueryToolset) — first agent that
+7. **`analyst`** (`gemini-3.1-pro`, BigQueryToolset) — first agent that
    hooks into ADK's `BigQueryToolset`. Unblocks the per-campaign report
    surface. **Phase 3.7**.
 
@@ -481,7 +481,7 @@ Same pin (`google-adk>=1.3,<2`) as Phase 2. Logistics-specific notes:
    `oneOf` + `propertyName` (the discriminator) renders cleanly.
 
 2. **Korean / Japanese / Chinese characters in `instruction=`** — Gemini
-   2.5 Flash tokenises UTF-8 fine; the locale hints embedded in the system
+   3.1 Flash-Lite tokenises UTF-8 fine; the locale hints embedded in the system
    prompt add ~400 tokens vs intake's prompt. Token cost: ~$0.0001 per
    invocation in input — well under the $0.05 cap.
 

@@ -9,7 +9,7 @@ import { intakeAgent } from "./intake.agent";
  * A-intake golden set — 4 transcript → expected status scenarios pin the
  * branch the agent takes (done / asking / escalate) and the schema validity
  * of each. With a fake ModelClient: real brief-extraction quality eval needs
- * ANTHROPIC_API_KEY and is a Phase-1 follow-up.
+ * GEMINI_API_KEY and is a Phase-1 follow-up.
  */
 
 type IntakeInput = z.infer<typeof intakeAgent.input>;

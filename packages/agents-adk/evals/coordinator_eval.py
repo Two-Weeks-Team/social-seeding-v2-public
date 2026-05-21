@@ -1,7 +1,7 @@
 """coordinator_eval.py — predictor + scorer for the coordinator golden eval.
 
 D25 (Agent-Evaluation rung) · D37 (Layer-1 offline gate) · D5 (coordinator =
-gemini-2.5-flash; this scores its deterministic baseline, not the live call).
+gemini-3.1-flash-lite; this scores its deterministic baseline, not the live call).
 
 The predictor reproduces the coordinator's documented decision rules
 (coordinator.py system prompt §"Decision rules") from the INPUT ALONE:

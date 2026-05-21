@@ -223,7 +223,7 @@ describe("analytics.compile capability — DB round-trip", () => {
     // Seed cost ledger — CostEntry shape lives in @ss/observability.
     await sink.appendCost({
       campaignId: "TBD", workspaceId: "ws_p4c1",
-      agent: "test", model: "haiku-4-5",
+      agent: "test", model: "gemini-3.1-flash-lite",
       inputTokens: 0, outputTokens: 0,
       usd: 12.5, at: Date.now(),
     });

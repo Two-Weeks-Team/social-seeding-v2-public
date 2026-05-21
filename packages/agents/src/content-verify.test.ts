@@ -174,8 +174,8 @@ describe("contentVerifyAgent — unit", () => {
     expect(out.value.flags).toContain("prompt_injection");
   });
 
-  it("agent definition: Haiku, no tools, sub-$0.10 cap", () => {
-    expect(contentVerifyAgent.model).toBe("claude-haiku-4-5");
+  it("agent definition: Gemini 3.1 Flash-Lite, no tools, sub-$0.10 cap", () => {
+    expect(contentVerifyAgent.model).toBe("gemini-3.1-flash-lite");
     expect(contentVerifyAgent.tools).toEqual([]);
     expect(contentVerifyAgent.maxUsd).toBeLessThanOrEqual(0.1);
   });

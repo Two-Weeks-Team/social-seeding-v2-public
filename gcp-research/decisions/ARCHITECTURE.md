@@ -64,7 +64,7 @@ flowchart TB
   end
 
   subgraph AI[Specialized AI]
-    GEM[Gemini 2.5 Pro/Flash/Flash-Lite + 3.1 Pro Preview — D5]
+    GEM[Gemini 3.1 Pro/Flash-Lite — D53 supersedes D5]
     IM[Imagen 4]
     VE[Veo 3]
     LY[Lyria]
@@ -190,28 +190,28 @@ flowchart TB
 
 | Agent | Tier | Default model | Tools (capabilities) | Memory | Eval criteria |
 |---|---|---|---|---|---|
-| `sourcing` | 1 | Gemini 2.5 Pro | `rapidapi.tiktok_search`, `rapidapi.instagram_search`, `blacklist.check`, `vector_search.creator` | Session + Memory Bank | trajectory + coverage |
-| `vetting` | 1 | Gemini 2.5 Pro (parallel) | `rapidapi.get_user_info`, `ranking.score`, `vector_search.brand_fit` | Session | tool_trajectory_avg_score |
-| `outreach_writer` | 1 | Gemini 2.5 Pro tournament | `templates.list`, `outreach.extract_facts`, `outreach.render`, `outreach.judge` | Memory Bank (style adapt) | response_match_v2 + spam_score |
-| `conversation` | 1 | Gemini 2.5 Flash-Lite | `nlp.classify_intent` | Session | classification_f1 |
-| `conversation_responder` | 1 | Gemini 2.5 Pro | `templates.list`, `outreach.render` | Memory Bank | response_match_v2 |
-| `logistics` | 1 | Gemini 2.5 Flash | `address.normalize`, `carrier.create` | Session | structured_extract_accuracy |
-| `content_verify` | 1 | Gemini 2.5 Flash multimodal | `rapidapi.post_detail`, `vision.brand_logo_detect` | None | precision + recall vs holdout |
-| `analyst` | 1 | Gemini 2.5 Pro | `bigquery.query`, `view_metrics.aggregate` | Memory Bank | accuracy + grounding score |
-| `research` | 1 | Gemini 2.5 Pro | `web.search` (Google grounding), `vector_search.competitor` | Memory Bank | hallucinations_v1 |
-| `intake` | 1 | Gemini 2.5 Flash | `forms.upsert` | Session | task_completion |
-| `lead_outreach_writer` | 1 | Gemini 2.5 Pro | `templates.list`, `outreach.render`, `crm.enrich` | Memory Bank | response_match_v2 |
-| `payment_mandate` (NEW) | 1 | Gemini 2.5 Flash | `ap2.compose_intent_mandate`, `gate.approveOutreachSend` | Session | mandate_validity |
-| `compliance` (NEW) | 1 | Gemini 2.5 Pro | `pipa.check_consent`, `canspam.check_unsubscribe`, `dlp.inspect` | Memory Bank | precision (no false-clear) |
-| `creative` (NEW) | 1 | Gemini 2.5 Pro + Imagen 4 + Veo 3 | `imagen.generate`, `veo.generate`, `lyria.generate`, `assets.upload` | Memory Bank (brand) | safety_v1 + brand_consistency |
-| `a11y` (NEW) | 1 | Gemini 2.5 Flash | `vision.describe`, `stt.transcribe`, `tts.synthesize`, `translation.translate` | None | a11y_compliance_score |
-| `customer_success` (NEW) | 1 | Gemini 2.5 Pro | `analytics.funnel`, `intervention.propose` | Memory Bank (per-customer) | activation_lift |
-| `coordinator` (M1) | 2 | Gemini 2.5 Flash | `agent_registry.list`, `a2a.invoke` | Session | routing_accuracy |
-| `critic` (M2) | 2 | Gemini 2.5 Pro | `evaluation.score`, `gate.escalate` | None | judge_agreement_v_human |
-| `optimizer` (M3) | 2 | Gemini 2.5 Pro | `agent_optimizer.tune`, `prompt_registry.update` | None | offline_eval_lift |
-| `anomaly_watch` (W1) | 3 | Gemini 2.5 Flash | `metrics.query`, `runbook.execute` | None | precision (alert vs false) |
+| `sourcing` | 1 | Gemini 3.1 Pro | `rapidapi.tiktok_search`, `rapidapi.instagram_search`, `blacklist.check`, `vector_search.creator` | Session + Memory Bank | trajectory + coverage |
+| `vetting` | 1 | Gemini 3.1 Pro (parallel) | `rapidapi.get_user_info`, `ranking.score`, `vector_search.brand_fit` | Session | tool_trajectory_avg_score |
+| `outreach_writer` | 1 | Gemini 3.1 Pro tournament | `templates.list`, `outreach.extract_facts`, `outreach.render`, `outreach.judge` | Memory Bank (style adapt) | response_match_v2 + spam_score |
+| `conversation` | 1 | Gemini 3.1 Flash-Lite | `nlp.classify_intent` | Session | classification_f1 |
+| `conversation_responder` | 1 | Gemini 3.1 Pro | `templates.list`, `outreach.render` | Memory Bank | response_match_v2 |
+| `logistics` | 1 | Gemini 3.1 Flash-Lite | `address.normalize`, `carrier.create` | Session | structured_extract_accuracy |
+| `content_verify` | 1 | Gemini 3.1 Flash-Lite multimodal | `rapidapi.post_detail`, `vision.brand_logo_detect` | None | precision + recall vs holdout |
+| `analyst` | 1 | Gemini 3.1 Pro | `bigquery.query`, `view_metrics.aggregate` | Memory Bank | accuracy + grounding score |
+| `research` | 1 | Gemini 3.1 Pro | `web.search` (Google grounding), `vector_search.competitor` | Memory Bank | hallucinations_v1 |
+| `intake` | 1 | Gemini 3.1 Flash-Lite | `forms.upsert` | Session | task_completion |
+| `lead_outreach_writer` | 1 | Gemini 3.1 Pro | `templates.list`, `outreach.render`, `crm.enrich` | Memory Bank | response_match_v2 |
+| `payment_mandate` (NEW) | 1 | Gemini 3.1 Flash-Lite | `ap2.compose_intent_mandate`, `gate.approveOutreachSend` | Session | mandate_validity |
+| `compliance` (NEW) | 1 | Gemini 3.1 Pro | `pipa.check_consent`, `canspam.check_unsubscribe`, `dlp.inspect` | Memory Bank | precision (no false-clear) |
+| `creative` (NEW) | 1 | Gemini 3.1 Pro + Imagen 4 + Veo 3 | `imagen.generate`, `veo.generate`, `lyria.generate`, `assets.upload` | Memory Bank (brand) | safety_v1 + brand_consistency |
+| `a11y` (NEW) | 1 | Gemini 3.1 Flash-Lite | `vision.describe`, `stt.transcribe`, `tts.synthesize`, `translation.translate` | None | a11y_compliance_score |
+| `customer_success` (NEW) | 1 | Gemini 3.1 Pro | `analytics.funnel`, `intervention.propose` | Memory Bank (per-customer) | activation_lift |
+| `coordinator` (M1) | 2 | Gemini 3.1 Flash-Lite | `agent_registry.list`, `a2a.invoke` | Session | routing_accuracy |
+| `critic` (M2) | 2 | Gemini 3.1 Pro | `evaluation.score`, `gate.escalate` | None | judge_agreement_v_human |
+| `optimizer` (M3) | 2 | Gemini 3.1 Pro | `agent_optimizer.tune`, `prompt_registry.update` | None | offline_eval_lift |
+| `anomaly_watch` (W1) | 3 | Gemini 3.1 Flash-Lite | `metrics.query`, `runbook.execute` | None | precision (alert vs false) |
 | `cost_watch` (W2) | 3 | rule-based (no LLM, but agent-shaped for D23 consistency) | `billing.query`, `pubsub.alert` | None | latency to alert |
-| `security_watch` (W3) | 3 | Gemini 2.5 Flash | `model_armor.query_blocks`, `chronicle.query`, `tenant.quarantine` | None | TTR (time to remediate) |
+| `security_watch` (W3) | 3 | Gemini 3.1 Flash-Lite | `model_armor.query_blocks`, `chronicle.query`, `tenant.quarantine` | None | TTR (time to remediate) |
 
 **Total: 22 agents** (16 domain + 3 meta + 3 watchdog) per D23.
 
@@ -252,7 +252,7 @@ sequenceDiagram
   WF->>SP: persist tracks (CMEK-encrypted, D20)
   WF->>PS: publish creator-track-fanout events
   PS->>OW: draft outreach (per creator)
-  OW->>OW: tournament 5×4 (Gemini 2.5 Pro)
+  OW->>OW: tournament 5×4 (Gemini 3.1 Pro)
   OW->>CP: pre-send compliance check
   CP->>CP: PIPA consent + CAN-SPAM + DLP inspect
   CP-->>OW: clearance OR escalation

@@ -23,9 +23,8 @@ agent-studio
 agent-garden
 agents-cli
 gemini-3.1-pro-preview
-gemini-2.5-pro
-gemini-2.5-flash
-gemini-2.5-flash-lite
+gemini-3.1-pro
+gemini-3.1-flash-lite
 model-context-protocol
 a2a-protocol-v0.3
 ap2-protocol-v0.2
@@ -178,8 +177,8 @@ json-schema
 agent-development-kit-python-2.0-beta
 agent-studio
 agents-cli
-gemini-2.5-flash
-gemini-2.5-flash-lite
+gemini-3.1-pro
+gemini-3.1-flash-lite
 model-context-protocol
 a2a-protocol-v0.3
 cloud-marketplace

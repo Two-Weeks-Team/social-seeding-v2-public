@@ -2,13 +2,13 @@
 
 Tournament-pattern port of v1's `lib/cold-mail` discipline + v2's
 `packages/agents/src/outreach-writer.agent.ts:34-133`, reshaped onto ADK +
-Gemini 2.5 Pro + Pydantic, following the contract in
+Gemini 3.1 Pro + Pydantic, following the contract in
 `gcp-research/specs/tier1/outreach_writer.spec.md`.
 
 Tournament shape (per task brief + spec §1 + §5 sequence):
     1. 5 candidate drafts produced in parallel from 5 angles
          (pain_killer / aspirational / peer_proof / data_specific / contrarian_hook).
-       Each angle is its own short Gemini 2.5 Pro call (single-angle prompt).
+       Each angle is its own short Gemini 3.1 Pro call (single-angle prompt).
     2. For every successful draft, 4 judges score in parallel:
          brand / conversion / deliverability / skeptic.
     3. Final score per draft = JUDGE_WEIGHTS-weighted GEOMETRIC mean of the
@@ -38,7 +38,7 @@ Escalation conditions (per task brief + spec §6):
     - input locale ∉ {ko, en, ja, zh-CN}                 → locale validation (Pydantic)
 
 Citations:
-    D5  — Gemini 2.5 Pro for judgment (drafter + judges share the Pro tier).
+    D5  — Gemini 3.1 Pro for judgment (drafter + judges share the Pro tier).
     D10 — Gmail demo restricted to operator-owned test accounts (writer never sends).
     D21 — Model Armor PII/competitor regex scans drafter input + output at the
           gateway; this agent's prompt_guard is the in-process belt-and-braces.
@@ -47,7 +47,7 @@ Citations:
           gates sit between writer and gmail.send (never bypassed).
     D34 — 4-locale support: ko / en / ja / zh-CN.
     ARCHITECTURE.md §3 row 3:
-        outreach_writer | 1 | Gemini 2.5 Pro tournament | templates.list,
+        outreach_writer | 1 | Gemini 3.1 Pro tournament | templates.list,
         outreach.extract_facts, outreach.render, outreach.judge | Memory Bank
         | response_match_v2 + spam_score
     v2 reference: packages/agents/src/outreach-writer.agent.ts:34-133.
@@ -536,7 +536,7 @@ outreach_drafter_agent_def: AgentDef[_DrafterInput, OutreachDraft] = AgentDef(
         "Inner drafter — produces ONE OutreachDraft for ONE angle. Invoked 5x "
         "in parallel by the outreach_writer tournament orchestrator."
     ),
-    model="gemini-2.5-pro",  # D5 — judgment-grade prose for a 200-800 char body.
+    model="gemini-3.1-pro",  # D53 — judgment-grade prose for a 200-800 char body.
     max_usd=_DRAFTER_MAX_USD,
     input_schema=_DrafterInput,
     output_schema=OutreachDraft,
@@ -554,7 +554,7 @@ outreach_judge_agent_def: AgentDef[_JudgeInput, JudgeScoreCard] = AgentDef(
         "Inner judge — scores ONE draft on ONE rubric "
         "(brand / conversion / deliverability / skeptic). Invoked 4x per draft."
     ),
-    model="gemini-2.5-pro",  # D5 — calibration of [0,1] needs Pro-level judgment.
+    model="gemini-3.1-pro",  # D53 — calibration of [0,1] needs Pro-level judgment.
     max_usd=_JUDGE_MAX_USD,
     input_schema=_JudgeInput,
     output_schema=JudgeScoreCard,
@@ -630,7 +630,7 @@ outreach_writer_agent_def: AgentDef[OutreachWriterInput, OutreachTournamentWinne
             "scorecards attached. Per outreach_writer.spec.md "
             "(D23 Tier-1 agent #3)."
         ),
-        model="gemini-2.5-pro",
+        model="gemini-3.1-pro",
         max_usd=OUTREACH_WRITER_TOURNAMENT_MAX_USD,
         input_schema=OutreachWriterInput,
         output_schema=OutreachTournamentWinner,
