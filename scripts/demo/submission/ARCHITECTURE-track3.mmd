@@ -1,38 +1,62 @@
-%% ARCHITECTURE-track3.mmd
-%% ----------------------------------------------------------------------------
-%% Track 3 (tiktok-mcp-server) architecture. Implements
-%% gcp-research/demo-deliverables/SUBMISSION-PACKAGE.md §2 template, refined
-%% with D2 / D3 (KR-region gap reframing) and D17 / D24 (A2A v0.3
-%% distribution path).
-%%
-%% Render:
-%%   mmdc -i ARCHITECTURE-track3.mmd -o ARCHITECTURE-track3.png \
-%%        -w 1600 -H 900 -b transparent --theme neutral
-%% ----------------------------------------------------------------------------
 flowchart LR
-  ge[Gemini Enterprise customer agent<br/>OR Claude Desktop · Cursor MCP client] --> entry
+%% ARCHITECTURE-track3.mmd
+%% Social Seeding v2 — Google for Startups AI Agents Challenge, Track 3 (Refactor).
+%% Single grand-narrative submission (D45/D50): the 22-agent ADK fleet + the
+%% brand-campaign Cloud Workflow + the OSS tiktok-mcp-server A2A node.
+%%
+%% Reflects the CURRENT LIVE state (verified 2026-05-21):
+%%   - 22-agent fleet (16 Tier-1 domain, 3 Tier-2 meta, 3 Tier-3 watchdog) D23
+%%   - models: gemini-3.5-flash (judgment + coordinator) + gemini-3.1-flash-lite
+%%     (bulk), Vertex global endpoint, D53
+%%   - LIVE: ss-agents Cloud Run, ss-mcp-server Cloud Run, brand-campaign-demo
+%%     Cloud Workflow, ss-landing demo (all min=0, ~$1-5/mo)
+%%   - A2A v0.3 message:send edge: coordinator -> ss-mcp.plan_creator_search
+%%     (exec 7c08ce50, SUCCEEDED 15.8s, 5 RankedCreators), D45
+%%   - Google Search grounding on web.search (research agent), D53
+%%
+%% Render: mmdc -i ARCHITECTURE-track3.mmd -o ARCHITECTURE-track3.png -w 1800 -H 1000 -b transparent --theme neutral
+  user[Brand manager<br/>ss-landing demo / Mission Control] --> entry
 
-  entry{{Cloud Load Balancing Global · Cloud Armor<br/>Identity Platform multi-tenant · D19<br/>Apigee X per-call meter · D28}}
+  entry{{Cloud Run ingress · Identity Platform OIDC<br/>AP2 v0.2 Intent Mandate gate · D27}}
 
-  entry --> orch[ADK orchestration agent<br/>Vertex AI Agent Runtime · D17<br/>Gemini 3.1 Flash-Lite · A2A v0.3]
+  entry --> orch[brand-campaign-demo<br/>Cloud Workflow · LIVE · ss-v2-prod<br/>durable orchestration]
 
-  orch -. inline guardrail .-> armor[Model Armor max policy<br/>PI / JB / PII / Custom regex · D21]
+  orch --> coord[coordinator agent · Tier-2 meta · M1<br/>ss-agents Cloud Run · LIVE<br/>gemini-3.5-flash · global endpoint · D53<br/>Model Garden publisher routing · D47]
 
-  orch --> mcp[MCP endpoint · Cloud Run<br/>4 tools · MCP spec-compliant]
+  subgraph FLEET[22-agent ADK fleet · run_agent · D23]
+    t1[Tier-1 domain × 16<br/>sourcing · vetting · outreach_writer · conversation<br/>responder · logistics · content_verify · analyst<br/>research · intake · lead_outreach · payment_mandate<br/>compliance · creative · a11y · customer_success]
+    t2[Tier-2 meta × 3<br/>coordinator · critic · optimizer]
+    t3[Tier-3 watchdog × 3<br/>anomaly · cost · security]
+  end
 
-  mcp --> tools[search_users · user_info<br/>user_posts · post_detail]
+  coord --> t1
+  coord --> t3
 
-  tools --> scrapers[(Existing scraper fleet · D8 / D14<br/>5 services · RapidAPI · Vultr<br/>Cloud Service Mesh mTLS)]
+  coord -- A2A v0.3 message:send · D45 --> mcp
+  cverify[content_verify agent · Tier-1] -- A2A v0.3 message:send --> mcp
 
-  orch --> registry[Agent Registry · agent.json<br/>A2A v0.3 verified · D3 reframing<br/>SPIFFE Agent Identity]
+  subgraph OSS[OSS tiktok-mcp-server · ss-mcp-prod · LIVE]
+    mcp[ss-mcp-server · Cloud Run<br/>A2A v0.3 node · signed agent card JWS ES256 · D48<br/>SPIFFE Agent Identity]
+    skills[A2A skills<br/>plan_creator_search · get_brand_assets DAM]
+    mtools[MCP tools × 4<br/>search_users · user_info · user_posts · post_detail]
+  end
 
-  registry -.distribution.-> dist[Cloud Marketplace listing<br/>PENDING · KR payment-region · D2<br/>+ A2A-only path · D3]
+  mcp --> skills
+  mcp --> mtools
+  mtools --> scrapers[(Existing scraper fleet · D14<br/>5 services · RapidAPI · Vultr)]
 
-  armor -.audit.-> sec[Chronicle SecOps SIEM · D32<br/>Cloud Logging · Audit Logs · D33<br/>Watchdog W3 quarantine threshold]
+  t1 -. capability layer .-> cap[Capabilities · typed I/O boundary<br/>web.search → Google Search grounding · D53<br/>gmail.send · ranking · tiktok · imagen]
+  coord -. inline guardrail .-> armor[Model Armor sanitize · D21<br/>PI / JB / PII block]
+
+  t1 -. eval + tune .-> learn[Vertex AI Prompt Optimizer · data-driven · D51<br/>Agent Observability → Cloud Trace<br/>Vertex Memory Bank · Firestore default]
+
+  armor -. audit .-> sec[Cloud Trace · Cloud Logging<br/>Audit Logs · Chronicle SecOps]
 
   classDef gcp fill:#4285F4,stroke:#1A73E8,color:#fff,stroke-width:1px;
-  classDef boundary fill:#FFD400,stroke:#F9AB00,color:#000,stroke-width:2px;
-  classDef gap fill:#EA4335,stroke:#C5221F,color:#fff,stroke-width:2px;
-  class orch,mcp,tools,registry,sec,armor gcp;
+  classDef live fill:#34A853,stroke:#1E7E34,color:#fff,stroke-width:2px;
+  classDef boundary fill:#FBBC04,stroke:#F9AB00,color:#000,stroke-width:2px;
+  classDef oss fill:#9334E6,stroke:#6A1B9A,color:#fff,stroke-width:1px;
+  class coord,t1,t2,t3,cap,armor,learn,sec gcp;
+  class orch,mcp live;
   class entry boundary;
-  class dist gap;
+  class skills,mtools,scrapers oss;
