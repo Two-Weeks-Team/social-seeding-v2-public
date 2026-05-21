@@ -1,34 +1,212 @@
-# Social Seeding v2 — agent-orchestrated TikTok influencer campaign operator
+# Social Seeding v2 — an agent-operated TikTok influencer-campaign platform
 
 <p align="center">
-  <a href="https://ss-landing-80064221403.us-central1.run.app/"><img src="https://img.shields.io/badge/LIVE%20DEMO-Cloud%20Run-1A73E8?style=for-the-badge&logo=googlecloud&logoColor=white" alt="Live Demo"/></a>
-  <a href="https://github.com/Two-Weeks-Team/social-seeding-v2/pull/1"><img src="https://img.shields.io/badge/PR%20%231-MERGED-34A853?style=for-the-badge&logo=github&logoColor=white" alt="PR #1 MERGED"/></a>
-  <a href="./gcp-research/reports/social-seeding-status-2026-05-19.html"><img src="https://img.shields.io/badge/PROGRESS%20REPORT-2026--05--19-7C3AED?style=for-the-badge&logo=googledocs&logoColor=white" alt="Progress Report"/></a>
+  <a href="https://ss-landing-80064221403.us-central1.run.app/demo/"><img src="https://img.shields.io/badge/LIVE%20DEMO-Cloud%20Run-1A73E8?style=for-the-badge&logo=googlecloud&logoColor=white" alt="Live Demo"/></a>
+  <a href="#track-3--the-6-official-requirements"><img src="https://img.shields.io/badge/Google%20for%20Startups-AI%20Agents%20Track%203-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white" alt="Track 3"/></a>
+  <a href="#live-evidence"><img src="https://img.shields.io/badge/A2A%20v0.3-LIVE%20in%20Cloud%20Workflow-34A853?style=for-the-badge&logo=googlecloud&logoColor=white" alt="A2A live"/></a>
 </p>
 
-<p align="center">
-  <em>Google for Startups AI Agents Challenge 2026 — Track 2 (Optimize) + Track 3 (Refactor) dual submission.<br/>
-  Deadline 2026-06-05 23:59 PT.</em>
-</p>
+> **What it is.** Social Seeding v2 turns a brand brief into a finished TikTok influencer campaign by handing the loop — **source → vet → outreach → reply-handling → ship → verify content → report** — to a fleet of 22 specialized agents, with the human stepping in only at the policy gates they choose to keep on. The dashboard becomes **Mission Control**: a timeline of what the agents did + an approval inbox, not a manual-labor surface.
 
-> Rewrite of [`Two-Weeks-Team/social-seeding`](https://github.com/Two-Weeks-Team/social-seeding) (v1, frozen 2026-05-13 — see that repo's `FREEZE.md`).
->
-> **The shift:** v1 was a *tool dashboard* — the human was the operator, clicking through a 6-step workflow board, hand-writing emails, manually advancing stages, with an AI chat bolted on as a read-only "ask my data" sidebar. v2 makes **the agent the operator**: you give it a campaign brief, a team of specialized agents runs the loop (source → vet → outreach → reply-handling → ship → verify content → report), and you only step in at the decision gates you choose to keep on. The dashboard becomes **Mission Control** — a timeline of what the agents did + an approval inbox — not a manual-labor surface.
+**Live demo (no install, runs in your browser):** **<https://ss-landing-80064221403.us-central1.run.app/demo/>**
 
-> **For LLMs picking this up**: jump to [§ For agents picking up the codebase](#for-agents-picking-up-the-codebase). State: `docs/STATUS.md` → `HANDOFF.md` → `CLAUDE.md` → `docs/ARCHITECTURE.md`.
-> **For team members**: jump to [§ TL;DR — what's running, what works](#tldr--whats-running-what-works) then [§ An end-to-end run actually looks like this](#an-end-to-end-run-actually-looks-like-this).
+**The Build → Optimize → Refactor arc (Track 3, single grand-narrative submission, D45/D50).** We **built** a 22-agent ADK fleet on Vertex AI that runs the full campaign loop as durable orchestration. We **optimized** its weakest link — the reply-triage agent — with a data-driven hardening pass that lifted routing accuracy 40.5% → 100% on the training set and 71.4% on a held-out adversarial set the rules never saw (28.6pp gap, kept honest). We **refactored** the TikTok capability into a standalone OSS `tiktok-mcp-server` that the coordinator reaches over **A2A v0.3** — an edge that runs **live inside a deployed Cloud Workflow** (execution `7c08ce50`, SUCCEEDED 15.8s, 5 real ranked creators).
+
+---
+
+## Architecture
+
+Four Cloud Run / Cloud Workflow components are deployed live (project `ss-v2-prod` / `ss-mcp-prod` / `ss-shared-infra`, all Cloud Run `min=0` ≈ $1–5/mo). The diagram below shows the request path: a brand brief enters the `brand-campaign-demo` Cloud Workflow, the **coordinator** (`gemini-3.5-flash`, served on the Vertex **`global`** endpoint, routed through the Model Garden publisher plane) decides who runs, the 22-agent fleet executes, and the creator-sourcing and brand-asset legs cross to the OSS `tiktok-mcp-server` node over **A2A v0.3 `message:send`**.
+
+```mermaid
+flowchart LR
+  user[Brand manager<br/>ss-landing demo / Mission Control] --> entry
+
+  entry{{Cloud Run ingress · Identity Platform OIDC<br/>AP2 v0.2 Intent Mandate gate · D27}}
+
+  entry --> orch[brand-campaign-demo<br/>Cloud Workflow · LIVE · ss-v2-prod<br/>durable orchestration]
+
+  orch --> coord[coordinator agent · Tier-2 meta<br/>ss-agents Cloud Run · LIVE<br/>gemini-3.5-flash · global endpoint · D53<br/>Model Garden routing · D47]
+
+  subgraph FLEET[22-agent ADK fleet · run_agent · D23]
+    t1[Tier-1 domain × 16<br/>sourcing · vetting · outreach_writer · conversation<br/>responder · logistics · content_verify · analyst<br/>research · intake · lead_outreach · payment_mandate<br/>compliance · creative · a11y · customer_success]
+    t2[Tier-2 meta × 3<br/>coordinator · critic · optimizer]
+    t3[Tier-3 watchdog × 3<br/>anomaly · cost · security]
+  end
+
+  coord --> t1
+  coord --> t3
+
+  coord -- A2A v0.3 message:send · D45 --> mcp
+  cverify[content_verify agent · Tier-1] -- A2A v0.3 message:send --> mcp
+
+  subgraph OSS[OSS tiktok-mcp-server · ss-mcp-prod · LIVE]
+    mcp[ss-mcp-server · Cloud Run<br/>A2A v0.3 node · signed card JWS ES256 · D48<br/>SPIFFE Agent Identity]
+    skills[A2A skills<br/>plan_creator_search · get_brand_assets DAM]
+    mtools[MCP tools × 4<br/>search_users · user_info · user_posts · post_detail]
+  end
+
+  mcp --> skills
+  mcp --> mtools
+  mtools --> scrapers[(Existing scraper fleet · D14<br/>5 services · RapidAPI · Vultr)]
+
+  t1 -. capability layer .-> cap[Capabilities · typed I/O boundary<br/>web.search → Google Search grounding · D53<br/>gmail.send · ranking · tiktok · imagen]
+  coord -. inline guardrail .-> armor[Model Armor sanitize · D21<br/>PI / JB / PII block]
+
+  t1 -. eval + tune .-> learn[Vertex AI Prompt Optimizer · data-driven · D51<br/>Agent Observability → Cloud Trace<br/>Vertex Memory Bank · Firestore default]
+
+  armor -. audit .-> sec[Cloud Trace · Cloud Logging<br/>Audit Logs · Chronicle SecOps]
+
+  classDef gcp fill:#4285F4,stroke:#1A73E8,color:#fff,stroke-width:1px;
+  classDef live fill:#34A853,stroke:#1E7E34,color:#fff,stroke-width:2px;
+  classDef boundary fill:#FBBC04,stroke:#F9AB00,color:#000,stroke-width:2px;
+  classDef oss fill:#9334E6,stroke:#6A1B9A,color:#fff,stroke-width:1px;
+  class coord,t1,t2,t3,cap,armor,learn,sec gcp;
+  class orch,mcp live;
+  class entry boundary;
+  class skills,mtools,scrapers oss;
+```
+
+**Legend** — 🟩 green = **deployed live** (`brand-campaign-demo` Workflow, `ss-agents` + `ss-mcp-server` Cloud Run); 🟦 blue = GCP-managed agent/capability surfaces; 🟪 purple = the OSS `tiktok-mcp-server` node + its skills/tools/scrapers; 🟨 yellow = the trust/policy boundary. Solid edges are the live request path; dashed edges are guardrail / capability / observability side-channels. The fleet split is **16 Tier-1 domain + 3 Tier-2 coordinator·critic·optimizer + 3 Tier-3 anomaly·cost·security watchdogs = 22** (D23). Standalone render source: [`scripts/demo/submission/ARCHITECTURE-track3.mmd`](scripts/demo/submission/ARCHITECTURE-track3.mmd).
+
+---
+
+## The Build → Optimize → Refactor arc
+
+```mermaid
+flowchart LR
+  subgraph B[BUILD]
+    b1[22-agent ADK fleet<br/>on Vertex AI · D23]
+    b2[brand-campaign loop<br/>source→vet→outreach→reply→ship→verify→report]
+    b3[Mission Control + AP2<br/>Intent Mandate gates · D27]
+    b1 --> b2 --> b3
+  end
+
+  subgraph O[OPTIMIZE]
+    o1[Reply-triage agent<br/>identified as weakest link]
+    o2[Data-driven hardening pass<br/>56-case multilingual set]
+    o3[40.5% → 100% train<br/>71.4% holdout · 28.6pp gap kept honest]
+    o4[Agent Observability → Cloud Trace<br/>Vertex Prompt Optimizer wired · D51]
+    o1 --> o2 --> o3 --> o4
+  end
+
+  subgraph R[REFACTOR]
+    r1[Extract TikTok capability<br/>→ OSS tiktok-mcp-server]
+    r2[A2A v0.3 node · signed card<br/>JWS ES256 + JWKS · D48]
+    r3[coordinator → a2a_invoke<br/>LIVE in Cloud Workflow · exec 7c08ce50]
+    r4[KR Marketplace gap<br/>→ A2A-only distribution OSS template · D3]
+    r1 --> r2 --> r3 --> r4
+  end
+
+  B ==> O ==> R
+
+  classDef build fill:#4285F4,stroke:#1A73E8,color:#fff;
+  classDef opt fill:#FBBC04,stroke:#F9AB00,color:#000;
+  classDef ref fill:#34A853,stroke:#1E7E34,color:#fff;
+  class b1,b2,b3 build;
+  class o1,o2,o3,o4 opt;
+  class r1,r2,r3,r4 ref;
+```
+
+The Optimize chapter is folded into the single Track 3 entry as the "we hardened it" evidence (D50): Agent Observability surfaces a stall, the data-driven pass repairs the triage agent, and the before/after is a committed, re-runnable offline measurement (`scripts/smoke-test/run-hardening-measure.sh`). The live **Vertex AI Prompt Optimizer (data-driven / VAPO)** is the production path and is wired operator-gated (see [`HONEST-SCOPE.md`](scripts/demo/submission/HONEST-SCOPE.md) row 1).
+
+---
+
+## A2A cross-call sequence
+
+Two real A2A v0.3 `message:send` hops cross from the agent fleet to the OSS `tiktok-mcp-server` node. The first ran live inside the `brand-campaign-demo` Cloud Workflow (exec `7c08ce50`); the second makes the official Guide's Build Example #2 (marketing agent → multimodal → A2A → DAM) transport-exact.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant WF as brand-campaign-demo<br/>Cloud Workflow (LIVE)
+  participant CO as coordinator agent<br/>(gemini-3.5-flash · global)
+  participant MCP as ss-mcp-server<br/>(A2A v0.3 node · LIVE)
+  participant SCR as scraper fleet<br/>(RapidAPI · Vultr)
+
+  Note over WF,CO: Creator-sourcing leg
+  WF->>CO: route(brand_brief)
+  CO->>CO: Model Garden routing · D47<br/>chosenAgentId = tiktok-mcp-search
+  CO->>MCP: a2a_invoke → message:send<br/>skill: plan_creator_search
+  MCP->>SCR: search_users / user_info
+  SCR-->>MCP: raw creator data
+  MCP-->>CO: task {state: completed}<br/>5 RankedCreators
+  CO-->>WF: trackCount = 5 (SUCCEEDED 15.8s)
+
+  Note over CO,MCP: Content-verify leg (Build Example #2)
+  CO->>MCP: content_verify → message:send<br/>skill: get_brand_assets (DAM)
+  MCP-->>CO: task {state: completed}<br/>brand asset references
+```
+
+Both hops use the same A2A v0.3 `message:send` envelope (`{"message":{"role":"user","parts":[...]}}` → `{"kind":"task","status":{"state":"completed"},"artifacts":[...]}`). The intents are documented in [`gcp-research/refactor-mcp/A2A-INTENTS.md`](gcp-research/refactor-mcp/A2A-INTENTS.md) (Track 3 requirement #6).
+
+---
+
+## Tech stack
+
+| Layer | Choice | Notes |
+|---|---|---|
+| **Models** | `gemini-3.5-flash` (judgment + coordinator; GA 2026-05-19) + `gemini-3.1-flash-lite` (bulk) | Served on the Vertex **`global`** endpoint. `$1.50/$9.00` and `$0.25/$1.50` per 1M tokens. Gemini-3.x family only — the larger pro tier returns 404 (Preview allowlist not granted in our project), so we use flash; no prior-generation or third-party models remain in the product (D53). |
+| **Agent runtime** | Agent Development Kit (ADK) · `run_agent` (curated tools, Zod/Pydantic output contract, USD cap, escalation) | 22-agent fleet (16 domain + 3 meta + 3 watchdog, D23). Routed through the **Model Garden** publisher plane (`publishers/google/models/...`, D47). |
+| **Orchestration** | **Cloud Workflows** (`brand-campaign-demo`, LIVE) | Durable; the coordinator routes, then the workflow does the A2A transport switch. |
+| **Agent compute** | **Cloud Run** — `ss-agents` (FastAPI `serve.py` over `run_agent`) + `ss-mcp-server` (OSS A2A node) | Both `min=0`. `ss-landing` (Cloud Run) serves the demo + report. |
+| **Inter-agent protocol** | **A2A v0.3** `message:send` + signed agent card (JWS ES256 / RFC 7515, JCS RFC 8785) + JWKS | SPIFFE Agent Identity per agent (D48). |
+| **Grounding** | **Google Search grounding** on the `web.search` capability | `gemini-3.5-flash` + built-in `GoogleSearch` tool, cites `grounding_metadata` sources — demonstrated live (D53), not a chat completion. |
+| **Guardrails / security** | Model Armor sanitize (PI/JB/PII), `prompt-guard` on user text, Cloud Audit Logs → Chronicle SecOps | D21. |
+| **Observability** | Agent Observability → **Cloud Trace** (OTel spans per `run_agent`), token/cost ledger | Gated by `SS_OTEL_ENABLED`. |
+| **Memory** | Vertex AI **Memory Bank** (Firestore as zero-config default) | Env-gated managed backend (D51). |
+| **Optimization** | Vertex AI **Prompt Optimizer** (data-driven / VAPO), wired operator-gated | D51. |
+| **Multimodal** | Imagen 4 (real 1024×1024 sample via standalone script; in-fleet tool W7-staged) | See [`HONEST-SCOPE.md`](scripts/demo/submission/HONEST-SCOPE.md) row 10. |
+| **Data (product)** | MongoDB Atlas (shared v1 cluster + `v2_*` collections) | The TS app layer; the ADK fleet's data plane targets Spanner/AlloyDB/Firestore per the architecture-of-record. |
+| **Distribution** | OSS `tiktok-mcp-server` + the **A2A-only distribution** forkable template (`oss/a2a-only-distribution/`) | KR-region Marketplace-payment gap reframed as the innovation contribution (D2/D3). |
+
+---
+
+## Track 3 — the 6 official requirements
+
+| # | Requirement | Status | Proof |
+|---|---|---|---|
+| ① | **B2B SaaS** agent product | ✓ | Multi-tenant influencer-campaign platform with per-call MCP tiers; ~99.7% vs agency management fee, TAM $1.15B ([`BUSINESS-CASE.md`](scripts/demo/submission/BUSINESS-CASE.md)). |
+| ② | Deployed on **Cloud Run** | ✓ | `ss-agents`, `ss-mcp-server`, `ss-landing` all live on Cloud Run (`min=0`); `brand-campaign-demo` on Cloud Workflows. |
+| ③ | **Model Garden** LLM routing | ✓ | `projects/ss-v2-prod/locations/us-central1/publishers/google/models/gemini-3.1-flash-lite` returned a validated `CoordinatorOutput`, exit 0; the live workflow coordinator ran with `MODEL_GARDEN_ROUTING=true` (D47). |
+| ④ | **A2A v0.3** | ✓ | `coordinator → a2a_invoke → ss-mcp.plan_creator_search` ran live in the Cloud Workflow (exec `7c08ce50`, SUCCEEDED 15.8s, 5 RankedCreators); signed agent card (JWS ES256) + JWKS (D48). |
+| ⑤ | **Multi-agent orchestration** (live) | ✓ | 22-agent fleet; the `brand-campaign-demo` Workflow routed coordinator → fleet → A2A → live ss-mcp end-to-end. |
+| ⑥ | **A2A intents documentation** + Agent Identity | ✓ | [`A2A-INTENTS.md`](gcp-research/refactor-mcp/A2A-INTENTS.md) (exposed + consumed intents) + SPIFFE Agent Identity ([`AGENT-IDENTITY.md`](gcp-research/refactor-mcp/AGENT-IDENTITY.md), D48). |
+
+---
+
+## Live evidence
+
+- **Live demo:** <https://ss-landing-80064221403.us-central1.run.app/demo/>
+- **Live A2A-in-workflow execution:** `7c08ce50` — SUCCEEDED 15.8s, 5 RankedCreators (top `@kr_vegan_beauty`, 412k followers). Evidence: [`scripts/demo/assets/live-orchestration-evidence.md`](scripts/demo/assets/live-orchestration-evidence.md).
+- **Model Garden live smoke:** `scripts/smoke-test/run-model-garden-live.sh` (operator ADC) → validated `CoordinatorOutput`, exit 0.
+- **Google Search grounding live:** `scripts/smoke-test/run-web-search-grounding.sh` → 5 real K-beauty/TikTok sources with URLs + per-source snippets from `grounding_metadata`.
+- **Triage hardening:** `scripts/smoke-test/run-hardening-measure.sh` → 40.5% → 100% train / 71.4% holdout (offline, $0).
+- **Gates:** `agents-adk` pytest **2924**; `pnpm run verify-build` green.
+- **Architecture render source:** [`scripts/demo/submission/ARCHITECTURE-track3.mmd`](scripts/demo/submission/ARCHITECTURE-track3.mmd).
+
+---
+
+## Honest scope
+
+Every honesty caveat lives in one place — [`scripts/demo/submission/HONEST-SCOPE.md`](scripts/demo/submission/HONEST-SCOPE.md) (production path vs shipped-for-judging, per feature, with the re-runnable proof command). In short: most surfaces are **GA-real** (code real, offline tests green; going live is an operator ADC/billing step), the A2A-in-workflow / Model Garden / Search-grounding rows are **demonstrated-live**, and the only items not in our control are the **3 Google-gated** ones: `*-pro` Preview not granted (we use `gemini-3.5-flash`), Agent Gateway mTLS is in **Private Preview**, and Gemini Enterprise enrollment is on Google's allowlist (O7 — **not required for judging**, since the signed A2A card + JWKS make the agent discoverable today).
 
 ---
 
 ## Live demo (no install)
 
-Click here to view a 6-minute interactive walkthrough — no signup, no GCP setup, runs entirely in your browser:
+The hosted walkthrough simulates a real mouse session over Mission Control: brand brief intake → 22-agent fleet → AP2 mandate signing → multimodal creative → reply classification → cost ledger. Toggle 4 locales (ko / en / ja / zh-CN), adjust playback `0.5×` ~ `8×`, jump to any of 24 scenes.
 
-👉 **[https://ss-landing-80064221403.us-central1.run.app/](https://ss-landing-80064221403.us-central1.run.app/)**
+👉 **[https://ss-landing-80064221403.us-central1.run.app/demo/](https://ss-landing-80064221403.us-central1.run.app/demo/)**
 
-The demo simulates a real mouse session over Mission Control: brand brief intake → 22-agent fleet → AP2 mandate signing → multimodal creative → reply classification → cost ledger. Toggle 4 locales (ko / en / ja / zh-CN), adjust playback `0.5×` ~ `8×`, jump to any of 24 scenes (Track 2 + Track 3).
+> **Hosting**: Cloud Run on `ss-shared-infra` (us-central1, min=0 / max=10, 256Mi). Source: `site/`. Re-deploy: `cd site && gcloud run deploy ss-landing --source=. --project=ss-shared-infra --region=us-central1 --allow-unauthenticated --quiet`. Total cost target: < $1/month at demo traffic.
 
-> **Hosting**: Cloud Run on `ss-shared-infra` project (D39 GCP credits, us-central1, min=0 / max=10, 256Mi memory). Source: `site/` directory. Manual re-deploy: `cd site && gcloud run deploy ss-landing --source=. --project=ss-shared-infra --region=us-central1 --allow-unauthenticated --quiet`. The Cloud Run service auto-rebuilds the container from `site/Dockerfile` (nginx:alpine static server). Total cost target: < $1/month at demo traffic.
+---
+
+> **For LLMs picking this up**: jump to [§ For agents picking up the codebase](#for-agents-picking-up-the-codebase). State: `docs/STATUS.md` → `HANDOFF.md` → `CLAUDE.md` → `docs/ARCHITECTURE.md`.
+> **For team members**: jump to [§ TL;DR — what's running, what works](#tldr--whats-running-what-works) then [§ An end-to-end run actually looks like this](#an-end-to-end-run-actually-looks-like-this).
+
+> The product shift, in one line: v1 was a *tool dashboard* (the human clicked through a 6-step board and hand-wrote emails); v2 makes **the agent the operator** and the human reviews at the gates. Rewrite of [`Two-Weeks-Team/social-seeding`](https://github.com/Two-Weeks-Team/social-seeding) (v1, frozen 2026-05-13 — see that repo's `FREEZE.md`).
 
 ---
 
@@ -43,15 +221,15 @@ Inngest       10 functions registered (brand-campaign, creator-track, lead-campa
 Mongo         23 indexes on 14 v2_* collections + 13 SHARED_* read-only carry-overs from v1
 verify-build  green (lint + next build + tsc across 7 packages)
 Live demo     2026-05-14/15 — full loop verified end-to-end:
-                · brand brief → sourcing agent (Opus) → 4 candidates
-                · vetting agent (Opus × 4 fan-out) → 2 shortlisted
+                · brand brief → sourcing agent (gemini-3.5-flash) → 4 candidates
+                · vetting agent (gemini-3.5-flash × 4 fan-out) → 2 shortlisted
                 · approveShortlist gate → operator approved
-                · creator-track → outreach-writer (Opus tournament) → Korean email
+                · creator-track → outreach-writer (gemini-3.5-flash tournament) → Korean email
                 · approveOutreachSend gate → operator approved
                 · gmail.send → ACTUAL email sent (msgId 19e264a093c97c8e)
-                · reply received → classify-reply (Haiku, "interested") → respond (Opus)
+                · reply received → classify-reply (gemini-3.1-flash-lite, "interested") → respond (gemini-3.5-flash)
                 · two follow-up emails on the same Gmail thread
-                · final reply with shipping address → logistics (Haiku) → shipment.create
+                · final reply with shipping address → logistics (gemini-3.1-flash-lite) → shipment.create
                 · ↑ deferred at the carrier integration boundary (YUNTRACK)
 ```
 
@@ -95,7 +273,7 @@ v1 accumulated 3 years of strata — multi-SNS→TikTok, Express→Go→Next.js,
 | Orchestration engine | **Inngest** | Serverless/Vercel-friendly durable execution: `step.run` (atomic + retried), `step.sleep` (durable timers — "follow up in 3 days"), `step.waitForEvent` (block on a human approval or a Gmail reply without holding a process). State survives deploys. |
 | Autonomy | **Staged** | Ships with every gate ON (`checkpointed`). Owners relax gates one at a time, per workspace → `autonomous`. Gates & budgets live in [`packages/contracts/src/policy.ts`](packages/contracts/src/policy.ts). |
 | Database | **Same MongoDB Atlas cluster as v1** | Creator data, campaign history, CRM, blacklist, Gmail tokens carry over with zero migration. v2 reads v1-owned collections and owns new `v2_*` collections. v1 must not make breaking schema changes while both run. |
-| Agents | **Claude Agent SDK** | Agents are *functions the workflow invokes* (curated tool set, structured output, budget cap, escalation) — not free ReAct loops. This generalizes v1's `cold-mail` evaluator-optimizer pattern. Model routing: Opus 4.7 for judgment, Haiku 4.5 for bulk classification. |
+| Agents | **Agent runtime (`run_agent`)** | Agents are *functions the workflow invokes* (curated tool set, structured output, budget cap, escalation) — not free ReAct loops. This generalizes v1's `cold-mail` evaluator-optimizer pattern. Model routing (D53): `gemini-3.5-flash` for judgment, `gemini-3.1-flash-lite` for bulk classification, on the Vertex `global` endpoint. |
 | Human checkpoints | **5 explicit gate kinds** | `approveShortlist`, `approveOutreachSend`, `approveReplyResponse`, `approveShipment`, `approveStageAdvance`. Each has its own MC drill-in (e.g. shortlist shows a candidate table with fitScore bars; outreach shows the email preview with 4 judge scores). |
 
 ---
@@ -111,11 +289,11 @@ v1 accumulated 3 years of strata — multi-SNS→TikTok, Express→Go→Next.js,
 
 2. brand-campaign Inngest function picks it up
    ↳ step.run("source") → runAgent(sourcingAgent)
-        ↳ Opus 4.7 with tiktok.search + blacklist.check tools
+        ↳ gemini-3.5-flash with tiktok.search + blacklist.check tools
         ↳ Plans 2-4 search queries, executes them, dedupes
         ↳ Returns { candidates: [4 creators], queriesUsed, coverageNote }
    ↳ step.run("vet-{i}") × N → runAgent(vettingAgent) per candidate (parallel)
-        ↳ Opus 4.7 with tiktok.getCreator + ranking.score
+        ↳ gemini-3.5-flash with tiktok.getCreator + ranking.score
         ↳ Returns { creator, fitScore, flags, matchReasons }
    ↳ pickShortlist (deterministic, top ceil(creatorCount * 1.5), drop hard-fail flags)
 
@@ -134,7 +312,7 @@ v1 accumulated 3 years of strata — multi-SNS→TikTok, Express→Go→Next.js,
    ↳ step.run("plan") → load workspace policy + creator
    ↳ step.run("extract-facts") → outreach.extractFacts capability
    ↳ step.run("draft-outreach") → runAgent(outreachWriterAgent)
-        ↳ Opus 4.7 tournament: 5 angles × 4 judges
+        ↳ gemini-3.5-flash tournament: 5 angles × 4 judges
           (brand / conversion / deliverability / skeptic)
         ↳ Returns winning draft + judgeScores + spamScore + groundedFacts
    ↳ gate(approveOutreachSend) → MC drill-in shows subject/body preview +
@@ -152,7 +330,7 @@ v1 accumulated 3 years of strata — multi-SNS→TikTok, Express→Go→Next.js,
    ↳ creator-track's waitForEvent matches → workflow resumes
 
 7. creator-track continues:
-   ↳ step.run("classify-reply") → runAgent(conversationAgent / Haiku)
+   ↳ step.run("classify-reply") → runAgent(conversationAgent / gemini-3.1-flash-lite)
         ↳ Returns { classification: "interested" | "send_sample" | "negotiating" |
                     "declined" | "unsubscribe" | "not_now" | "out_of_office" |
                     "unrelated", extracted: { question?, shippingAddress?,
@@ -166,7 +344,7 @@ v1 accumulated 3 years of strata — multi-SNS→TikTok, Express→Go→Next.js,
 
 8. Shipping leg (interested + shippingAddress):
    ↳ gate(approveShipment) → MC drill-in: address + product manifest
-   ↳ step.run("create-shipment") → runAgent(logisticsAgent / Haiku)
+   ↳ step.run("create-shipment") → runAgent(logisticsAgent / gemini-3.1-flash-lite)
         ↳ Parses free-text Korean address → structured fields
         ↳ Calls shipment.create capability → carrier (YUNTRACK, currently deferred)
    ↳ step.waitForEvent("shipment-tracking-updated") — 14-day timeout
@@ -177,7 +355,7 @@ v1 accumulated 3 years of strata — multi-SNS→TikTok, Express→Go→Next.js,
 9. Content review leg:
    ↳ step.waitForEvent("tiktok-post-detected") — 14-day timeout
         (tiktok-post-poller cron emits this when it detects a matching post)
-   ↳ step.run("verify-content") → runAgent(contentVerifyAgent / Haiku)
+   ↳ step.run("verify-content") → runAgent(contentVerifyAgent / gemini-3.1-flash-lite)
         ↳ Checks: brand mentioned + ToS-compliant + matches expected post style
         ↳ Returns { matches: true|false, rationale }
    ↳ matches: true  → terminal verified
@@ -185,7 +363,7 @@ v1 accumulated 3 years of strata — multi-SNS→TikTok, Express→Go→Next.js,
 
 10. Campaign completion:
     ↳ campaign-progression cron daily checks for campaigns with all tracks terminal
-    ↳ When done → step.run("generate-report") → runAgent(analystAgent / Opus)
+    ↳ When done → step.run("generate-report") → runAgent(analystAgent / gemini-3.5-flash)
     ↳ /share/<id> generates a public report (no-auth, signed token)
 ```
 
@@ -281,12 +459,12 @@ If you're an LLM continuing development on v2:
 
 1. **Read in order**: [`CLAUDE.md`](CLAUDE.md) → [`docs/STATUS.md`](docs/STATUS.md) → [`HANDOFF.md`](HANDOFF.md) tail → [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) → relevant `docs/SMOKE-TEST-Pn.md` for the phase you're touching.
 2. **Memory dir**: `~/.claude/projects/-Users-sgwannabe-social-seeding-v2/memory/` — has decisions like `autonomous-phase-progression`, `goal-4000-char-limit`, `p6-operator-decisions-2026-05-14`, `v3-prototype-comparison`.
-3. **The 10 hard-won lessons** from this session's live demo are encoded in **v4's `docs/V2-LESSONS-LEARNED.md`** (the v4 repo is at [Two-Weeks-Team/social-seeding-v4](https://github.com/Two-Weeks-Team/social-seeding-v4)). Before re-implementing anything Opus/Inngest/Gmail-related, **read that file** — it'll save days of rediscovery. Examples:
+3. **The 10 hard-won lessons** from this session's live demo are encoded in **v4's `docs/V2-LESSONS-LEARNED.md`** (the v4 repo is at [Two-Weeks-Team/social-seeding-v4](https://github.com/Two-Weeks-Team/social-seeding-v4)). Before re-implementing anything agent-runtime / Inngest / Gmail-related, **read that file** — it'll save days of rediscovery. Examples:
    - Inngest `step.waitForEvent` `if:` expression must use `async.data.X`, not `event.data.X`
-   - Opus 4.7 emits pseudo-tool-calls as text when `tool_choice: "any"` isn't forced on turn 1
-   - Sourcing agent prompt must say "RUN EACH PLANNED QUERY" or model escalates after 1 search
-   - Agent `maxUsd` caps for Opus need ≥$1.0 with tools (early defaults were 2–4× too low)
-   - Logistics agent system prompt must render `products` array — else Haiku hallucinates "products_missing"
+   - The judgment model emits pseudo-tool-calls as text when `tool_choice: "any"` isn't forced on turn 1
+   - Sourcing agent prompt must say "RUN EACH PLANNED QUERY" or the model escalates after 1 search
+   - Agent `maxUsd` caps for the judgment tier need ≥$1.0 with tools (early defaults were 2–4× too low)
+   - Logistics agent system prompt must render the `products` array — else the bulk model hallucinates "products_missing"
 4. **Run pattern**: every change ends with `pnpm run verify-build` green + a commit tagged with the phase ID.
 5. **Don't touch shared v1 collections destructively** — additive only.
 
