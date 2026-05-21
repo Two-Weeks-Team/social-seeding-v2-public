@@ -22,8 +22,7 @@ agent-development-kit-python-2.0-beta
 agent-studio
 agent-garden
 agents-cli
-gemini-3.1-pro-preview
-gemini-3.1-pro
+gemini-3.5-flash
 gemini-3.1-flash-lite
 model-context-protocol
 a2a-protocol-v0.3
@@ -177,7 +176,7 @@ json-schema
 agent-development-kit-python-2.0-beta
 agent-studio
 agents-cli
-gemini-3.1-pro
+gemini-3.5-flash
 gemini-3.1-flash-lite
 model-context-protocol
 a2a-protocol-v0.3

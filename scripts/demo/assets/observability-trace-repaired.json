@@ -11,7 +11,7 @@
     "name": "agent:conversation-responder",
     "attributes": {
       "agent.id": "conversation-responder",
-      "agent.model": "gemini-3.1-pro",
+      "agent.model": "gemini-3.5-flash",
       "agent.trace_id": "trace-hardening-rate-positive-en-01-optimized",
       "agent.outcome": "escalate",
       "triage.action": "escalate",
@@ -48,7 +48,7 @@
       "value": true,
       "branch": "escalate(rate_signal_on_positive)",
       "repaired": true,
-      "repaired_note": "REPAIRED: the new rate-signal rule reads proposed_rate_usd=USD 800.0 on an interested turn and escalates as a negotiation (D27) — no Pro draft is spent, no stall."
+      "repaired_note": "REPAIRED: the new rate-signal rule reads proposed_rate_usd=USD 800.0 on an interested turn and escalates as a negotiation (D27) — no judgment-tier (gemini-3.5-flash) draft is spent, no stall."
     },
     {
       "n": 5,

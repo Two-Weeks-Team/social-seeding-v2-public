@@ -8,7 +8,7 @@ SHA-256 digests + safety attributes the workflow can verify before publish.
 Citations:
     D5  — Gemini 3.1 family multimodal baseline; Imagen 4 ships on Vertex AI
           under the same multi-region GA umbrella (D13). The creative agent
-          itself runs Gemini 3.1 Pro for direction; this tool is the *image*
+          itself runs Gemini 3.5 Flash for direction; this tool is the *image*
           generation channel underneath it.
     D13 — Multi-region active-active. Imagen 4 endpoints exist in
           us-central1 / europe-west4 / asia-northeast3; the live wiring will

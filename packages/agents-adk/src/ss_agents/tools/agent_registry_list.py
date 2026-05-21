@@ -89,7 +89,7 @@ class RegisteredAgent(BaseModel):
     agent_id: str = Field(min_length=1, max_length=64, alias="agentId")
     tier: AgentTier
     model: str = Field(min_length=1, max_length=64)
-    """Gemini model id (e.g. 'gemini-3.1-pro'). The coordinator's scorer
+    """Gemini model id (e.g. 'gemini-3.5-flash'). The coordinator's scorer
     consults this to estimate cost + latency."""
 
     current_status: AgentStatus = Field(alias="currentStatus")
@@ -137,44 +137,44 @@ def _hb(seconds_offset: int) -> datetime:
 
 _STUB_FLEET: tuple[RegisteredAgent, ...] = (
     # ── Tier 1: 16 domain agents (DECISIONS.md §4) ───────────────────────────
-    RegisteredAgent(agentId="sourcing", tier=1, model="gemini-3.1-pro",
+    RegisteredAgent(agentId="sourcing", tier=1, model="gemini-3.5-flash",
                     currentStatus="healthy", lastHeartbeat=_hb(15)),
-    RegisteredAgent(agentId="vetting", tier=1, model="gemini-3.1-pro",
+    RegisteredAgent(agentId="vetting", tier=1, model="gemini-3.5-flash",
                     currentStatus="healthy", lastHeartbeat=_hb(18)),
-    RegisteredAgent(agentId="outreach_writer", tier=1, model="gemini-3.1-pro",
+    RegisteredAgent(agentId="outreach_writer", tier=1, model="gemini-3.5-flash",
                     currentStatus="healthy", lastHeartbeat=_hb(22)),
     RegisteredAgent(agentId="conversation", tier=1, model="gemini-3.1-flash-lite",
                     currentStatus="healthy", lastHeartbeat=_hb(11)),
-    RegisteredAgent(agentId="conversation_responder", tier=1, model="gemini-3.1-pro",
+    RegisteredAgent(agentId="conversation_responder", tier=1, model="gemini-3.5-flash",
                     currentStatus="healthy", lastHeartbeat=_hb(25)),
     RegisteredAgent(agentId="logistics", tier=1, model="gemini-3.1-flash-lite",
                     currentStatus="healthy", lastHeartbeat=_hb(13)),
     RegisteredAgent(agentId="content_verify", tier=1, model="gemini-3.1-flash-lite",
                     currentStatus="healthy", lastHeartbeat=_hb(17)),
-    RegisteredAgent(agentId="analyst", tier=1, model="gemini-3.1-pro",
+    RegisteredAgent(agentId="analyst", tier=1, model="gemini-3.5-flash",
                     currentStatus="healthy", lastHeartbeat=_hb(31)),
-    RegisteredAgent(agentId="research", tier=1, model="gemini-3.1-pro",
+    RegisteredAgent(agentId="research", tier=1, model="gemini-3.5-flash",
                     currentStatus="healthy", lastHeartbeat=_hb(24)),
     RegisteredAgent(agentId="intake", tier=1, model="gemini-3.1-flash-lite",
                     currentStatus="healthy", lastHeartbeat=_hb(9)),
-    RegisteredAgent(agentId="lead_outreach_writer", tier=1, model="gemini-3.1-pro",
+    RegisteredAgent(agentId="lead_outreach_writer", tier=1, model="gemini-3.5-flash",
                     currentStatus="healthy", lastHeartbeat=_hb(28)),
     RegisteredAgent(agentId="payment_mandate", tier=1, model="gemini-3.1-flash-lite",
                     currentStatus="healthy", lastHeartbeat=_hb(20)),
-    RegisteredAgent(agentId="compliance", tier=1, model="gemini-3.1-pro",
+    RegisteredAgent(agentId="compliance", tier=1, model="gemini-3.5-flash",
                     currentStatus="degraded", lastHeartbeat=_hb(95)),
-    RegisteredAgent(agentId="creative", tier=1, model="gemini-3.1-pro",
+    RegisteredAgent(agentId="creative", tier=1, model="gemini-3.5-flash",
                     currentStatus="healthy", lastHeartbeat=_hb(34)),
     RegisteredAgent(agentId="a11y", tier=1, model="gemini-3.1-flash-lite",
                     currentStatus="healthy", lastHeartbeat=_hb(12)),
-    RegisteredAgent(agentId="customer_success", tier=1, model="gemini-3.1-pro",
+    RegisteredAgent(agentId="customer_success", tier=1, model="gemini-3.5-flash",
                     currentStatus="healthy", lastHeartbeat=_hb(40)),
     # ── Tier 2: 3 meta agents (coordinator/critic/optimizer) ─────────────────
     RegisteredAgent(agentId="coordinator", tier=2, model="gemini-3.1-flash-lite",
                     currentStatus="healthy", lastHeartbeat=_hb(7)),
-    RegisteredAgent(agentId="critic", tier=2, model="gemini-3.1-pro",
+    RegisteredAgent(agentId="critic", tier=2, model="gemini-3.5-flash",
                     currentStatus="healthy", lastHeartbeat=_hb(19)),
-    RegisteredAgent(agentId="optimizer", tier=2, model="gemini-3.1-pro",
+    RegisteredAgent(agentId="optimizer", tier=2, model="gemini-3.5-flash",
                     currentStatus="healthy", lastHeartbeat=_hb(45)),
     # ── Tier 3: 3 watchdog agents (D23) ──────────────────────────────────────
     RegisteredAgent(agentId="anomaly_watch", tier=3, model="gemini-3.1-flash-lite",

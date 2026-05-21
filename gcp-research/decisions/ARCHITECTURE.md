@@ -64,7 +64,7 @@ flowchart TB
   end
 
   subgraph AI[Specialized AI]
-    GEM[Gemini 3.1 Pro/Flash-Lite — D53 supersedes D5]
+    GEM[Gemini 3.5 Flash judgment + 3.1 Flash-Lite bulk · global endpoint — D53 supersedes D5]
     IM[Imagen 4]
     VE[Veo 3]
     LY[Lyria]

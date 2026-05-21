@@ -49,10 +49,11 @@ from ss_agents.tools.agent_registry_list import agent_registry_list
 logger = logging.getLogger(__name__)
 
 
-# Model id — D5: Flash is the right tier for routing decisions (single turn,
-# small structured output, low latency target). Pinned to a concrete id so the
-# eval set is reproducible.
-COORDINATOR_MODEL = "gemini-3.1-flash-lite"
+# Model id — D53: routing is a judgment task; gemini-3.5-flash (GA 2026-05-19,
+# leads the Pro tier on agent benchmarks) is the right model and is callable on
+# the global Vertex endpoint. Pinned to a concrete id so the eval set is
+# reproducible.
+COORDINATOR_MODEL = "gemini-3.5-flash"
 
 
 # Hard USD cap per the Phase-4 brief: $0.005. Routing overhead must stay tiny

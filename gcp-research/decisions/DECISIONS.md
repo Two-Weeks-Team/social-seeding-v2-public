@@ -170,13 +170,13 @@ Status legend: ✅ active · 🔁 superseded · ⏸ deferred · ❓ outstanding
 
 ---
 
-### Round 15 — Gemini 3.1-only model mandate (D53)
+### Round 15 — Gemini 3.x model mandate, judgment tier verified (D53)
 
-> Source: operator mandate 2026-05-21. Collapses the v2 model fleet onto the Gemini 3.1 series and retires every remaining Anthropic-Claude transport from the product so no stale runtime-model reference survives in any judge-visible surface (demo, docs, asset JSON, decisions).
+> Source: operator mandate 2026-05-21, updated with the verified Vertex access reality. Collapses the v2 model fleet onto the Gemini 3.x series and retires every remaining Anthropic-Claude transport from the product so no stale runtime-model reference survives in any judge-visible surface (demo, docs, asset JSON, decisions).
 
 | ID | Decision | Source | Status | Implication |
 |---|---|---|---|---|
-| **D53** | **Gemini 3.1 series ONLY (operator mandate 2026-05-21). All agents use `gemini-3.1-pro` (judgment) or `gemini-3.1-flash-lite` (bulk/routing); supersedes D5 (which set Gemini 2.5 baseline). The TypeScript `packages/agents` Anthropic-Claude transport (`@anthropic-ai/sdk`) was replaced with `@google/genai`; no Anthropic models remain in the product. Source: operator. Status: ✅.** | operator 2026-05-21 | ✅ | Supersedes D5. Demo/docs/asset-JSON model labels migrated: every `gemini-2.5-pro`/`opus-4.7` → `gemini-3.1-pro`; every `gemini-2.5-flash`(-lite)/`haiku-4.5` → `gemini-3.1-flash-lite`. The GEMINI-MODELS catalog keeps 2.5 as reference; only its "production default" statement now points to 3.1. |
+| **D53** | **Gemini 3.1/3.5 series only (operator mandate, 2026-05-21). Judgment tier = `gemini-3.5-flash` (GA 2026-05-19, callable on the global Vertex endpoint); bulk tier = `gemini-3.1-flash-lite`. `gemini-*-pro` is NOT accessible in ss-v2-prod (404, Preview allowlist not granted) and is therefore not used. Gemini 3.x is served on the `global` endpoint (not us-central1). No Gemini 2.5 and no Anthropic Claude models remain in the product. Supersedes D5.** | operator 2026-05-21 | ✅ | Supersedes D5. The TypeScript `packages/agents` Anthropic-Claude transport (`@anthropic-ai/sdk`) was replaced with `@google/genai`. Demo/docs/asset-JSON model labels migrated: every `gemini-2.5-pro`/`gemini-3.1-pro`/`opus-4.7` → `gemini-3.5-flash`; every `gemini-2.5-flash`(-lite)/`haiku-4.5` → `gemini-3.1-flash-lite`. Net product model ids = `gemini-3.5-flash` + `gemini-3.1-flash-lite`. The GEMINI-MODELS catalog keeps 2.5 as historical reference; only its "production default" statement now points to `gemini-3.5-flash` on the global endpoint. |
 
 ---
 
@@ -361,4 +361,4 @@ Per user directive 2026-05-19 ("실제 코드를 적용하기 전에 반드시 �
 | 2026-05-20 | D50 | Single grand-narrative Track 3 (Grand Prize); dual submission rejected; Optimize folded in as Technical evidence | official Rules PDF + user |
 | 2026-05-20 | D51 | G/H-series closed; hardening before/after is local-deterministic (live Optimizer stubbed); A2A wired into Cloud Workflow; honesty fixes; CI+holdout gate; SSRF allowlist | autonomous /goal session |
 | 2026-05-20 | D52 | Anti-overfit holdout made real: 56-case set + 14-case adversarial holdout; train 40.5%→100%, holdout 71.4% (non-round, 28.6pp gap, 4 misses not tuned away) | autonomous /goal session (Wave 3 / Seam B) |
-| 2026-05-21 | D53 | Gemini 3.1 series ONLY; **D5 superseded by D53**; Anthropic-Claude transport replaced with `@google/genai`; demo/docs/asset-JSON model labels swept to gemini-3.1-pro / gemini-3.1-flash-lite | operator mandate |
+| 2026-05-21 | D53 | Gemini 3.1/3.5 series only; **D5 superseded by D53**; judgment tier = `gemini-3.5-flash` (GA 2026-05-19, global Vertex endpoint), bulk tier = `gemini-3.1-flash-lite`; `gemini-*-pro` NOT accessible in ss-v2-prod (404); Anthropic-Claude transport replaced with `@google/genai`; demo/docs/asset-JSON model labels swept to gemini-3.5-flash / gemini-3.1-flash-lite | operator mandate |

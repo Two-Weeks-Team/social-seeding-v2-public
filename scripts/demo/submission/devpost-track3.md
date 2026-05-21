@@ -90,7 +90,7 @@ This is the part most submissions skip. We built the fleet, then we treated it l
 system and hardened a real reliability gap.
 
 **The stall.** When a creator reply was ambiguous — interested, but quietly negotiating a rate
-("Love it! my rate is ~$800, ok?") — the `conversation_responder` (Tier-1 #5, Gemini 3.1 Pro)
+("Love it! my rate is ~$800, ok?") — the `conversation_responder` (Tier-1 #5, Gemini 3.5 Flash)
 **stalled at the auto-respond ↔ escalate boundary**. The 8-intent classifier rounded the reply down
 to `interested`, so the rate signal never triggered an escalation; the responder was sent down the
 auto-draft path while its own prompt said escalate negotiations. The correct outcome for a
@@ -328,7 +328,7 @@ clean-text safety check are pinned in `tests/tools/test_prompt_guard.py`.
 
 See [`built-with-tags.txt`](built-with-tags.txt). Headline GCP stack:
 
-- **Build**: ADK 2.0 Python · Gemini 3.1 Pro/Flash-Lite · Model Context Protocol · A2A v0.3 ·
+- **Build**: ADK 2.0 Python · Gemini 3.5 Flash/Flash-Lite · Model Context Protocol · A2A v0.3 ·
   AP2 v0.2 · Model Garden · Cloud Marketplace
 - **Scale/Govern/Optimize**: Vertex AI Agent Runtime · Agent Gateway · Agent Identity (SPIFFE) ·
   Agent Registry · Vertex AI Prompt Optimizer (data-driven) · Agent Evaluation · Agent Observability

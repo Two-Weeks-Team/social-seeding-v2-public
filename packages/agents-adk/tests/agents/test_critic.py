@@ -873,7 +873,7 @@ class TestCriticEscalation:
         assert critic_agent_def.id == "critic"
 
     def test_agent_def_model_is_gemini_pro(self) -> None:
-        assert critic_agent_def.model == DEFAULT_CRITIC_MODEL == "gemini-3.1-pro"
+        assert critic_agent_def.model == DEFAULT_CRITIC_MODEL == "gemini-3.5-flash"
 
     def test_agent_def_max_usd_matches_phase_4_brief(self) -> None:
         assert critic_agent_def.max_usd == CRITIC_MAX_USD == 0.02

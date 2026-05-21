@@ -656,13 +656,13 @@ class TestPlumbing:
 
     def test_agent_def_shape_matches_spec(self) -> None:
         # Public agent_def — Pro model, $0.10 tournament cap.
-        assert outreach_writer_agent_def.model == "gemini-3.1-pro"
+        assert outreach_writer_agent_def.model == "gemini-3.5-flash"
         assert outreach_writer_agent_def.max_usd == OUTREACH_WRITER_TOURNAMENT_MAX_USD
         assert outreach_writer_agent_def.id == "outreach-writer"
         # Inner defs — also Pro, tight per-call caps.
-        assert outreach_drafter_agent_def.model == "gemini-3.1-pro"
+        assert outreach_drafter_agent_def.model == "gemini-3.5-flash"
         assert outreach_drafter_agent_def.max_usd <= 0.05
-        assert outreach_judge_agent_def.model == "gemini-3.1-pro"
+        assert outreach_judge_agent_def.model == "gemini-3.5-flash"
         assert outreach_judge_agent_def.max_usd <= 0.02
 
 
@@ -1113,11 +1113,11 @@ class TestAgentDefShape:
         assert outreach_judge_agent_def.id == "outreach-judge"
 
     def test_all_three_defs_use_pro_model_per_d5(self) -> None:
-        """D5 — Gemini 3.1 Pro for judgment + drafting. The tournament's bulk
+        """D5 — Gemini 3.5 Flash for judgment + drafting. The tournament's bulk
         cheapness comes from short prompts, NOT from model downgrades."""
-        assert outreach_writer_agent_def.model == "gemini-3.1-pro"
-        assert outreach_drafter_agent_def.model == "gemini-3.1-pro"
-        assert outreach_judge_agent_def.model == "gemini-3.1-pro"
+        assert outreach_writer_agent_def.model == "gemini-3.5-flash"
+        assert outreach_drafter_agent_def.model == "gemini-3.5-flash"
+        assert outreach_judge_agent_def.model == "gemini-3.5-flash"
 
     def test_outreach_writer_max_usd_matches_brief(self) -> None:
         assert outreach_writer_agent_def.max_usd == OUTREACH_WRITER_TOURNAMENT_MAX_USD

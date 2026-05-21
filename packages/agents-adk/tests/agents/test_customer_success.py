@@ -708,8 +708,8 @@ class TestPlumbing:
         assert customer_success_agent_def.id == "customer_success"
 
     def test_agent_def_model_is_pro(self) -> None:
-        """ARCHITECTURE.md §3 row 16: customer_success on Gemini 3.1 Pro (D5)."""
-        assert customer_success_agent_def.model == "gemini-3.1-pro"
+        """ARCHITECTURE.md §3 row 16: customer_success on Gemini 3.5 Flash (D5)."""
+        assert customer_success_agent_def.model == "gemini-3.5-flash"
 
     def test_agent_def_max_usd_matches_brief(self) -> None:
         """Task brief: $0.05 cap (Pro w/ short structured output)."""

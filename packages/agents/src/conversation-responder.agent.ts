@@ -12,9 +12,9 @@ import { defineAgent } from "./runtime";
  *
  * Why a separate agent (not part of conversationAgent):
  *   · classification fires on EVERY inbound. Drafting is rarer. Splitting
- *     saves the Gemini 3.1 Pro call on declines / out-of-office / unrelated / unsub.
+ *     saves the Gemini 3.5 Flash call on declines / out-of-office / unrelated / unsub.
  *   · classification needs to be cheap + JSON-strict (Gemini 3.1 Flash-Lite).
- *     Drafting needs tone + judgment (Gemini 3.1 Pro). Model routing carried
+ *     Drafting needs tone + judgment (Gemini 3.5 Flash). Model routing carried
  *     from ARCHITECTURE.md.
  *
  * Curated tools:
@@ -31,13 +31,13 @@ export const conversationResponderAgent = defineAgent({
   description:
     "Draft a single reply to a classified inbound creator message. Cites only the OutreachFacts + the verbatim incoming message; self-checks deliverability via outreach.judge before returning.",
   tools: ["outreach.judge", "templates.render"],
-  model: "gemini-3.1-pro",
+  model: "gemini-3.5-flash",
   // Cap raised 0.25 → 1.0 across two live-demo iterations (2026-05-14):
   // first $0.25 hit at 3 turns, then $0.6 hit at 4 turns ($0.70 observed).
-  // Gemini 3.1 Pro with `outreach.judge` + `templates.render` in the tool loop
+  // Gemini 3.5 Flash with `outreach.judge` + `templates.render` in the tool loop
   // reliably consumes 4-6 turns + an occasional schema revise. $1.0 is
   // the same ceiling outreach-writer settled on for the same reason —
-  // Flash-Lite-pricing intuition was too aggressive for Gemini 3.1 Pro tool loops.
+  // Flash-Lite-pricing intuition was too aggressive for Gemini 3.5 Flash tool loops.
   // One reply, no tournament, but the JSON output contract is strict.
   maxUsd: 1.0,
   input: z.object({

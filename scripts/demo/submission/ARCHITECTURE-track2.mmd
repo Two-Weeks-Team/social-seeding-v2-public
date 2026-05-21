@@ -16,7 +16,7 @@ flowchart LR
 
   gw --> orch[Cloud Workflows · Pub/Sub<br/>Cloud Tasks · Eventarc Advanced<br/>D18 durable orchestration]
 
-  orch --> fleet{22-agent fleet on Vertex AI Agent Runtime<br/>16 domain · 3 meta M1-M3 · 3 watchdog W1-W3<br/>Gemini 3.1 Pro · Flash-Lite · D23}
+  orch --> fleet{22-agent fleet on Vertex AI Agent Runtime<br/>16 domain · 3 meta M1-M3 · 3 watchdog W1-W3<br/>Gemini 3.5 Flash · Flash-Lite · D23}
 
   fleet -. inline guardrail .-> armor[Model Armor max policy<br/>PI / JB / PII / Custom regex<br/>Agent Anomaly Detection · D21]
 

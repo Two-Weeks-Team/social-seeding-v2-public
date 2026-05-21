@@ -27,7 +27,7 @@ Behavior (customer_success.spec.md §1):
                               "campaigns_started=2, campaigns_finished=0")
 
 Citations:
-    D5   — Gemini 3.1 Pro (judgment over multi-source signals).
+    D5   — Gemini 3.5 Flash (judgment over multi-source signals).
     D11  — Influencer-campaign domain (the friction signals are domain-shaped
            — e.g. `first_campaign_stalled`, not generic SaaS milestones).
     D12  — Multi-tenant SaaS + AP2 autonomous payment (the per-tenant slice).
@@ -72,11 +72,11 @@ from ss_agents.tools.intervention_propose import intervention_propose
 logger = logging.getLogger(__name__)
 
 
-# Gemini 3.1 Pro per task brief + ARCHITECTURE.md §3 row 16. The
+# Gemini 3.5 Flash per task brief + ARCHITECTURE.md §3 row 16. The
 # customer-success agent is judgment-heavy (multi-source signal weighting
 # + intervention ranking + grounding evidence assembly); Pro out-performs
 # Flash on this class of multi-step structured reasoning.
-DEFAULT_CUSTOMER_SUCCESS_MODEL = "gemini-3.1-pro"
+DEFAULT_CUSTOMER_SUCCESS_MODEL = "gemini-3.5-flash"
 
 # Reusable locale enum — D34 four-locale support, identical pattern to the
 # rest of the fleet.
@@ -675,7 +675,7 @@ customer_success_agent_def: AgentDef[
         "Detect onboarding-friction signals from per-tenant lifecycle events "
         "+ usage metrics, propose ≤5 ranked interventions. Single-turn, no "
         "tools — the deterministic `analytics.funnel` capability feeds "
-        "metrics UPSTREAM of this agent. Gemini 3.1 Pro for multi-signal "
+        "metrics UPSTREAM of this agent. Gemini 3.5 Flash for multi-signal "
         "judgment (D5 model, D23 Tier-1 agent NEW per customer_success.spec.md, "
         "Drucker management-by-exception per pricing/MODEL.md §9)."
     ),

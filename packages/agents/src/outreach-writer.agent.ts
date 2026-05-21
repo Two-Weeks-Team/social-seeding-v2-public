@@ -36,8 +36,8 @@ export const outreachWriterAgent = defineAgent({
   description:
     "Write a grounded, personalized outreach email for one creator. Drafts ≤5 angles internally, scores each with the 4 deterministic judges (brand/conversion/deliverability/skeptic), returns the weighted winner with its judge scorecards attached.",
   tools: ["outreach.extractFacts", "outreach.judge", "templates.render"],
-  model: "gemini-3.1-pro",
-  // Live-demo lesson 2026-05-14: Gemini 3.1 Pro in the multi-tool tournament
+  model: "gemini-3.5-flash",
+  // Live-demo lesson 2026-05-14: Gemini 3.5 Flash in the multi-tool tournament
   // mode (extractFacts + 5 angles × 4 judges) sometimes emits XML-style
   // tool calls as TEXT instead of native tool_use blocks, breaking
   // the runtime's tool-result loop. Mitigations:
@@ -50,8 +50,8 @@ export const outreachWriterAgent = defineAgent({
   //     value at $2/MTok input).
   //   · Tools STAY in the curated list — fake ModelClients in unit
   //     tests script extractFacts + judge tool_use to exercise the
-  //     tournament shape; live Gemini 3.1 Pro follows the prompt and skips them.
-  // Cap raised from $0.80 to $1.5: Gemini 3.1 Pro is more expensive than the
+  //     tournament shape; live Gemini 3.5 Flash follows the prompt and skips them.
+  // Cap raised from $0.80 to $1.5: Gemini 3.5 Flash is more expensive than the
   // Flash-Lite-pricing intuition the original cap was set on.
   maxUsd: 1.5,
   input: z.object({
@@ -67,7 +67,7 @@ export const outreachWriterAgent = defineAgent({
      * it) and uses these facts directly. This is the production path —
      * creator-track already calls `outreach.extractFacts` before invoking
      * the writer to early-exit on `hasMinimumContext=false`, so passing
-     * the result through here saves a round-trip + sidesteps Gemini 3.1 Pro's
+     * the result through here saves a round-trip + sidesteps Gemini 3.5 Flash's
      * occasional refusal to call the tool (live-demo lesson 2026-05-14).
      */
     facts: OutreachFactsSchema.optional(),

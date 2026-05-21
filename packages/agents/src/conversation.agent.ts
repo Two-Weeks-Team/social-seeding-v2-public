@@ -14,9 +14,9 @@ import { defineAgent } from "./runtime";
  * `needs_info` / `negotiating`).
  *
  * Split rationale (port of v1's email-handling discipline): keep the
- * thread-classifier cheap, predictable, and JSON-shaped; reserve Gemini 3.1 Pro
+ * thread-classifier cheap, predictable, and JSON-shaped; reserve Gemini 3.5 Flash
  * for the actual creative judgment-call of replying. ARCHITECTURE.md routing:
- * Gemini 3.1 Flash-Lite for bulk, Gemini 3.1 Pro for judgment.
+ * Gemini 3.1 Flash-Lite for bulk, Gemini 3.5 Flash for judgment.
  *
  * Extraction targets — only what the workflow branches on:
  *   · `shippingAddress`  → unlocks `shipment.create` (Phase 3) when classification = "interested".

@@ -43,21 +43,21 @@
             "agent_id": "sourcing",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:45Z",
-            "model": "gemini-3.1-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
             "agent_id": "vetting",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:42Z",
-            "model": "gemini-3.1-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
             "agent_id": "outreach_writer",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:38Z",
-            "model": "gemini-3.1-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
@@ -71,7 +71,7 @@
             "agent_id": "conversation_responder",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:35Z",
-            "model": "gemini-3.1-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
@@ -92,14 +92,14 @@
             "agent_id": "analyst",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:29Z",
-            "model": "gemini-3.1-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
             "agent_id": "research",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:36Z",
-            "model": "gemini-3.1-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
@@ -113,7 +113,7 @@
             "agent_id": "lead_outreach_writer",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:32Z",
-            "model": "gemini-3.1-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
@@ -127,14 +127,14 @@
             "agent_id": "compliance",
             "current_status": "degraded",
             "last_heartbeat": "2026-05-19T11:58:25Z",
-            "model": "gemini-3.1-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
             "agent_id": "creative",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:26Z",
-            "model": "gemini-3.1-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
@@ -148,7 +148,7 @@
             "agent_id": "customer_success",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:20Z",
-            "model": "gemini-3.1-pro",
+            "model": "gemini-3.5-flash",
             "tier": 1
           },
           {
@@ -162,14 +162,14 @@
             "agent_id": "critic",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:41Z",
-            "model": "gemini-3.1-pro",
+            "model": "gemini-3.5-flash",
             "tier": 2
           },
           {
             "agent_id": "optimizer",
             "current_status": "healthy",
             "last_heartbeat": "2026-05-19T11:59:15Z",
-            "model": "gemini-3.1-pro",
+            "model": "gemini-3.5-flash",
             "tier": 2
           },
           {

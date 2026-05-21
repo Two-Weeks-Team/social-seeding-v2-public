@@ -840,7 +840,7 @@ class TestCreativeEscalation:
 
     def test_agent_def_model_is_gemini_25_pro(self) -> None:
         """D5 — Pro for sustained creative reasoning."""
-        assert creative_agent_def.model == "gemini-3.1-pro"
+        assert creative_agent_def.model == "gemini-3.5-flash"
 
     def test_agent_def_id_matches_spec(self) -> None:
         assert creative_agent_def.id == "creative"

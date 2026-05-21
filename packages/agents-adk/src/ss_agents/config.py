@@ -5,11 +5,15 @@ rest of the package uses typed accessors.
 
 Citations:
     D5  — Gemini model tiers. (Superseded by D53: Google AI Agents Challenge
-          mandates the Gemini 3.1 series exclusively, so the fleet runs on
-          gemini-3.1-pro and gemini-3.1-flash-lite — no 2.5 ids remain.)
-    D53 — Gemini 3.1-only mandate (operator override, 2026-05-20). Every agent
-          uses exactly one of two ids: `gemini-3.1-pro` (judgment tier) or
-          `gemini-3.1-flash-lite` (bulk/flash tier).
+          mandates the Gemini 3.x series exclusively, so the fleet runs on
+          gemini-3.5-flash and gemini-3.1-flash-lite — no 2.5 ids remain.)
+    D53 — Gemini 3.x-only mandate (operator override, 2026-05-20; revised
+          2026-05-21). The previously-mandated 3.1 Pro id is NOT callable in our
+          GCP project (404, Preview access not granted), but gemini-3.5-flash
+          (GA 2026-05-19) IS callable on the `global` endpoint. So the judgment
+          tier moved to gemini-3.5-flash. Every agent now uses exactly one of two
+          ids: `gemini-3.5-flash` (judgment tier) or `gemini-3.1-flash-lite`
+          (bulk/flash tier).
     D17 — Vertex AI Agent Runtime.
     D39 — $1500 GCP credits (default daily ceiling lifted from $5 to $25).
     D47 — Route LLM reasoning through Model Garden (Track 3 designed_guide.pdf
@@ -33,18 +37,21 @@ from typing import Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Default GCP region matches ADK-GUIDE.md §1.1 example and most Vertex AI quickstarts.
-DEFAULT_REGION = "us-central1"
+# Gemini 3.x is served on the `global` endpoint (not us-central1), so the
+# default Vertex AI location is `global` — that's where gemini-3.5-flash and
+# gemini-3.1-flash-lite are callable.
+DEFAULT_REGION = "global"
 
 # Per spec/sourcing.spec.md and intake.spec.md, the production model for
-# conversational/bulk agents is gemini-3.1-flash-lite. Pro is agent-specific.
-# D53: the fleet is Gemini 3.1-only (Google AI Agents Challenge mandate).
+# conversational/bulk agents is gemini-3.1-flash-lite. The judgment tier is
+# agent-specific (gemini-3.5-flash).
+# D53: the fleet is Gemini 3.x-only (Google AI Agents Challenge mandate).
 DEFAULT_INTAKE_MODEL = "gemini-3.1-flash-lite"
 
-# Gemini 3.1 Pro pricing (Preview 2026-02-19, Vertex AI list).
+# Gemini 3.5 Flash pricing (GA 2026-05-19, Vertex AI list).
 # https://cloud.google.com/vertex-ai/generative-ai/pricing
-GEMINI_31_PRO_INPUT_PER_TOKEN = 2.00 / 1_000_000     # $2.00 / 1M input tokens
-GEMINI_31_PRO_OUTPUT_PER_TOKEN = 12.00 / 1_000_000   # $12.00 / 1M output tokens
+GEMINI_35_FLASH_INPUT_PER_TOKEN = 1.50 / 1_000_000   # $1.50 / 1M input tokens
+GEMINI_35_FLASH_OUTPUT_PER_TOKEN = 9.00 / 1_000_000  # $9.00 / 1M output tokens
 
 # Gemini 3.1 Flash-Lite pricing (GA Apr 2026).
 GEMINI_31_FLASH_LITE_INPUT_PER_TOKEN = 0.25 / 1_000_000   # $0.25 / 1M input tokens
@@ -52,11 +59,11 @@ GEMINI_31_FLASH_LITE_OUTPUT_PER_TOKEN = 1.50 / 1_000_000  # $1.50 / 1M output to
 
 
 # Map model id → (input_$/tok, output_$/tok). Used by cost_record callback.
-# D53: exactly two ids — gemini-3.1-pro (judgment) and gemini-3.1-flash-lite (bulk).
+# D53: exactly two ids — gemini-3.5-flash (judgment) and gemini-3.1-flash-lite (bulk).
 MODEL_PRICING: dict[str, tuple[float, float]] = {
-    "gemini-3.1-pro": (
-        GEMINI_31_PRO_INPUT_PER_TOKEN,
-        GEMINI_31_PRO_OUTPUT_PER_TOKEN,
+    "gemini-3.5-flash": (
+        GEMINI_35_FLASH_INPUT_PER_TOKEN,
+        GEMINI_35_FLASH_OUTPUT_PER_TOKEN,
     ),
     "gemini-3.1-flash-lite": (
         GEMINI_31_FLASH_LITE_INPUT_PER_TOKEN,

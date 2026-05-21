@@ -8,7 +8,7 @@ provenance (SynthID).
 
 Citations:
     D5  — Gemini 3.1 family multimodal baseline. Veo 3 ships on Vertex AI
-          alongside the Gemini family; the creative agent (Gemini 3.1 Pro)
+          alongside the Gemini family; the creative agent (Gemini 3.5 Flash)
           composes the prompt, this tool dispatches the rendering.
     D13 — Multi-region active-active. Veo 3 endpoints exist in a subset
           of regions (us-central1 / europe-west4) at 2026 H1; the live

@@ -545,7 +545,7 @@ class TestPlumbing:
         from ss_agents.tools.vector_search_creator import vector_search_creator
 
         assert sourcing_agent_def.id == "sourcing"
-        assert sourcing_agent_def.model == "gemini-3.1-pro"
+        assert sourcing_agent_def.model == "gemini-3.5-flash"
         assert sourcing_agent_def.max_usd == SOURCING_MAX_USD == 2.50
         assert sourcing_agent_def.max_turns == 8
         assert sourcing_agent_def.tools == [

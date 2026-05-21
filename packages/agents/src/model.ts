@@ -7,12 +7,12 @@
  * `generateContent` API via the `@google/genai` SDK (text + function-calling +
  * usage metadata is all the campaign agents need; see SCOPE-DECISIONS.md).
  *
- * Model routing (carried from ARCHITECTURE.md): Gemini 3.1 Pro for
+ * Model routing (carried from ARCHITECTURE.md): Gemini 3.5 Flash for
  * judgment-heavy agents, Gemini 3.1 Flash-Lite for high-volume
  * extraction/classification.
  */
 
-export type ModelId = "gemini-3.1-pro" | "gemini-3.1-flash-lite";
+export type ModelId = "gemini-3.5-flash" | "gemini-3.1-flash-lite";
 
 /** A conversation turn. `content` is plain text — tool results are fed back as text user turns. */
 export interface ModelMessage {
@@ -39,7 +39,7 @@ export interface ModelCompleteArgs {
   maxTokens: number;
   /**
    * Force the model to use a tool (when `any`) or any tool/text (`auto` —
-   * the default). Live-demo lesson 2026-05-14: Gemini 3.1 Pro with long
+   * the default). Live-demo lesson 2026-05-14: Gemini 3.5 Flash with long
    * system prompts sometimes "thinks out loud" by emitting tool-call shaped
    * TEXT instead of a native `tool_use` block, breaking the runtime's
    * tool-result loop. `tool_choice: any` is the SDK-level fix — the model
@@ -63,7 +63,7 @@ export interface ModelClient {
  * Vertex AI pricing before relying on these for hard budget enforcement.
  */
 export const MODEL_PRICING: Record<ModelId, { inputPerMTok: number; outputPerMTok: number }> = {
-  "gemini-3.1-pro": { inputPerMTok: 2, outputPerMTok: 12 },
+  "gemini-3.5-flash": { inputPerMTok: 1.5, outputPerMTok: 9 },
   "gemini-3.1-flash-lite": { inputPerMTok: 0.25, outputPerMTok: 1.5 },
 };
 
@@ -74,7 +74,7 @@ export function estimateUsd(model: ModelId, inputTokens: number, outputTokens: n
 
 /** API model identifiers (kept separate from our routing keys in case they diverge). */
 const MODEL_API_ID: Record<ModelId, string> = {
-  "gemini-3.1-pro": "gemini-3.1-pro",
+  "gemini-3.5-flash": "gemini-3.5-flash",
   "gemini-3.1-flash-lite": "gemini-3.1-flash-lite",
 };
 

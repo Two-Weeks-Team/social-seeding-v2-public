@@ -343,7 +343,7 @@ class TestInputContract:
         """Sanity-check the AgentDef itself against the Phase-3 brief."""
         assert lead_outreach_writer_agent_def.id == "lead-outreach-writer"
         assert lead_outreach_writer_agent_def.model == LEAD_OUTREACH_WRITER_MODEL
-        assert lead_outreach_writer_agent_def.model == "gemini-3.1-pro"
+        assert lead_outreach_writer_agent_def.model == "gemini-3.5-flash"
         # Brief: $0.05 (tighter than spec's $1.20).
         assert lead_outreach_writer_agent_def.max_usd == pytest.approx(0.05)
         assert (

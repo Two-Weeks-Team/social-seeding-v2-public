@@ -372,15 +372,15 @@
 
   <!-- 2.1 22-agent ADK fleet -->
   <h3 class="subhead">2.1 백엔드 — 22-agent ADK 함대</h3>
-  <p>Claude SDK 기반 v2의 11-agent 구조에서 <strong>Google ADK 2.0 Beta + Gemini 2.5 패밀리</strong>로 전면 재구성하고, 메타-에이전트 + 워치독을 추가하여 22-agent로 확장.</p>
+  <p>Claude SDK 기반 v2의 11-agent 구조에서 <strong>Google ADK 2.0 Beta + Gemini 3.x 패밀리</strong>로 전면 재구성하고, 메타-에이전트 + 워치독을 추가하여 22-agent로 확장.</p>
 
   <table>
     <thead>
       <tr><th style="width: 110px;">계층</th><th>에이전트 (수)</th><th>역할</th><th>모델</th></tr>
     </thead>
     <tbody>
-      <tr><td><strong>Tier-1 도메인 (16)</strong></td><td>intake · sourcing · vetting · outreach_writer · conversation · conversation_responder · logistics · content_verify · analyst · research · creative · a11y · lead_outreach_writer · payment_mandate · compliance · customer_success</td><td>실제 캠페인 루프 수행</td><td>Gemini 3.1 Pro / Flash-Lite</td></tr>
-      <tr><td><strong>Tier-2 메타 (3)</strong></td><td>coordinator · critic · optimizer</td><td>다른 에이전트 조율 / LLM-as-judge / 프롬프트 자동 튜닝</td><td>Gemini 3.1 Pro</td></tr>
+      <tr><td><strong>Tier-1 도메인 (16)</strong></td><td>intake · sourcing · vetting · outreach_writer · conversation · conversation_responder · logistics · content_verify · analyst · research · creative · a11y · lead_outreach_writer · payment_mandate · compliance · customer_success</td><td>실제 캠페인 루프 수행</td><td>Gemini 3.5 Flash / Flash-Lite</td></tr>
+      <tr><td><strong>Tier-2 메타 (3)</strong></td><td>coordinator · critic · optimizer</td><td>다른 에이전트 조율 / LLM-as-judge / 프롬프트 자동 튜닝</td><td>Gemini 3.5 Flash</td></tr>
       <tr><td><strong>Tier-3 워치독 (3)</strong></td><td>anomaly_watch · cost_watch · security_watch</td><td>비용 / 보안 / 이상 감지 + Auto-runbook</td><td>cost_watch는 룰 기반 (LLM 없음)</td></tr>
     </tbody>
   </table>
@@ -897,7 +897,7 @@
     <tbody>
       <tr><td>Inspiration</td><td>D29 3-angle 차별화 — 한국 인플루언서 마케팅 시장 + GCP 네이티브 에이전트 플랫폼의 첫 풀스택 적용 사례</td></tr>
       <tr><td>What it does</td><td>22-agent 함대 + AP2 Intent Mandate (D27) + 멀티모달 (Imagen/Veo/Lyria) + 4 로케일 + 5-layer 테스트</td></tr>
-      <tr><td>How we built it</td><td>ADK 2.0 Beta + Gemini 2.5 + Vertex AI Vector Search + Workflows + Pub/Sub + Spanner/AlloyDB/Firestore (D15 hybrid)</td></tr>
+      <tr><td>How we built it</td><td>ADK 2.0 Beta + Gemini 3.x (3.5 Flash + 3.1 Flash-Lite) + Vertex AI Vector Search + Workflows + Pub/Sub + Spanner/AlloyDB/Firestore (D15 hybrid)</td></tr>
       <tr><td>Challenges</td><td>D2 KR-region 한계 → D3 reframe; D4 Inngest → D18 Workflows 마이그레이션; BN-9 CJK injection 보안 구멍 → D40</td></tr>
       <tr><td>Accomplishments</td><td>22-agent + 49 도구 + 2,668 테스트 + 4 로케일 + 5-layer 테스트 하네스</td></tr>
       <tr><td>What we learned</td><td>Agent-as-function vs ReAct, capability layer stub/live 시임, AP2 Intent-only 안전성</td></tr>

@@ -67,12 +67,12 @@ def test_short_form_publisher_path() -> None:
 
 def test_fully_qualified_publisher_path() -> None:
     assert model_garden_model_path(
-        "gemini-3.1-pro",
+        "gemini-3.5-flash",
         project="ss-v2-prod",
         location="us-central1",
     ) == (
         "projects/ss-v2-prod/locations/us-central1"
-        "/publishers/google/models/gemini-3.1-pro"
+        "/publishers/google/models/gemini-3.5-flash"
     )
 
 

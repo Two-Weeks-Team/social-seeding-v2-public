@@ -15,7 +15,7 @@
       "agency_cost_usd": 2400.0,
       "agency_cost_formula": "20% (midpoint of CITED 15-30% of-creator-spend agency model) x $12,000 creator spend",
       "social_seeding_cost_usd": 7.40,
-      "social_seeding_cost_formula": "$0.62 full loop (COST-PLAN.md §2, Gemini 3.1 Pro) + $6.40 20-creator fan-out + $0.30 capability tool calls (real code constants) + $0.08 amortized infra",
+      "social_seeding_cost_formula": "$0.62 full loop (COST-PLAN.md §2, Gemini 3.5 Flash) + $6.40 20-creator fan-out + $0.30 capability tool calls (real code constants) + $0.08 amortized infra",
       "savings_pct": 99.7,
       "labor_hours_saved": 43,
       "labor_hours_formula": "45h manual (CITED: 20h find + 10h vet + 15h outreach) -> ~2h human review (AP2 + escalation gates, D27)",

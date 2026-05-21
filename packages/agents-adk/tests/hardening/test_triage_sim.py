@@ -349,4 +349,4 @@ class TestTraceArtifacts:
         for key in ("agent.id", "agent.model", "agent.trace_id", "agent.outcome"):
             assert key in attrs
         assert attrs["agent.id"] == "conversation-responder"
-        assert attrs["agent.model"] == "gemini-3.1-pro"
+        assert attrs["agent.model"] == "gemini-3.5-flash"

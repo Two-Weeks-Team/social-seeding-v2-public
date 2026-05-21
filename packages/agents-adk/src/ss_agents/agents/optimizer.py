@@ -12,13 +12,13 @@ Behavior (per task brief + optimizer.spec.md §1):
     so a human reviews before merge (D27 + D24 Phase 0→1 hybrid in-process).
 
     Tier-2 meta: runs nightly (Cloud Scheduler), NOT per-request. Model =
-    Gemini 3.1 Pro because reflection quality matters; cost cap = $0.10
+    Gemini 3.5 Flash because reflection quality matters; cost cap = $0.10
     per single-agent invocation (heavier than Tier-1's $0.20 cap because
     the input includes 7-day eval history — but bounded since one call =
     one Tier-1 agent only).
 
 Citations:
-    D5    — Gemini 3.1 Pro (judgment-heavy reflection).
+    D5    — Gemini 3.5 Flash (judgment-heavy reflection).
     D23   — Tier-2 meta agent M3 ("the 1→100 coordinators").
     D25   — Learning loop: "Prompt + Agent Evaluation + Vertex SFT +
             Distillation (Pro→Flash) + RLHF on Agent Simulation". This
@@ -28,7 +28,7 @@ Citations:
             merge. The optimizer outputs a *proposal*, never a write.
     D38   — M3 PM agent coordinates the prompt-rewrite DAG at build-time.
     ARCHITECTURE.md §3 row 19:
-        optimizer (M3) | 2 | Gemini 3.1 Pro
+        optimizer (M3) | 2 | Gemini 3.5 Flash
                        | agent_optimizer.tune, prompt_registry.update
                        | None | offline_eval_lift
     MATRIX.md §10 — closes the D25 loop:
@@ -58,9 +58,9 @@ from ss_agents.tools.prompt_registry_update import prompt_registry_update
 logger = logging.getLogger(__name__)
 
 
-# Gemini 3.1 Pro per D53 / ARCHITECTURE.md §3 row 19 — reflection quality
+# Gemini 3.5 Flash per D53 / ARCHITECTURE.md §3 row 19 — reflection quality
 # outweighs per-call cost on this Tier-2 nightly path.
-DEFAULT_OPTIMIZER_MODEL = "gemini-3.1-pro"
+DEFAULT_OPTIMIZER_MODEL = "gemini-3.5-flash"
 
 # Reusable locale enum — D34 four-locale support. Multi-locale prompts
 # must tune per-locale (optimizer.spec.md §8 edge case 5).
@@ -179,7 +179,7 @@ class EvalResultRow(BaseModel):
     `ss-v2-prod.agent_evals.l1_runs` schema (MATRIX.md §10 Step 2).
 
     Bounded: the optimizer reads up to 100 rows per call (input limit
-    below) so the prompt size stays predictable for Gemini 3.1 Pro.
+    below) so the prompt size stays predictable for Gemini 3.5 Flash.
     """
 
     model_config = ConfigDict(extra="forbid")

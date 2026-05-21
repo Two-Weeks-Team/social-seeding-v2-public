@@ -1,7 +1,7 @@
 """Sourcing agent — Phase 3 agent #6 (Tier-1 #1).
 
 Direct port of v2's `packages/agents/src/sourcing.agent.ts:16-69` onto ADK +
-Gemini 3.1 Pro + Pydantic, following the contract in
+Gemini 3.5 Flash + Pydantic, following the contract in
 `gcp-research/specs/tier1/sourcing.spec.md`.
 
 Behavior (sourcing.spec.md §1):
@@ -15,7 +15,7 @@ Behavior (sourcing.spec.md §1):
     `auto` policy) confirms.
 
 Citations:
-    D5  — Gemini 3.1 Pro (planning role — judgment over speed).
+    D5  — Gemini 3.5 Flash (planning role — judgment over speed).
     D11 — Influencer-campaign domain.
     D14 — RapidAPI-mediated sourcing (TikTok current; Instagram queued O3).
     D17 — Vertex AI Agent Runtime (managed).
@@ -23,7 +23,7 @@ Citations:
     D24 — Phased coordination — Tier-1 in-process now, RemoteA2AAgent later.
     D34 — 4-locale operator UI: 한국어 / English / 日本語 / 中文(简).
     ARCHITECTURE.md §3 row 1:
-        sourcing | 1 | Gemini 3.1 Pro | rapidapi.tiktok_search,
+        sourcing | 1 | Gemini 3.5 Flash | rapidapi.tiktok_search,
         rapidapi.instagram_search, blacklist.check, vector_search.creator
         | Session + Memory Bank | trajectory + coverage
 
@@ -58,10 +58,10 @@ from ss_agents.tools.vector_search_creator import vector_search_creator
 logger = logging.getLogger(__name__)
 
 
-# Gemini 3.1 Pro per D5 — planning role. The 2-4 query loop + blacklist
+# Gemini 3.5 Flash per D5 — planning role. The 2-4 query loop + blacklist
 # reconciliation justifies Pro over Flash; Flash struggles with the
 # "stop at 3× creatorCount unique" heuristic when query results overlap.
-DEFAULT_SOURCING_MODEL = "gemini-3.1-pro"
+DEFAULT_SOURCING_MODEL = "gemini-3.5-flash"
 
 # Reusable locale enum (mirrors intake.py + research.py — D34: ko/en/ja/zh-CN).
 SourcingLocale = Literal["ko", "en", "ja", "zh-CN"]
@@ -516,7 +516,7 @@ def build_sourcing_system_prompt(payload: BaseModel) -> str:
 # Per sourcing.spec.md §6: $2.50 per invocation. Raised from v2's $1.50 cap
 # after the 2026-05-14 live-demo observed Opus 4.7 hitting the cap on
 # multi-hashtag briefs (4 queries + blacklist + revise). Carried into the
-# Gemini 3.1 Pro port because the planning loop is model-agnostic in shape.
+# Gemini 3.5 Flash port because the planning loop is model-agnostic in shape.
 SOURCING_MAX_USD: float = 2.50
 
 
@@ -536,7 +536,7 @@ sourcing_agent_def: AgentDef[SourcingInput, SourcingOutput] = AgentDef(
     output_schema=SourcingOutput,
     system_prompt=build_sourcing_system_prompt,
     # Capability-layer tools per D41 + sourcing.spec.md §6. Each tool dispatches
-    # stub ↔ live via CAPABILITY_LAYER_MODE; the agent (Gemini 3.1 Pro) is
+    # stub ↔ live via CAPABILITY_LAYER_MODE; the agent (Gemini 3.5 Flash) is
     # contract-blind to which path runs. `rapidapi_instagram_search` is wired
     # in for routing symmetry but is gated on O3 (D14 feasibility study) — the
     # system prompt explicitly tells the LLM NOT to call it.

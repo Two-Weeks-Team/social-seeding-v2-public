@@ -216,7 +216,7 @@ function buildGraph(a: BuildArgs): { nodes: Node<SsNodeData>[]; edges: Edge[] } 
         tone: "violet",
         status: sourcingStatus,
         attrs: [
-          { label: "gemini-3.1-pro", tone: "violet", mono: true },
+          { label: "gemini-3.5-flash", tone: "violet", mono: true },
           { label: "tiktok.search", tone: "cyan" },
           { label: "blacklist.check", tone: "cyan" },
         ],
@@ -278,11 +278,11 @@ function buildGraph(a: BuildArgs): { nodes: Node<SsNodeData>[]; edges: Edge[] } 
         status: outreachStatus,
         attrs: buckets
           ? [
-              { label: "gemini-3.1-pro", tone: "violet", mono: true },
+              { label: "gemini-3.5-flash", tone: "violet", mono: true },
               { label: `${buckets.outreach_sent + buckets.in_conversation + buckets.agreed + buckets.declined + buckets.no_response}/${a.trackCount}`, tone: "slate", mono: true },
             ]
           : [
-              { label: "gemini-3.1-pro", tone: "violet", mono: true },
+              { label: "gemini-3.5-flash", tone: "violet", mono: true },
               { label: "gmail.send", tone: "cyan" },
             ],
         hint: outreachStarted
