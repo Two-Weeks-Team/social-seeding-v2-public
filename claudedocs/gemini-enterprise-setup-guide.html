@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gemini Enterprise 등록 — 운영자 안내서 (social-seeding-v2)</title>
+<style>
+  :root{
+    --bg:#0b1020; --card:#141b2e; --card2:#1b2540; --ink:#e7ecf5; --mut:#9aa6c0;
+    --line:#2a3658; --accent:#7c9cff; --ok:#37d39b; --warn:#ffc24b; --bad:#ff6b6b; --you:#ff9f57;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#0b1020,#0e1428);color:var(--ink);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif;padding:40px 16px}
+  .wrap{max-width:920px;margin:0 auto}
+  h1{font-size:28px;margin:0 0 4px}
+  .sub{color:var(--mut);margin:0 0 6px}
+  .meta{color:var(--mut);font-size:13px;margin-bottom:24px}
+  .meta b{color:var(--accent)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin:16px 0}
+  .card h2{font-size:19px;margin:0 0 10px;display:flex;align-items:center;gap:10px}
+  .badge{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+  .b-you{background:rgba(255,159,87,.16);color:var(--you);border:1px solid rgba(255,159,87,.4)}
+  .b-claude{background:rgba(124,156,255,.16);color:var(--accent);border:1px solid rgba(124,156,255,.4)}
+  .b-done{background:rgba(55,211,155,.16);color:var(--ok);border:1px solid rgba(55,211,155,.4)}
+  .step{display:flex;gap:14px;margin:14px 0}
+  .num{flex:0 0 30px;height:30px;border-radius:50%;background:var(--card2);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--accent)}
+  .step .body{flex:1}
+  .step .body strong{display:block;margin-bottom:2px}
+  a.btn{display:inline-block;background:var(--accent);color:#0b1020;font-weight:700;text-decoration:none;
+    padding:7px 13px;border-radius:8px;margin:6px 8px 6px 0;font-size:14px}
+  a.btn:hover{filter:brightness(1.1)}
+  code,.mono{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:13px;
+    background:#0c1224;border:1px solid var(--line);border-radius:6px;padding:2px 6px;color:#c9d6ff}
+  pre{background:#0c1224;border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;font-size:12.5px}
+  .callout{border-left:3px solid var(--warn);background:rgba(255,194,75,.08);padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0}
+  .callout.ok{border-color:var(--ok);background:rgba(55,211,155,.08)}
+  .callout.bad{border-color:var(--bad);background:rgba(255,107,107,.08)}
+  .callout b{color:var(--ink)}
+  ul{margin:8px 0;padding-left:20px}
+  li{margin:4px 0}
+  .kv{width:100%;border-collapse:collapse;font-size:14px}
+  .kv td{border-bottom:1px solid var(--line);padding:7px 6px;vertical-align:top}
+  .kv td:first-child{color:var(--mut);width:34%}
+  footer{color:var(--mut);font-size:12.5px;margin-top:26px;border-top:1px solid var(--line);padding-top:14px}
+  footer a{color:var(--accent)}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Gemini Enterprise에 우리 A2A 에이전트 등록하기</h1>
+  <p class="sub">social-seeding-v2 — 운영자(당신)용 단계별 안내서</p>
+  <p class="meta">기준일 <b>2026-05-22</b> · 프로젝트 <b>ss-mcp-prod</b> · 에이전트 <b>Influencer Research Agent (TikTok)</b><br>
+  Gemini Enterprise Agent Platform은 <b>2026-04-22 정식 출시(GA)</b>됨. 출처는 맨 아래.</p>
+
+  <div class="legend">
+    <span class="badge b-you">🟠 당신이 클릭</span>
+    <span class="badge b-claude">🔵 그 다음 Claude가</span>
+    <span class="badge b-done">🟢 이미 완료</span>
+  </div>
+
+  <!-- 목표 + 전체 그림 -->
+  <div class="card">
+    <h2>🎯 목표 & 전체 흐름</h2>
+    <p>우리 에이전트는 이미 <b>A2A v0.3 카드 + JWKS</b>로 동작 중입니다. 남은 건 그걸 <b>Gemini Enterprise 앱에 등록</b>해서 Agent Gallery에서 발견·호출되게 하는 것.</p>
+    <p style="margin:6px 0"><b>전체 체인:</b>
+      <code>Gemini Enterprise 구독(무료체험)</code> → <code>앱 생성</code> → <code>(Claude가) A2A 에이전트 등록</code></p>
+    <p style="color:var(--mut);margin:0">앞의 두 단계가 <b>당신</b> 몫(계정/구독), 마지막이 <b>Claude</b> 몫입니다.</p>
+  </div>
+
+  <!-- 이미 완료 -->
+  <div class="card">
+    <h2>🟢 이미 끝난 것 <span class="badge b-done">완료</span></h2>
+    <ul>
+      <li><code>discoveryengine.googleapis.com</code> 활성화 (ss-mcp-prod) — A2A 등록 REST의 백엔드</li>
+      <li><code>modelarmor</code> · <code>agentregistry</code> · <code>observability</code> API 활성화</li>
+      <li>라이브 A2A 카드 동작 확인: <span class="mono">…run.app/.well-known/agent.json → 200</span></li>
+    </ul>
+    <div class="callout"><b>⚠️ 등록 전 Claude가 먼저 고칠 것:</b> 카드가 광고하는 <code>mcp.socialseed.ing</code>가 현재 404입니다. 등록 시엔 동작하는 <span class="mono">run.app</span> 엔드포인트를 쓰도록 Claude가 맞춰서 등록합니다(당신은 신경 안 써도 됨).</div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="card">
+    <h2>① 올바른 콘솔로 이동 <span class="badge b-you">🟠 당신</span></h2>
+    <div class="callout"><b>⚠️ 혼동 주의 — 콘솔이 2개입니다 (이게 “Start free가 없는” 이유):</b><br>
+      • <b>“에이전트 플랫폼 / Agent Platform 개요”</b> (<span class="mono">/agent-platform/overview</span>) = <b>에이전트를 빌드하는 개발 콘솔</b>(Vertex AI 리브랜딩). 여기엔 ‘Start free’도, 앱 등록도 <b>없습니다</b>. 화면의 <b>“API 사용 설정 / Enable APIs”</b>는 그냥 플랫폼 API 일괄 켜기 버튼.<br>
+      • <b>“Gemini Enterprise 앱”</b> 콘솔 (<span class="mono">/gemini-enterprise</span>) = <b>앱을 만들고 A2A 에이전트를 등록</b>하는 곳. ← 우리가 갈 곳.</div>
+    <div class="step"><div class="num">1</div><div class="body">
+      <strong>(선택) 지금 페이지의 “API 사용 설정” 클릭</strong> — 배너가 요구하는 플랫폼 API 일괄 활성화(무해·추가형). 안 해도 됩니다.
+    </div></div>
+    <div class="step"><div class="num">2</div><div class="body">
+      <strong>Gemini Enterprise “앱” 콘솔 열기</strong> (프로젝트 <code>ss-mcp-prod</code> 확인)
+      <div><a class="btn" href="https://console.cloud.google.com/gemini-enterprise/start?project=ss-mcp-prod" target="_blank" rel="noopener">Gemini Enterprise 앱 콘솔 열기 ↗</a></div>
+    </div></div>
+    <div class="step"><div class="num">3</div><div class="body">
+      <strong>거기서 “무엇이 보이는지”로 분기</strong>
+      <ul>
+        <li><b>“Create app / 앱 만들기”가 보이면</b> → 바로 아래 ②로 진행(앱 생성).</li>
+        <li><b>구독·라이선스·‘접근 요청’ 벽, 또는 “조직(Organization)이 필요”가 나오면</b> → 그 화면을 <b>캡처해서 Claude에게 보여주세요.</b> 게이트 종류(조직/allowlist)를 판정합니다 → 필요 시 아래 <b>“막히면: 조직 만들기”</b>.</li>
+      </ul>
+    </div></div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="card">
+    <h2>② Gemini Enterprise “앱” 만들기 <span class="badge b-you">🟠 당신</span></h2>
+    <div class="step"><div class="num">1</div><div class="body">
+      <strong>앱 생성 페이지 열기</strong>
+      <div><a class="btn" href="https://console.cloud.google.com/gemini-enterprise/start?project=ss-mcp-prod" target="_blank" rel="noopener">Gemini Enterprise 앱 생성 ↗</a></div>
+    </div></div>
+    <div class="step"><div class="num">2</div><div class="body">
+      <strong>“Create app / 앱 만들기” 클릭 후 입력</strong>
+      <table class="kv">
+        <tr><td>앱 이름</td><td><code>Social Seeding Agents</code> (자유)</td></tr>
+        <tr><td>앱 ID</td><td><code>social-seeding</code> 권장 — <b>생성 후 변경 불가</b></td></tr>
+        <tr><td>리전</td><td><code>global (Global)</code> 기본값 그대로</td></tr>
+      </table>
+      <strong style="margin-top:8px">→ Create 클릭</strong>
+    </div></div>
+    <div class="step"><div class="num">3</div><div class="body">
+      <strong>만들어진 앱 ID를 Claude에게 알려주기</strong>
+      <div style="color:var(--mut)">예: “앱 만들었어, ID는 <code>social-seeding</code>” — 그러면 Claude가 등록을 진행합니다.</div>
+    </div></div>
+  </div>
+
+  <!-- STEP 3 handoff -->
+  <div class="card">
+    <h2>③ A2A 에이전트 등록 <span class="badge b-claude">🔵 Claude가</span></h2>
+    <p>앱이 생기면 Claude가 둘 중 하나로 등록합니다 — <b>당신은 안 해도 됩니다.</b></p>
+    <ul>
+      <li><b>콘솔:</b> Gemini Enterprise → 앱 선택 → <b>Agents &gt; Add Agents</b> → <b>Custom agent via A2A</b> → 동작하는 카드 JSON 붙여넣기 → <b>Preview &gt; Next</b> → Skip &amp; Finish</li>
+      <li><b>또는 REST:</b> <span class="mono">POST https://discoveryengine.googleapis.com/v1alpha/projects/ss-mcp-prod/locations/global/collections/default_collection/engines/&lt;APP_ID&gt;/assistants/default_assistant/agents</span> <span style="color:var(--mut)">(A2A 에이전트 등록은 현재 <code>v1alpha</code>가 공식 경로 — 실제로 이 버전으로 등록 검증함)</span></li>
+    </ul>
+    <div class="callout ok"><b>보안 보너스:</b> A2A 에이전트는 Model Armor를 <b>에이전트 코드 안에서 REST로</b> 설정해야 보호됩니다(콘솔 설정은 A2A에 자동 적용 안 됨). 우리는 코드에 <code>model_armor_query_blocks</code>가 이미 있어 충족 — Claude가 라이브로 켭니다.</div>
+  </div>
+
+  <!-- Fallback: org -->
+  <div class="card">
+    <h2>🧰 막히면: 조직(Organization) 먼저 만들기 <span class="badge b-you">🟠 당신</span></h2>
+    <p style="color:var(--mut);margin-top:0">①에서 “조직/도메인이 필요하다”고 나올 때만. 현재 계정은 소비자 Gmail이라 조직이 없습니다. 당신이 소유한 <b>socialseed.ing</b> 도메인으로 무료 조직을 만들 수 있습니다.</p>
+    <div class="step"><div class="num">1</div><div class="body">
+      <strong>Cloud Identity Free 가입</strong> — 도메인 <code>socialseed.ing</code> 사용
+      <div><a class="btn" href="https://workspace.google.com/signup/gcpidentity/welcome" target="_blank" rel="noopener">Cloud Identity Free 가입 ↗</a></div>
+      <div style="color:var(--mut)">도메인 등록기관(DNS) 관리자 접근이 필요합니다. 무료 50 사용자.</div>
+    </div></div>
+    <div class="step"><div class="num">2</div><div class="body">
+      <strong>도메인 소유 확인(DNS TXT)</strong> — 가입 마법사가 주는 TXT 레코드를 socialseed.ing DNS에 추가. 확인되면 <b>GCP 조직 노드</b>가 자동 생성됩니다.
+    </div></div>
+    <div class="step"><div class="num">3</div><div class="body">
+      <strong>①로 돌아가 다시 시도</strong> — 이제 조직이 있으니 Gemini Enterprise 구독이 통과됩니다.
+    </div></div>
+    <div class="callout bad"><b>절대 하지 말 것(심사 기간):</b> 라이브 <code>ss-mcp-prod</code> 프로젝트를 새 조직으로 <b>이전(migrate)하지 마세요</b> — 데모 URL/IAM이 깨질 수 있습니다. 조직이 필요하면 조직 산하에 <b>새 프로젝트</b>를 만들어 거기서 진행(Claude가 재배포/등록)하거나, 이전은 <b>제출 후</b>로 미루세요.</div>
+  </div>
+
+  <!-- reality check -->
+  <div class="card">
+    <h2>⏱️ 현실 체크 (정직)</h2>
+    <ul>
+      <li><b>심사엔 필수 아님:</b> 우리 A2A 카드 + JWKS만으로 에이전트는 이미 발견·호출 가능. Gemini Enterprise 등록은 <b>가점/업그레이드</b>입니다.</li>
+      <li><b>막힐 수 있는 지점:</b> ① 구독이 조직을 요구할 가능성, 또는 구 <code>geminienterprise.googleapis.com</code> API의 allowlist(과거 220002). 조직 + DNS 검증은 <b>며칠~1·2주</b> 걸릴 수 있어 <b>지금 시작</b>하는 게 맞습니다.</li>
+      <li><b>마감:</b> 2026-06-05. 안 되면 기다리는 동안 나머지 제출 작업을 계속 진행합니다.</li>
+    </ul>
+  </div>
+
+  <footer>
+    검증일 2026-05-22 · 출처:
+    <a href="https://docs.cloud.google.com/gemini/enterprise/docs/register-and-manage-an-a2a-agent" target="_blank" rel="noopener">A2A 에이전트 등록 공식 문서</a> ·
+    <a href="https://docs.cloud.google.com/gemini/enterprise/docs/create-app" target="_blank" rel="noopener">앱 생성 문서</a> ·
+    <a href="https://docs.cloud.google.com/gemini-enterprise-agent-platform/overview" target="_blank" rel="noopener">Agent Platform 개요</a> ·
+    <a href="https://docs.cloud.google.com/identity/docs/how-to/set-up-cloud-identity-admin" target="_blank" rel="noopener">Cloud Identity 설정</a> ·
+    <a href="https://cloud.google.com/gemini-enterprise" target="_blank" rel="noopener">Gemini Enterprise 제품 페이지</a><br>
+    ※ “조직 필요 여부”는 공식 문서에 명시돼 있지 않아 ①의 가입 화면이 최종 판정. 그래서 본 안내서는 “바로 시도 → 막히면 조직” 2-트랙으로 구성했습니다.
+  </footer>
+
+</div>
+</body>
+</html>
