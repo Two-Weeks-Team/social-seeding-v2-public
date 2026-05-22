@@ -228,10 +228,15 @@ describe("MandateDetail (D26/D27/D34)", () => {
         campaignName="Acme"
         rationale="r"
         draft={draft}
-        locale="ko"
+        locale="en"
       />,
     );
-    const ariaLabeled = container.querySelectorAll("[aria-label*='Korean']");
+    // The amount aria-label appends the locale-resolved currency display name
+    // (Intl.DisplayNames). KRW in the `en` locale resolves to "South Korean
+    // Won" across ICU builds — query the stable English name, not the locale
+    // tag word, so the test is portable (the old `*='Korean'` only matched on
+    // reduced-ICU Node where `ko` fell back to English).
+    const ariaLabeled = container.querySelectorAll("[aria-label*='Won']");
     expect(ariaLabeled.length).toBeGreaterThan(0);
   });
 
@@ -262,6 +267,15 @@ describe("MandateDetail (D26/D27/D34)", () => {
         signature: "sig-b64",
       },
     }));
+    // jsdom has no WebAuthn, so isWebAuthnSupported() is false and the dialog's
+    // sign button stays disabled. Stub a WebAuthn-capable environment so the
+    // ceremony button enables; the `testHook` still bypasses the real
+    // navigator.credentials.get call. Restored by vi.unstubAllGlobals in setup.
+    vi.stubGlobal("PublicKeyCredential", class {});
+    vi.stubGlobal("navigator", {
+      ...globalThis.navigator,
+      credentials: { get: vi.fn() },
+    });
     render(
       <MandateDetail
         approvalId="a1"
@@ -305,6 +319,12 @@ describe("MandateDetail (D26/D27/D34)", () => {
     //    to handleSignAll and the next sign attempt would carry edits=undefined.
     const primaryAfterCancel = screen.getByRole("button", { name: /Sign with edits/i });
     fireEvent.click(primaryAfterCancel);
+
+    // 5b. The dialog auto-trigger is suppressed when a `testHook` is supplied
+    //     (so tests control ceremony timing), so explicitly click the dialog's
+    //     primary ("Sign all") button to run the assertion ceremony.
+    const dialogSign = await screen.findByRole("button", { name: /Sign all/i });
+    fireEvent.click(dialogSign);
 
     // 6. Wait for the test-hook assertion path to resolve and capture the
     //    StepUpResult.edits — assert recipient edits were preserved.

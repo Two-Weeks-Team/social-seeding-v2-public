@@ -17,7 +17,23 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run verify-build   # turbo: lint + type-check + build, all packages
-      # - run: pnpm run test          # enable once packages/agents has tests
+
+  # TS unit + component suites (vitest). Was ungated for months (the old
+  # `pnpm run test` line was commented out), which let red `@ss/web` AP2
+  # component tests slip in. `pnpm test` (scripts/test-all.ts) boots its own
+  # ephemeral mongodb-memory-server and runs each package against an isolated
+  # MONGODB_DB, so this job needs no manual DB setup.
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
 
   # Python agent suite (packages/agents-adk). Runs in parallel with `verify`.
   # Offline by design: tests/conftest.py forces SS_OFFLINE=1 / SS_LIVE=0 (autouse),

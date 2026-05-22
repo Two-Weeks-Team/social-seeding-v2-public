@@ -12,7 +12,7 @@
     "dev": "turbo run dev",
     "lint": "eslint .",
     "type-check": "turbo run type-check",
-    "test": "turbo run test",
+    "test": "tsx scripts/test-all.ts",
     "quality": "pnpm run lint && pnpm run type-check",
     "verify-build": "pnpm run lint && pnpm run build && pnpm run type-check",
     "init-indexes": "tsx scripts/init-indexes.ts",
