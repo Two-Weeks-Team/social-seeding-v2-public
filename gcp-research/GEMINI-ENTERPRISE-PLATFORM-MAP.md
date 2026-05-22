@@ -106,4 +106,14 @@ grounding tool with function tools disables AFC and yields uncitable grounding-c
 - `agents-cli eval run --all` → runs end-to-end on **gemini-3.5-flash** (Vertex `global`) with the GA **rubric judge** (relevance + grounded, threshold 0.7). First run scored **1/4** because the model emitted opaque `[1.1.1]` citation markers without surfacing the real source URLs (grounded = 0/4). After hardening the orchestrator (mandatory grounding calls, cite the real `Source:` URLs inline + in a "Sources" section, report only tool-returned facts/creators — no fabrication), it scores **4/4** (relevance 1.0 + grounded 1.0 on every case, confirmed on two consecutive runs).
 - 8/8 offline unit tests pass (`tests/unit`, ss_agents mocked).
 
-**Next (operator):** `agents-cli playground` (live UI demo), `agents-cli deploy` (cloud_run target in the manifest), `agents-cli publish gemini-enterprise` (O7 allowlist). Maps directly onto the **Optimize** + **Scale** (Agent Runtime) columns above.
+**Gemini Enterprise registration — ✓ DONE LIVE (2026-05-22):** created a Gemini Enterprise app
+(`social-seeding-agents`, 30-day free trial, no org/allowlist needed) on `ss-mcp-prod` and
+**registered our A2A agent** into it via the Discovery Engine REST API — `ENABLED`, listed in the
+**Agent Gallery** (agent id `4620305404746061476`), card `url` pointed at the working run.app `/v1`
+HTTP+JSON endpoint (verified callable). The earlier "O7 allowlist" framing was wrong: the working
+path is the GE console "Create app" + `discoveryengine` agents endpoint. See
+`gemini-enterprise-api-status.md` + `HONEST-SCOPE.md` row 14. **Remaining (Google-side, not ours):**
+assistant→custom-agent *invocation* via `streamAssist` is gated (returns model answers, not our agent;
+needs a Cloud Support case) — registration/discovery/endpoint all work today.
+
+**Other next (operator):** `agents-cli playground` (live UI demo), `agents-cli deploy` (cloud_run target in the manifest).

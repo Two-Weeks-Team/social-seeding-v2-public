@@ -47,7 +47,7 @@
 | 11 | **Model Garden LLM routing (req ③)** | **✓ DEMONSTRATED LIVE (2026-05-20).** A real Gemini 3.1 Flash-Lite call via `projects/ss-v2-prod/locations/us-central1/publishers/google/models/gemini-3.1-flash-lite` returned a validated `CoordinatorOutput` (chose `tiktok-mcp-search`, confidence 0.99), exit 0. The offline test also asserts the publisher path reaches the model layer. → `bash scripts/smoke-test/run-model-garden-live.sh` (operator ADC) · `pnpm exec pytest packages/agents-adk -k model_garden` | Live `generateContent` at scale via the Model Garden publisher path under the strict-data-security framing. | **✓ demonstrated-live** |
 | 12 | **Agent Identity (SPIFFE crypto ID)** | Each agent carries a SPIFFE workload identity (`spiffe://ss-mcp-prod.svc.id.goog/ns/agents/sa/tiktok-mcp-runner`); the identity and the agent card are real (`gcp-research/refactor-mcp/AGENT-IDENTITY.md`). | The callee verifies the caller's workload identity at the A2A transport layer in production. | **GA-real** |
 | 13 | **Agent Gateway mTLS** | **Declared, not enforced** on the demo. The SPIFFE identity it would present is real; transport-layer mTLS enforcement is the production path. | mTLS enforced at the **Agent Gateway** in front of the A2A ingress. | **Google-Private-Preview** (Agent Gateway mTLS) |
-| 14 | **Gemini Enterprise / Agentspace discovery** | The signed A2A v0.3 card is registration-ready; the agent is built to be discovered + called over A2A without the Marketplace billing rail (the A2A-only distribution path, D3). | Enrolled in Gemini Enterprise / Agentspace so customers discover and call `plan_creator_search` directly. | **Google-Private-Preview / allowlist** (O7, Google's 1–2 week window) |
+| 14 | **Gemini Enterprise / Agentspace registration** | **✓ DEMONSTRATED LIVE 2026-05-22.** Created a live Gemini Enterprise app (`social-seeding-agents`, 30-day free-trial license) on `ss-mcp-prod` and **registered our A2A agent into it** via the Discovery Engine REST API — it is **state `ENABLED` and listed in the Agent Gallery** next to Google's built-in agents (Deep Research, Idea Generation). Agent id `4620305404746061476`; the card `url` was pointed at the live run.app A2A endpoint (the card already declared it as an `additionalInterface`). **No organization or allowlist was needed** — the earlier `geminienterprise.googleapis.com` 220002 was a dead-end API; the working path is the Gemini Enterprise console "Create app" (free trial) + the `discoveryengine` agents endpoint. → `curl …/engines/social-seeding-agents/assistants/default_assistant/agents` lists it `ENABLED`. The agent's endpoint was also fixed + verified callable: a direct A2A `message:send` to the registered `url` (run.app `/v1`, HTTP+JSON) returns real ranked creators (HTTP 200); the card's original `preferredTransport: JSONRPC` at the base 405s, so the registered card was PATCHed to the working HTTP+JSON `/v1` interface. **Invocation-via-assistant tested two ways and is a known Google-side limitation:** `streamAssist` with `agentsSpec.agentSpecs[].agentId` AND with `answerGenerationMode:"AGENT"`+`agentsConfig.agent` both return HTTP 200 `SUCCEEDED` but the assistant answers from the model, NOT our agent (a documented Gemini Enterprise API issue that requires a Cloud Support case to enable). | Standing paid-tier enrollment + assistant→agent routing enabled (Cloud Support case) + verified end-to-end answer from our agent. | **✓ demonstrated-live** registration + endpoint callable (free-trial); **assistant-API routing to custom agents is Google-side-gated** (UI-preview invocation + a Cloud Support case are the remaining steps — not on us) |
 | 15 | **Synthetic vs real creator data** | Every triage case is **hand-authored synthetic** (multilingual: ko/ja/zh-CN/en); real Gmail sends go only to operator-owned test accounts (D10). | Real creator-reply telemetry feeds the Prompt Optimizer + the cost ledger once a campaign runs live. | **operator-deploy** (needs a live campaign) |
 | 16 | **AP2 mandate scope** | **AP2 v0.2 Intent Mandate only** (D27 — agent plans payment, human approves). Cart + Payment Mandate deferred. | Cart + Payment Mandate via the `payment_mandate` agent. | **operator-deploy** (roadmap) |
 | 17 | **Google Search grounding (`web.search`)** | **✓ DEMONSTRATED LIVE (2026-05-21).** The `web.search` capability (research agent) does REAL grounding — `gemini-3.5-flash` + the built-in `GoogleSearch` tool — lifting cited sources from `grounding_metadata` (returned 5 real K-beauty/TikTok sources with URLs + per-source snippets). Not a chat completion. → `bash scripts/smoke-test/run-web-search-grounding.sh` (operator ADC + global) · offline-tested in `tests/tools/test_web_search_grounding.py` | Grounding + structured output + function calling combined (Gemini 3 supports it); + URL-context / code-execution tools as needed. | **✓ demonstrated-live** |
@@ -56,25 +56,27 @@
 
 ## 2. How to read the split
 
-- **✓ demonstrated-live this session (rows 6, 7, 11):** actually executed live on GCP on 2026-05-20 —
-  the `brand-campaign-demo` Cloud Workflow ran end-to-end (real Gemini coordinator → A2A → live ss-mcp
-  → 5 RankedCreators, exec `9cc843c1`), and the Model Garden live smoke returned a validated outcome
-  via the publisher path. Evidence: `scripts/demo/assets/live-orchestration-evidence.md`.
+- **✓ demonstrated-live (rows 6, 7, 11, 14, 17):** actually executed live on GCP — the
+  `brand-campaign-demo` Cloud Workflow ran end-to-end (real Gemini coordinator → A2A → live ss-mcp
+  → 5 RankedCreators, exec `9cc843c1`, 2026-05-20), the Model Garden live smoke returned a validated
+  outcome via the publisher path, the `web.search` Google Search grounding returned 5 cited sources
+  (2026-05-21), and our A2A agent was **registered + ENABLED in a live Gemini Enterprise app**
+  (`social-seeding-agents` on `ss-mcp-prod`, Agent Gallery, 2026-05-22). Evidence:
+  `scripts/demo/assets/live-orchestration-evidence.md` + `gcp-research/gemini-enterprise-api-status.md`.
 - **GA-real (rows 1–5, 9, 12):** the code is real, the offline tests are green, and going live is an
   **operator ADC/billing/IAM step**, not new engineering. A judge can re-run every proof command with
   no GCP credentials and see the offline assertion pass.
 - **operator-deploy (rows 8, 16; partials in 10, 15):** the artifacts ship in-repo; the cross-call and
   the ranker are real at the protocol layer today; the full multi-container topology / live campaign
   are the operator's to capture.
-- **Google-Private-Preview / allowlist (rows 13, 14):** blocked on Google, disclosed plainly, never
-  faked. Agent Gateway mTLS is in Private Preview; Gemini Enterprise enrollment is on Google's 1–2
-  week allowlist window (O7) — **not required for judging** (A2A card + JWKS make the agent
-  discoverable today).
+- **Google-Private-Preview / allowlist (row 13 only):** blocked on Google, disclosed plainly, never
+  faked. Agent Gateway mTLS is in Private Preview. (Gemini Enterprise registration — formerly here —
+  moved to **demonstrated-live** on 2026-05-22, see row 14; no allowlist was needed.)
 
-**Count:** 16 rows — **3 demonstrated-live** (6, 7, 11), **7 GA-real** (1–5, 9, 12), **2 operator-deploy**
-(8, 16), **2 Google-Private-Preview/allowlist** (13, 14), **2 split** (10, 15). The two Google-gated
-rows are the only items not in our control; everything else is a re-runnable proof, a live execution,
-or a documented operator step.
+**Count:** 17 rows — **5 demonstrated-live** (6, 7, 11, 14, 17), **7 GA-real** (1–5, 9, 12),
+**2 operator-deploy** (8, 16), **1 Google-Private-Preview** (13), **2 split** (10, 15). The single
+Google-gated row (13) is the only item not in our control; everything else is a re-runnable proof,
+a live execution, or a documented operator step.
 
 ---
 
