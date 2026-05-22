@@ -132,7 +132,7 @@
     <p>앱이 생기면 Claude가 둘 중 하나로 등록합니다 — <b>당신은 안 해도 됩니다.</b></p>
     <ul>
       <li><b>콘솔:</b> Gemini Enterprise → 앱 선택 → <b>Agents &gt; Add Agents</b> → <b>Custom agent via A2A</b> → 동작하는 카드 JSON 붙여넣기 → <b>Preview &gt; Next</b> → Skip &amp; Finish</li>
-      <li><b>또는 REST:</b> <span class="mono">POST …/v1alpha/projects/ss-mcp-prod/locations/global/collections/default_collection/engines/&lt;APP_ID&gt;/assistants/default_assistant/agents</span></li>
+      <li><b>또는 REST:</b> <span class="mono">POST https://discoveryengine.googleapis.com/v1alpha/projects/ss-mcp-prod/locations/global/collections/default_collection/engines/&lt;APP_ID&gt;/assistants/default_assistant/agents</span> <span style="color:var(--mut)">(A2A 에이전트 등록은 현재 <code>v1alpha</code>가 공식 경로 — 실제로 이 버전으로 등록 검증함)</span></li>
     </ul>
     <div class="callout ok"><b>보안 보너스:</b> A2A 에이전트는 Model Armor를 <b>에이전트 코드 안에서 REST로</b> 설정해야 보호됩니다(콘솔 설정은 A2A에 자동 적용 안 됨). 우리는 코드에 <code>model_armor_query_blocks</code>가 이미 있어 충족 — Claude가 라이브로 켭니다.</div>
   </div>

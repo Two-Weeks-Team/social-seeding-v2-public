@@ -65,8 +65,14 @@ two dead-end surfaces. The working path:
 
 **Endpoint fixed + verified callable (2026-05-22):** the card's `preferredTransport: JSONRPC` at the
 run.app base **405s**; the working interface is **HTTP+JSON at `/v1/message:send`** (direct probe → HTTP
-200, returns real ranked creators, no auth enforced). The registered card was PATCHed so its `url` =
+200, returns real ranked creators). The registered card was PATCHed so its `url` =
 `…run.app/v1` + `preferredTransport` = `HTTP+JSON`.
+
+> ⚠️ **Security caveat (operator follow-up).** The probe succeeded **with no auth** — the card declares
+> `securitySchemes` (OIDC / OAuth / mTLS) but the live Cloud Run service does **not enforce** them
+> (the declared-not-enforced posture of HONEST-SCOPE rows 8/13). The returned data is public TikTok
+> creator rankings (not PII), but `message:send` on a production deploy must be gated (Identity
+> Platform OIDC or Agent Gateway). Not introduced here — this records the existing demo posture.
 
 **Assistant→agent invocation = known Google-side limitation (tested, not assumed):** `streamAssist`
 was called two documented ways — `agentsSpec.agentSpecs[].agentId` and
