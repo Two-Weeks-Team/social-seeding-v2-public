@@ -26,7 +26,7 @@
  *         next-intl messages keyed by `approvals.ap2.partner.{id}.name` when
  *         a translation is needed; otherwise we use displayName verbatim.
  *
- * The list is intentionally exhaustive (61 entries at v0.2.0) because the
+ * The list is intentionally broad (58 entries at v0.2.0) because the
  * inbox row Badge needs to find any partner the agent picks. New partners
  * post-launch are added here; the verifier's allowlist is server-side.
  */
@@ -191,6 +191,6 @@ export function partnerBreakdown(
 
 /**
  * Length sanity-check — keeps the count in sync with PROTOCOLS.md §2.6.
- * Intentionally exposed so tests can assert "we still have 60+ partners".
+ * Intentionally exposed so tests can assert the registry stays substantial.
  */
 export const PARTNER_COUNT = PAYMENT_PARTNERS.length;
