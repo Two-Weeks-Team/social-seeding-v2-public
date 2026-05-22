@@ -25,7 +25,7 @@ Agent-orchestrated TikTok influencer campaign operator. Rewrite of v1 (`~/social
 
 ```bash
 pnpm install
-cp .env.example .env.local            # MONGODB_URI (shared Atlas), AUTH_*, ANTHROPIC_API_KEY, GOOGLE_*, INNGEST_*
+cp .env.example .env.local            # MONGODB_URI (shared Atlas), AUTH_*, GEMINI_API_KEY, GOOGLE_*, INNGEST_*
 pnpm run verify-build                  # lint → next build → tsc --noEmit  (must stay green)
 pnpm run dev-mongo                     # mongodb-memory-server on :27027
 pnpm exec tsx scripts/init-indexes.ts  # provision v2_* indexes (idempotent)
@@ -43,7 +43,7 @@ pnpm exec tsx scripts/run-demo.ts --type=lead               # sales-lead loop
 
 ```
 Mission Control (apps/web, Next 16)  ⇄  Inngest workflows (packages/workflows: brand-campaign + creator-track)
-   ⇄  agents (packages/agents, Claude Agent SDK — agents are FUNCTIONS the workflow invokes: curated tool set,
+   ⇄  agents (packages/agents, Gemini via @google/genai — agents are FUNCTIONS the workflow invokes: curated tool set,
        Zod output contract, USD cap, escalation; NOT free ReAct loops — generalize v1 lib/cold-mail)
    ⇄  capabilities (packages/capabilities — typed fns, the ONLY place HTTP+agents touch I/O; replaces v1's 266 routes)
    ⇄  Mongo (packages/db — shared v1 Atlas collections `accounts_tiktok` etc. + new `v2_*` collections)
@@ -53,7 +53,7 @@ Mission Control (apps/web, Next 16)  ⇄  Inngest workflows (packages/workflows:
 
 Repo is a **JIT internal-package monorepo**: each `packages/*` `exports` points at `src/` (no build step, no project references); `apps/web` transpiles them via `transpilePackages`. `tsconfig.base.json` = ESNext/Bundler/noEmit/verbatimModuleSyntax/strict. Root `eslint.config.mjs` flat config.
 
-Key decisions (2026-05-13): orchestration = **Inngest** (durable timers/signals/`waitForEvent`); autonomy = **staged** (every policy gate `always_ask` by default, owners relax per-workspace); DB = **same Atlas cluster as v1**; agents on **Claude Agent SDK** (Opus 4.7 for judgment, Haiku 4.5 for bulk).
+Key decisions (2026-05-13): orchestration = **Inngest** (durable timers/signals/`waitForEvent`); autonomy = **staged** (every policy gate `always_ask` by default, owners relax per-workspace); DB = **same Atlas cluster as v1**; agents on **Gemini via `@google/genai`** (`gemini-3.5-flash` for judgment, `gemini-3.1-flash-lite` for bulk; D53).
 
 ## Conventions (carried from v1)
 

@@ -43,7 +43,7 @@
 |---|---|---|
 | `MONGODB_URI` | Every path | Nothing runs |
 | `AUTH_SECRET` + `AUTH_TEST_LOGIN_*` | MC sessions | Can't sign in to MC |
-| `ANTHROPIC_API_KEY` | Every agent (sourcing / writer / classifier / responder / logistics / content-verify / analyst / research / lead-outreach-writer) | Workflows throw at the first agent call |
+| `GEMINI_API_KEY` | Every agent (sourcing / writer / classifier / responder / logistics / content-verify / analyst / research / lead-outreach-writer) — `gemini-3.5-flash` + `gemini-3.1-flash-lite`, D53 | Workflows throw at the first agent call (`runAgent` raises "GEMINI_API_KEY is not set") |
 | `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` + OAuth flow + `EMAIL_UNSUBSCRIBE_HMAC_SECRET` (≥16 chars) | `gmail.send` (outreach + replies) | Workflows reach the send step then throw "Gmail not wired" |
 | `GMAIL_PUBSUB_TOKEN` + GCP Pub/Sub topic | Inbound replies | Reply waits time out at 3d |
 | `RAPIDAPI_KEY_TIKTOK` | TikTok creator + post fetches | Sourcing falls back to Atlas Search on v1 data; post-poller throws |

@@ -19,7 +19,7 @@
 > **Verified facts pinned here** (measured this session — do not inflate): triage routing accuracy
 > **40.5% → 100.0% on train (+59.5pp)**, **holdout 71.4% (10/14, 28.6pp gap, 4 misses kept)**; the live
 > A2A cross-call **task completed in ~3.7s (cold) / sub-second (warm), 5 creators**; `agents-adk`
-> pytest **2925 passed**; GCP idle envelope **~$1–5/mo** (all Cloud Run `min=0`).
+> pytest **2924 passed**; GCP idle envelope **~$1–5/mo** (all Cloud Run `min=0`).
 >
 > **✓ DEMONSTRATED LIVE 2026-05-20** (rows 6, 7, 11 moved from operator-deploy → demonstrated): the
 > `brand-campaign-demo` Cloud Workflow was deployed to `ss-v2-prod` and **executed end-to-end** — real

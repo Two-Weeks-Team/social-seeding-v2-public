@@ -241,7 +241,7 @@ Live demo     2026-05-14/15 — full loop verified end-to-end:
 
 ```bash
 pnpm install
-cp .env.example .env.local            # MONGODB_URI, AUTH_*, ANTHROPIC_API_KEY, GOOGLE_*, INNGEST_*
+cp .env.example .env.local            # MONGODB_URI, AUTH_*, GEMINI_API_KEY, GOOGLE_*, INNGEST_*
 pnpm run verify-build                  # lint → next build → tsc --noEmit (must stay green)
 pnpm run dev-mongo                     # mongodb-memory-server :27027
 pnpm exec tsx scripts/init-indexes.ts  # provision v2_* indexes (idempotent)
@@ -458,7 +458,7 @@ CLAUDE.md               agent-facing context (read this if you're an LLM)
 If you're an LLM continuing development on v2:
 
 1. **Read in order**: [`CLAUDE.md`](CLAUDE.md) → [`docs/STATUS.md`](docs/STATUS.md) → [`HANDOFF.md`](HANDOFF.md) tail → [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) → relevant `docs/SMOKE-TEST-Pn.md` for the phase you're touching.
-2. **Memory dir**: `~/.claude/projects/-Users-sgwannabe-social-seeding-v2/memory/` — has decisions like `autonomous-phase-progression`, `goal-4000-char-limit`, `p6-operator-decisions-2026-05-14`, `v3-prototype-comparison`.
+2. **Memory dir**: `~/.claude/projects/<this-repo-path-slug>/memory/` (Claude derives the slug from the absolute repo path) — may hold decisions like `autonomous-phase-progression`, `goal-4000-char-limit`, `p6-operator-decisions-2026-05-14`, `v3-prototype-comparison`.
 3. **The 10 hard-won lessons** from this session's live demo are encoded in **v4's `docs/V2-LESSONS-LEARNED.md`** (the v4 repo is at [Two-Weeks-Team/social-seeding-v4](https://github.com/Two-Weeks-Team/social-seeding-v4)). Before re-implementing anything agent-runtime / Inngest / Gmail-related, **read that file** — it'll save days of rediscovery. Examples:
    - Inngest `step.waitForEvent` `if:` expression must use `async.data.X`, not `event.data.X`
    - The judgment model emits pseudo-tool-calls as text when `tool_choice: "any"` isn't forced on turn 1
