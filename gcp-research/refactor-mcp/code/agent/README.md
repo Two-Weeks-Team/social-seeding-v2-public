@@ -95,8 +95,8 @@ MCP_BASE_URL=http://localhost:8100 pytest -q -m integration
 | `MODEL_ARMOR_INPUT_TEMPLATE` | live | derived | MA INPUT template resource name `projects/{p}/locations/{l}/templates/{t}` |
 | `MODEL_ARMOR_OUTPUT_TEMPLATE` | live | derived | MA OUTPUT template resource name |
 | `MODEL_ARMOR_FAIL_MODE` | no | `closed` | `closed` / `open` (audit toggle only) |
-| `ADK_FLASH_MODEL` | no | `gemini-2.5-flash` | Cheap routing model |
-| `ADK_PRO_MODEL` | no | `gemini-2.5-pro` | Ranker model |
+| `ADK_FLASH_MODEL` | no | `gemini-3.1-flash-lite` | Searcher / bulk tier (D53). Called on the Vertex `global` endpoint. |
+| `ADK_PRO_MODEL` | no | `gemini-3.5-flash` | Ranker / judgment tier (D53); `gemini-*-pro` is 404 in ss-v2-prod. |
 | `REQUIRE_AUTH` | no | `true` | Code default is the secure `true` (verify caller OIDC/OAuth per request). The Track-3 **open-demo image** (`Dockerfile`) overrides this to `false` for unauthenticated A2A reachability; production (`deployment/cloud-run-service.yaml`) keeps it `true`. mTLS enforcement pending O7. Single source of truth for the demo-vs-prod posture: `deployment/agent.json` `x-securityPosture` (DECISIONS.md D44, D7). |
 | `IDENTITY_PLATFORM_STUB` | tests | `0` | Stub mode for the verifier |
 | `MODEL_ARMOR_STUB` | tests | `0` | Legacy stub toggle — still honoured; forces `MODEL_ARMOR_MODE=stub` |

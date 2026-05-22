@@ -238,7 +238,7 @@
     "transport": "a2a-v0.3 (real) — content_verify → ss_agents.tools.dam_get_brand_assets → a2a_invoke (message/send) → get_brand_assets DAM skill",
     "our_implementation": {
       "marketing_agent": "content_verify (Track-2 Tier-1 agent #7)",
-      "model": "gemini-2.5-flash (multimodal: text + image + video)",
+      "model": "gemini-3.1-flash-lite (multimodal: text + image + video)",
       "a2a_brand_asset_tool": "ss_agents.tools.dam_get_brand_assets (composes the A2A v0.3 envelope, invokes a2a_invoke)",
       "dam_agent_endpoint": "env-configured DAM_AGENT_ENDPOINT (D42); demo target is this server's get_brand_assets skill",
       "dam_skill": "get_brand_assets (returns BrandAssets {brand_assets, logo_detected, confidence_0_1, on_brand, compliance_notes})",

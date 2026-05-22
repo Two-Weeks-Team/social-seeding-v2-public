@@ -7,8 +7,8 @@ Reference: ``REFACTOR-MCP.md §3.2-§3.3``.
 Topology:
 
     coordinator (SequentialAgent)
-        ├── searcher  (Gemini 2.5 Flash)  → tiktok_search, tiktok_user_info
-        └── ranker    (Gemini 2.5 Pro)    → tiktok_user_posts, tiktok_post_detail
+        ├── searcher  (gemini-3.1-flash-lite, bulk tier)  → tiktok_search, tiktok_user_info
+        └── ranker    (gemini-3.5-flash, judgment tier)   → tiktok_user_posts, tiktok_post_detail
                                             + RankedCreators structured output
 
 The agent is wrapped as the A2A skill ``plan_creator_search(brand_brief)``
@@ -52,8 +52,14 @@ logger = logging.getLogger(__name__)
 
 PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
 LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
-FLASH_MODEL = os.environ.get("ADK_FLASH_MODEL", "gemini-2.5-flash")
-PRO_MODEL = os.environ.get("ADK_PRO_MODEL", "gemini-2.5-pro")
+# D53: the product runs exactly two Gemini ids on the Vertex `global` endpoint —
+# gemini-3.5-flash (judgment) + gemini-3.1-flash-lite (bulk). gemini-*-pro is 404
+# in ss-v2-prod. The env var names below are kept for deploy compatibility; the
+# ranker ("PRO") binds the judgment-tier flash model, the searcher ("FLASH") the
+# bulk flash-lite model. Enabling these live also requires GOOGLE_CLOUD_LOCATION
+# (Vertex) = "global"; see config note on the Model-Armor region coupling.
+FLASH_MODEL = os.environ.get("ADK_FLASH_MODEL", "gemini-3.1-flash-lite")
+PRO_MODEL = os.environ.get("ADK_PRO_MODEL", "gemini-3.5-flash")
 ADK_DISABLED = os.environ.get("ADK_DISABLED", "").lower() in {"1", "true", "yes"} or not PROJECT
 
 # Eval default; the searcher is told to expand each variant in parallel.

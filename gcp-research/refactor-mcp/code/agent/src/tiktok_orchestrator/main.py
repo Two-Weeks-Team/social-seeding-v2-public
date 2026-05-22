@@ -53,7 +53,7 @@ from .identity_platform import (
     IdentityError,
     extract_bearer,
     protected_resource_metadata,
-    verify_id_token,
+    resolve_identity,
 )
 
 logger = logging.getLogger(__name__)
@@ -134,7 +134,9 @@ async def require_identity(authorization: str | None = Header(default=None)) -> 
         )
     try:
         token = extract_bearer(authorization)
-        return verify_id_token(token)
+        # Issuer-routed: Google service-identity OIDC (internal A2A hop) OR
+        # Firebase ID token (external / marketplace callers). See D44.
+        return resolve_identity(token)
     except IdentityError as exc:
         raise HTTPException(
             status_code=exc.http_status,

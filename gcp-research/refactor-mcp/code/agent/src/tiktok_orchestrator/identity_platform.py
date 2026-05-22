@@ -57,6 +57,7 @@ The verifier supports two modes:
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
@@ -77,6 +78,40 @@ CREDENTIALS_JSON = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON", "")
 
 # Marketplace metadata
 MCP_RESOURCE = os.environ.get("MCP_RESOURCE", "https://mcp.socialseed.ing")
+
+
+# ---------------------------------------------------------------------------
+# Service-to-service (S2S) identity — Google OIDC for the internal A2A hop (D44)
+# ---------------------------------------------------------------------------
+#
+# Besides Firebase ID tokens (external / marketplace callers), the server also
+# accepts a Google-signed service-identity OIDC token for the INTERNAL A2A hop.
+# The ADK fleet's `ss_agents.tools.a2a_invoke` with `A2A_FETCH_ID_TOKEN=1` mints
+# exactly this token (Google ID token, `aud` = this service's URL). This is the
+# standard Cloud Run service-to-service auth pattern, and it avoids the 1-hour
+# Firebase-token expiry problem on the internal path.
+#
+# Fail-closed: the S2S path is DISABLED unless ``ALLOWED_CALLER_SERVICE_ACCOUNTS``
+# is set, so an unconfigured deploy only ever honours Firebase tokens. The token
+# is accepted only when (1) it is Google-signed, (2) its ``aud`` is one of this
+# service's URLs (``SERVICE_IDENTITY_AUDIENCES``), and (3) the caller's service
+# account email is on the allowlist.
+_GOOGLE_ISSUERS: frozenset[str] = frozenset(
+    {"https://accounts.google.com", "accounts.google.com"}
+)
+
+
+def _csv_env(name: str) -> set[str]:
+    raw = os.environ.get(name, "")
+    return {item.strip() for item in raw.split(",") if item.strip()}
+
+
+ALLOWED_CALLER_SERVICE_ACCOUNTS: set[str] = _csv_env("ALLOWED_CALLER_SERVICE_ACCOUNTS")
+# Audiences this service accepts on an S2S token = its own public URL(s). The
+# caller derives `aud` from the endpoint it POSTs to (run.app URL and/or the
+# custom domain), so operators list every URL clients reach us on. Defaults to
+# the marketplace resource URL.
+SERVICE_IDENTITY_AUDIENCES: set[str] = _csv_env("SERVICE_IDENTITY_AUDIENCES") or {MCP_RESOURCE}
 
 
 # ---------------------------------------------------------------------------
@@ -226,6 +261,106 @@ def verify_id_token(token: str) -> IdentityClaims:
 
 
 # ---------------------------------------------------------------------------
+# Service-to-service token verification (Google OIDC) + issuer-routed resolver
+# ---------------------------------------------------------------------------
+
+
+def _peek_issuer(token: str) -> str:
+    """Best-effort UNVERIFIED read of the JWT ``iss`` claim, for routing only.
+
+    This does NOT validate the signature — it only decides which verifier to
+    run. The selected verifier (Firebase or Google OIDC) then performs full
+    cryptographic validation. A malformed token returns ``""`` and routes to
+    the Firebase verifier, which rejects it.
+    """
+    try:
+        payload_segment = token.split(".")[1]
+        padded = payload_segment + "=" * (-len(payload_segment) % 4)
+        claims = json.loads(base64.urlsafe_b64decode(padded.encode("ascii")))
+        return str(claims.get("iss", ""))
+    except Exception:  # noqa: BLE001 — routing only; any failure → Firebase path
+        return ""
+
+
+def _verify_google_oidc(token: str) -> dict[str, Any]:
+    """Cryptographically verify a Google-signed OIDC ID token.
+
+    Network seam (tests monkeypatch this): fetches Google's public certs and
+    validates the signature, the ``accounts.google.com`` issuer, and expiry.
+    Audience is checked by the caller against ``SERVICE_IDENTITY_AUDIENCES`` so
+    more than one accepted URL (run.app + custom domain) is supported.
+    """
+    import google.auth.transport.requests as ga_requests
+    from google.oauth2 import id_token as ga_id_token
+
+    return dict(ga_id_token.verify_oauth2_token(token, ga_requests.Request()))
+
+
+def verify_service_token(token: str) -> IdentityClaims:
+    """Verify a Google service-identity OIDC token for the internal A2A hop.
+
+    Fail-closed: raises ``IdentityError`` unless an allowlist is configured AND
+    the token is Google-signed AND its audience is one of this service's URLs
+    AND the caller's service-account email is allowlisted + verified.
+    """
+    if not token:
+        raise IdentityError("invalid_request", "Bearer token missing")
+    if not ALLOWED_CALLER_SERVICE_ACCOUNTS:
+        raise IdentityError("invalid_token", "service-identity path not configured")
+
+    try:
+        decoded = _verify_google_oidc(token)
+    except IdentityError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise IdentityError("invalid_token", "google id token verification failed") from exc
+
+    issuer = str(decoded.get("iss", ""))
+    if issuer not in _GOOGLE_ISSUERS:
+        raise IdentityError("invalid_token", f"unexpected issuer {issuer!r}")
+
+    audience = str(decoded.get("aud", ""))
+    if audience not in SERVICE_IDENTITY_AUDIENCES:
+        raise IdentityError("invalid_token", "audience not accepted for this service")
+
+    email = decoded.get("email")
+    if not email or not bool(decoded.get("email_verified")):
+        raise IdentityError("invalid_token", "service account email unverified")
+    if email not in ALLOWED_CALLER_SERVICE_ACCOUNTS:
+        raise IdentityError("invalid_token", "caller service account not allowlisted")
+
+    return IdentityClaims(
+        uid=str(decoded.get("sub") or email),
+        email=str(email),
+        email_verified=True,
+        tenant_id=None,
+        issuer=issuer,
+        audience=audience,
+        issued_at=int(decoded.get("iat", 0)),
+        expires_at=int(decoded.get("exp", 0)),
+        raw=dict(decoded),
+    )
+
+
+def resolve_identity(token: str) -> IdentityClaims:
+    """Resolve a Bearer token to ``IdentityClaims``, routing by issuer.
+
+    * Stub mode short-circuits (tests / smoke) — any token → canned claims.
+    * Google-issued tokens (``accounts.google.com``) → the S2S service-identity
+      path, but only when ``ALLOWED_CALLER_SERVICE_ACCOUNTS`` is configured.
+    * Everything else (incl. Firebase ``securetoken`` tokens) → Firebase
+      Identity Platform verification.
+    """
+    if not token:
+        raise IdentityError("invalid_request", "Bearer token missing")
+    if STUB_MODE:
+        return _stub_claims(token)
+    if ALLOWED_CALLER_SERVICE_ACCOUNTS and _peek_issuer(token) in _GOOGLE_ISSUERS:
+        return verify_service_token(token)
+    return verify_id_token(token)
+
+
+# ---------------------------------------------------------------------------
 # FastAPI helpers
 # ---------------------------------------------------------------------------
 
@@ -296,10 +431,14 @@ __all__ = [
     "IdentityClaims",
     "IdentityError",
     "verify_id_token",
+    "verify_service_token",
+    "resolve_identity",
     "extract_bearer",
     "protected_resource_metadata",
     "STUB_MODE",
     "TENANT_ID",
     "PROJECT_ID",
     "MCP_RESOURCE",
+    "ALLOWED_CALLER_SERVICE_ACCOUNTS",
+    "SERVICE_IDENTITY_AUDIENCES",
 ]

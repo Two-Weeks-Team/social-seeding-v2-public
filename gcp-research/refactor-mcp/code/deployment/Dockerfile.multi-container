@@ -74,6 +74,10 @@ RUN pip install --no-cache-dir uv
 
 COPY agent/pyproject.toml ./pyproject.toml
 COPY agent/src ./src
+# pyproject declares `readme = "README.md"`; hatchling validates it during the
+# editable build, so the file must be present in the BUILDER stage (not just
+# the runtime stage).
+COPY agent/README.md ./README.md
 
 # Install the package into a virtualenv so the runtime stage can copy it
 # in one shot (no compilers, no cache).

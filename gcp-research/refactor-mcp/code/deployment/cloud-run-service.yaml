@@ -20,7 +20,7 @@
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
-  name: tiktok-mcp
+  name: ss-mcp-server
   annotations:
     run.googleapis.com/launch-stage: GA
     run.googleapis.com/ingress: all
@@ -42,7 +42,11 @@ spec:
         # Manager only; no `ENV` injection in the manifest.
     spec:
       serviceAccountName: tiktok-mcp-runner@__PROJECT__.iam.gserviceaccount.com
-      timeoutSeconds: 60
+      # The heuristic ranker drives many sequential live MCP calls (search →
+      # user_info → user_posts → post_detail across the top candidates), which
+      # exceeds 60s with real scraping. 300s lets a cold real-data request
+      # finish; the demo workflow can also call async.
+      timeoutSeconds: 300
       containerConcurrency: 30
       containers:
         # ---------------------------------------------------------------------
@@ -85,10 +89,32 @@ spec:
                 projects/__PROJECT__/locations/__LOCATION__/templates/ss-output
             - name: MODEL_ARMOR_FAIL_MODE
               value: "closed"
+            # Model Armor LIVE (D21) — ss-input/ss-output provisioned in
+            # ss-mcp-prod/us-central1 (regional endpoint matches GOOGLE_CLOUD_LOCATION).
+            - name: MODEL_ARMOR_MODE
+              value: "live"
+            # Ranker stays HEURISTIC for the demo: ADK is disabled, so the D53
+            # model ids below are config-correct but unused; the heuristic path
+            # still fetches REAL data through the mcp sidecar (loopback :8100).
+            - name: ADK_DISABLED
+              value: "1"
+            # S2S auth (D44): in addition to Firebase, accept the internal
+            # caller's Google service-identity OIDC token. Caller = ss-agents
+            # runtime SA; audiences = every URL the caller may POST to.
+            - name: ALLOWED_CALLER_SERVICE_ACCOUNTS
+              value: "ss-agents-runtime@ss-v2-prod.iam.gserviceaccount.com"
+            - name: SERVICE_IDENTITY_AUDIENCES
+              value: "https://ss-mcp-server-1049119860518.us-central1.run.app,https://ss-mcp-server-s2le2ic2eq-uc.a.run.app,https://mcp.socialseed.ing"
+            # D53: searcher = bulk tier, ranker = judgment tier. The only two
+            # callable product ids; gemini-*-pro is 404 in ss-v2-prod. NOTE:
+            # the ADK path calls these on the Vertex `global` endpoint, so
+            # enabling it live requires GOOGLE_CLOUD_LOCATION=global — which
+            # conflicts with the regional Model-Armor template/endpoint above.
+            # Decouple the two locations before turning the ADK ranker on.
             - name: ADK_FLASH_MODEL
-              value: "gemini-2.5-flash"
+              value: "gemini-3.1-flash-lite"
             - name: ADK_PRO_MODEL
-              value: "gemini-2.5-pro"
+              value: "gemini-3.5-flash"
             - name: LOG_LEVEL
               value: "INFO"
           resources:

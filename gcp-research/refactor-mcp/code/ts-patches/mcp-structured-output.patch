@@ -1,0 +1,161 @@
+diff --git a/src/server.ts b/src/server.ts
+index 94929ad..1a8919c 100644
+--- a/src/server.ts
++++ b/src/server.ts
+@@ -21,7 +21,7 @@ import { limitReachedMessage, searchLink, creatorLink, campaignLink } from "./ba
+  */
+ function withLimit(
+   toolName: string,
+-  handler: (args: Record<string, unknown>) => Promise<string>,
++  handler: (args: Record<string, unknown>) => Promise<string | { text: string; data?: unknown }>,
+   getSourceUrl: (args: Record<string, unknown>) => string
+ ) {
+   return async (args: Record<string, unknown>) => {
+@@ -32,18 +32,22 @@ function withLimit(
+       };
+     }
+     try {
+-      const text = await handler(args);
++      const out = await handler(args);
+       recordUsage(toolName);
+ 
+       const sourceUrl = getSourceUrl(args);
+ 
+-      // LLM에게는 포맷된 텍스트만 전달 (메타데이터 분리)
++      // Text consumers (ChatGPT/Smithery) read content[].text; the ADK
++      // orchestrator reads structuredContent.data. Handlers may return a plain
++      // string (text only) or { text, data } to also expose a machine payload.
++      const text = typeof out === "string" ? out : out.text;
++      const structuredData = typeof out === "string" ? out : (out.data ?? out.text);
+       const displayText = `${text}\n\nSource: Social Seeding — ${sourceUrl}`;
+ 
+       return {
+         content: [{ type: "text" as const, text: displayText }],
+         structuredContent: {
+-          data: text,
++          data: structuredData,
+           _meta: {
+             source: "Social Seeding",
+             sourceUrl,
+diff --git a/src/tools/post-detail.ts b/src/tools/post-detail.ts
+index 091796e..c21b721 100644
+--- a/src/tools/post-detail.ts
++++ b/src/tools/post-detail.ts
+@@ -36,7 +36,7 @@ export const postDetailInputSchema = z.object({
+ 
+ export async function handlePostDetail(
+   args: z.infer<typeof postDetailInputSchema>
+-): Promise<string> {
++): Promise<string | { text: string; data: unknown }> {
+   const client = getBackendClient();
+   const params: Record<string, string> = { id: args.id };
+   if (args.uniqueId) params.uniqueId = args.uniqueId;
+@@ -92,7 +92,17 @@ export async function handlePostDetail(
+   const tipsSection =
+     tips.length > 0 ? `\n\n[Insights]\n${tips.join("\n")}` : "";
+ 
+-  return summary + dataSection + tipsSection + actionAttribution();
++  const text = summary + dataSection + tipsSection + actionAttribution();
++  return {
++    text,
++    data: {
++      id: p.id,
++      views: p.stats?.playCount ?? 0,
++      likes: p.stats?.heartCount ?? 0,
++      comments: p.stats?.commentCount ?? 0,
++      shares: p.stats?.shareCount ?? 0,
++    },
++  };
+ }
+ 
+ function formatCount(n: number): string {
+diff --git a/src/tools/search.ts b/src/tools/search.ts
+index a3548a6..8d373f1 100644
+--- a/src/tools/search.ts
++++ b/src/tools/search.ts
+@@ -36,7 +36,7 @@ export const searchInputSchema = z.object({
+ 
+ export async function handleSearch(
+   args: z.infer<typeof searchInputSchema>
+-): Promise<string> {
++): Promise<string | { text: string; data: unknown }> {
+   const client = getBackendClient();
+   const data = await client.get<SearchResponse>("/api/v1/search", {
+     params: {
+@@ -74,5 +74,13 @@ export async function handleSearch(
+   const tipsSection =
+     tips.length > 0 ? `\n\n[Insights]\n${tips.join("\n")}` : "";
+ 
+-  return summary + dataSection + tipsSection + searchAttribution(args.keyword);
++  const text = summary + dataSection + tipsSection + searchAttribution(args.keyword);
++  // Structured payload for the ADK orchestrator (field names match the
++  // RankedCreators heuristic: uniqueId / followerCount / bio).
++  const creators = shown.map((h) => ({
++    uniqueId: h.uniqueId,
++    followerCount: h.followerCount ?? 0,
++    bio: h.signature ?? "",
++  }));
++  return { text, data: { creators } };
+ }
+diff --git a/src/tools/user-info.ts b/src/tools/user-info.ts
+index eb835b6..c907282 100644
+--- a/src/tools/user-info.ts
++++ b/src/tools/user-info.ts
+@@ -30,7 +30,7 @@ export const userInfoInputSchema = z.object({
+ 
+ export async function handleUserInfo(
+   args: z.infer<typeof userInfoInputSchema>
+-): Promise<string> {
++): Promise<string | { text: string; data: unknown }> {
+   const client = getBackendClient();
+   const data = await client.get<UserInfoResponse>("/api/v1/user/info", {
+     params: { uniqueId: args.uniqueId },
+@@ -75,7 +75,15 @@ export async function handleUserInfo(
+   const tipsSection =
+     tips.length > 0 ? `\n\n[Insights]\n${tips.join("\n")}` : "";
+ 
+-  return summary + dataSection + tipsSection + profileAttribution(args.uniqueId);
++  const text = summary + dataSection + tipsSection + profileAttribution(args.uniqueId);
++  return {
++    text,
++    data: {
++      uniqueId: u.uniqueId,
++      bio: u.signature ?? "",
++      followerCount: s?.followerCount ?? u.followerCount ?? 0,
++    },
++  };
+ }
+ 
+ function formatNum(n: number): string {
+diff --git a/src/tools/user-posts.ts b/src/tools/user-posts.ts
+index b8c1427..bd29ef0 100644
+--- a/src/tools/user-posts.ts
++++ b/src/tools/user-posts.ts
+@@ -35,7 +35,7 @@ export const userPostsInputSchema = z.object({
+ 
+ export async function handleUserPosts(
+   args: z.infer<typeof userPostsInputSchema>
+-): Promise<string> {
++): Promise<string | { text: string; data: unknown }> {
+   const client = getBackendClient();
+   const data = await client.get<UserPostsResponse>("/api/v1/user/posts", {
+     params: { uniqueId: args.uniqueId },
+@@ -89,7 +89,17 @@ export async function handleUserPosts(
+   const tipsSection =
+     tips.length > 0 ? `\n\n[Insights]\n${tips.join("\n")}` : "";
+ 
+-  return summary + dataSection + tipsSection + profileAttribution(args.uniqueId);
++  const text = summary + dataSection + tipsSection + profileAttribution(args.uniqueId);
++  // Structured payload for the ADK orchestrator (field names match the
++  // heuristic ranker: id / views / likes / comments / shares).
++  const posts = shown.map((v) => ({
++    id: v.id,
++    views: v.stats?.playCount ?? 0,
++    likes: v.stats?.heartCount ?? 0,
++    comments: v.stats?.commentCount ?? 0,
++    shares: v.stats?.shareCount ?? 0,
++  }));
++  return { text, data: { posts } };
+ }
+ 
+ function formatCount(n: number): string {
