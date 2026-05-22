@@ -34,7 +34,7 @@ Almost every "feature" in v1 becomes a **capability** (a typed function) that an
        │ runAgent(def, input, ctx)                    │ invokeCapability(name, input, ctx)
 ┌──────▼──────────────────────────┐      ┌────────────▼──────────────────────┐
 │ ③ AGENTS  (packages/agents,      │ uses │ ④ CAPABILITIES  (packages/        │
-│   Claude Agent SDK)              │  ───▶│   capabilities)                    │
+│   Google genai SDK)              │  ───▶│   capabilities)                    │
 │  sourcing · vetting ·            │      │  registry of typed fns:            │
 │  outreach-writer (= v1 cold-mail │      │   tiktok.search / .getCreator      │
 │  pipeline, wrapped) ·            │      │   gmail.send / .watchThread        │
