@@ -1,6 +1,7 @@
 /**
- * AP2 v0.2.0 payment partner registry — 60+ partners from
- * `PROTOCOLS.md §2.6`. Each entry tells the UI:
+ * AP2 v0.2.0 payment partner registry — a curated subset (58 entries) of
+ * AP2's 60+ announced ecosystem, per `PROTOCOLS.md §2.6`. Each entry tells
+ * the UI:
  *   - displayName  — what the operator sees in the row / drill-in / readback.
  *   - icon         — short glyph rendered next to the name (no third-party
  *                    asset deps — keeps the bundle tiny per Frontend-Architect

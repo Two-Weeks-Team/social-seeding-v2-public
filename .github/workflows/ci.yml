@@ -17,7 +17,54 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run verify-build   # turbo: lint + type-check + build, all packages
-      # - run: pnpm run test          # enable once packages/agents has tests
+
+  # TS unit + component suites (vitest). Was ungated for months (the old
+  # `pnpm run test` line was commented out), which let red `@ss/web` AP2
+  # component tests slip in. Now gated. The Mongo-backed packages
+  # (capabilities/workflows/agents) read MONGODB_URI from an in-process
+  # mongodb-memory-server; `@ss/web` is JSDOM-only. Each Mongo-backed package
+  # runs against its OWN database name (MONGODB_DB) — they share one mongod and
+  # would otherwise cross-contaminate each other's collections.
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start in-memory MongoDB (mongodb-memory-server :27027)
+        run: |
+          pnpm run dev-mongo > /tmp/dev-mongo.log 2>&1 &
+          for i in $(seq 1 90); do
+            if grep -q "mongod ready" /tmp/dev-mongo.log; then echo "mongo ready"; break; fi
+            sleep 1
+          done
+          grep -q "mongod ready" /tmp/dev-mongo.log || { echo "::error::mongo failed to start"; cat /tmp/dev-mongo.log; exit 1; }
+      - name: vitest @ss/web (JSDOM, no Mongo)
+        run: pnpm --filter @ss/web test
+      - name: vitest @ss/observability
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27027/social_seeding
+          MONGODB_DB: ss_test_observability
+        run: pnpm --filter @ss/observability test
+      - name: vitest @ss/capabilities
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27027/social_seeding
+          MONGODB_DB: ss_test_capabilities
+        run: pnpm --filter @ss/capabilities test
+      - name: vitest @ss/workflows
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27027/social_seeding
+          MONGODB_DB: ss_test_workflows
+        run: pnpm --filter @ss/workflows test
+      - name: vitest @ss/agents
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27027/social_seeding
+          MONGODB_DB: ss_test_agents
+        run: pnpm --filter @ss/agents test
 
   # Python agent suite (packages/agents-adk). Runs in parallel with `verify`.
   # Offline by design: tests/conftest.py forces SS_OFFLINE=1 / SS_LIVE=0 (autouse),
