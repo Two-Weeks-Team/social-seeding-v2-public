@@ -85,10 +85,16 @@ spec:
                 projects/__PROJECT__/locations/__LOCATION__/templates/ss-output
             - name: MODEL_ARMOR_FAIL_MODE
               value: "closed"
+            # D53: searcher = bulk tier, ranker = judgment tier. The only two
+            # callable product ids; gemini-*-pro is 404 in ss-v2-prod. NOTE:
+            # the ADK path calls these on the Vertex `global` endpoint, so
+            # enabling it live requires GOOGLE_CLOUD_LOCATION=global — which
+            # conflicts with the regional Model-Armor template/endpoint above.
+            # Decouple the two locations before turning the ADK ranker on.
             - name: ADK_FLASH_MODEL
-              value: "gemini-2.5-flash"
+              value: "gemini-3.1-flash-lite"
             - name: ADK_PRO_MODEL
-              value: "gemini-2.5-pro"
+              value: "gemini-3.5-flash"
             - name: LOG_LEVEL
               value: "INFO"
           resources:
