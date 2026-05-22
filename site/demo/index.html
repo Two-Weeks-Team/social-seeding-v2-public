@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1280">
+<meta name="description" content="Social Seeding v2 — an agent-operated TikTok influencer-campaign platform. Interactive demo of the Build → Optimize → Refactor arc: a 22-agent Vertex AI fleet, A2A v0.3 cross-calls, and Mission Control, for the Google for Startups AI Agents Challenge (Track 3).">
 <title>Social Seeding v2 — Web Demo (Track 2 + Track 3)</title>
 <!--
   D-ID provenance (per gcp-research/decisions/DECISIONS.md):
@@ -666,12 +667,14 @@
   <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
     <a href="wow-business.html"
        style="font-size:13px; font-weight:700; text-decoration:none; background:#1a73e8; color:#fff; padding:8px 16px; border-radius:8px; box-shadow:0 2px 8px rgba(26,115,232,0.35); white-space:nowrap;"
-       aria-label="Open the Wow plus Business panel: real Imagen generation, A2A cross-call, ROI and TAM, Build Example #2 match">
+       aria-label="Wow + Business panel (D49): real Imagen generation, A2A cross-call, ROI and TAM, Build Example #2 match">
       ★ Wow + Business panel (D49) →
     </a>
     <div class="meta">github.com/ComBba/social-seeding-v2 · Apache-2.0 + BUSL-1.1</div>
   </div>
 </div>
+
+<main id="demo-main" aria-label="Social Seeding v2 interactive demo">
 
 <!-- ============================================================================
      UNIFIED-NARRATIVE STRIP (D45 — single Track 3 submission subsumes Track 2).
@@ -763,12 +766,13 @@
   <div class="timeline" aria-hidden="true"><span id="timeline-bar" style="width:0%"></span></div>
   <div style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #94a3b8;">
     <span>Jump to scene:
-      <select id="scene-jump"></select>
+      <select id="scene-jump" aria-label="Jump to a demo scene"></select>
     </span>
     <span>Keyboard: <kbd>Space</kbd>=play/pause · <kbd>←/→</kbd>=prev/next scene · <kbd>1-4</kbd>=locale</span>
     <span id="clock">00:00 / 03:00</span>
   </div>
 </div>
+</main>
 
 <script>
 /* ============================================================================
@@ -1228,7 +1232,7 @@ function track2Scene3() {
   for (let i = 1; i <= 12; i++) {
     rows.push(`
       <tr class="t2s3-row" data-i="${i}">
-        <td><input type="checkbox" class="t2s3-cb" /></td>
+        <td><input type="checkbox" class="t2s3-cb" aria-label="Select creator @creator_${String(i).padStart(2,'0')}" /></td>
         <td>@creator_${String(i).padStart(2,'0')}</td>
         <td>${(120000 + i*45000).toLocaleString()}</td>
         <td>${(0.78 + (i % 5) * 0.04).toFixed(2)}</td>
@@ -1262,7 +1266,7 @@ function track2Scene3() {
       <table class="data-table">
         <thead>
           <tr>
-            <th><input type="checkbox" id="t2s3-master" /></th>
+            <th><input type="checkbox" id="t2s3-master" aria-label="Select all creators" /></th>
             <th>Handle</th><th>Followers</th><th>Niche conf.</th><th>USD</th><th>Agent · contract</th><th>Status</th>
           </tr>
         </thead>
