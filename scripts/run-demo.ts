@@ -72,6 +72,8 @@ interface CliOpts {
   type: "brand" | "lead";
   dryRun: boolean;
   pollMinutes: number;
+  /** Opt-in to run live against the SHARED v1 Atlas `social_seeding` DB. */
+  allowSharedAtlas: boolean;
 }
 
 function parseArgs(): CliOpts {
@@ -79,16 +81,18 @@ function parseArgs(): CliOpts {
   let type: "brand" | "lead" = "brand";
   let dryRun = false;
   let pollMinutes = 5;
+  let allowSharedAtlas = false;
   for (const a of argv) {
     if (a === "--dry-run") dryRun = true;
     else if (a === "--type=lead") type = "lead";
     else if (a === "--type=brand") type = "brand";
+    else if (a === "--allow-shared-atlas") allowSharedAtlas = true;
     else if (a.startsWith("--poll-minutes=")) {
       const n = Number(a.split("=")[1] ?? "");
       if (Number.isFinite(n) && n > 0) pollMinutes = n;
     }
   }
-  return { type, dryRun, pollMinutes };
+  return { type, dryRun, pollMinutes, allowSharedAtlas };
 }
 
 // ── pre-flight ────────────────────────────────────────────────────────────────
@@ -280,6 +284,23 @@ async function main(): Promise<void> {
     console.log(`  4. npx inngest-cli@latest dev                   # workflow runtime`);
     console.log(`  5. pnpm exec tsx scripts/run-demo.ts --type=${opts.type}`);
     return;
+  }
+
+  // Safety guard (live only): a live run writes v2_* collections + reads/writes
+  // workspace state. CLAUDE.md landmine: `.env.test` ships a live Atlas URI on
+  // the SHARED v1 `social_seeding` production DB. Refuse to run live against it
+  // unless the operator explicitly opts in, so a confused run can't mutate prod.
+  const uri = process.env.MONGODB_URI ?? "";
+  const dbName = process.env.MONGODB_DB ?? "social_seeding";
+  const isLocal = /(?:127\.0\.0\.1|localhost)/.test(uri);
+  const isRemoteAtlas = uri.startsWith("mongodb+srv://") || (uri.length > 0 && !isLocal);
+  if (isRemoteAtlas && dbName === "social_seeding" && !opts.allowSharedAtlas) {
+    throw new Error(
+      "refusing live run: MONGODB_URI points at a remote cluster on the SHARED v1 " +
+        "production DB `social_seeding` — a live demo would mutate production data. " +
+        "Use a dev cluster / `mongodb-memory-server` (set MONGODB_DB=social_seeding_demo " +
+        "or a local URI), or pass --allow-shared-atlas if this is intentional.",
+    );
   }
 
   // Use a deterministic demo workspace + user. These values are operator-
