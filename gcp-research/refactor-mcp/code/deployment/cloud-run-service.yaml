@@ -81,21 +81,42 @@ spec:
                 secretKeyRef:
                   name: identity-platform-tenant-id
                   key: latest
+            # Model Armor templates are PINNED to us-central1 (where they were
+            # provisioned), independent of GOOGLE_CLOUD_LOCATION — see
+            # MODEL_ARMOR_LOCATION below + the decouple note on the ADK block.
             - name: MODEL_ARMOR_INPUT_TEMPLATE
               value: >-
-                projects/__PROJECT__/locations/__LOCATION__/templates/ss-input
+                projects/__PROJECT__/locations/us-central1/templates/ss-input
             - name: MODEL_ARMOR_OUTPUT_TEMPLATE
               value: >-
-                projects/__PROJECT__/locations/__LOCATION__/templates/ss-output
+                projects/__PROJECT__/locations/us-central1/templates/ss-output
             - name: MODEL_ARMOR_FAIL_MODE
               value: "closed"
             # Model Armor LIVE (D21) — ss-input/ss-output provisioned in
-            # ss-mcp-prod/us-central1 (regional endpoint matches GOOGLE_CLOUD_LOCATION).
+            # ss-mcp-prod/us-central1. The regional API endpoint + templates are
+            # driven by MODEL_ARMOR_LOCATION (NOT GOOGLE_CLOUD_LOCATION), so the
+            # ADK ranker can use the Vertex `global` endpoint without breaking
+            # Model Armor (model_armor.py REGION = MODEL_ARMOR_LOCATION).
+            - name: MODEL_ARMOR_LOCATION
+              value: "us-central1"
             - name: MODEL_ARMOR_MODE
               value: "live"
             # Ranker stays HEURISTIC for the demo: ADK is disabled, so the D53
             # model ids below are config-correct but unused; the heuristic path
             # still fetches REAL data through the mcp sidecar (loopback :8100).
+            #
+            # TO ENABLE THE LIVE ADK RANKER (operator-gated, verify on a
+            # no-traffic canary revision first; rollback = prior revision):
+            #   1. Set ADK_DISABLED="0", GOOGLE_CLOUD_LOCATION="global",
+            #      GOOGLE_GENAI_USE_VERTEXAI="true".
+            #   2. Grant roles/aiplatform.user to the runtime SA
+            #      (tiktok-mcp-runner@ss-mcp-prod) and confirm gemini-3.5-flash
+            #      is callable on Vertex `global` in ss-mcp-prod.
+            #   3. MODEL_ARMOR_LOCATION stays us-central1 (decoupled, above).
+            #   4. Verify on the canary: Model Armor still blocks a jailbreak,
+            #      no-token=401, and plan_creator_search returns ADK-ranked
+            #      creators (trace path="adk", not "heuristic"); only then cut
+            #      traffic. See claudedocs handoff "ADK ranker live" steps.
             - name: ADK_DISABLED
               value: "1"
             # S2S auth (D44): in addition to Firebase, accept the internal
@@ -106,11 +127,11 @@ spec:
             - name: SERVICE_IDENTITY_AUDIENCES
               value: "https://ss-mcp-server-1049119860518.us-central1.run.app,https://ss-mcp-server-s2le2ic2eq-uc.a.run.app,https://mcp.socialseed.ing"
             # D53: searcher = bulk tier, ranker = judgment tier. The only two
-            # callable product ids; gemini-*-pro is 404 in ss-v2-prod. NOTE:
-            # the ADK path calls these on the Vertex `global` endpoint, so
-            # enabling it live requires GOOGLE_CLOUD_LOCATION=global — which
-            # conflicts with the regional Model-Armor template/endpoint above.
-            # Decouple the two locations before turning the ADK ranker on.
+            # callable product ids; gemini-*-pro is 404. The ADK path calls
+            # these on the Vertex `global` endpoint, so the ADK-on procedure
+            # (above) sets GOOGLE_CLOUD_LOCATION=global. The Model-Armor region
+            # is now DECOUPLED (MODEL_ARMOR_LOCATION), so global no longer
+            # conflicts with the regional Model-Armor endpoint/templates.
             - name: ADK_FLASH_MODEL
               value: "gemini-3.1-flash-lite"
             - name: ADK_PRO_MODEL
