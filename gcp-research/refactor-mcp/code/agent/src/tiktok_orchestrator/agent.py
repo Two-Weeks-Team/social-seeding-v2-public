@@ -442,8 +442,10 @@ async def _run_adk(brief: str, *, uid: str | None) -> RankedCreators:
         app_name="influencer-research",
         session_service=session_service,
     )
-    session = await asyncio.to_thread(
-        session_service.create_session,
+    # create_session is async in ADK 1.x — await it directly. (Wrapping it in
+    # asyncio.to_thread returns the un-awaited coroutine, so `session.id` below
+    # raised AttributeError and the ADK path silently fell back to heuristic.)
+    session = await session_service.create_session(
         app_name="influencer-research",
         user_id=uid or "a2a-caller",
     )
