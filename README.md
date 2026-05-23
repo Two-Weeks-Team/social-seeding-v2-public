@@ -397,6 +397,10 @@ packages/
                         sourcing · vetting · outreach-writer · lead-outreach-writer ·
                         conversation · conversation-responder · logistics · content-verify ·
                         analyst · research · intake
+                        NOTE: these 11 are the TS product agents (the Inngest/Mission-Control
+                        loop). The "22-agent ADK fleet" cited above is the separate Track-3
+                        submission surface in `packages/agents-adk` (16 Tier-1 domain + 3 Tier-2
+                        meta + 3 Tier-3 watchdog, D23) — two stacks, not one count restated.
   workflows/            9 Inngest function definitions:
                         brand-campaign · creator-track · lead-campaign · lead-track ·
                         campaign-progression · gmail-watch-renew · report-deliver ·

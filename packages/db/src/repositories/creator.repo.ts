@@ -7,9 +7,9 @@ import { Collections } from "../collections";
  * fresh TikTok pulls go through the `tiktok.*` capabilities which update v1's
  * collection the same way v1's RapidAPI ingestion does.
  *
- * NOTE: the real text-search query mirrors v1's Atlas Search pipeline
- * (hashtags 10x / signature 5x / nickname 2x / uniqueId 1x). Stubbed below —
- * see docs/CAPABILITIES.md `tiktok.search` and v1 `src/app/api/search`.
+ * NOTE: text search (v1's Atlas Search pipeline — hashtags 10x / signature 5x /
+ * nickname 2x / uniqueId 1x) is owned by the `tiktok.search` capability, not by
+ * this repo (see docs/CAPABILITIES.md). This repo is lookup-by-key only.
  */
 export const creatorRepo = {
   async getByUniqueId(uniqueId: string): Promise<TikTokCreator | null> {
@@ -29,10 +29,5 @@ export const creatorRepo = {
     const db = await getDb();
     const doc = await db.collection(Collections.SHARED_TIKTOK_ACCOUNTS).findOne({ id });
     return doc ? TikTokCreatorSchema.parse(doc) : null;
-  },
-
-  async search(_query: string, _opts?: { limit?: number }): Promise<TikTokCreator[]> {
-    // TODO(phase-1): port v1 Atlas Search aggregation with weighted fields.
-    throw new Error("creatorRepo.search not implemented — see docs/PHASE-1-PLAN.md task S2");
   },
 };
