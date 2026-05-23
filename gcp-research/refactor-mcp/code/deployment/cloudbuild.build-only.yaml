@@ -1,0 +1,64 @@
+###############################################################################
+# Build-ONLY Cloud Build pipeline for ss-mcp-server (no deploy).
+#
+# The main `cloudbuild.yaml` builds AND `gcloud run services replace`s at 100%
+# traffic. For a SAFE canary cutover (e.g. turning the ADK ranker on), we want
+# to build + push the images, then deploy a NO-TRAFFIC canary revision by hand
+# and verify it before shifting traffic. This config does the build + push only.
+#
+# Run against an assembled context (see assemble-build-context.sh):
+#   OUT=/tmp/ss-mcp-ctx
+#   deployment/assemble-build-context.sh "$OUT"
+#   gcloud builds submit "$OUT" \
+#     --config "$OUT/deployment/cloudbuild.build-only.yaml" \
+#     --project ss-mcp-prod \
+#     --substitutions=_LOCATION=us-central1,_REPO=socialseed-mcp,_TAG=adk-$(date +%Y%m%d-%H%M%S)
+###############################################################################
+
+steps:
+  - id: build-mcp-node
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --target=runtime-node
+      - --tag=${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/mcp-node:${_TAG}
+      - --file=deployment/Dockerfile.multi-container
+      - .
+
+  - id: build-mcp-adk
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --target=runtime-adk
+      - --tag=${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/mcp-adk:${_TAG}
+      - --file=deployment/Dockerfile.multi-container
+      - .
+
+  - id: push-mcp-node
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["build-mcp-node"]
+    args:
+      - push
+      - ${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/mcp-node:${_TAG}
+
+  - id: push-mcp-adk
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["build-mcp-adk"]
+    args:
+      - push
+      - ${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/mcp-adk:${_TAG}
+
+images:
+  - ${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/mcp-node:${_TAG}
+  - ${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/mcp-adk:${_TAG}
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+timeout: 1800s
+
+substitutions:
+  _LOCATION: us-central1
+  _REPO: socialseed-mcp
+  _TAG: manual
