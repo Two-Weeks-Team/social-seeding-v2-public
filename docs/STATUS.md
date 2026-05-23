@@ -19,7 +19,7 @@
 | **Phase 2 — Outreach + Reply-handling** (writer w/ 4-judge tournament → gmail.send → 3d reply wait → conversation classifier + responder) | ✓ |
 | **Phase 3 — Shipping + Content-verification** (logistics agent → shipment.create → carrier-poll → tiktok-post-poller → content-verify agent) | ✓ |
 | **Phase 4 — Analyst + MC final pass** (analytics.compile → analyst agent → report-deliver workflow + weekly cron + manual MC button → /share/[id] public preview → /usage cost dashboard → autonomy presets → kill switch) | ✓ |
-| **Phase 5 — Sales-lead campaign type** (crm.search + crm.enrich via Modal+Kimi → research agent → lead-outreach-writer → lead-campaign + lead-track workflows → MC /leads tree) | ✓ |
+| **Phase 5 — Sales-lead campaign type** (crm.search + crm.enrich via Modal+Gemini → research agent → lead-outreach-writer → lead-campaign + lead-track workflows → MC /leads tree) | ✓ |
 | **Phase 6 C1 — v1→v2 workspace importer** (read-only on shared `workspaces`; additive `$setOnInsert` on v2_workspace_policies; canceled + cleanupMutationAt filtered; --dry-run + --include-canceled) | ✓ |
 | **Phase 6 C2 — v2Enabled rollout flag** (additive write on shared `workspaces`; MC `/policies` toggle gated on owner/admin role) | ✓ |
 | **Carry-over: TikTok getUserPosts adapter** (RapidAPI; `mapRapidApiPosts` defensive across 4+ provider shapes) | ✓ |
@@ -47,7 +47,7 @@
 | `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` + OAuth flow + `EMAIL_UNSUBSCRIBE_HMAC_SECRET` (≥16 chars) | `gmail.send` (outreach + replies) | Workflows reach the send step then throw "Gmail not wired" |
 | `GMAIL_PUBSUB_TOKEN` + GCP Pub/Sub topic | Inbound replies | Reply waits time out at 3d |
 | `RAPIDAPI_KEY_TIKTOK` | TikTok creator + post fetches | Sourcing falls back to Atlas Search on v1 data; post-poller throws |
-| `KIMI_API_KEY` + `MODAL_CRAWL_URL` | `crm.enrich` (lead-campaign) | Lead workflow flakes leads at enrich step |
+| `GEMINI_API_KEY` + `MODAL_CRAWL_URL` | `crm.enrich` (lead-campaign) — analysis on gemini-3.5-flash (D53; was Kimi) | Lead workflow flakes leads at enrich step |
 | **`YUNTRACK_API_KEY` + carrier adapter (deferred)** | Live shipments | Phase 3 shipping leg can't actually ship — workflow flakes |
 
 ## Explicit deferrals

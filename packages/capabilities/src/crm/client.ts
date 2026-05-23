@@ -1,6 +1,6 @@
 /**
- * CrmEnrichClient — factory seam for the Modal crawl + Kimi (Moonshot)
- * analysis pipeline that `crm.enrich` (Phase 5) drives. Same shape as
+ * CrmEnrichClient — factory seam for the Modal crawl + Gemini analysis
+ * pipeline that `crm.enrich` (Phase 5) drives. Same shape as
  * GmailClient / CarrierClient / TikTokFetcher: production binds the real
  * SDK from env vars; tests inject a fake.
  *
@@ -12,9 +12,9 @@
  *                        v1 used a Modal app at $MODAL_CRAWL_URL.
  *   2. `analyze(text)` → run the K-beauty sales-analyst prompt on
  *                        `text`, return the structured JSON v1's
- *                        `lib/crm/enrichment-service.ts` did. v1 used
- *                        Kimi-k2.5 via the OpenAI-compatible endpoint
- *                        at https://api.moonshot.ai/v1/chat/completions.
+ *                        `lib/crm/enrichment-service.ts` did. Now runs on
+ *                        `gemini-3.5-flash` via Gemini's OpenAI-compatibility
+ *                        endpoint (D53; v1 used Kimi-k2.5, since retired).
  *
  * Default factory throws clear errors when env vars are missing — so
  * tests that always inject a fake stay fast (no SDK load) and prod
@@ -47,7 +47,7 @@ export interface AnalyzeInput {
 export interface CrmEnrichClient {
   /** Modal crawl — fetch homepage + crawl up to `maxPages` inner pages. */
   crawl(url: string, opts?: { maxPages?: number }): Promise<CrawlResult>;
-  /** Kimi analysis — synthesize the K-beauty-sales JSON from the crawled text. */
+  /** Gemini analysis — synthesize the K-beauty-sales JSON from the crawled text. */
   analyze(input: AnalyzeInput): Promise<AnalysisResult>;
 }
 
@@ -67,17 +67,20 @@ export function getCrmEnrichClientFactory(): CrmEnrichClientFactory {
  * Production factory. Lazy-creates a real client backed by:
  *   · MODAL_CRAWL_URL  — POST { url, max_pages } → { status, website_data,
  *                                                    crawled_text }
- *   · KIMI_API_KEY     — Bearer auth on Moonshot's
- *                        https://api.moonshot.ai/v1/chat/completions
+ *   · GEMINI_API_KEY   — Bearer auth on Gemini's OpenAI-compatibility endpoint
+ *                        (generativelanguage.googleapis.com/v1beta/openai/...).
+ *                        D53: the analysis runs on `gemini-3.5-flash` (Gemini
+ *                        only; the prior 3P Kimi/Moonshot model was retired).
  *
  * If either env var is missing, every call throws a "X not wired" error
  * — fast-fails Phase-5 paths until ops fills .env.
  */
 export const defaultCrmEnrichClientFactory: CrmEnrichClientFactory = async () => {
   const modalUrl = process.env.MODAL_CRAWL_URL ?? "https://sgwannabe--enrichment-service-crawl.modal.run";
-  const kimiKey = process.env.KIMI_API_KEY ?? "";
-  const kimiUrl = process.env.KIMI_API_URL ?? "https://api.moonshot.ai/v1/chat/completions";
-  const kimiModel = process.env.KIMI_MODEL ?? "kimi-k2.5";
+  const geminiKey = process.env.GEMINI_API_KEY ?? "";
+  const geminiUrl =
+    process.env.CRM_ENRICH_API_URL ?? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+  const geminiModel = process.env.CRM_ENRICH_MODEL ?? "gemini-3.5-flash";
 
   return {
     async crawl(url, opts) {
@@ -119,8 +122,8 @@ export const defaultCrmEnrichClientFactory: CrmEnrichClientFactory = async () =>
     },
 
     async analyze({ companyName, homepageUrl, crawl }) {
-      if (!kimiKey) {
-        throw new Error("crm.enrich analyze not wired — KIMI_API_KEY is not set");
+      if (!geminiKey) {
+        throw new Error("crm.enrich analyze not wired — GEMINI_API_KEY is not set");
       }
       const sns = Object.entries(crawl.socialLinks).map(([k, v]) => `${k}: ${v}`).join(", ") || "없음";
       const emails = crawl.emails.join(", ") || "없음";
@@ -133,14 +136,14 @@ export const defaultCrmEnrichClientFactory: CrmEnrichClientFactory = async () =>
         "",
       ].join("\n");
       const analysisPrompt = `${contextHeader}${ANALYSIS_PROMPT}${crawl.text.slice(0, 200_000)}`;
-      const res = await fetch(kimiUrl, {
+      const res = await fetch(geminiUrl, {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          authorization: `Bearer ${kimiKey}`,
+          authorization: `Bearer ${geminiKey}`,
         },
         body: JSON.stringify({
-          model: kimiModel,
+          model: geminiModel,
           messages: [
             { role: "system", content: "K-Beauty 분석가. 한국어만. 중국어 금지. JSON만 반환. 모든 필드에 구체적이고 상세한 내용을 작성할 것." },
             { role: "user", content: `Company: ${companyName}\n\n${analysisPrompt}` },
@@ -152,7 +155,7 @@ export const defaultCrmEnrichClientFactory: CrmEnrichClientFactory = async () =>
       });
       if (!res.ok) {
         const errText = await res.text().catch(() => "");
-        throw new Error(`crm.enrich: Kimi returned ${res.status}${errText ? ` — ${errText.slice(0, 200)}` : ""}`);
+        throw new Error(`crm.enrich: Gemini returned ${res.status}${errText ? ` — ${errText.slice(0, 200)}` : ""}`);
       }
       const body = (await res.json()) as {
         choices?: Array<{ message?: { content?: string } }>;
@@ -163,7 +166,7 @@ export const defaultCrmEnrichClientFactory: CrmEnrichClientFactory = async () =>
         parsed = JSON.parse(content) as Record<string, unknown>;
       } catch (err) {
         throw new Error(
-          `crm.enrich: Kimi returned non-JSON content (${err instanceof Error ? err.message : "parse error"}): ${content.slice(0, 200)}`,
+          `crm.enrich: Gemini returned non-JSON content (${err instanceof Error ? err.message : "parse error"}): ${content.slice(0, 200)}`,
         );
       }
       return coerceAnalysis(parsed);
@@ -172,7 +175,7 @@ export const defaultCrmEnrichClientFactory: CrmEnrichClientFactory = async () =>
 };
 
 /**
- * Coerce loose Kimi output → the strict AnalysisResult shape. Kimi
+ * Coerce loose model output → the strict AnalysisResult shape. The model
  * occasionally drops fields or returns "unclear" where we expect an
  * enum; this is the defensive narrowing layer the capability relies on.
  */
