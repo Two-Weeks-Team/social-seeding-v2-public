@@ -43,6 +43,31 @@ Live reachability (curl, this session):
 
 ---
 
+## Row 4 — Third-party judge pass (decision-panel skill, 10 experts, 2026-05-23)
+
+> The 4-lens table above is the agent's own assessment. THIS is the external multi-expert pass the goal required. Decision: "submit as-is, or which single +1 first?" Avg score **≈83/100**; all 6 Track-3 reqs confirmed met + honesty (HONEST-SCOPE) praised across the board.
+
+**Vote tally** (no majority → plurality E; substance = the +1 findings, all verified before acting):
+
+| Option | Votes | Voters |
+|---|---|---|
+| E — narrative + demo video | **4** | ROI Analyst, Risk Eng, Security Auditor, Pragmatist |
+| B — real Vertex ADK ranking | 2 | Strategist, Domain Expert |
+| C — full live E2E run | 2 | Devil's Advocate, Critical Reviewer |
+| A — submit as-is (+ warm-up) | 1 | Operator |
+| OTHER — B-thin (ADK + fallback) | 1 | Innovator |
+
+Per-expert scores: 86/72/86/84/82/88/78/74/88/88.
+
+**Verified findings → disposition:**
+- ✅ **Implemented (PR #17)** — *(adversarial KICK)* the W7 `NotImplementedError` staging is **fleet-wide (47 tools), not just Imagen** (Devil's Advocate, verified) → HONEST-SCOPE now discloses the D41 stub/live seam up front; *(security KICK)* run-demo refuses live runs against the shared prod `social_seeding` Atlas (Security Auditor); pinned the `engagement_rate=0` quota artifact (Critical Reviewer).
+- ❎ **False alarm, corrected** — "ADK ranker uses PRO_MODEL → 404" (Domain Expert, Innovator): verified stale; post-PR #12 `PRO_MODEL` = `gemini-3.5-flash`. No action.
+- 🚩 **Flagged operator/deploy (not in-repo control)** — demo video + Devpost narrative (E, top judge-visible ROI); enable real ADK ranking live (deploy; code already exists, set `ADK_DISABLED=false`); gate the GE demo endpoint with Cloud Run IAM (deploy); `min-instances=1` warm-up vs cold-start on first judge click (deploy).
+
+**Dissent surfaced:** Devil's Advocate (C, 72) — "live judge interaction beyond the one rehearsed workflow likely hits stubbed tools"; mitigated by the HONEST-SCOPE seam disclosure. Security Auditor (E, 74) — "GE demo endpoint is unauthenticated (disclosed ≠ mitigated)"; flagged for operator IAM gating.
+
+---
+
 ## Gap register
 
 | ID | Lens | Severity | Gap | Status |
@@ -69,6 +94,7 @@ Disclosed-and-acceptable (NOT gaps): ADK `gmail_send_stub` (Phase-2, off the liv
 3. **Lighthouse baseline measured** on the live demo (desktop): Best-Practices **100**, SEO **90**, A11y **84**, Agentic **50** → gaps routed to PR-C. *(visual-WOW evidence)*
 4. **PR #14 merged** — D53 doc consistency: `ANTHROPIC_API_KEY`→`GEMINI_API_KEY`, Opus/Haiku→gemini-3.5-flash/3.1-flash-lite, dead `OPENAI_API_KEY` dropped, pytest count 2925→2924, machine-specific memory path generalized. Product/story lens ▲. *(technical KICK + story)*
 5. **PR #15 merged + ss-landing redeployed (rev `00006-rr2`)** — demo a11y/SEO: `<main>` landmark, labeled select + checkboxes, label/name match, meta-description → **LIVE** Lighthouse **a11y 84→96, SEO 90→100, agentic 50→100, BP 100** (re-measured on the live URL). Visual-WOW lens ▲. *(visual WOW)*
+6. **Decision-panel judge pass (10 experts) + PR #17** — the required Row-4 third-party pass (avg ≈83/100). Landed the in-control +1s it surfaced: HONEST-SCOPE now discloses the fleet-wide D41 stub/live seam (47 tools, not just Imagen — the top hostile-judge attack vector) + the `engagement_rate=0` quota artifact; `run-demo.ts` refuses live runs against the shared prod Atlas. Corrected one panel false-alarm (ranker already `gemini-3.5-flash`). *(adversarial KICK + security KICK)*
 
 ### Deferred / operator-decision items (flagged, not silently dropped)
 - **GAP-X1** — remove the dead `creatorRepo.search` `not implemented` throw (zero callers).
