@@ -63,4 +63,15 @@ echo "Applied: $(basename "$PATCH")"
 cp -R "$HERE/agent" "$OUT/agent"
 cp -R "$HERE/deployment" "$OUT/deployment"
 
+# 4. Prune machine-specific / build-irrelevant artifacts so the Cloud Build
+#    upload stays small and the context is deterministic (the Dockerfile builds
+#    the venv + node_modules fresh; it never copies these in).
+find "$OUT" -type d \( \
+  -name .venv -o -name node_modules -o -name __pycache__ -o \
+  -name .pytest_cache -o -name .mypy_cache -o -name .ruff_cache -o \
+  -name dist -o -name .git -o -name .build-context \
+  \) -prune -exec rm -rf {} + 2>/dev/null || true
+find "$OUT" -name "*.pyc" -delete 2>/dev/null || true
+
 echo "OK — assembled reproducible build context at: $OUT"
+echo "Context size: $(du -sh "$OUT" 2>/dev/null | cut -f1)"
