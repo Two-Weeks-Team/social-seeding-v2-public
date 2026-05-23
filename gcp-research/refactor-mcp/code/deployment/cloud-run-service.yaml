@@ -60,8 +60,13 @@ spec:
           env:
             - name: GOOGLE_CLOUD_PROJECT
               value: "__PROJECT__"
+            # ADK ranker LIVE: Gemini 3.x is served on the Vertex `global`
+            # endpoint (hardcoded, NOT the regional __LOCATION__ used for the AR
+            # image refs). Model Armor stays regional via MODEL_ARMOR_LOCATION.
             - name: GOOGLE_CLOUD_LOCATION
-              value: "__LOCATION__"
+              value: "global"
+            - name: GOOGLE_GENAI_USE_VERTEXAI
+              value: "true"
             - name: MCP_BASE_URL
               value: "http://127.0.0.1:8100"
             - name: PUBLIC_BASE_URL
@@ -101,24 +106,16 @@ spec:
               value: "us-central1"
             - name: MODEL_ARMOR_MODE
               value: "live"
-            # Ranker stays HEURISTIC for the demo: ADK is disabled, so the D53
-            # model ids below are config-correct but unused; the heuristic path
-            # still fetches REAL data through the mcp sidecar (loopback :8100).
-            #
-            # TO ENABLE THE LIVE ADK RANKER (operator-gated, verify on a
-            # no-traffic canary revision first; rollback = prior revision):
-            #   1. Set ADK_DISABLED="0", GOOGLE_CLOUD_LOCATION="global",
-            #      GOOGLE_GENAI_USE_VERTEXAI="true".
-            #   2. Grant roles/aiplatform.user to the runtime SA
-            #      (tiktok-mcp-runner@ss-mcp-prod) and confirm gemini-3.5-flash
-            #      is callable on Vertex `global` in ss-mcp-prod.
-            #   3. MODEL_ARMOR_LOCATION stays us-central1 (decoupled, above).
-            #   4. Verify on the canary: Model Armor still blocks a jailbreak,
-            #      no-token=401, and plan_creator_search returns ADK-ranked
-            #      creators (trace path="adk", not "heuristic"); only then cut
-            #      traffic. See claudedocs handoff "ADK ranker live" steps.
+            # Ranker is LIVE on the ADK path (real Gemini 3.x ranking on Vertex
+            # `global`): ADK_DISABLED="0". Verified via a no-traffic canary
+            # (rev 00008-ndg, 2026-05-23) before traffic cut — Model Armor still
+            # blocked a jailbreak, no-token=401, and plan_creator_search returned
+            # real ADK-ranked creators (engagement>0, semantic fit_score). The
+            # `_heuristic_rank` path remains the in-code fallback when ADK is
+            # unavailable. Prereq runtime SA role roles/aiplatform.user is
+            # already granted on tiktok-mcp-runner@ss-mcp-prod.
             - name: ADK_DISABLED
-              value: "1"
+              value: "0"
             # S2S auth (D44): in addition to Firebase, accept the internal
             # caller's Google service-identity OIDC token. Caller = ss-agents
             # runtime SA; audiences = every URL the caller may POST to.
