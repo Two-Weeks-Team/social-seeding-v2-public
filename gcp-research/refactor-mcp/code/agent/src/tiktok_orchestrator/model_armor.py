@@ -95,7 +95,14 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
-REGION = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
+# Model Armor region is DECOUPLED from GOOGLE_CLOUD_LOCATION on purpose. The
+# Model Armor templates + regional API endpoint (`modelarmor.{REGION}.rep.
+# googleapis.com`, below) live in us-central1, but the ADK ranker calls Gemini
+# 3.x on the Vertex `global` endpoint (GOOGLE_CLOUD_LOCATION=global). Sharing
+# one var would force Model Armor to a non-existent `global` endpoint and, with
+# FAIL_MODE=closed, block every request. `MODEL_ARMOR_LOCATION` keeps Model
+# Armor pinned to its real region independently of the Vertex location.
+REGION = os.environ.get("MODEL_ARMOR_LOCATION", "us-central1")
 TEMPLATE_INPUT = os.environ.get(
     "MODEL_ARMOR_INPUT_TEMPLATE",
     f"projects/{PROJECT_ID}/locations/{REGION}/templates/ss-input" if PROJECT_ID else "",
