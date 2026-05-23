@@ -77,7 +77,7 @@
 | v1 feature | v1 location | v2 home | Action |
 |---|---|---|---|
 | CRM accounts CRUD + bulk + facets + dup detection + saved views + mapping templates + members + activities + import jobs | `/crm`, `api/crm/*` (24), `lib/crm/*` (19), `crmAccountStore` | capabilities `crm.*` + `crm_accounts` collection shared with v1; MC views "leads"; the `lead-campaign` workflow consumes them | Port |
-| Enrichment pipeline: Modal crawler → Kimi (Moonshot) analysis (company summary, products, business type, outreach angle, sales priority, confidence) | `lib/crm/enrichment-service.ts`, `modal-enrichment/app.py`, `api/crm/enrichment/*` | capability `crm.enrich` (wraps it verbatim) + agent `research` | Port — domain IP |
+| Enrichment pipeline: Modal crawler → Kimi (Moonshot) analysis (company summary, products, business type, outreach angle, sales priority, confidence) | `lib/crm/enrichment-service.ts`, `modal-enrichment/app.py`, `api/crm/enrichment/*` | capability `crm.enrich` (analysis prompt ported verbatim; model swapped Kimi → `gemini-3.5-flash` per D53) + agent `research` | Port — domain IP |
 | CRM → cold-mail / email integration | `api/crm/accounts/[id]/cold-mail`, `lib/crm/email-event-handler.ts` | `lead-campaign` workflow: `crm.enrich` → `outreach-writer` → `conversation` | Reframe |
 | Email signature / unsub for CRM | `lib/crm/email-signature.ts`, `email-unsub.ts` | folded into `gmail.send` + suppression list | Port |
 

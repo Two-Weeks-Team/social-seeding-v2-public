@@ -6,28 +6,29 @@ import { getCrmEnrichClientFactory } from "./client";
 
 /**
  * crm.enrich — Phase 5 P5-C1. Crawl a company website (Modal) +
- * analyze it (Kimi/Moonshot) into the structured sales fields that the
- * research agent (P5-C2) and the lead-campaign workflow (P5-C3) consume.
+ * analyze it (Gemini — `gemini-3.5-flash`, D53) into the structured sales
+ * fields that the research agent (P5-C2) and the lead-campaign workflow
+ * (P5-C3) consume.
  *
  * Behavior:
  *   · scope = "read" (we're synthesizing public info — no external_send).
  *   · idempotent = true; rate-limited via `crm_enrich` class (per-workspace).
  *   · Pipeline: crawl → analyze. Both steps run via the injectable
- *     `CrmEnrichClient` seam — production uses Modal + Kimi from env;
+ *     `CrmEnrichClient` seam — production uses Modal + Gemini from env;
  *     tests inject a fake.
  *   · When `leadId` is supplied, the resulting enrichment is persisted
  *     on the v2_leads row via `leadRepo.patchEnrichment`, which also
  *     advances the lead's stage to "enriched". When omitted, the
  *     capability just returns the enrichment (useful for one-off ops
  *     work).
- *   · Errors surface clearly — Modal returning non-success or Kimi
+ *   · Errors surface clearly — Modal returning non-success or Gemini
  *     returning non-JSON throws with the original status in the
  *     message. Inngest's retry/backoff handles transient failures.
  */
 export const crmEnrich = defineCapability({
   name: "crm.enrich",
   description:
-    "Crawl a company website (Modal) and analyze it (Kimi) into structured sales fields. When `leadId` is supplied, persists the enrichment on v2_leads and advances the lead's stage to 'enriched'.",
+    "Crawl a company website (Modal) and analyze it (Gemini) into structured sales fields. When `leadId` is supplied, persists the enrichment on v2_leads and advances the lead's stage to 'enriched'.",
   scope: "read",
   idempotent: true,
   rateLimitClass: "crm_enrich",
