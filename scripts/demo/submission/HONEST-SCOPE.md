@@ -38,7 +38,7 @@
 | 2 | **Agent Observability → Cloud Trace** | Agent spans are wired into `run_agent` (`agent_span` / `llm_child_span` / `record_outcome`, gated by `SS_OTEL_ENABLED`); the OTel span shape is real and asserted offline. The stall→repair trace assets are deterministic offline renderings of that same span tree. → `pnpm exec pytest packages/agents-adk -k observability` | Live OTel export to **Cloud Trace** (and Chronicle SIEM) per run. | **GA-real** (live export is an operator step) |
 | 3 | **Model Armor GA sanitize (A2A path)** | Real `model_armor_query_blocks` tool sanitizes the inbound A2A query path; block/allow behavior asserted offline. → `pnpm exec pytest packages/agents-adk -k model_armor` | Live Model Armor template enforcement on the production A2A ingress. | **GA-real** |
 | 4 | **Vertex AI Memory Bank backend** | Managed Memory Bank backend implemented (`vertex_memory_bank` / `memory_bank_search`); **Firestore is the default backend**, Vertex Memory Bank is env-gated. Both paths tested offline. → `pnpm exec pytest packages/agents-adk -k memory_bank` | Managed **Vertex AI Memory Bank** as the live recall store (set the env flag); Firestore stays the zero-config default. | **GA-real** (env-gated) |
-| 5 | **A2A v0.3 signed agent card (JWS ES256) + JWKS** | `sign_agent_card.py` emits an A2A v0.3 `signatures[]` JWS (RFC 7515) over a JCS-canonicalized (RFC 8785) card, **ES256 (ECDSA P-256 / SHA-256)**, plus the matching JWKS, against a self-managed dev key. → `python gcp-research/refactor-mcp/code/deployment/sign_agent_card.py --help` (+ verify path in the same module) | Sign with a **Cloud KMS**-held production key; publish the JWKS so any Gemini Enterprise consumer can verify the card. | **GA-real** (KMS key is an operator step) |
+| 5 | **A2A v0.3 signed agent card (JWS ES256) + JWKS** | **✓ DEMONSTRATED LIVE (2026-05-24).** The live `ss-mcp-server` serves a **signed** card — `signatures[]` JWS (RFC 7515) over the JCS-canonicalized (RFC 8785) card, **ES256 (ECDSA P-256 / SHA-256)**, with the matching public key at `/.well-known/jwks.json` (`kid: ss-agent-card-prod`), plus `securitySchemes` (oidc/oauth/mutualTLS) + `additionalInterfaces`. Signing key held in Secret Manager. → `curl …/.well-known/agent.json \| jq '.signatures'` + `curl …/.well-known/jwks.json`. (Earlier the live card was an unsigned stub due to a path bug — fixed PR #24.) | Promote the dev signing key to a **Cloud KMS**-held key + key rotation. | **✓ demonstrated-live** (KMS rotation is the prod refinement) |
 | 6 | **Live A2A cross-call in the Cloud Workflow** | `coordinator → a2a_invoke → ss-mcp.plan_creator_search` over A2A v0.3 `message/send`; **task completed, 5 creators ranked**. **✓ now ran INSIDE a live Cloud Workflow execution** (exec `9cc843c1`, 2026-05-20), not just the standalone driver. → `bash scripts/smoke-test/run-integration-a2a.sh` (exit 0) + the workflow execution | A standing deployment of the same edge. | **✓ demonstrated-live** |
 | 7 | **Live Cloud Workflow execution** | **✓ DEMONSTRATED LIVE (2026-05-20).** `ss-agents` (Cloud Run, `ss-v2-prod`, rev `ss-agents-00002-w5g`) + `brand-campaign-demo` Workflow deployed and **executed**: real Gemini coordinator → A2A → live ss-mcp → **5 RankedCreators**, exec `9cc843c1` SUCCEEDED 11.98s. Re-run: `scripts/deploy/DEPLOY-RUNBOOK.md §5`; evidence: `scripts/demo/assets/live-orchestration-evidence.md`. | A standing (always-on) deployment vs the on-demand demo run. | **✓ demonstrated-live** (was operator-deploy) |
 | 8 | **`ss-mcp-server` orchestrator ranking** | **✓ DEMONSTRATED LIVE (2026-05-23) — real ADK ranking on Vertex `global`.** The live Cloud Run service (rev `ss-mcp-server-00008-ndg`) runs the ADK SequentialAgent (searcher `gemini-3.1-flash-lite` → ranker `gemini-3.5-flash`); an authenticated `plan_creator_search` returns LLM-ranked creators with non-zero `engagement_rate` + semantic `fit_score` + per-creator reasoning (not the templated heuristic). Verified via a no-traffic canary before traffic cut; Model Armor still blocked a jailbreak and no-token=401. `_heuristic_rank` remains the in-code fallback. → `curl …/.well-known/agent.json \| jq .protocolVersion` → `"0.3.0"` + an authenticated `message:send` | A standing always-on deployment vs the on-demand demo; engagement may read 0 when the backend Group-B analytics quota is exhausted (row 5). | **✓ demonstrated-live** |
@@ -56,14 +56,14 @@
 
 ## 2. How to read the split
 
-- **✓ demonstrated-live (rows 6, 7, 8, 11, 14, 17):** actually executed live on GCP — the
+- **✓ demonstrated-live (rows 5, 6, 7, 8, 11, 14, 17):** actually executed live on GCP — the
   `brand-campaign-demo` Cloud Workflow ran end-to-end (real Gemini coordinator → A2A → live ss-mcp
   → 5 RankedCreators, exec `9cc843c1`, 2026-05-20), the Model Garden live smoke returned a validated
   outcome via the publisher path, the `web.search` Google Search grounding returned 5 cited sources
   (2026-05-21), and our A2A agent was **registered + ENABLED in a live Gemini Enterprise app**
   (`social-seeding-agents` on `ss-mcp-prod`, Agent Gallery, 2026-05-22). Evidence:
   `scripts/demo/assets/live-orchestration-evidence.md` + `gcp-research/gemini-enterprise-api-status.md`.
-- **GA-real (rows 1–5, 9, 12):** the code is real, the offline tests are green, and going live is an
+- **GA-real (rows 1–4, 9, 12):** the code is real, the offline tests are green, and going live is an
   **operator ADC/billing/IAM step**, not new engineering. A judge can re-run every proof command with
   no GCP credentials and see the offline assertion pass.
 - **operator-deploy (row 16; partials in 10, 15):** the artifacts ship in-repo; the full live campaign
@@ -72,7 +72,7 @@
   faked. Agent Gateway mTLS is in Private Preview. (Gemini Enterprise registration — formerly here —
   moved to **demonstrated-live** on 2026-05-22, see row 14; no allowlist was needed.)
 
-**Count:** 17 rows — **6 demonstrated-live** (6, 7, 8, 11, 14, 17), **7 GA-real** (1–5, 9, 12),
+**Count:** 17 rows — **7 demonstrated-live** (5, 6, 7, 8, 11, 14, 17), **6 GA-real** (1–4, 9, 12),
 **1 operator-deploy** (16), **1 Google-Private-Preview** (13), **2 split** (10, 15). The single
 Google-gated row (13) is the only item not in our control; everything else is a re-runnable proof,
 a live execution, or a documented operator step.

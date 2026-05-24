@@ -1,0 +1,27 @@
+════════════════════════════════════════════════════════════════
+ Social Seeding v2 — LIVE Track-3 evidence  (2026-05-24T03:47Z)
+════════════════════════════════════════════════════════════════
+[1] Live demo reachable
+  ✓ ss-landing /demo/ → 200
+[2] A2A agent card is REAL + SIGNED (not the stub)
+  · description stub? False
+  · signatures: 1   securitySchemes: ['oidc', 'oauth', 'mutualTLS']
+  · url: https://ss-mcp-server-1049119860518.us-central1.run.app/v1
+  · additionalInterfaces: ['https://ss-mcp-server-1049119860518.us-central1.run.app/v1', 'https://mcp.socialseed.ing/v1']
+  ✓ signed card with securitySchemes (not stub)
+[3] JWKS published (verifies the card signature)
+  ✓ /.well-known/jwks.json → 1 key(s)
+[4] Auth enforced (no token → 401)
+  ✓ no-token message:send → 401
+[5] D53 model constraint (card declares Gemini-only surface)
+  ✓ card/skills reference Gemini
+[6/7] Authenticated A2A (operator — needs SA impersonation)
+[6] Real ADK ranking (gemini-3.5-flash on Vertex global)
+  · creators: 3
+  · top: glowbyramon fit 0.95 eng 0.045
+  ✓ ADK ranked creators returned
+[7] Model Armor blocks a jailbreak
+  ✓ jailbreak blocked (trace.blocked_by model_armor)
+════════════════════════════════════════════════════════════════
+ PUBLIC checks: 7 passed, 0 failed
+════════════════════════════════════════════════════════════════

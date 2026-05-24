@@ -7,11 +7,11 @@
   "name": "Influencer Research Agent (TikTok)",
   "description": "Given a brand brief, finds and ranks TikTok creators by engagement and brief-fit. Powered by Social Seeding's public-data TikTok pipeline (RapidAPI-mediated; no TikTok Research API). Returns a structured top-10 with reasoning, engagement-rate, and source attribution.",
 
-  "url": "https://mcp.socialseed.ing",
-  "preferredTransport": "JSONRPC",
+  "url": "https://ss-mcp-server-1049119860518.us-central1.run.app/v1",
+  "preferredTransport": "HTTP+JSON",
   "additionalInterfaces": [
-    { "url": "https://mcp.socialseed.ing/v1", "transport": "HTTP+JSON" },
-    { "url": "https://ss-mcp-server-1049119860518.us-central1.run.app/v1", "transport": "HTTP+JSON", "_comment": "Live Cloud Run deploy (ss-mcp-prod, us-central1) — Track 3 demo endpoint until mcp.socialseed.ing DNS cutover (PHASE-5-STATUS O-C)." }
+    { "url": "https://ss-mcp-server-1049119860518.us-central1.run.app/v1", "transport": "HTTP+JSON", "_comment": "Live Cloud Run deploy (ss-mcp-prod, us-central1) — the canonical, verified-callable Track-3 endpoint." },
+    { "url": "https://mcp.socialseed.ing/v1", "transport": "HTTP+JSON", "_comment": "Planned vanity domain — DNS cutover pending (PHASE-5-STATUS O-C); NOT yet live, do not call." }
   ],
 
   "iconUrl": "https://cdn.socialseed.ing/agents/tiktok-influencer-research-256.png",
@@ -136,25 +136,25 @@
   "mcp_tools": [
     {
       "name": "tiktok_search",
-      "endpoint": "https://mcp.socialseed.ing/mcp",
+      "endpoint": "https://ss-mcp-server-1049119860518.us-central1.run.app/v1",
       "description": "Discover TikTok creators by keyword. 200 calls/day on the free tier.",
       "daily_limit_free": 200
     },
     {
       "name": "tiktok_user_info",
-      "endpoint": "https://mcp.socialseed.ing/mcp",
+      "endpoint": "https://ss-mcp-server-1049119860518.us-central1.run.app/v1",
       "description": "Fetch a creator's profile (followers, bio, video_count). 200 calls/day on the free tier.",
       "daily_limit_free": 200
     },
     {
       "name": "tiktok_user_posts",
-      "endpoint": "https://mcp.socialseed.ing/mcp",
+      "endpoint": "https://ss-mcp-server-1049119860518.us-central1.run.app/v1",
       "description": "Fetch a creator's recent posts with engagement metrics. 50 calls/day on the free tier.",
       "daily_limit_free": 50
     },
     {
       "name": "tiktok_post_detail",
-      "endpoint": "https://mcp.socialseed.ing/mcp",
+      "endpoint": "https://ss-mcp-server-1049119860518.us-central1.run.app/v1",
       "description": "Fetch detailed engagement for one post. 50 calls/day on the free tier.",
       "daily_limit_free": 50
     }

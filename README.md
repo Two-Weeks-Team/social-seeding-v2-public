@@ -16,7 +16,7 @@
 
 ## Architecture
 
-Four Cloud Run / Cloud Workflow components are deployed live (project `ss-v2-prod` / `ss-mcp-prod` / `ss-shared-infra`, all Cloud Run `min=0` ≈ $1–5/mo). The diagram below shows the request path: a brand brief enters the `brand-campaign-demo` Cloud Workflow, the **coordinator** (`gemini-3.5-flash`, served on the Vertex **`global`** endpoint, routed through the Model Garden publisher plane) decides who runs, the 22-agent fleet executes, and the creator-sourcing and brand-asset legs cross to the OSS `tiktok-mcp-server` node over **A2A v0.3 `message:send`**.
+Four Cloud Run / Cloud Workflow components are deployed live (project `ss-v2-prod` / `ss-mcp-prod` / `ss-shared-infra`, Cloud Run ≈ $1–5/mo — `ss-mcp-server` kept warm at `minScale=1`, the rest `min=0`). The diagram below shows the request path: a brand brief enters the `brand-campaign-demo` Cloud Workflow, the **coordinator** (`gemini-3.5-flash`, served on the Vertex **`global`** endpoint, routed through the Model Garden publisher plane) decides who runs, the 22-agent fleet executes, and the creator-sourcing and brand-asset legs cross to the OSS `tiktok-mcp-server` node over **A2A v0.3 `message:send`**.
 
 ```mermaid
 flowchart LR
@@ -149,7 +149,7 @@ Both hops use the same A2A v0.3 `message:send` envelope (`{"message":{"role":"us
 | **Models** | `gemini-3.5-flash` (judgment + coordinator; GA 2026-05-19) + `gemini-3.1-flash-lite` (bulk) | Served on the Vertex **`global`** endpoint. `$1.50/$9.00` and `$0.25/$1.50` per 1M tokens. Gemini-3.x family only — the larger pro tier returns 404 (Preview allowlist not granted in our project), so we use flash; no prior-generation or third-party models remain in the product (D53). |
 | **Agent runtime** | Agent Development Kit (ADK) · `run_agent` (curated tools, Zod/Pydantic output contract, USD cap, escalation) | 22-agent fleet (16 domain + 3 meta + 3 watchdog, D23). Routed through the **Model Garden** publisher plane (`publishers/google/models/...`, D47). |
 | **Orchestration** | **Cloud Workflows** (`brand-campaign-demo`, LIVE) | Durable; the coordinator routes, then the workflow does the A2A transport switch. |
-| **Agent compute** | **Cloud Run** — `ss-agents` (FastAPI `serve.py` over `run_agent`) + `ss-mcp-server` (OSS A2A node) | Both `min=0`. `ss-landing` (Cloud Run) serves the demo + report. |
+| **Agent compute** | **Cloud Run** — `ss-agents` (FastAPI `serve.py` over `run_agent`) + `ss-mcp-server` (OSS A2A node) | `ss-agents` `min=0`; `ss-mcp-server` `minScale=1` (kept warm for A2A/demo latency + a stable card-signing key). `ss-landing` (Cloud Run) serves the demo + report. |
 | **Inter-agent protocol** | **A2A v0.3** `message:send` + signed agent card (JWS ES256 / RFC 7515, JCS RFC 8785) + JWKS | SPIFFE Agent Identity per agent (D48). |
 | **Grounding** | **Google Search grounding** on the `web.search` capability | `gemini-3.5-flash` + built-in `GoogleSearch` tool, cites `grounding_metadata` sources — demonstrated live (D53), not a chat completion. |
 | **Guardrails / security** | Model Armor sanitize (PI/JB/PII), `prompt-guard` on user text, Cloud Audit Logs → Chronicle SecOps | D21. |
@@ -177,12 +177,16 @@ Both hops use the same A2A v0.3 `message:send` envelope (`{"message":{"role":"us
 
 ## Live evidence
 
-- **Live demo:** <https://ss-landing-80064221403.us-central1.run.app/demo/>
-- **Live A2A-in-workflow execution:** `7c08ce50` — SUCCEEDED 15.8s, 5 RankedCreators (top `@kr_vegan_beauty`, 412k followers). Evidence: [`scripts/demo/assets/live-orchestration-evidence.md`](scripts/demo/assets/live-orchestration-evidence.md).
+> **Reproduce it all in one run:** [`scripts/demo/submission/verify-live-evidence.sh`](scripts/demo/submission/verify-live-evidence.sh) hits the live endpoints and checks the demo, the **signed** agent card, the JWKS, auth enforcement, real ADK ranking, and Model Armor — 7/7 on the last run, captured in [`scripts/demo/assets/live-evidence-2026-05-24.txt`](scripts/demo/assets/live-evidence-2026-05-24.txt).
+
+- **Live demo:** <https://ss-landing-80064221403.us-central1.run.app/demo/> — Lighthouse (desktop) a11y **96** / SEO **100** / best-practices **100** / agentic **100**. ([screenshot](scripts/demo/assets/live-demo-2026-05-24.jpeg))
+- **Signed A2A agent card (live):** `curl …/.well-known/agent.json | jq .signatures` → 1 **ES256** JWS; `…/.well-known/jwks.json` → matching key (`kid ss-agent-card-prod`); `securitySchemes` = oidc/oauth/mutualTLS. The card is genuinely signed at the live endpoint (not just on disk).
+- **Real ADK ranking (live):** an authenticated `plan_creator_search` on `ss-mcp-server` (rev `00008+`) returns Gemini-`3.5-flash`-ranked creators with non-zero `engagement_rate` + semantic `fit_score` + reasoning (Vertex `global`); no-token → **401**; a jailbreak input is **blocked by Model Armor**.
+- **Live A2A-in-workflow execution:** `7c08ce50` / `9cc843c1` — SUCCEEDED, 5 RankedCreators. Evidence: [`scripts/demo/assets/live-orchestration-evidence.md`](scripts/demo/assets/live-orchestration-evidence.md).
 - **Model Garden live smoke:** `scripts/smoke-test/run-model-garden-live.sh` (operator ADC) → validated `CoordinatorOutput`, exit 0.
 - **Google Search grounding live:** `scripts/smoke-test/run-web-search-grounding.sh` → 5 real K-beauty/TikTok sources with URLs + per-source snippets from `grounding_metadata`.
 - **Triage hardening:** `scripts/smoke-test/run-hardening-measure.sh` → 40.5% → 100% train / 71.4% holdout (offline, $0).
-- **Gates:** `agents-adk` pytest **2924**; `pnpm run verify-build` green.
+- **Gates:** `agents-adk` pytest **2924**; `pnpm test` **421** TS; `pnpm run verify-build` green.
 - **Architecture render source:** [`scripts/demo/submission/ARCHITECTURE-track3.mmd`](scripts/demo/submission/ARCHITECTURE-track3.mmd).
 
 ---
