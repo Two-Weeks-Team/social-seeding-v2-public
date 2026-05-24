@@ -177,12 +177,16 @@ Both hops use the same A2A v0.3 `message:send` envelope (`{"message":{"role":"us
 
 ## Live evidence
 
-- **Live demo:** <https://ss-landing-80064221403.us-central1.run.app/demo/>
-- **Live A2A-in-workflow execution:** `7c08ce50` — SUCCEEDED 15.8s, 5 RankedCreators (top `@kr_vegan_beauty`, 412k followers). Evidence: [`scripts/demo/assets/live-orchestration-evidence.md`](scripts/demo/assets/live-orchestration-evidence.md).
+> **Reproduce it all in one run:** [`scripts/demo/submission/verify-live-evidence.sh`](scripts/demo/submission/verify-live-evidence.sh) hits the live endpoints and checks the demo, the **signed** agent card, the JWKS, auth enforcement, real ADK ranking, and Model Armor — 7/7 on the last run, captured in [`scripts/demo/assets/live-evidence-2026-05-24.txt`](scripts/demo/assets/live-evidence-2026-05-24.txt).
+
+- **Live demo:** <https://ss-landing-80064221403.us-central1.run.app/demo/> — Lighthouse (desktop) a11y **96** / SEO **100** / best-practices **100** / agentic **100**. ([screenshot](scripts/demo/assets/live-demo-2026-05-24.jpeg))
+- **Signed A2A agent card (live):** `curl …/.well-known/agent.json | jq .signatures` → 1 **ES256** JWS; `…/.well-known/jwks.json` → matching key (`kid ss-agent-card-prod`); `securitySchemes` = oidc/oauth/mutualTLS. The card is genuinely signed at the live endpoint (not just on disk).
+- **Real ADK ranking (live):** an authenticated `plan_creator_search` on `ss-mcp-server` (rev `00008+`) returns Gemini-`3.5-flash`-ranked creators with non-zero `engagement_rate` + semantic `fit_score` + reasoning (Vertex `global`); no-token → **401**; a jailbreak input is **blocked by Model Armor**.
+- **Live A2A-in-workflow execution:** `7c08ce50` / `9cc843c1` — SUCCEEDED, 5 RankedCreators. Evidence: [`scripts/demo/assets/live-orchestration-evidence.md`](scripts/demo/assets/live-orchestration-evidence.md).
 - **Model Garden live smoke:** `scripts/smoke-test/run-model-garden-live.sh` (operator ADC) → validated `CoordinatorOutput`, exit 0.
 - **Google Search grounding live:** `scripts/smoke-test/run-web-search-grounding.sh` → 5 real K-beauty/TikTok sources with URLs + per-source snippets from `grounding_metadata`.
 - **Triage hardening:** `scripts/smoke-test/run-hardening-measure.sh` → 40.5% → 100% train / 71.4% holdout (offline, $0).
-- **Gates:** `agents-adk` pytest **2924**; `pnpm run verify-build` green.
+- **Gates:** `agents-adk` pytest **2924**; `pnpm test` **421** TS; `pnpm run verify-build` green.
 - **Architecture render source:** [`scripts/demo/submission/ARCHITECTURE-track3.mmd`](scripts/demo/submission/ARCHITECTURE-track3.mmd).
 
 ---
