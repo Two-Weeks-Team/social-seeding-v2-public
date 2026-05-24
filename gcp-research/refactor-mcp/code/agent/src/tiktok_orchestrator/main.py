@@ -65,7 +65,34 @@ logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO").upper())
 
 MCP_BASE_URL = os.environ.get("MCP_BASE_URL", "http://localhost:8100")
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://mcp.socialseed.ing")
-AGENT_JSON_PATH = Path(__file__).parent.parent.parent.parent / "deployment" / "agent.json"
+
+
+def _resolve_agent_json_path() -> Path:
+    """Locate deployment/agent.json across the local repo + Docker layouts.
+
+    The Docker image flattens `agent/src` -> `/app/src` and copies the card to
+    `/app/deployment/agent.json`, while the repo nests it at
+    `code/deployment/agent.json`. A single hardcoded `.parent` count therefore
+    resolved to `/deployment/agent.json` in the image (missing) and the canonical
+    card silently fell back to the stub — breaking the signed-card / security-
+    scheme / discoverability claims. Resolve via an env override + both layouts.
+    """
+    env_override = os.environ.get("AGENT_JSON_PATH")
+    here = Path(__file__).resolve()
+    candidates = [
+        Path(env_override) if env_override else None,
+        here.parents[2] / "deployment" / "agent.json",  # Docker: /app/deployment
+        here.parents[3] / "deployment" / "agent.json",  # local repo: code/deployment
+        Path("/app/deployment/agent.json"),
+    ]
+    for candidate in candidates:
+        if candidate and candidate.exists():
+            return candidate
+    # Last resort: the local-repo path (kept stable for error messages/tests).
+    return here.parents[3] / "deployment" / "agent.json"
+
+
+AGENT_JSON_PATH = _resolve_agent_json_path()
 
 REQUIRE_AUTH = os.environ.get("REQUIRE_AUTH", "true").lower() in {"true", "1", "yes"}
 ALLOW_ANONYMOUS_DISCOVERY = os.environ.get("ALLOW_ANONYMOUS_DISCOVERY", "true").lower() in {
