@@ -827,6 +827,23 @@ wheels = [
 ]
 
 [[package]]
+name = "google-cloud-kms"
+version = "3.13.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "google-api-core", extra = ["grpc"] },
+    { name = "google-auth" },
+    { name = "grpc-google-iam-v1" },
+    { name = "grpcio" },
+    { name = "proto-plus" },
+    { name = "protobuf" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/25/a4/9125701c7120469a4381c3a576cebad191abbfa5bd3a0e1effd5c1ef0f52/google_cloud_kms-3.13.0.tar.gz", hash = "sha256:672fdc594b928b0415c22e41f3d67c854e940a8a5917e8ff16a6566096b12407", size = 440145, upload-time = "2026-05-07T08:04:18.18Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9a/ff/ba421b035eba2d139a58aa5913e6daae4a969a96c555eff6bf02242cd8a5/google_cloud_kms-3.13.0-py3-none-any.whl", hash = "sha256:a58a40d8d37129805db5be1353a397be09614d691433ea246b9eed63efdc5df3", size = 353997, upload-time = "2026-05-07T08:02:49.849Z" },
+]
+
+[[package]]
 name = "google-cloud-logging"
 version = "3.15.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2631,6 +2648,7 @@ dependencies = [
     { name = "google-adk" },
     { name = "google-auth" },
     { name = "google-cloud-aiplatform" },
+    { name = "google-cloud-kms" },
     { name = "google-cloud-modelarmor" },
     { name = "google-genai" },
     { name = "httpx" },
@@ -2659,6 +2677,7 @@ requires-dist = [
     { name = "google-adk", specifier = ">=1.0.0,<2.0.0" },
     { name = "google-auth", specifier = ">=2.40.0,<3.0.0" },
     { name = "google-cloud-aiplatform", specifier = ">=1.85.0,<2.0.0" },
+    { name = "google-cloud-kms", specifier = ">=2.21.0,<4.0.0" },
     { name = "google-cloud-modelarmor", specifier = ">=0.3.0,<1.0.0" },
     { name = "google-genai", specifier = ">=1.20.0,<2.0.0" },
     { name = "httpx", specifier = ">=0.27.0,<1.0.0" },

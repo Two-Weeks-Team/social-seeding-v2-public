@@ -86,15 +86,22 @@ spec:
                 secretKeyRef:
                   name: identity-platform-tenant-id
                   key: latest
-            # A2A v0.3 agent-card signing key (JWS ES256). A stable P-256 key so
-            # the served card's signatures[] verify against /.well-known/jwks.json
-            # across instances (the auto-gen dev key cannot write under the
-            # non-root runtime FS). Secret: agent-card-signing-key (ss-mcp-prod).
-            - name: AGENT_CARD_SIGNING_KEY_PEM
-              valueFrom:
-                secretKeyRef:
-                  name: agent-card-signing-key
-                  key: latest
+            # A2A v0.3 agent-card signing key (JWS ES256), held in Cloud KMS
+            # (asymmetric EC_SIGN_P256_SHA256). The private key never leaves KMS:
+            # the agent signs the card via cryptoKeyVersions.asymmetricSign and
+            # publishes every enabled version's public key at
+            # /.well-known/jwks.json (kid = <prefix>-v<N>). This replaces the
+            # prior Secret-Manager PEM key (agent-card-signing-key) — prod key
+            # custody + manual rotation (KMS does not auto-rotate asymmetric
+            # keys; see deployment/KMS-CARD-SIGNING.md). Runtime SA
+            # tiktok-mcp-runner@ holds roles/cloudkms.signerVerifier + viewer on
+            # the key. No pinned version → the latest ENABLED version signs, so a
+            # rotation is just "create version + redeploy".
+            - name: AGENT_CARD_SIGNING_KMS_KEY
+              value: >-
+                projects/__PROJECT__/locations/us-central1/keyRings/socialseed-mcp/cryptoKeys/agent-card-signing
+            - name: AGENT_CARD_SIGNING_KID
+              value: "ss-agent-card-prod"
             # Model Armor templates are PINNED to us-central1 (where they were
             # provisioned), independent of GOOGLE_CLOUD_LOCATION — see
             # MODEL_ARMOR_LOCATION below + the decouple note on the ADK block.

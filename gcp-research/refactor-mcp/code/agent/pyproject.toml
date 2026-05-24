@@ -46,6 +46,7 @@ dependencies = [
     "google-auth>=2.40.0,<3.0.0",
     # --- Agent-card JWS signing (A2A v0.3 signatures[]) ----------------------
     "cryptography>=43.0.0,<49.0.0",              # ES256 sign/verify for card_signer (RFC 7515)
+    "google-cloud-kms>=2.21.0,<4.0.0",           # KMS asymmetricSign for the prod card-signing key
     # --- Model Armor (D21) ---------------------------------------------------
     "google-cloud-modelarmor>=0.3.0,<1.0.0",     # sanitizeUserPrompt + sanitizeModelResponse
     # --- HTTP server ---------------------------------------------------------

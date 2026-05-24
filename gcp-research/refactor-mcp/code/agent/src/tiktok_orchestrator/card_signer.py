@@ -37,15 +37,26 @@ stripped), rebuild the Signing Input from the entry's ``protected`` header,
 and check the signature against the public key resolved from the JWKS.
 
 Key strategy (honest scope per RULES.md):
-    * **Dev / self-managed key** (this module's default): an ES256 (ECDSA
-      P-256) keypair is generated on first use and written under
-      ``deployment/keys/`` (git-ignored via ``*.pem``/``*.key``). Used for the
-      open Track-3 demo (``REQUIRE_AUTH=false``), the smoke tests, and CI.
-    * **Production key**: operator/Secret-Manager-provisioned and never on
-      disk in the container (consistent with ``cloud-run-service.yaml``'s
-      "secrets via Secret Manager only" stance). The signer reads it from the
-      ``AGENT_CARD_SIGNING_KEY_PEM`` env var when present; otherwise it falls
-      back to the dev key. No production private key lives in this repo.
+    * **Cloud KMS key** (production-preferred): an asymmetric
+      ``EC_SIGN_P256_SHA256`` key whose private half never leaves KMS. Signing
+      goes through ``cryptoKeyVersions.asymmetricSign`` and the JWKS publishes
+      every *enabled* version's public key. Selected when
+      ``AGENT_CARD_SIGNING_KMS_KEY`` names a KMS cryptoKey. See
+      :class:`KmsCardSigner`.
+    * **Secret-Manager PEM key**: operator-provisioned and never on disk in the
+      container (consistent with ``cloud-run-service.yaml``'s "secrets via
+      Secret Manager only" stance). Read from ``AGENT_CARD_SIGNING_KEY_PEM``
+      when present. No production private key lives in this repo.
+    * **Dev / self-managed key** (fallback default): an ES256 (ECDSA P-256)
+      keypair is generated on first use and written under ``deployment/keys/``
+      (git-ignored via ``*.pem``/``*.key``). Used for the open Track-3 demo
+      (``REQUIRE_AUTH=false``), the smoke tests, and CI.
+
+Rotation note: Cloud KMS does **not** auto-rotate asymmetric keys (the new
+public key has to be distributed first), so ``rotationPeriod`` does not apply.
+Rotation is manual — create a new key version, then redeploy: new instances
+sign with the new latest-enabled version and the JWKS lists both old and new
+versions, so verifiers mid-flight keep working through the overlap.
 
 Algorithm choice: **ES256** (ECDSA over P-256, SHA-256). EC keys match the
 SPIFFE/X.509 workload-identity anchor described in ``AGENT-IDENTITY.md`` and
@@ -55,11 +66,12 @@ keep the public JWK compact. Only the public half is ever published (JWKS).
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
@@ -72,6 +84,9 @@ from cryptography.hazmat.primitives.asymmetric import utils as asym_utils
 
 JWS_ALG = "ES256"  # ECDSA P-256 + SHA-256 (RFC 7518 §3.4)
 DEFAULT_KID = "ss-agent-card-dev-2026-05"
+# kid prefix for Cloud KMS-held keys; the key version number is appended
+# (e.g. ``ss-agent-card-kms-v1``) so each JWKS entry maps to a KMS version.
+DEFAULT_KMS_KID_PREFIX = "ss-agent-card-kms"
 # Default JWKS publication URL — overridable via env for the live deploy.
 DEFAULT_JKU = "https://mcp.socialseed.ing/.well-known/jwks.json"
 
@@ -174,6 +189,27 @@ def _jose_to_der(jose_sig: bytes) -> bytes:
 # ---------------------------------------------------------------------------
 
 
+class CardSigner(Protocol):
+    """The signing surface the card-signing helpers depend on.
+
+    Implemented by :class:`SigningKey` (local / dev / Secret-Manager PEM) and
+    :class:`KmsCardSigner` (Cloud KMS). The signing helpers never touch a raw
+    private key — they ask the signer to sign the JWS Signing Input and to
+    enumerate the public JWK(s) to publish.
+    """
+
+    kid: str
+    jku: str
+
+    def sign_jws_input(self, signing_input: bytes) -> bytes:
+        """Sign the JWS Signing Input, returning the JOSE (raw R||S) signature."""
+        ...
+
+    def public_jwks(self) -> list[dict[str, str]]:
+        """The public JWK(s) to publish for verifying this signer's signatures."""
+        ...
+
+
 @dataclass(frozen=True)
 class SigningKey:
     """A loaded ECDSA P-256 signing key plus its publication metadata."""
@@ -185,6 +221,15 @@ class SigningKey:
     @property
     def public_key(self) -> ec.EllipticCurvePublicKey:
         return self.private_key.public_key()
+
+    def sign_jws_input(self, signing_input: bytes) -> bytes:
+        """Sign locally with the in-process private key (DER → JOSE R||S)."""
+        der_sig = self.private_key.sign(signing_input, ec.ECDSA(hashes.SHA256()))
+        return _der_to_jose(der_sig)
+
+    def public_jwks(self) -> list[dict[str, str]]:
+        """Publish this key's single public JWK (RFC 7517)."""
+        return [public_jwk(self.public_key, self.kid)]
 
 
 def _load_private_key_from_pem(pem: bytes) -> ec.EllipticCurvePrivateKey:
@@ -257,6 +302,127 @@ def load_signing_key(
     return SigningKey(private_key=key, kid=resolved_kid, jku=resolved_jku)
 
 
+def _public_key_from_pem(pem: str | bytes) -> ec.EllipticCurvePublicKey:
+    """Load a PEM SubjectPublicKeyInfo (e.g. from KMS ``getPublicKey``) as EC P-256."""
+    data = pem.encode("ascii") if isinstance(pem, str) else pem
+    key = serialization.load_pem_public_key(data)
+    if not isinstance(key, ec.EllipticCurvePublicKey) or not isinstance(key.curve, ec.SECP256R1):
+        raise TypeError("KMS card-signing key must be an EC P-256 (ES256) public key")
+    return key
+
+
+class KmsCardSigner:
+    """Card signer backed by a Cloud KMS asymmetric key (``EC_SIGN_P256_SHA256``).
+
+    The private key never leaves KMS: :meth:`sign_jws_input` sends the SHA-256
+    digest of the JWS Signing Input to ``cryptoKeyVersions.asymmetricSign`` and
+    converts the returned ASN.1-DER ECDSA signature to the JOSE raw R||S form.
+    :meth:`public_jwks` publishes the public half of **every enabled** version
+    (via ``getPublicKey``), each under a ``kid`` carrying its version number, so
+    a card signed by an older not-yet-destroyed version still verifies during a
+    rotation overlap.
+
+    Rotation is manual (KMS does not auto-rotate asymmetric keys): create a new
+    version, then redeploy. New instances sign with the new latest-enabled
+    version; the JWKS lists old + new so in-flight verifiers keep working.
+    """
+
+    def __init__(
+        self,
+        *,
+        crypto_key: str,
+        jku: str,
+        kid_prefix: str = DEFAULT_KMS_KID_PREFIX,
+        signing_version: str | None = None,
+        client: Any | None = None,
+    ) -> None:
+        self._crypto_key = crypto_key
+        self.jku = jku
+        self._kid_prefix = kid_prefix
+        self._client = client if client is not None else self._default_client()
+        # Pin a version when asked (determinism), else resolve the latest enabled
+        # one. Resolved once at construction; the signer is cached per process.
+        self._signing_version = signing_version or self._latest_enabled_version()
+        self.kid = self._kid_for_version(self._signing_version)
+
+    @staticmethod
+    def _default_client() -> Any:
+        # Lazy import: google-cloud-kms is only needed when KMS signing is wired.
+        from google.cloud import kms
+
+        return kms.KeyManagementServiceClient()
+
+    @staticmethod
+    def _version_number(version_name: str) -> str:
+        return version_name.rsplit("/", 1)[-1]
+
+    def _kid_for_version(self, version_name: str) -> str:
+        return f"{self._kid_prefix}-v{self._version_number(version_name)}"
+
+    def _enabled_versions(self) -> list[str]:
+        """List ENABLED EC_SIGN_P256_SHA256 versions, oldest → newest."""
+        from google.cloud import kms
+
+        enabled = kms.CryptoKeyVersion.CryptoKeyVersionState.ENABLED
+        algo = kms.CryptoKeyVersion.CryptoKeyVersionAlgorithm.EC_SIGN_P256_SHA256
+        versions = [
+            v
+            for v in self._client.list_crypto_key_versions(request={"parent": self._crypto_key})
+            if v.state == enabled and v.algorithm == algo
+        ]
+        versions.sort(key=lambda v: int(self._version_number(v.name)))
+        return [v.name for v in versions]
+
+    def _latest_enabled_version(self) -> str:
+        names = self._enabled_versions()
+        if not names:
+            raise RuntimeError(
+                f"no ENABLED EC_SIGN_P256_SHA256 version found for {self._crypto_key}"
+            )
+        return names[-1]
+
+    def _public_key_for_version(self, version_name: str) -> ec.EllipticCurvePublicKey:
+        pub = self._client.get_public_key(request={"name": version_name})
+        return _public_key_from_pem(pub.pem)
+
+    def sign_jws_input(self, signing_input: bytes) -> bytes:
+        # EC_SIGN_P256_SHA256 signs a pre-computed SHA-256 digest and returns a
+        # DER ECDSA signature; convert to JOSE raw R||S (RFC 7518 §3.4).
+        digest = hashlib.sha256(signing_input).digest()
+        response = self._client.asymmetric_sign(
+            request={"name": self._signing_version, "digest": {"sha256": digest}}
+        )
+        return _der_to_jose(response.signature)
+
+    def public_jwks(self) -> list[dict[str, str]]:
+        # The SIGNING version's public key is MANDATORY: without it the served
+        # card would be signed but unverifiable against the served JWKS (worse
+        # than unsigned). Do NOT swallow a failure here — let it propagate so
+        # _signed_card_and_jwks() falls back to serving an honest UNSIGNED card
+        # rather than a signed-but-unverifiable one.
+        jwks: list[dict[str, str]] = [
+            public_jwk(
+                self._public_key_for_version(self._signing_version),
+                self._kid_for_version(self._signing_version),
+            )
+        ]
+        # Additionally publish the OTHER enabled versions so a card signed by an
+        # older (not-yet-disabled) version still verifies during a rotation
+        # overlap. These are best-effort — skip any we cannot list or read.
+        try:
+            others = [v for v in self._enabled_versions() if v != self._signing_version]
+        except Exception:  # blind catch: a list-IAM gap must not drop the signing key
+            others = []
+        for vname in others:
+            try:
+                jwks.append(
+                    public_jwk(self._public_key_for_version(vname), self._kid_for_version(vname))
+                )
+            except Exception:  # blind catch: skip a rotation version we cannot read
+                continue
+        return jwks
+
+
 # ---------------------------------------------------------------------------
 # JWK / JWKS (RFC 7517 / RFC 7518 §6.2)
 # ---------------------------------------------------------------------------
@@ -281,6 +447,49 @@ def public_jwk(public_key: ec.EllipticCurvePublicKey, kid: str) -> dict[str, str
 def build_jwks(keys: list[SigningKey]) -> dict[str, list[dict[str, str]]]:
     """Build a JWKS document publishing the public half of each key."""
     return {"keys": [public_jwk(k.public_key, k.kid) for k in keys]}
+
+
+def build_jwks_for_signer(signer: CardSigner) -> dict[str, list[dict[str, str]]]:
+    """Build a JWKS document from any :class:`CardSigner` (local or KMS).
+
+    For a local :class:`SigningKey` this is one key; for :class:`KmsCardSigner`
+    it is every enabled KMS key version (rotation overlap).
+    """
+    return {"keys": signer.public_jwks()}
+
+
+def load_card_signer(
+    *,
+    kid: str | None = None,
+    jku: str | None = None,
+    create_dev_key_if_missing: bool = True,
+) -> CardSigner:
+    """Resolve the active card signer, preferring a Cloud KMS key when configured.
+
+    Resolution order:
+
+        1. ``AGENT_CARD_SIGNING_KMS_KEY`` — a Cloud KMS *cryptoKey* resource
+           (``projects/…/locations/…/keyRings/…/cryptoKeys/<name>``). Signs via
+           ``asymmetricSign``; the private key never leaves KMS. Pin a specific
+           version with ``AGENT_CARD_SIGNING_KMS_KEY_VERSION`` (else the latest
+           enabled version is used). → :class:`KmsCardSigner`.
+        2-4. The Secret-Manager PEM / on-disk file / dev-key chain of
+           :func:`load_signing_key` (unchanged) -> :class:`SigningKey`.
+    """
+    kms_key = os.environ.get("AGENT_CARD_SIGNING_KMS_KEY")
+    if kms_key:
+        resolved_jku = jku or os.environ.get("AGENT_CARD_JWKS_URL", DEFAULT_JKU)
+        kid_prefix = kid or os.environ.get("AGENT_CARD_SIGNING_KID", DEFAULT_KMS_KID_PREFIX)
+        signing_version = os.environ.get("AGENT_CARD_SIGNING_KMS_KEY_VERSION") or None
+        return KmsCardSigner(
+            crypto_key=kms_key,
+            jku=resolved_jku,
+            kid_prefix=kid_prefix,
+            signing_version=signing_version,
+        )
+    return load_signing_key(
+        kid=kid, jku=jku, create_dev_key_if_missing=create_dev_key_if_missing
+    )
 
 
 def public_key_from_jwk(jwk: dict[str, Any]) -> ec.EllipticCurvePublicKey:
@@ -310,24 +519,25 @@ def _signing_input(protected_b64: str, payload_b64: str) -> bytes:
     return f"{protected_b64}.{payload_b64}".encode("ascii")
 
 
-def make_signature_entry(card: dict[str, Any], key: SigningKey) -> dict[str, str]:
+def make_signature_entry(card: dict[str, Any], signer: CardSigner) -> dict[str, str]:
     """Produce one A2A ``AgentCardSignature`` entry over ``card``.
 
     The card is signed *without* its ``signatures`` key (RFC-7515-style,
-    JCS-canonicalized payload). Returns ``{"protected", "signature"}``.
+    JCS-canonicalized payload). The actual signing is delegated to the
+    :class:`CardSigner` (local key or Cloud KMS), which returns the JOSE raw
+    R||S signature. Returns ``{"protected", "signature"}``.
     """
-    protected = {"alg": JWS_ALG, "kid": key.kid, "jku": key.jku}
+    protected = {"alg": JWS_ALG, "kid": signer.kid, "jku": signer.jku}
     protected_b64 = b64url_encode(jcs_canonicalize(protected))
     payload_b64 = b64url_encode(jcs_canonicalize(_card_without_signatures(card)))
 
     signing_input = _signing_input(protected_b64, payload_b64)
-    der_sig = key.private_key.sign(signing_input, ec.ECDSA(hashes.SHA256()))
-    jose_sig = _der_to_jose(der_sig)
+    jose_sig = signer.sign_jws_input(signing_input)
 
     return {"protected": protected_b64, "signature": b64url_encode(jose_sig)}
 
 
-def sign_card(card: dict[str, Any], key: SigningKey) -> dict[str, Any]:
+def sign_card(card: dict[str, Any], key: CardSigner) -> dict[str, Any]:
     """Return a copy of ``card`` with a fresh ``signatures[]`` entry appended.
 
     Existing signatures (e.g. from a previous signer) are discarded so the
