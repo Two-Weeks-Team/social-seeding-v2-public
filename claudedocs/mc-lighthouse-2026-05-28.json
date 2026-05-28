@@ -1,0 +1,62 @@
+{
+  "capture_kind": "A11 — Mission Control body Lighthouse a11y baseline (PR-ready)",
+  "captured_at": "2026-05-28T00:00:00Z",
+  "captured_by": "Claude Code on feat/p1-hardening-d8",
+  "categories": {
+    "accessibility": {
+      "score": null,
+      "comment": "Score-null because the live measurement requires (1) ephemeral Mongo, (2) Next.js prod build or dev server, (3) an authenticated session for the /campaigns route. The patches landed in commit 1b714a8 (A10) and the type-check + vitest both pass; this file is the PR-ready scaffold the operator fills in by running the Lighthouse command below on a machine with Chrome + the dev stack up."
+    }
+  },
+  "patches_applied_for_a11y": [
+    {
+      "id": "A10-G2",
+      "file": "apps/web/components/mission-control/stage-bar.tsx",
+      "change": "LABEL_KO values switched from English machine enum placeholders to real Korean labels (개요·소싱·아웃리치·배송·콘텐츠 검수·성과). D34 locale support."
+    },
+    {
+      "id": "A10-G6",
+      "file": "apps/web/components/ui/button.tsx",
+      "change": "Added focus-visible:outline-none + ring-2 + ring-slate-900 + ring-offset-1 to every Button instance. WCAG 2.4.11 focus-not-obscured."
+    },
+    {
+      "id": "A10-G3",
+      "file": "apps/web/components/mission-control/activity-timeline.tsx",
+      "change": "Added role=feed + aria-label=에이전트 활동 타임라인 + aria-live=polite + aria-busy=false on both empty and populated states; each run section gains a per-run aria-label."
+    }
+  ],
+  "operator_handoff": {
+    "preconditions": [
+      "Node 22 + pnpm 10.18.2",
+      "macOS or Linux with Google Chrome installed",
+      "MONGODB_URI configured (or ephemeral mongo via `pnpm run dev-mongo`)",
+      "Auth test login: AUTH_SECRET + AUTH_TEST_LOGIN_EMAIL + AUTH_TEST_LOGIN_WORKSPACE in .env.local (per .env.example)"
+    ],
+    "commands": [
+      "# Terminal 1 — ephemeral mongo",
+      "pnpm run dev-mongo",
+      "# Terminal 2 — index v2_* collections + start MC",
+      "pnpm exec tsx scripts/init-indexes.ts",
+      "pnpm --filter @ss/web build",
+      "pnpm --filter @ss/web start",
+      "# Terminal 3 — sign in once via http://localhost:3000/sign-in then capture",
+      "pnpm dlx lighthouse http://localhost:3000/campaigns \\",
+      "  --only-categories=accessibility \\",
+      "  --output=json \\",
+      "  --output-path=claudedocs/mc-lighthouse-2026-05-28.json \\",
+      "  --chrome-flags='--headless=new --no-sandbox' \\",
+      "  --emulated-form-factor=desktop"
+    ],
+    "expected_score": ">= 0.90 — based on the A10 patches matching the same patterns that lifted ss-landing /demo/ from 84 to 96 in PR #15 (per claudedocs/2026-05-23-submission-polish-handoff.md)"
+  },
+  "ss_landing_baseline_for_reference": {
+    "url": "https://ss-landing-80064221403.us-central1.run.app/demo/",
+    "lighthouse_run_at": "PR #15 merge time",
+    "scores": {
+      "accessibility": 0.96,
+      "seo": 1.0,
+      "agentic": 1.0
+    },
+    "note": "ss-landing /demo/ is the public landing/demo route on Cloud Run (separate from the local MC body). The 96 a11y score there is the empirical floor we expect the MC body to be at or above after A10's patches. This file should be regenerated against the local MC body to confirm."
+  }
+}
