@@ -422,9 +422,9 @@ alongside the Grand Prize aim.
 ## Honest scope (Devpost field: Risks / Known issues)
 
 Per `RULES.md §Professional Honesty`, every feature's production-vs-shipped split lives in **one
-table** — [`HONEST-SCOPE.md`](./HONEST-SCOPE.md) (**28 rows**: 8 demonstrated-live, 12 GA-real,
-3 operator-deploy, 1 Google-Private-Preview, 4 split — rows 18–28 added 2026-05-28 as the P1
-pre-submission hardening sprint disclosure batch, see `docs/IMPROVEMENT-MASTER-PLAN.md`) — so the
+table** — [`HONEST-SCOPE.md`](./HONEST-SCOPE.md) (**16 rows: 7 demonstrated-live, 6 GA-real,
+1 Google-Private-Preview, 2 split**) + a §4 prose section for the 12 P1 pre-submission hardening
+sprint supplemental disclosures (A2/A3/X4/A4/A6/A7/A8/B-items + AP2 mandate scope), so the
 disclosures are consolidated, not scattered. The load-bearing headlines, with the rest in that file:
 
 - **The hardening before/after is a local deterministic pass; the honest number is the holdout
@@ -447,7 +447,7 @@ disclosures are consolidated, not scattered. The load-bearing headlines, with th
   envelope, and ~3.7s cross-call are real; the ranking *data* is heuristic until the full topology is
   deployed. ([`HONEST-SCOPE.md` row 8](./HONEST-SCOPE.md))
 - **AP2 v0.2 is early-Preview**, scoped to Intent Mandate only (D27); Cart and Payment Mandate
-  deferred. ([`HONEST-SCOPE.md` row 16](./HONEST-SCOPE.md))
+  deferred. ([`HONEST-SCOPE.md` §4 supplemental disclosures](./HONEST-SCOPE.md))
 
 **Operator residuals (not in our control / pending an operator action):**
 

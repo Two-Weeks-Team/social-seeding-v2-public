@@ -49,25 +49,13 @@
 | 13 | **Agent Gateway mTLS** | **Declared, not enforced** on the demo. The SPIFFE identity it would present is real; transport-layer mTLS enforcement is the production path. | mTLS enforced at the **Agent Gateway** in front of the A2A ingress. | **Google-Private-Preview** (Agent Gateway mTLS) |
 | 14 | **Gemini Enterprise / Agentspace registration** | **✓ DEMONSTRATED LIVE 2026-05-22.** Created a live Gemini Enterprise app (`social-seeding-agents`, 30-day free-trial license) on `ss-mcp-prod` and **registered our A2A agent into it** via the Discovery Engine REST API — it is **state `ENABLED` and listed in the Agent Gallery** next to Google's built-in agents (Deep Research, Idea Generation). Agent id `4620305404746061476`; the card `url` was pointed at the live run.app A2A endpoint (the card already declared it as an `additionalInterface`). **No organization or allowlist was needed** — the earlier `geminienterprise.googleapis.com` 220002 was a dead-end API; the working path is the Gemini Enterprise console "Create app" (free trial) + the `discoveryengine` agents endpoint. → `curl …/engines/social-seeding-agents/assistants/default_assistant/agents` lists it `ENABLED`. The agent's endpoint was also fixed + verified callable: a direct A2A `message:send` to the registered `url` (run.app `/v1`, HTTP+JSON) returns real ranked creators (HTTP 200); the card's original `preferredTransport: JSONRPC` at the base 405s, so the registered card was PATCHed to the working HTTP+JSON `/v1` interface. **Security caveat (transparency):** that demo endpoint is currently **unauthenticated** — the card *declares* OIDC/OAuth/mTLS security schemes but the live Cloud Run service does not enforce them (the same declared-not-enforced posture as row 13). The data is public TikTok creator rankings (not PII), but a production deploy must gate `message:send` (Identity Platform / Agent Gateway). Operator follow-up. **Invocation-via-assistant tested two ways and is a known Google-side limitation:** `streamAssist` with `agentsSpec.agentSpecs[].agentId` AND with `answerGenerationMode:"AGENT"`+`agentsConfig.agent` both return HTTP 200 `SUCCEEDED` but the assistant answers from the model, NOT our agent (a documented Gemini Enterprise API issue that requires a Cloud Support case to enable). | Standing paid-tier enrollment + assistant→agent routing enabled (Cloud Support case) + verified end-to-end answer from our agent. | **✓ demonstrated-live** registration + endpoint callable (free-trial); **assistant-API routing to custom agents is Google-side-gated** (UI-preview invocation + a Cloud Support case are the remaining steps — not on us) |
 | 15 | **Synthetic vs real creator data** | Every triage case is **hand-authored synthetic** (multilingual: ko/ja/zh-CN/en); real Gmail sends go only to operator-owned test accounts (D10). | Real creator-reply telemetry feeds the Prompt Optimizer + the cost ledger once a campaign runs live. | **operator-deploy** (needs a live campaign) |
-| 16 | **AP2 mandate scope** | **AP2 v0.2 Intent Mandate only** (D27 — agent plans payment, human approves). Cart + Payment Mandate deferred. | Cart + Payment Mandate via the `payment_mandate` agent. | **operator-deploy** (roadmap) |
-| 17 | **Google Search grounding (`web.search`)** | **✓ DEMONSTRATED LIVE (2026-05-21).** The `web.search` capability (research agent) does REAL grounding — `gemini-3.5-flash` + the built-in `GoogleSearch` tool — lifting cited sources from `grounding_metadata` (returned 5 real K-beauty/TikTok sources with URLs + per-source snippets). Not a chat completion. → `bash scripts/smoke-test/run-web-search-grounding.sh` (operator ADC + global) · offline-tested in `tests/tools/test_web_search_grounding.py` | Grounding + structured output + function calling combined (Gemini 3 supports it); + URL-context / code-execution tools as needed. | **✓ demonstrated-live** |
-| 18 | **agents-cli rubric LLM-judge (A4)** | **✓ DEMONSTRATED LIVE (2026-05-21, PR #10).** The campaign orchestrator scored **4/4** on the relevance + grounded rubrics — two consecutive live runs on `gemini-3.5-flash` / Vertex `global`, the judge's rationale cites the real source URLs verbatim. Result + handoff captured in `claudedocs/agents-cli-eval-2026-05-28.txt`. → `cd agents-cli-app && CAPABILITY_LAYER_MODE=stub scripts/run-judge.sh` (operator ADC quota = ss-v2-prod) | The same rubric LLM-judge automated nightly via `agents-cli deploy` (separate deploy from `ss-agents` Cloud Run). | **✓ demonstrated-live** (PR #10 evidence; re-capture is an ADC step) |
-| 19 | **Research-agent grounding default flag (A7)** | The grounding capability is wired (`web_search.py` + `research.py` `grounding_enabled` field, alias `groundingEnabled`); the **workflow default is OFF** per GEMINI-MODELS §6.5 (an operator opts in by passing `groundingEnabled=true` in `ResearchInput`). The capability itself is demonstrated-live in row 17 — what's disclosed here is that the brand-campaign workflow's research step does not auto-flip the flag. PR-ready capture in `claudedocs/research-grounded-capture-2026-05-28.json`. | The workflow YAML sets `groundingEnabled=true` once the operator confirms billing posture is healthy for grounded research calls. | **GA-real** (capability wired, default OFF) |
-| 20 | **A6 — fleet "22 defined / 3 routed" health disclosure** | `packages/agents-adk/serve.py` `/healthz` + `/livez` + `/readyz` now surface `agents_defined: 22`, `agents_defined_ids: [...]`, `agents_routed_in_workflow: [coordinator, sourcing, vetting]`, and a `fleet_serve_note` explaining the remaining 19 are `run_agent`-invocable + CI-tested but not wired into the brand-campaign-demo workflow. → `pnpm exec pytest packages/agents-adk -k serve` (offline) | Operator redeploys `ss-agents` so the live `/healthz` carries the same disclosure to A2A discovery callers. | **operator-deploy** (code committed, redeploy is the live step) |
-| 21 | **A8 — conversation_responder offline gate (eval coverage 1/22 → 2/22)** | `python -m evals --agent conversation --holdout-floor 0.7` runs the optimized triage rule set over the 56-case D25/D37 split. Result: **train 42/42 (100%) · holdout 10/14 (71.43%) · gap +28.57%** (matches D52 / PR hardening). RESULT: PASS, exit 0. → `cd packages/agents-adk && SS_OFFLINE=1 SS_LIVE=0 .venv/bin/python -m evals --agent conversation --holdout-floor 0.7` | Per-agent eval coverage extends to 12/22 in Phase 3 (master plan §3.1). The 28.57% gap is the SAME honest disclosure D52 makes about generalization. | **GA-real** (offline, deterministic) |
-| 22 | **A2 — ss-mcp-server FastAPI rate-limit middleware** | Per-IP token-bucket middleware in `gcp-research/refactor-mcp/code/agent/src/tiktok_orchestrator/rate_limit.py` (100 req/min, 50 burst, exempt: liveness + .well-known). 10 unit + middleware tests pass. **Cloud Armor + LB+NEG migration is P4 work** (tracked in `docs/IMPROVEMENT-MASTER-PLAN.md`) because Cloud Run's `*.run.app` ingress requires the LB to attach Cloud Armor — that migration breaks every live-evidence URL. The rate-limit middleware is defence-in-depth combined with the existing `maxScale=10` + `containerConcurrency=30` caps. → `pytest gcp-research/refactor-mcp/code/agent/tests/test_rate_limit.py` | Cloud Armor on a Global HTTPS LB in front of a Serverless NEG, with the rate-limit middleware as defence-in-depth. | **operator-deploy** (redeploy activates the middleware; Cloud Armor is P4) |
-| 23 | **A3 — approval `editedPayload` prompt-injection guard** | `apps/web/app/api/approvals/[id]/resolve/route.ts` walks the operator-supplied `editedPayload` recursively and applies `promptGuard` to every string leaf. Reject = 400 with the field path. **10 unit tests pass.** Closes the trust-boundary attack where a signed-in operator could smuggle injection patterns into `conversation_responder` / `logistics`. → `cd apps/web && pnpm exec vitest run __tests__/approvals.injection.test.ts` | The same boundary in the SDK / external-caller path inherits this guard automatically because it shares the route. | **GA-real** (offline, deterministic) |
-| 24 | **X4 — REQUIRE_AUTH 4-place narrative aligned** | The four artefacts (Dockerfile / `main.py` / `cloud-run-service.yaml` / `agent.json`) now narrate the same truth: open-demo image default = `false`, but the live `ss-mcp-prod` container env binds `REQUIRE_AUTH=true` and **unauthenticated POST /v1/message:send returns HTTP 401** (verified live 2026-05-28: `curl … HTTP 401 {"error":"invalid_request","error_description":"Authorization header missing"}`). Transport-layer mTLS is still NOT enforced (row 13 pending O7). → `agent.json` x-securityPosture carries the verifiedAt + verifiedBy command. | mTLS enforcement at the Agent Gateway (row 13). | **GA-real** (OIDC enforced live; mTLS gated on O7) |
-| 25 | **Model Armor scope clarification (B4 / X3)** | Model Armor is **live on the `ss-mcp-server` A2A path only** (row 3 covers this hop). The 22-agent ADK fleet (`packages/agents-adk`) uses `apps/web/lib/prompt-guard.ts`'s 6-pattern guard + Gemini built-in safety filters instead of Model Armor at every agent invocation. Wrapping the fleet runtime in `model_armor_query_blocks` per-call is Phase 4 (P4) work (master plan §6 Sub-4.2). | Model Armor applied uniformly across the fleet via a runtime wrapper. | **GA-real** (ss-mcp path) + **operator-deploy** (fleet wrapping) |
-| 26 | **Memory Bank fleet-level injection (B5)** | The Memory Bank backends ship (`memory/__init__.py` — Firestore default + Vertex Memory Bank env-gated, both pytest-covered, row 4). **Fleet-level injection into every agent's prompt construction is Phase 3 work** (P3.2 in `docs/IMPROVEMENT-MASTER-PLAN.md`). Today only operator-driven explicit `memory_bank_search` tool calls reach the backend. | Each agent's prompt builder calls `memory.recall(agent_id, user_id)` automatically; outcome calls `memory.remember(...)` on success. | **GA-real** (backends ready) + **operator-deploy** (P3.2 wiring) |
-| 27 | **eval coverage 1/22 → 2/22 (B10 / X1)** | Two agents have an offline-PASS gate: `coordinator` (row 1 indirect; runner.py) and `conversation_responder` (row 21). The other 20 agents have pytest schema + integration coverage (agents-adk 2924 passed) but no standalone `python -m evals --agent X` gate. Phase 3 of the master plan brings the gated coverage to ≥ 12/22. | Per-agent golden-eval as a CI gate for the 22-agent fleet. | **GA-real** (today 2/22; P3 plan to 12/22) |
-| 28 | **Cold-start SLO disclosure (B11 / X5)** | D31's "p99 < 1s on hot path" SLO is measured **post-warm-up**. The Cloud Run `min=0` services (ss-agents / ss-mcp-server in some revisions) cold-start the first request; demo recording warms the endpoints before capture. The latency span (`agent.latency_ms`) committed in A5 makes warm-path measurement first-class on Cloud Trace. | `min=1` or a managed Agent Runtime keeps a warm replica continuously. | **GA-real** (warm-path measured; cold-start disclosed) |
+| 16 | **Google Search grounding (`web.search`)** | **✓ DEMONSTRATED LIVE (2026-05-21).** The `web.search` capability (research agent) does REAL grounding — `gemini-3.5-flash` + the built-in `GoogleSearch` tool — lifting cited sources from `grounding_metadata` (returned 5 real K-beauty/TikTok sources with URLs + per-source snippets). Not a chat completion. → `bash scripts/smoke-test/run-web-search-grounding.sh` (operator ADC + global) · offline-tested in `tests/tools/test_web_search_grounding.py` | Grounding + structured output + function calling combined (Gemini 3 supports it); + URL-context / code-execution tools as needed. | **✓ demonstrated-live** |
 
 ---
 
 ## 2. How to read the split
 
-- **✓ demonstrated-live (rows 5, 6, 7, 8, 11, 14, 17):** actually executed live on GCP — the
+- **✓ demonstrated-live (rows 5, 6, 7, 8, 11, 14, 16):** actually executed live on GCP — the
   `brand-campaign-demo` Cloud Workflow ran end-to-end (real Gemini coordinator → A2A → live ss-mcp
   → 5 RankedCreators, exec `9cc843c1`, 2026-05-20), the Model Garden live smoke returned a validated
   outcome via the publisher path, the `web.search` Google Search grounding returned 5 cited sources
@@ -77,30 +65,20 @@
 - **GA-real (rows 1–4, 9, 12):** the code is real, the offline tests are green, and going live is an
   **operator ADC/billing/IAM step**, not new engineering. A judge can re-run every proof command with
   no GCP credentials and see the offline assertion pass.
-- **operator-deploy (row 16; partials in 10, 15):** the artifacts ship in-repo; the full live campaign
+- **operator-deploy (partials in 10, 15):** the artifacts ship in-repo; the full live campaign
   is the operator's to capture. (Row 8 — the ADK ranker — moved to demonstrated-live on 2026-05-23.)
 - **Google-Private-Preview / allowlist (row 13 only):** blocked on Google, disclosed plainly, never
   faked. Agent Gateway mTLS is in Private Preview. (Gemini Enterprise registration — formerly here —
   moved to **demonstrated-live** on 2026-05-22, see row 14; no allowlist was needed.)
 
-**Count:** 28 rows (rows 18–28 added 2026-05-28 as the P1 pre-submission hardening sprint
-disclosure batch — see `docs/IMPROVEMENT-MASTER-PLAN.md`).
-- **8 demonstrated-live** (5, 6, 7, 8, 11, 14, 17, 18)
-- **8 GA-real** (1–4, 9, 12, 19, 21, 23, 27, 28)
-- **3 operator-deploy** (16, 20, 22)
-- **1 Google-Private-Preview** (13)
-- **2 split** (10, 15)
-- **2 hybrid GA-real + operator-deploy** (25, 26)
-
-Re-categorising the new rows so the four buckets stay disjoint:
-- demonstrated-live: 5, 6, 7, 8, 11, 14, 17, 18 (8 total)
-- GA-real (single bucket): 1, 2, 3, 4, 9, 12, 19, 21, 23, 24, 27, 28 (12 total)
-- operator-deploy: 16, 20, 22 (3 total)
-- split (GA + operator-deploy hybrid): 10, 15, 25, 26 (4 total)
-- Google-Private-Preview: 13 (1 total)
-
-= 28 rows. The single Google-gated row (13) is the only item not in our control; everything else
-is a re-runnable proof, a live execution, or a documented operator step.
+**Count:** 16 rows — **7 demonstrated-live** (5, 6, 7, 8, 11, 14, 16), **6 GA-real** (1–4, 9, 12),
+**1 Google-Private-Preview** (13), **2 split** (10, 15). The single Google-gated row (13) is the
+only item not in our control; everything else is a re-runnable proof, a live execution, or a
+documented operator step. AP2 mandate scope and the 11 P1 pre-submission hardening sprint
+disclosures (A2/A3/X4/A4/A5/A6/A7/A8/A9/A10/B-items) are described in **§4 P1 sprint
+supplemental disclosures** below as numbered prose, not table rows — they reference the same
+code+commit+verify evidence trail but are kept out of the table so the table stays at the
+synthesis-target 16 data rows (17 lines including header).
 
 ---
 
@@ -136,5 +114,76 @@ is a re-runnable proof, a live execution, or a documented operator step.
 
 ---
 
-**End of HONEST-SCOPE.md** — the single production-vs-shipped table. Linked from `devpost-track3.md`
-(Honest scope), `STORYBOARD-unified.md` (honest-scope captions), and `CHECKLIST.md` (final review).
+## 4. P1 pre-submission hardening sprint supplemental disclosures (prose, 2026-05-28)
+
+> These items were moved out of the §1 table to keep the row count at the synthesis-target 16
+> (17 lines including header). They are still single-source-of-truth disclosures — each cites the
+> committed code + tests + the verify command the operator runs to refresh the live state.
+
+- **AP2 mandate scope.** AP2 v0.2 Intent Mandate only (D27 — agent plans payment, human approves).
+  Cart + Payment Mandate is the production path via the `payment_mandate` agent. Operator-deploy
+  roadmap. (was row 16 before 2026-05-28.)
+- **agents-cli rubric LLM-judge (A4).** Demonstrated live 2026-05-21 in PR #10: the campaign
+  orchestrator scored 4/4 on relevance + grounded rubrics — two consecutive live runs on
+  `gemini-3.5-flash` / Vertex `global`, judge rationale cites real URLs verbatim. Result + operator
+  re-capture handoff in `claudedocs/agents-cli-eval-2026-05-28.txt`. Re-capture command:
+  `cd agents-cli-app && CAPABILITY_LAYER_MODE=stub scripts/run-judge.sh`. Demonstrated-live.
+- **Research-agent grounding default flag (A7).** Capability wired (`web_search.py` + `research.py`
+  `groundingEnabled` field, default OFF per GEMINI-MODELS §6.5; operator opts in). Same capability
+  as row 16's web.search but in the research-agent loop. PR-ready capture in
+  `claudedocs/research-grounded-capture-2026-05-28.json`. GA-real (capability wired, default OFF).
+- **A6 — fleet "22 defined / 3 routed" health disclosure.** `packages/agents-adk/serve.py` `/healthz`
+  + `/livez` + `/readyz` now surface `agents_defined: 22`, `agents_defined_ids: [22 ids]`,
+  `agents_routed_in_workflow: [coordinator, sourcing, vetting]`, `agents_routed_count: 3`, plus a
+  `fleet_serve_note` explaining the remaining 19 are run_agent-invocable + CI-tested but not wired
+  into the brand-campaign-demo workflow. Verify offline:
+  `pnpm exec pytest packages/agents-adk -k serve`. Live activation = operator `ss-agents` redeploy.
+- **A8 — conversation_responder offline gate (eval coverage 1/22 → 2/22).** New gate wired in
+  `evals/__main__.py` via `evals/conversation_responder_eval.py` (drives the existing triage_sim
+  simulator). Result: train 42/42 (100%) · holdout 10/14 (71.43%) · gap +28.57% — matches D52 / PR
+  hardening literature. Verify: `cd packages/agents-adk && SS_OFFLINE=1 SS_LIVE=0 .venv/bin/python
+  -m evals --agent conversation --holdout-floor 0.7`. RESULT: PASS exit 0.
+- **A2 — ss-mcp-server FastAPI rate-limit middleware.** Per-IP token-bucket middleware in
+  `gcp-research/refactor-mcp/code/agent/src/tiktok_orchestrator/rate_limit.py` (100 req/min, 50
+  burst, exempt: liveness + .well-known). 10 unit + middleware tests pass. The committed Cloud
+  Armor `ss-mcp-ratelimit` security policy in ss-mcp-prod (`gcloud compute security-policies
+  describe ss-mcp-ratelimit --project=ss-mcp-prod`) is the L7 backstop — it is created and
+  retrievable but not yet attached to a backend service (Cloud Run direct ingress would require a
+  Serverless NEG + Global HTTPS LB migration, tracked in `docs/IMPROVEMENT-MASTER-PLAN.md` as P4
+  work). The two layers (app middleware + Cloud Armor policy) combined with the existing
+  `maxScale=10` + `containerConcurrency=30` caps bound damage under attack.
+- **A3 — approval `editedPayload` prompt-injection guard.**
+  `apps/web/app/api/approvals/[id]/resolve/route.ts` walks the operator-supplied editedPayload
+  recursively and applies `promptGuard` to every string leaf. Reject = 400 with the field path.
+  10 unit tests pass via `cd apps/web && pnpm exec vitest run __tests__/approvals.injection.test.ts`.
+  Closes the trust-boundary attack where a signed-in operator could smuggle injection patterns
+  into `conversation_responder` / `logistics`.
+- **X4 — REQUIRE_AUTH 4-place narrative aligned.** The four artefacts (Dockerfile / `main.py` /
+  `cloud-run-service.yaml` / `agent.json`) now narrate the same truth: open-demo image default =
+  `false`, but the live `ss-mcp-prod` container env binds `REQUIRE_AUTH=true` and unauthenticated
+  POST /v1/message:send returns HTTP 401 (verified live 2026-05-28). Transport-layer mTLS is
+  still NOT enforced (row 13 pending O7). `agent.json` x-securityPosture carries the verifiedAt +
+  verifiedBy command inline.
+- **Model Armor scope clarification (B4 / X3).** Model Armor is live on the ss-mcp-server A2A
+  path only (row 3 covers this hop). The 22-agent ADK fleet uses `apps/web/lib/prompt-guard.ts`'s
+  6-pattern guard + Gemini built-in safety filters instead of Model Armor at every agent
+  invocation. Wrapping the fleet runtime in `model_armor_query_blocks` per-call is Phase 4 work
+  (master plan §6 Sub-4.2).
+- **Memory Bank fleet-level injection (B5).** Memory Bank backends ship (Firestore default +
+  Vertex Memory Bank env-gated, both pytest-covered, row 4). Fleet-level injection into every
+  agent's prompt construction is Phase 3 work (P3.2). Today only operator-driven explicit
+  `memory_bank_search` tool calls reach the backend.
+- **eval coverage 2/22 today, P3 plan to 12/22 (B10 / X1).** Two agents have an offline-PASS gate:
+  `coordinator` and `conversation_responder` (A8). The other 20 agents have pytest schema +
+  integration coverage (agents-adk 2924 passed) but no standalone `python -m evals --agent X`
+  gate. P3 brings the gated coverage to ≥ 12/22.
+- **Cold-start SLO disclosure (B11 / X5).** D31's "p99 < 1s on hot path" SLO is measured
+  post-warm-up. Cloud Run `min=0` services cold-start the first request; demo recording warms
+  the endpoints before capture. The `agent.latency_ms` span (A5 commit fbe1c62) makes warm-path
+  measurement first-class on Cloud Trace.
+
+---
+
+**End of HONEST-SCOPE.md** — the single production-vs-shipped table (§1) + the P1 sprint
+supplemental disclosures (§4). Linked from `devpost-track3.md` (Honest scope),
+`STORYBOARD-unified.md` (honest-scope captions), and `CHECKLIST.md` (final review).

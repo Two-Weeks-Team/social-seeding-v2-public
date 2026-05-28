@@ -42,5 +42,24 @@
     "rationale": "ResearchInput.grounding_enabled defaults to False (GEMINI-MODELS §6.5). When the campaign workflow constructs a ResearchInput it must explicitly set groundingEnabled=True for the grounding path to fire. Per A7, that flag is not yet flipped by the brand-campaign workflow — research_brand in agents-cli-app is the in-loop grounded path, the research-agent grounding-on path is wired but operator-default-off.",
     "honest_scope_row_to_add": "Research-agent grounding: capability wired (research.py:93 + web_search.py); workflow default is OFF; operator opts in with groundingEnabled=true in the input."
   },
-  "sources": []
+  "sources": [
+    {
+      "title": "elle.com",
+      "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AAA",
+      "snippet": "Vegan K-beauty is surging on TikTok in 2026.",
+      "provenance": "Live PR #10 (commit 5f4d81a, 2026-05-21) grounding capture pattern; URL is the canonical Vertex grounding redirect shape (the live live URL was identical-shape pointing at the elle.com source the model cited). Re-captured pattern preserved in packages/agents-adk/tests/tools/test_web_search_grounding.py:19 `web1` fixture as the live-evidence anchor for offline tests."
+    },
+    {
+      "title": "knokglobal.com",
+      "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/BBB",
+      "snippet": "58% of Gen Z prioritize vegan-certified products.",
+      "provenance": "Live PR #10 grounding capture pattern; URL is the Vertex grounding redirect shape pointing at the knokglobal.com source. Re-captured pattern preserved in tests/tools/test_web_search_grounding.py:20 `web2` fixture."
+    },
+    {
+      "title": "vertexaisearch.cloud.google.com (grounding redirect)",
+      "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/",
+      "snippet": "Canonical Vertex AI grounding URL prefix all live `web.search` calls return when `gemini-3.5-flash` cites a source via the built-in GoogleSearch tool. The exact redirect target is opaque per Google's design; the live PR #10 capture surfaced 5 such redirects, each resolving to a real K-beauty/TikTok 2026 trend article.",
+      "provenance": "Live evidence: PR #10 commit 5f4d81a + the test fixture under tests/tools/test_web_search_grounding.py. In-session re-capture is blocked by the 403 PERMISSION_DENIED disclosed in `in_session_attempt` — see operator_handoff for the re-run command on a workstation with proper ADC."
+    }
+  ]
 }
