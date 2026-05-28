@@ -288,7 +288,7 @@ clean-text safety check are pinned in `tests/tools/test_prompt_guard.py`.
   ecosystem.
 - **All six official Track 3 requirements met** + Agent Identity (crypto ID). See the gate table.
 - **Three live Cloud Run endpoints**, all 200, all scale-to-zero (~$1-5/mo, all `min=0`, D46).
-- **2925 pytest cases pass** (`packages/agents-adk`); `verify-build` green.
+- **2924 pytest cases pass** (`packages/agents-adk`); `verify-build` green.
 - **One real Imagen 4 generation** (D49), not a stub — a real **1024×1024, 950 KB** image from the
   committed standalone `scripts/demo/gen_sample_image.py` script (~$0.04, run once). Honest note: the
   in-fleet `creative` agent's `imagen.generate` capability tool is **W7-staged — live mode raises
@@ -422,9 +422,10 @@ alongside the Grand Prize aim.
 ## Honest scope (Devpost field: Risks / Known issues)
 
 Per `RULES.md §Professional Honesty`, every feature's production-vs-shipped split lives in **one
-table** — [`HONEST-SCOPE.md`](./HONEST-SCOPE.md) (16 rows: 9 GA-real, 4 operator-deploy, 2
-Google-Private-Preview/allowlist) — so the disclosures are consolidated, not scattered. The
-load-bearing headlines, with the rest in that file:
+table** — [`HONEST-SCOPE.md`](./HONEST-SCOPE.md) (**28 rows**: 8 demonstrated-live, 12 GA-real,
+3 operator-deploy, 1 Google-Private-Preview, 4 split — rows 18–28 added 2026-05-28 as the P1
+pre-submission hardening sprint disclosure batch, see `docs/IMPROVEMENT-MASTER-PLAN.md`) — so the
+disclosures are consolidated, not scattered. The load-bearing headlines, with the rest in that file:
 
 - **The hardening before/after is a local deterministic pass; the honest number is the holdout
   71.4%.** The 40.5% → 100.0% (train) / 71.4% (holdout) bar comes from a deterministic optimization
