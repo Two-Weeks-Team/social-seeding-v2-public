@@ -63,8 +63,16 @@ _REGISTRY: dict[str, Any] = {
 
 
 async def _run(agent: str, holdout_floor: float) -> int:
+    # A8 (P1 Sub-1.3) — conversation_responder uses the triage_sim simulator
+    # directly because its hardening artefact IS the optimized triage rule set
+    # (not an LLM call); the runner.py protocol assumes a model client.
+    if agent == "conversation_responder" or agent == "conversation":
+        from evals.conversation_responder_eval import run_conversation_responder_eval
+
+        return run_conversation_responder_eval(holdout_floor=holdout_floor)
+
     if agent not in _REGISTRY:
-        known = ", ".join(sorted(_REGISTRY))
+        known = ", ".join(sorted(_REGISTRY) + ["conversation_responder", "conversation"])
         print(f"[golden-eval] unknown agent {agent!r}. Known: {known}", file=sys.stderr)
         return 4
     spec: AgentEvalSpec = _REGISTRY[agent]()
