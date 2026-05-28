@@ -485,6 +485,21 @@ async def _heuristic_rank(brief: str, *, uid: str | None) -> RankedCreators:
     Vertex AI quota is exhausted (REFACTOR-MCP §9.6). The output shape is
     identical so callers cannot tell the two paths apart.
     """
+    # A9 (P1 Sub-1.3) — surface every entry into the heuristic ranker so
+    # a judge re-running the demo doesn't silently get the deterministic
+    # path while believing the LLM (Gemini 3.5-flash on Vertex global) is
+    # ranking. The earlier silent-fallback bug (an `await`-less
+    # create_session in _run_adk) is what made this visibility necessary —
+    # see commit 548c854. If LIVE traces stop showing llm.model=gemini-3.5-flash
+    # for plan_creator_search, this warning is the operator's signal.
+    logger.warning(
+        "heuristic_rank_triggered",
+        extra={
+            "uid": uid or "anonymous",
+            "reason_hint": "ADK_DISABLED set OR google-adk unimportable OR _run_adk raised; check stack/INFO logs above",
+            "brief_chars": len(brief),
+        },
+    )
     keywords = _extract_keywords(brief)
 
     candidates: dict[str, dict[str, Any]] = {}
