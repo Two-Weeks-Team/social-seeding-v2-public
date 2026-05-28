@@ -10,13 +10,16 @@ import type { CampaignStage } from "@ss/contracts";
 
 const ORDER: CampaignStage[] = ["overview", "sourcing", "outreach", "shipping", "content_review", "performance"];
 
+// A10 (P1 Sub-1.4) — D34 i18n: stage labels were placeholders mirroring the
+// machine enum. The brand-campaign workflow's Korean operator surface should
+// show Korean labels per D34's 4-locale spread (the demo uses ko-KR).
 const LABEL_KO: Record<CampaignStage, string> = {
-  overview: "overview",
-  sourcing: "sourcing",
-  outreach: "outreach",
-  shipping: "shipping",
-  content_review: "content_review",
-  performance: "performance",
+  overview: "개요",
+  sourcing: "소싱",
+  outreach: "아웃리치",
+  shipping: "배송",
+  content_review: "콘텐츠 검수",
+  performance: "성과",
 };
 
 export function StageBar({ current, notes }: { current: CampaignStage; notes?: Partial<Record<CampaignStage, string>> }) {

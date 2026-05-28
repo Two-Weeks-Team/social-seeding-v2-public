@@ -53,6 +53,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       className={cn(
         "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors",
         "disabled:cursor-not-allowed disabled:opacity-50",
+        // A10 (P1 Sub-1.4) — WCAG 2.4.11 focus-not-obscured: ensure every
+        // button has a visible 2px ring on keyboard focus regardless of the
+        // variant's background. focus-visible:* keeps mouse-click outlines
+        // suppressed while keyboard nav gets a high-contrast indicator.
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-1",
         SIZE,
         variantClass,
         toneClass,
