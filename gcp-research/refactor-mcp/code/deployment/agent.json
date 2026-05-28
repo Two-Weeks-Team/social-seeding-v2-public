@@ -56,7 +56,7 @@
     },
     "mutualTLS": {
       "type": "mutualTLS",
-      "description": "A2A v0.3 mutual-TLS — peers authenticate by client certificate at the transport layer (no identity in the payload). The agent presents the workload-identity client cert tied to the SPIFFE ID in `identity` below. AGENT identity — proves who this agent is. DECLARED/INTENDED posture: NOT YET ENFORCED on the demo deployment (the live Cloud Run service runs REQUIRE_AUTH=false and no mTLS); enforcement is pending the O7 Agent Gateway Private-Preview allowlist. See AGENT-IDENTITY.md §7 + x-securityPosture below.",
+      "description": "A2A v0.3 mutual-TLS — peers authenticate by client certificate at the transport layer (no identity in the payload). The agent presents the workload-identity client cert tied to the SPIFFE ID in `identity` below. AGENT identity — proves who this agent is. DECLARED/INTENDED posture: only the transport-layer mTLS half is NOT YET ENFORCED on the live demo deployment; the OIDC half (REQUIRE_AUTH=true) IS enforced — unauthenticated callers receive HTTP 401 (verified 2026-05-28 against the production *.run.app URL). mTLS enforcement is pending the O7 Agent Gateway Private-Preview allowlist. See AGENT-IDENTITY.md §7 + x-securityPosture below.",
       "x-enforcementStatus": "declared-not-enforced"
     }
   },
@@ -66,8 +66,10 @@
     "intendedPosture": "mutualTLS (A2A v0.3 transport-layer client-cert auth) + SPIFFE workload identity + caller OIDC/OAuth",
     "demoDeployment": {
       "mtlsEnforced": false,
-      "requireAuth": false,
-      "note": "The Track-3 demo Cloud Run service (ss-mcp-prod, us-central1) intentionally runs REQUIRE_AUTH=false with no mTLS so the open A2A demo is reachable without provisioning the caller/identity plane. Callers reach plan_creator_search without presenting a client cert or bearer token today."
+      "requireAuth": true,
+      "verifiedAt": "2026-05-28T00:00:00Z",
+      "verifiedBy": "curl -sX POST https://ss-mcp-server-1049119860518.us-central1.run.app/v1/message:send -H 'content-type: application/json' -d '{}' -> HTTP 401 {\"error\":\"invalid_request\",\"error_description\":\"Authorization header missing\"}",
+      "note": "The Track-3 demo Cloud Run service (ss-mcp-prod, us-central1) enforces REQUIRE_AUTH=true on the application layer (verified 2026-05-28: unauthenticated POST /v1/message:send returns HTTP 401). The Dockerfile default of REQUIRE_AUTH=false is overridden by cloud-run-service.yaml's env binding. Transport-layer mTLS is still NOT enforced; pending O7. The previous wording here (claiming the live demo was REQUIRE_AUTH=false) was stale — see DECISIONS.md D44 + X4 in docs/IMPROVEMENT-MASTER-PLAN.md."
     },
     "productionPosture": {
       "requireAuth": true,
