@@ -57,7 +57,7 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
 
   const er = a.reach.weightedEngagementRate !== null ? `${(a.reach.weightedEngagementRate * 100).toFixed(2)}%` : "—";
   const funnelMax = Math.max(1, ...FUNNEL_ROWS.map((r) => a.funnel[r.key]));
-  const leaderboard = [...a.tracks]
+  const leaderboard = [...(a.tracks ?? [])]
     .filter((t) => t.performanceScore !== null)
     .sort((x, y) => (y.performanceScore ?? 0) - (x.performanceScore ?? 0))
     .slice(0, 12);

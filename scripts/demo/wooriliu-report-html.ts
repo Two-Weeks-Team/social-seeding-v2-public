@@ -11,7 +11,6 @@
  *   pnpm exec tsx scripts/demo/wooriliu-report-html.ts
  */
 import { readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
 
 interface Aggregate {
   campaign: string;
@@ -25,8 +24,9 @@ interface Aggregate {
   leaderboard: Array<{ rank: number; label: string; views: number; performanceScore: number }>;
 }
 
-const AGG_PATH = resolve("claudedocs/wooriliu-report.aggregate.json");
-const OUT_PATH = resolve("claudedocs/2026-06-01-wooriliu-performance-report.html");
+// Resolve relative to this script file (robust to the caller's cwd).
+const AGG_PATH = new URL("../../claudedocs/wooriliu-report.aggregate.json", import.meta.url);
+const OUT_PATH = new URL("../../claudedocs/2026-06-01-wooriliu-performance-report.html", import.meta.url);
 
 function html(a: Aggregate): string {
   const erPct = a.reach.weightedEngagementRate === null ? 0 : a.reach.weightedEngagementRate * 100;

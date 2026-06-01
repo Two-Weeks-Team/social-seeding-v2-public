@@ -12,7 +12,6 @@
  *   pnpm exec tsx scripts/demo/wooriliu-autopilot.ts
  */
 import { writeFileSync } from "node:fs";
-import { resolve } from "node:path";
 import process from "node:process";
 import { MongoMemoryServer } from "mongodb-memory-server";
 
@@ -122,9 +121,10 @@ async function main(): Promise<void> {
     leaderboard,
     before,
   };
-  const outPath = resolve("claudedocs/wooriliu-report.aggregate.json");
+  // Resolve relative to this script file (robust to the caller's cwd).
+  const outPath = new URL("../../claudedocs/wooriliu-report.aggregate.json", import.meta.url);
   writeFileSync(outPath, JSON.stringify(aggregate, null, 2));
-  console.log(`\n  aggregate-only artifact (public-safe) → ${outPath}`);
+  console.log(`\n  aggregate-only artifact (public-safe) → ${outPath.pathname}`);
 
   setObservabilitySink(undefined);
   await closeMongo();
