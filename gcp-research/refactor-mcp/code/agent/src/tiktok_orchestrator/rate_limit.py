@@ -87,6 +87,9 @@ class IPBucketLimiter:
     """
 
     _GC_IDLE_SECONDS = 600
+    # Hard ceiling on tracked IPs so a massive unique-IP spray can't exhaust
+    # memory even between idle-GC sweeps. Eviction is LRU (oldest front).
+    _MAX_BUCKETS = 10_000
 
     def __init__(
         self,
@@ -132,6 +135,11 @@ class IPBucketLimiter:
                 # Cheap occasional GC.
                 if len(self._buckets) % 256 == 0:
                     self._gc_locked(now)
+                # Hard cap: evict the LRU front beyond the ceiling so a unique-IP
+                # spray can't exhaust memory between idle sweeps. The just-added
+                # `ip` is at the end, so it's never the one evicted.
+                while len(self._buckets) > self._MAX_BUCKETS:
+                    del self._buckets[next(iter(self._buckets))]
             else:
                 elapsed = max(0.0, now - bucket.updated_at)
                 bucket.tokens = min(self.capacity, bucket.tokens + elapsed * self.refill_per_sec)

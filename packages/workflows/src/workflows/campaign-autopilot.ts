@@ -133,6 +133,22 @@ export async function campaignAutopilotHandler(
   const stagesCompleted: CampaignStage[] = [];
   const { tracks } = campaign;
 
+  // ── budget / contract release (required HITL) — gates ALL downstream spend ──
+  // Runs before outreach: nothing external (outreach send, shipment) commits
+  // budget until this clears. abandon-timeout halts the whole run (no spend).
+  const budgetUsd = campaign.brief.goals.budgetUsd ?? policy.budgets.maxUsdPerCampaign;
+  const budget = await gate(step, policy.gates.approveBudget, {
+    campaignId: campaign.id,
+    workspaceId: campaign.brief.workspaceId,
+    kind: "budget",
+    recommendation: { budgetUsd, maxUsdPerCampaign: policy.budgets.maxUsdPerCampaign },
+    rationale: `release $${budgetUsd} campaign budget before committing outreach/shipping spend`,
+  });
+  gateLog.push({ stage: "outreach", kind: "budget", decision: budget.decision, timedOut: budget.timedOut });
+  if (budget.decision === "rejected") {
+    return { kind: "halted", campaignId: campaign.id, stagesCompleted, gateLog, haltedAt: "outreach", reason: budget.timedOut ? "budget timed out (abandon)" : "budget rejected" };
+  }
+
   // ── stage 3: outreach ─────────────────────────────────────────────────
   const contacted = countByState(tracks, [
     "outreach_sent", "in_conversation", "agreed", "address_collected",

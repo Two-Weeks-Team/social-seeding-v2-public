@@ -27,13 +27,21 @@ const Body = z.object({
   editedPayload: z.unknown().optional(),
 });
 
+/** Max recursion depth — a deeply-nested payload from a compromised operator
+ * must not blow the call stack (DoS). 20 is far beyond any real approval shape. */
+const MAX_SANITIZE_DEPTH = 20;
+
 /**
  * Recursively walk an arbitrary structure and call promptGuard on every string
  * leaf. Returns the same shape on success, throws PromptGuardError on the first
  * pattern hit. `path` accumulates a dotted/indexed locator so the 400 response
- * tells the operator which field tripped the guard.
+ * tells the operator which field tripped the guard. `depth` caps recursion so a
+ * pathologically nested payload throws instead of overflowing the stack.
  */
-export function sanitizePayloadStrings(payload: unknown, path = "editedPayload"): unknown {
+export function sanitizePayloadStrings(payload: unknown, path = "editedPayload", depth = 0): unknown {
+  if (depth > MAX_SANITIZE_DEPTH) {
+    throw new Error(`payload nested too deeply at ${path} (>${MAX_SANITIZE_DEPTH})`);
+  }
   if (payload === null || payload === undefined) return payload;
   if (typeof payload === "string") {
     promptGuard(payload, path);
@@ -41,12 +49,12 @@ export function sanitizePayloadStrings(payload: unknown, path = "editedPayload")
   }
   if (typeof payload === "number" || typeof payload === "boolean") return payload;
   if (Array.isArray(payload)) {
-    payload.forEach((item, i) => sanitizePayloadStrings(item, `${path}[${i}]`));
+    payload.forEach((item, i) => sanitizePayloadStrings(item, `${path}[${i}]`, depth + 1));
     return payload;
   }
   if (typeof payload === "object") {
     for (const [k, v] of Object.entries(payload)) {
-      sanitizePayloadStrings(v, `${path}.${k}`);
+      sanitizePayloadStrings(v, `${path}.${k}`, depth + 1);
     }
     return payload;
   }

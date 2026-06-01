@@ -21,18 +21,35 @@ import type { ApprovalResolvedData, GateDecision, StepLike } from "../gate";
  *   · the non-blocking timeout fallback halts shipping on `abandon`
  */
 
-/** Fake Inngest step. `humanResolves=null` simulates a timeout (no human). */
-function fakeStep(humanResolves: { decision: GateDecision } | null): StepLike {
+/**
+ * Fake Inngest step.
+ *  · `humanResolves` = a fixed decision for every parked gate (or null = all time out).
+ *  · `timeoutKinds` = approve every parked gate EXCEPT these kinds, which time out
+ *    (null wait) — lets a test target one specific gate's timeout fallback.
+ */
+function fakeStep(
+  humanResolves: { decision: GateDecision } | null,
+  timeoutKinds: ReadonlySet<string> = new Set(),
+): StepLike {
+  const pending = new Map<string, string>(); // approvalId → kind
   return {
-    async run(_name, fn) {
-      return fn();
+    async run(name, fn) {
+      const out = await fn();
+      // approval:create:<kind> returns the approvalId — remember its kind.
+      if (name.startsWith("approval:create:") && typeof out === "string") {
+        pending.set(out, name.replace("approval:create:", ""));
+      }
+      return out as never;
     },
     async sendEvent() {
       return { ids: [] };
     },
     async waitForEvent<T = ApprovalResolvedData>(stepName: string) {
-      if (humanResolves === null) return null as { data: T } | null;
       const approvalId = stepName.replace("await-approval:", "");
+      const kind = pending.get(approvalId);
+      if (humanResolves === null || (kind && timeoutKinds.has(kind))) {
+        return null as { data: T } | null; // simulate timeout
+      }
       const data: ApprovalResolvedData = { approvalId, campaignId: "wooriliu", decision: humanResolves.decision };
       return { data: data as unknown as T };
     },
@@ -89,9 +106,11 @@ describe("campaign-autopilot — wooriliu fixture, full back-half", () => {
     expect(advances).toHaveLength(3);
     expect(advances.every((g) => g.decision === "approved" && !g.timedOut)).toBe(true);
 
-    // the 2 required HITL gates were resolved by the human (not timed out)
+    // the 3 required HITL gates were resolved by the human (not timed out)
+    const budget = out.gateLog.find((g) => g.kind === "budget");
     const shipment = out.gateLog.find((g) => g.kind === "shipment");
     const contentReview = out.gateLog.find((g) => g.kind === "content_review");
+    expect(budget?.decision).toBe("approved"); // approveBudget actually invoked
     expect(shipment?.decision).toBe("approved");
     expect(contentReview?.decision).toBe("approved");
 
@@ -114,16 +133,33 @@ describe("campaign-autopilot — wooriliu fixture, full back-half", () => {
     const campaign = await campaignRepo.create(wooriliuCampaignInput());
     const policy = defaultPolicy(campaign.brief.workspaceId);
 
-    // human never resolves → the gate's timeout fallback fires
-    const step = fakeStep(null);
+    // operator clears budget + outreach, but never resolves the shipment gate →
+    // its abandon-timeout fallback fires.
+    const step = fakeStep({ decision: "approved" }, new Set(["shipment"]));
     const out = await campaignAutopilotHandler({ campaign, policy, step }, { compile });
 
     expect(out.kind).toBe("halted");
     if (out.kind !== "halted") throw new Error("expected halted");
     expect(out.haltedAt).toBe("shipping");
-    expect(out.stagesCompleted).toEqual(["outreach"]); // got past outreach, stopped at the shipment gate
+    expect(out.stagesCompleted).toEqual(["outreach"]); // got past budget + outreach, stopped at the shipment gate
     const shipment = out.gateLog.find((g) => g.kind === "shipment");
     expect(shipment?.decision).toBe("rejected");
     expect(shipment?.timedOut).toBe(true);
+  });
+
+  it("budget gate (abandon) halts before any outreach — no spend committed", async () => {
+    const campaign = await campaignRepo.create(wooriliuCampaignInput());
+    const policy = defaultPolicy(campaign.brief.workspaceId);
+    // budget gate times out (operator never releases budget) → abandon.
+    const step = fakeStep({ decision: "approved" }, new Set(["budget"]));
+    const out = await campaignAutopilotHandler({ campaign, policy, step }, { compile });
+    expect(out.kind).toBe("halted");
+    if (out.kind !== "halted") throw new Error("expected halted");
+    expect(out.stagesCompleted).toEqual([]); // nothing started
+    const budget = out.gateLog.find((g) => g.kind === "budget");
+    expect(budget?.decision).toBe("rejected");
+    expect(budget?.timedOut).toBe(true);
+    // outreach was never reached
+    expect(out.gateLog.find((g) => g.kind === "outreach_send")).toBeUndefined();
   });
 });
