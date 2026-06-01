@@ -29,10 +29,14 @@ apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
   name: ss-agents
+  # Cloud Run label KEYS must match [a-z]([a-z0-9-]*[a-z0-9])? — the
+  # `app.kubernetes.io/*` (slash/dot) keys made `gcloud run services replace`
+  # reject this manifest, which is why ss-agents was being deployed
+  # imperatively. Use Cloud-Run-valid keys so the declarative replace path works.
   labels:
-    app.kubernetes.io/name: ss-agents
-    app.kubernetes.io/component: agent-runtime-fallback
-    app.kubernetes.io/part-of: social-seeding-v2
+    app: ss-agents
+    component: agent-runtime-fallback
+    part-of: social-seeding-v2
   annotations:
     run.googleapis.com/launch-stage: GA
     run.googleapis.com/ingress: internal-and-cloud-load-balancing
