@@ -133,8 +133,11 @@ export function defaultModelClient(): ModelClient {
         // endpoint. In production we use Vertex (ADC — the Cloud Run runtime
         // service account's credentials, no API key). Local dev / tests fall
         // back to the Gemini Developer API via GEMINI_API_KEY.
-        const useVertex =
-          process.env.GOOGLE_GENAI_USE_VERTEXAI === "true" || process.env.GOOGLE_GENAI_USE_VERTEXAI === "1";
+        // Case-fold the flag: deploy docs/scripts use `GOOGLE_GENAI_USE_VERTEXAI=TRUE`
+        // (uppercase); a strict lowercase check would silently fall through to the
+        // (absent) GEMINI_API_KEY path on Cloud Run and throw.
+        const vertexFlag = process.env.GOOGLE_GENAI_USE_VERTEXAI?.toLowerCase();
+        const useVertex = vertexFlag === "true" || vertexFlag === "1";
         if (useVertex) {
           const project = process.env.GOOGLE_CLOUD_PROJECT;
           if (!project) {
@@ -142,7 +145,8 @@ export function defaultModelClient(): ModelClient {
               "GOOGLE_GENAI_USE_VERTEXAI is set but GOOGLE_CLOUD_PROJECT is missing — Vertex (D53 global) needs the project id",
             );
           }
-          const location = process.env.GOOGLE_CLOUD_LOCATION ?? "global";
+          // `||` not `??`: an empty-string GOOGLE_CLOUD_LOCATION must still default to global.
+          const location = process.env.GOOGLE_CLOUD_LOCATION || "global";
           _gemini = new mod.GoogleGenAI({ vertexai: true, project, location });
         } else {
           const key = process.env.GEMINI_API_KEY;
