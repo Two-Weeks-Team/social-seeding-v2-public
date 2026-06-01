@@ -20,8 +20,11 @@ export const TikTokCreatorSchema = z.object({
   videoCount: z.number().int().nonnegative(),
   heartCount: z.number().int().nonnegative().optional(),
   hashtags: z.array(z.string()).default([]),
-  // v2-derived
-  language: z.string().length(2).optional(),
+  // v2-derived. The shared v1 `accounts_tiktok` stores `language: null` (it tracks
+  // `textLanguage` instead), and `.optional()` rejects an explicit null — which
+  // silently failed EVERY creator's safeParse and made tiktok.search return zero.
+  // Accept null and normalize it to undefined.
+  language: z.preprocess((v) => (v === null ? undefined : v), z.string().length(2).optional()),
   avgViews: z.number().nonnegative().optional(),
   engagementRate: z.number().min(0).max(1).optional(),
   influenceScore: z.number().min(0).max(100).optional(),
