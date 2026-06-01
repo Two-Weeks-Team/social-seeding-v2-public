@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>social-seeding-v2 — GCP 운영 매뉴얼 (팀원용)</title>
+<style>
+  :root{
+    --bg:#0b1020; --panel:#141b30; --panel2:#1b2440; --ink:#e8edf7; --muted:#9aa7c7;
+    --line:#2a3656; --accent:#5b9dff; --ok:#34d399; --warn:#fbbf24; --gem:#a78bfa;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#0b1020,#0d1426);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;line-height:1.6}
+  .wrap{max-width:1080px;margin:0 auto;padding:48px 28px 96px}
+  header.h{text-align:center;margin-bottom:40px}
+  header.h h1{font-size:30px;margin:0 0 8px;letter-spacing:-.02em}
+  header.h .sub{color:var(--muted);font-size:15px}
+  .badges{margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+  .badge{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:5px 13px;font-size:12.5px;color:var(--muted)}
+  .badge b{color:var(--ok)}
+  section{margin:34px 0}
+  h2{font-size:21px;border-left:4px solid var(--accent);padding-left:12px;margin:0 0 16px}
+  h3{font-size:16px;color:var(--accent);margin:22px 0 8px}
+  p{color:#cdd6ee}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin:14px 0}
+  .flow{display:flex;flex-direction:column;align-items:stretch;gap:0}
+  .stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 20px}
+  .stage .t{font-weight:700;font-size:15px}
+  .stage .d{color:var(--muted);font-size:13.5px;margin-top:4px}
+  .stage .ev{margin-top:8px;font-size:12.5px;color:var(--ok);font-family:var(--mono)}
+  .arrow{align-self:center;color:var(--accent);font-size:22px;line-height:1;margin:6px 0}
+  .gem{color:var(--gem)}
+  code,pre{font-family:var(--mono)}
+  pre{background:#0a0f1f;border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow:auto;font-size:12.5px;color:#d7e0f7}
+  pre .c{color:#6b7aa3}
+  pre .ok{color:var(--ok)}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:8px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600}
+  td code{background:var(--panel2);padding:2px 6px;border-radius:6px;font-size:12px}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600}
+  .pill.live{background:rgba(52,211,153,.14);color:var(--ok);border:1px solid rgba(52,211,153,.4)}
+  .pill.op{background:rgba(251,191,36,.14);color:var(--warn);border:1px solid rgba(251,191,36,.4)}
+  .step{counter-increment:step;margin:14px 0;padding-left:42px;position:relative}
+  .step::before{content:counter(step);position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;
+    background:var(--accent);color:#06101f;font-weight:800;display:grid;place-items:center;font-size:14px}
+  .runbook{counter-reset:step}
+  .note{font-size:13px;color:var(--muted);border-top:1px dashed var(--line);margin-top:30px;padding-top:14px}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="h">
+    <h1>social-seeding-v2 — GCP 운영 매뉴얼</h1>
+    <div class="sub">팀원용 · 작동 방식 + 실행 런북 + 라이브 증거 · 2026-06-01</div>
+    <div class="badges">
+      <span class="badge"><b>SUCCEEDED</b> GCP brand-campaign 루프</span>
+      <span class="badge">Gemini <b>3.5/3.1</b> only (D53)</span>
+      <span class="badge">Vertex <b>global</b></span>
+      <span class="badge">A2A <b>v0.3</b></span>
+    </div>
+  </header>
+
+  <section>
+    <h2>0. 한 장 요약</h2>
+    <div class="card">
+      <p>v2 에이전트가 <b>브랜드 브리프 1개</b>로 인플루언서 캠페인 루프(source → vet → outreach → reply →
+      ship → verify → report)를 돌립니다. 아래 4가지가 <b>GCP에서 실제로 동작</b>함이 라이브로 검증됐습니다:</p>
+      <ol>
+        <li><b>배포된 Cloud Workflow 루프</b> — coordinator(Gemini 3.5) → A2A v0.3(OIDC) → ss-mcp 라이브 ADK 랭커 → 5 RankedCreators. (exec <code>a36befd0</code> SUCCEEDED)</li>
+        <li><b>authed vetting E2E</b> — 배포된 ss-agents가 실 TikTok(backend 프록시)·Gemini 3.5로 크리에이터 평가. (aviranisha 4.3M 팔로워)</li>
+        <li><b>Gmail 실발송(W7)</b> — 백엔드 OAuth 토큰 + Gmail API로 실제 메일 발송. (msg <code>19e8248d22073209</code>, 메일함 도착)</li>
+        <li><b>재사용 가능한 Gmail 연결</b> — apps/web 동의 흐름으로 누구나 같은 방식 연결(토큰은 공유 백엔드 저장).</li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <h2>1. 작동 방식 — GCP 흐름 (위 → 아래)</h2>
+    <div class="flow">
+      <div class="stage">
+        <div class="t">① 브랜드 브리프 입력</div>
+        <div class="d"><code>{campaignId, brief:{brandProduct, targeting, goals, …}}</code> → brand-campaign-demo Cloud Workflow 실행</div>
+        <div class="ev">gcloud workflows run brand-campaign-demo --data=@args.json</div>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="stage">
+        <div class="t">② Coordinator <span class="gem">(Gemini 3.5 Flash · Vertex global)</span></div>
+        <div class="d">어느 에이전트가 sourcing할지 결정. <code>POST /coordinator</code> (OIDC). 비용/지연 비교 후 라우팅.</div>
+        <div class="ev">chosenAgentId = "tiktok-mcp-search" · routingRationale: lower latency/cost</div>
+      </div>
+      <div class="arrow">↓ <span style="font-size:12px">A2A v0.3 message:send (OIDC 토큰, aud=ss-mcp)</span></div>
+      <div class="stage">
+        <div class="t">③ ss-mcp 라이브 ADK 랭커 <span class="gem">(searcher 3.1-flash-lite → ranker 3.5-flash)</span></div>
+        <div class="d">OSS tiktok-mcp-server. A2A v0.3 task 봉투로 브리프 수신 → 크리에이터 소싱·랭킹.</div>
+        <div class="ev">5 RankedCreators · fit_score 0.90–0.98 · per-creator reasoning</div>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="stage">
+        <div class="t">④ Vetting <span class="gem">(Gemini 3.5)</span> — 실 TikTok 평가</div>
+        <div class="d">후보별 <code>rapidapi.get_user_info</code>(backend.socialseed.ing 프록시) → 실 팔로워/조회수 → ranking.score → fitScore·flags·matchReasons.</div>
+        <div class="ev">aviranisha: followerCount 4,300,000 · avgViews 415,914 · fitScore 0.42</div>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="stage">
+        <div class="t">⑤ Outreach / Reply <span class="gem">(Gemini 3.5)</span> — Gmail 실발송</div>
+        <div class="d">gmail_send_reply(W7 live): 공유 백엔드 OAuth 토큰 → refresh → Gmail API <code>messages.send</code>. D10 allow-list(운영자 메일만).</div>
+        <div class="ev">sent_to sejun@2weeks.co · gmail id 19e8248d22073209 · INBOX+SENT 확인</div>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="stage">
+        <div class="t">⑥ Ship / Verify / Report</div>
+        <div class="d">배송 추적(결정론 demo carrier) → 콘텐츠 검증(avgViews baseline) → 성과 리포트.</div>
+        <div class="ev">campaign-autopilot stage 3→6 (Inngest) · 우리리우 실측 16 posts·59,498 views</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. 배포된 GCP 서비스</h2>
+    <table>
+      <tr><th>서비스</th><th>역할</th><th>위치 / 인증</th><th>상태</th></tr>
+      <tr><td><code>ss-agents</code></td><td>22-에이전트 ADK fleet (coordinator/sourcing/vetting routed)</td><td>ss-v2-prod · Cloud Run · OIDC(run.invoker)</td><td><span class="pill live">live</span></td></tr>
+      <tr><td><code>ss-mcp-server</code></td><td>OSS tiktok-mcp A2A v0.3 노드 (라이브 ADK 랭커)</td><td>ss-mcp-prod · Cloud Run · REQUIRE_AUTH(OIDC service-identity + allowlist)</td><td><span class="pill live">live</span></td></tr>
+      <tr><td><code>brand-campaign-demo</code></td><td>source→vet 오케스트레이션 (coordinator→A2A→ss-mcp)</td><td>ss-v2-prod · Cloud Workflows</td><td><span class="pill live">live</span></td></tr>
+      <tr><td><code>ss-v2-web</code></td><td>Mission Control + Gmail 연결 흐름(/api/auth/gmail/start)</td><td>ss-v2-prod · Cloud Run</td><td><span class="pill live">live</span></td></tr>
+      <tr><td><code>backend.socialseed.ing</code></td><td>TikTok 프록시(X-API-Key 로테이션) + Gmail OAuth 토큰 저장(user_tokens)</td><td>외부 백엔드 · X-API-Key</td><td><span class="pill live">live</span></td></tr>
+      <tr><td><code>agents.socialseed.ing</code></td><td>Gmail 연결 운영 도메인 → ss-v2-web</td><td>Cloudflare CNAME → ghs.googlehosted.com</td><td><span class="pill op">인증서/redirect 등록 대기</span></td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>3. 팀원 런북 — 직접 실행</h2>
+
+    <div class="card runbook">
+      <h3>A. GCP 루프 1회 실행 (source→vet, 실데이터)</h3>
+      <div class="step">args.json 작성 (campaignId + agent_urls + brief). agent_urls에 coordinator/sourcing/vetting(ss-agents) + tiktok-mcp-search(ss-mcp) URL 포함.</div>
+      <div class="step">실행: <pre>gcloud workflows run brand-campaign-demo \
+  --project ss-v2-prod --location us-central1 \
+  --data="$(cat args.json)"</pre></div>
+      <div class="step">결과 확인: <code>state=SUCCEEDED</code>, <code>rankedCreators[]</code>(fit_score + reasoning). 콘솔: Cloud Workflows → brand-campaign-demo → Executions.</div>
+    </div>
+
+    <div class="card runbook">
+      <h3>B. authed vetting E2E (직접 호출)</h3>
+      <div class="step">런타임 SA OIDC 토큰 발급: <pre>TOKEN=$(gcloud auth print-identity-token \
+  --impersonate-service-account=ss-agents-runtime@ss-v2-prod.iam.gserviceaccount.com \
+  --audiences=https://ss-agents-p7qelej4vq-uc.a.run.app)</pre></div>
+      <div class="step"><code>POST /vetting</code> with VettingInput(brief + candidate.creator.uniqueId). → <code>kind=ok</code> + 실 TikTok 수치 + Gemini 랭킹.</div>
+    </div>
+
+    <div class="card runbook">
+      <h3>C. Gmail 연결 (재사용 — 모든 사용자 동일)</h3>
+      <div class="step">브라우저에서 <code>https://agents.socialseed.ing/api/auth/gmail/start?email=&lt;계정&gt;</code> 열기 → Google 동의(gmail.send) 승인.</div>
+      <div class="step">콜백이 refresh token을 공유 백엔드 <code>user_tokens</code>에 저장(자동). 페이지가 <code>?gmail_connected=&lt;email&gt;</code>로 복귀.</div>
+      <div class="step">이후 ADK <code>gmail_send_reply</code>(live)가 그 토큰으로 Gmail API 발송. D10 allow-list 내 계정만.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>4. 라이브 증거 (실측 출력)</h2>
+    <h3>① GCP Cloud Workflow — exec a36befd0 SUCCEEDED (~21s)</h3>
+    <pre><span class="c"># gcloud workflows executions describe … --format='value(result)'</span>
+{"a2aState":"<span class="ok">completed</span>","chosenAgentId":"tiktok-mcp-search","decision":"completed",
+ "rankedCreators":[
+   {"unique_id":"k_camping_vlog","fit_score":<span class="ok">0.98</span>,"follower_count":420000,"engagement_rate":0.045,
+    "reasoning":"bilingual KO/EN camping vlogs … fit the campaign brief perfectly"},
+   {"unique_id":"camping_with_steve","fit_score":0.95,"follower_count":850000, …},
+   {"unique_id":"camper_diaries_ko","fit_score":0.93, …},
+   {"unique_id":"wild_wilderness_en","fit_score":0.91, …},
+   {"unique_id":"camping_master_kr","fit_score":0.90, …}],
+ "route":"a2a_remote","routingRationale":"tiktok-mcp-search … lower latency (1800ms) / cost ($0.012)"}</pre>
+
+    <h3>② authed vetting — 실 TikTok + Gemini 3.5</h3>
+    <pre><span class="c"># POST /vetting (runtime SA OIDC) — candidate aviranisha</span>
+HTTP <span class="ok">200</span> · kind=<span class="ok">ok</span>
+creator.followerCount = <span class="ok">4,300,000</span> · avgViews = 415,914 · engagementRate = 0.0785
+fitScore = 0.42 · recommendedAction = manual_review · matchReasons = 5 (Gemini 생성)</pre>
+
+    <h3>③ Gmail 실발송 + 수신</h3>
+    <pre><span class="c"># gmail_send_reply(live) → Gmail API messages.send</span>
+SENT OK · message_id = <span class="ok">19e8248d22073209</span> · dry_run_applied = False
+<span class="c"># users.messages.get 검증</span>
+labels = ['<span class="ok">UNREAD</span>','<span class="ok">SENT</span>','<span class="ok">INBOX</span>'] · From "Social Seeding &lt;sejun@2weeks.co&gt;" · 메일함 도착 확인</pre>
+
+    <h3>④ 게이트</h3>
+    <pre>pnpm run verify-build  <span class="ok">green</span>
+pnpm test              <span class="ok">449 passed</span> (77 web·64 agents·191 cap·113 workflows·4 obs)
+pytest -q              <span class="ok">2932 passed</span>
+golden-eval            <span class="ok">PASS</span> (holdout 75% ≥ 70%)</pre>
+  </section>
+
+  <section>
+    <h2>5. 하드 제약 (반드시 준수)</h2>
+    <table>
+      <tr><th>제약</th><th>내용</th></tr>
+      <tr><td>모델 (D53)</td><td>Gemini <b>3.5-flash</b>(judgment) / <b>3.1-flash-lite</b>(bulk)만. 2.5·<code>*-pro</code>·Claude 금지.</td></tr>
+      <tr><td>엔드포인트</td><td>Vertex <b>global</b> (us-central1은 3.x에 404).</td></tr>
+      <tr><td>배포 격리</td><td>ss-v2-prod / ss-mcp-prod만. v1 backend :8080·.env 무접속.</td></tr>
+      <tr><td>Gmail 발송</td><td>D10 allow-list = 운영자 메일만(app.2weeks@gmail.com · sejun@2weeks.co · centisgood@gmail.com).</td></tr>
+    </table>
+  </section>
+
+  <div class="note">
+    생성: 2026-06-01 · 본 매뉴얼의 모든 수치는 라이브 실측. 코드 PR: #38(라이브 ADK+gmail) · #41(워크플로 OIDC) ·
+    #39(#36 문서 정합) · #40(배포 라벨). 워크플로 exec a36befd0 / vetting rev ss-agents-00013-sav / ss-mcp rev 00014-xw8.
+  </div>
+</div>
+</body>
+</html>
