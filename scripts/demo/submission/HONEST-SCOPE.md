@@ -19,7 +19,7 @@
 > **Verified facts pinned here** (measured this session — do not inflate): triage routing accuracy
 > **40.5% → 100.0% on train (+59.5pp)**, **holdout 71.4% (10/14, 28.6pp gap, 4 misses kept)**; the live
 > A2A cross-call **task completed in ~3.7s (cold) / sub-second (warm), 5 creators**; `agents-adk`
-> pytest **2924 passed**; GCP idle envelope **~$1–5/mo** (all Cloud Run `min=0`).
+> pytest **2932 passed**; GCP idle envelope **~$1–5/mo** (all Cloud Run `min=0`).
 >
 > **✓ DEMONSTRATED LIVE 2026-05-20** (rows 6, 7, 11 moved from operator-deploy → demonstrated): the
 > `brand-campaign-demo` Cloud Workflow was deployed to `ss-v2-prod` and **executed end-to-end** — real
@@ -95,7 +95,7 @@ synthesis-target 16 data rows (17 lines including header).
    external-IO tools in the ADK fleet (~47 files: `rapidapi_*`, `gmail_*`, `imagen`, `tts_synthesize`,
    `pubsub_alert`, `assets_upload`, `carrier_create`, etc.) ship a **D41 stub/live seam**
    (`CAPABILITY_LAYER_MODE`). **Stub mode is the default in dev/CI and is what every offline test
-   (`agents-adk` pytest 2924) and the hosted demo exercise** — it returns deterministic, realistic
+   (`agents-adk` pytest 2932) and the hosted demo exercise** — it returns deterministic, realistic
    data. **Live mode** (`CAPABILITY_LAYER_MODE=live`) performs the real external SDK call, and for the
    not-yet-wired tools it raises `NotImplementedError("… wired in W7 deploy phase")`. This is the same
    W7 staging as Imagen (item 2), applied fleet-wide: it is deliberate stub/live discipline (a typed
@@ -115,8 +115,10 @@ synthesis-target 16 data rows (17 lines including header).
    `verified`).
 3. **DAM is no longer a stand-in.** After W3, `content_verify → get_brand_assets` is a **real A2A v0.3
    hop on `ss-mcp`** — Build Example #2 is transport-exact (row 9).
-4. **mTLS is declared, not enforced** on the demo (row 13); the heuristic ranker is real-at-the-wire,
-   heuristic-in-the-data (row 8). Neither is overclaimed anywhere in the submission.
+4. **mTLS is declared, not enforced** on the demo (row 13); the ss-mcp ranker is a **real ADK LLM
+   ranker** (searcher `gemini-3.1-flash-lite` → ranker `gemini-3.5-flash`, Vertex `global`) — not a
+   heuristic — with `_heuristic_rank` as the in-code fallback (row 8). `engagement_rate: 0` is a
+   backend Group-B quota artifact (item 5), not heuristic data. Neither is overclaimed anywhere.
 5. **`engagement_rate: 0` / `posts_fetched: 0` in a live ss-mcp call is a backend quota artifact, not a
    bug.** The content-analytics path (backend Group-B) has a daily quota; when it is exhausted (or a
    niche creator's posts aren't cached), the ranker still returns real sourced creators + follower
@@ -186,7 +188,7 @@ synthesis-target 16 data rows (17 lines including header).
   `memory_bank_search` tool calls reach the backend.
 - **eval coverage 2/22 today, P3 plan to 12/22 (B10 / X1).** Two agents have an offline-PASS gate:
   `coordinator` and `conversation_responder` (A8). The other 20 agents have pytest schema +
-  integration coverage (agents-adk 2924 passed) but no standalone `python -m evals --agent X`
+  integration coverage (agents-adk 2932 passed) but no standalone `python -m evals --agent X`
   gate. P3 brings the gated coverage to ≥ 12/22.
 - **Cold-start SLO disclosure (B11 / X5).** D31's "p99 < 1s on hot path" SLO is measured
   post-warm-up. Cloud Run `min=0` services cold-start the first request; demo recording warms

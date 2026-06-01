@@ -186,7 +186,7 @@ Both hops use the same A2A v0.3 `message:send` envelope (`{"message":{"role":"us
 - **Model Garden live smoke:** `scripts/smoke-test/run-model-garden-live.sh` (operator ADC) → validated `CoordinatorOutput`, exit 0.
 - **Google Search grounding live:** `scripts/smoke-test/run-web-search-grounding.sh` → 5 real K-beauty/TikTok sources with URLs + per-source snippets from `grounding_metadata`.
 - **Triage hardening:** `scripts/smoke-test/run-hardening-measure.sh` → 40.5% → 100% train / 71.4% holdout (offline, $0).
-- **Gates:** `agents-adk` pytest **2924**; `pnpm test` **421** TS; `pnpm run verify-build` green.
+- **Gates:** `agents-adk` pytest **2932**; `pnpm test` **449** TS; `pnpm run verify-build` green.
 - **Architecture render source:** [`scripts/demo/submission/ARCHITECTURE-track3.mmd`](scripts/demo/submission/ARCHITECTURE-track3.mmd).
 
 ---
@@ -218,7 +218,7 @@ The hosted walkthrough simulates a real mouse session over Mission Control: bran
 
 ```
 Status        Phases 0–6 shipped (autonomous build, verified by live demo)
-Tests         354 vitest passing (4 observability · 64 agents · 183 capabilities · 103 workflows)
+Tests         449 vitest passing (77 web · 64 agents · 191 capabilities · 113 workflows · 4 observability) + 2932 pytest
 Inngest       10 functions registered (brand-campaign, creator-track, lead-campaign,
               lead-track, campaign-progression, gmail-watch-renew, report-deliver,
               report-deliver-cron, shipment-tracking-poller, tiktok-post-poller)
