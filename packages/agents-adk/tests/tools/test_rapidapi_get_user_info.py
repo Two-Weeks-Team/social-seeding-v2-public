@@ -4,7 +4,7 @@ Coverage:
     · stub determinism (same input → byte-identical output on a re-run)
     · canonical tt_001 contract (followers=100000, eng=0.045, recent_posts=10,
       public_email=None) — locked by the task brief
-    · live mode raises `NotImplementedError` until W7
+    · live mode fetches via the backend.socialseed.ing proxy (backend_client mocked)
     · Pydantic input validation rejects malformed payloads
     · `usd_cost` attribute present per D41 (cost_watch surface)
 """
@@ -121,14 +121,54 @@ def test_stub_instagram_platform_passes_through() -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Live mode — NotImplementedError until W7.
+# Live mode — fetches via the backend.socialseed.ing proxy (backend_client
+# mocked; no network). Verifies the mapping + that it does NOT raise.
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def test_live_mode_raises_not_implemented(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_live_mode_maps_backend_response(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CAPABILITY_LAYER_MODE", "live")
-    with pytest.raises(NotImplementedError, match="W7"):
-        rapidapi_get_user_info(RapidApiUserInfoInput(creator_id="tt_001"))
+    from ss_agents.tools import backend_client
+
+    monkeypatch.setattr(
+        backend_client, "fetch_user_info",
+        lambda uid: {"user": {"uniqueId": uid, "nickname": "Lizeth HV"}, "stats": {"followerCount": 1_300_000, "videoCount": 2230}},
+    )
+    monkeypatch.setattr(
+        backend_client, "fetch_user_posts",
+        lambda uid, count=None: [
+            {"id": "7645", "stats": {"playCount": 14300, "diggCount": 2067, "commentCount": 30, "shareCount": 12}},
+            {"id": "7646", "stats": {"playCount": 5000, "diggCount": 200, "commentCount": 8, "shareCount": 3}},
+        ],
+    )
+    out = rapidapi_get_user_info(RapidApiUserInfoInput(creator_id="lizethhv2"))
+    assert out.fetched_via == "live"
+    assert out.followers == 1_300_000
+    assert out.video_count == 2230
+    assert len(out.recent_posts) == 2
+    assert out.recent_posts[0].views == 14300
+    # engagement_rate = (2067+30+12 + 200+8+3) / (14300+5000) ∈ [0,1]
+    assert 0.0 < out.engagement_rate <= 1.0
+
+
+def test_live_mode_instagram_not_wired(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CAPABILITY_LAYER_MODE", "live")
+    with pytest.raises(NotImplementedError, match="instagram"):
+        rapidapi_get_user_info(RapidApiUserInfoInput(creator_id="x", platform="instagram"))
+
+
+def test_ss_tiktok_live_forces_live_without_global_flip(monkeypatch: pytest.MonkeyPatch) -> None:
+    # global stays stub (so W7 tools stay stubbed), but SS_TIKTOK_LIVE=1
+    # makes THIS tool go live.
+    monkeypatch.setenv("CAPABILITY_LAYER_MODE", "stub")
+    monkeypatch.setenv("SS_TIKTOK_LIVE", "1")
+    from ss_agents.tools import backend_client
+
+    monkeypatch.setattr(backend_client, "fetch_user_info", lambda uid: {"user": {"uniqueId": uid}, "stats": {"followerCount": 42}})
+    monkeypatch.setattr(backend_client, "fetch_user_posts", lambda uid, count=None: [])
+    out = rapidapi_get_user_info(RapidApiUserInfoInput(creator_id="glow"))
+    assert out.fetched_via == "live"
+    assert out.followers == 42
 
 
 # ─────────────────────────────────────────────────────────────────────────────

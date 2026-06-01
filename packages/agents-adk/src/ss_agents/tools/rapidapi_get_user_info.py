@@ -119,7 +119,12 @@ def rapidapi_get_user_info(payload: RapidApiUserInfoInput) -> RapidApiUserInfoOu
         NotImplementedError: If `CAPABILITY_LAYER_MODE=live` — until W7 wires
             the real client. Caller surfaces as `EscalateToHuman`.
     """
-    mode = os.getenv("CAPABILITY_LAYER_MODE", "stub")
+    # SS_TIKTOK_LIVE=1 forces THIS tool live independent of the global
+    # CAPABILITY_LAYER_MODE — so a deploy can turn TikTok fetching live (via
+    # the backend.socialseed.ing proxy) without flipping the still-stubbed W7
+    # tools (gmail/imagen/…) to live and breaking them.
+    tiktok_live = os.getenv("SS_TIKTOK_LIVE") == "1"
+    mode = "live" if tiktok_live else os.getenv("CAPABILITY_LAYER_MODE", "stub")
     if mode == "stub":
         return _stub(payload)
     return _live(payload)
@@ -233,15 +238,79 @@ def _stable_hash(s: str) -> int:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Live — wired in W7 (deploy phase). Today raises NotImplementedError; the
-# runtime converts that to an `EscalateToHuman` so the workflow routes to the
-# human queue rather than crashing.
+# Live — fetch via the backend.socialseed.ing proxy (v1 parity; NOT RapidAPI
+# directly). Auth uses a short-lived, auto-renewed X-API-Key (backend_client).
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def _to_int(value: object) -> int:
+    try:
+        n = int(float(value))  # tolerate "12345" / 12345.0
+        return n if n >= 0 else 0
+    except (TypeError, ValueError):
+        return 0
+
+
 def _live(payload: RapidApiUserInfoInput) -> RapidApiUserInfoOutput:
-    """Live RapidAPI call. Wired in W7 deploy phase."""
-    raise NotImplementedError("live mode wired in W7 deploy phase")
+    """Live fetch via the backend.socialseed.ing proxy.
+
+    The backend owns the fixed RapidAPI key + key-rotation; this tool
+    authenticates with a short-lived, auto-renewed X-API-Key (see
+    `backend_client`). Maps /user/info + /user/posts → the capability output.
+    """
+    if payload.platform != "tiktok":
+        raise NotImplementedError(f"live mode: platform '{payload.platform}' not wired (tiktok only)")
+
+    # Imported lazily so stub mode + offline tests never touch the HTTP client.
+    from . import backend_client
+
+    info = backend_client.fetch_user_info(payload.creator_id)
+    user = info.get("user") or {}
+    stats = info.get("stats") or {}
+    raw_posts = backend_client.fetch_user_posts(payload.creator_id, count=20)
+
+    recent_posts: list[RecentPost] = []
+    for p in raw_posts:
+        if not isinstance(p, dict):
+            continue
+        pid = p.get("id") or p.get("video_id") or p.get("aweme_id")
+        if not pid:
+            continue
+        s = p.get("stats") if isinstance(p.get("stats"), dict) else p
+        recent_posts.append(
+            RecentPost(
+                post_id=str(pid)[:64],
+                views=_to_int(s.get("playCount") or s.get("play_count")),
+                likes=_to_int(s.get("diggCount") or s.get("digg_count")),
+                comments=_to_int(s.get("commentCount") or s.get("comment_count")),
+                shares=_to_int(s.get("shareCount") or s.get("share_count")),
+            )
+        )
+        if len(recent_posts) >= 50:
+            break
+
+    # engagement_rate ∈ [0,1]: Σ(likes+comments+shares) / Σ(views).
+    total_views = sum(rp.views for rp in recent_posts)
+    total_eng = sum(rp.likes + rp.comments + rp.shares for rp in recent_posts)
+    engagement_rate = round(min(1.0, total_eng / total_views), 4) if total_views > 0 else 0.0
+
+    followers = _to_int(stats.get("followerCount") or stats.get("follower_count") or user.get("followerCount"))
+    following = _to_int(stats.get("followingCount") or stats.get("following_count") or user.get("followingCount"))
+    video_count = _to_int(stats.get("videoCount") or stats.get("video_count") or user.get("videoCount"))
+    nickname = str(user.get("nickname") or user.get("uniqueId") or payload.creator_id)[:200]
+
+    return RapidApiUserInfoOutput(
+        creator_id=payload.creator_id,
+        platform=payload.platform,
+        nickname=nickname,
+        followers=followers,
+        following=following,
+        video_count=video_count,
+        engagement_rate=engagement_rate,
+        recent_posts=recent_posts,
+        public_email=None,  # D8: only if discoverable from public bio; backend doesn't surface it
+        fetched_via="live",
+    )
 
 
 __all__ = [
