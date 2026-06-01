@@ -134,7 +134,7 @@ describe("report-deliver workflow", () => {
 
     // Steps fired in pipeline order
     expect(fake.log.runs).toEqual([
-      "load-campaign", "compile-analytics", "analyst-narrative", "persist-report",
+      "load-campaign", "compile-analytics", "resolve-handles", "analyst-narrative", "persist-report",
     ]);
 
     // Persisted row is fetchable and carries the inputs from each stage
@@ -185,7 +185,7 @@ describe("report-deliver workflow", () => {
       ),
     ).rejects.toBeInstanceOf(AnalystEscalatedError);
     // Ran compile + analyst, but stopped before persist + emit
-    expect(fake.log.runs).toEqual(["load-campaign", "compile-analytics", "analyst-narrative"]);
+    expect(fake.log.runs).toEqual(["load-campaign", "compile-analytics", "resolve-handles", "analyst-narrative"]);
     expect(fake.log.events).toEqual([]);
     // No row persisted
     const latest = await reportRepo.latestForCampaign(c.id);

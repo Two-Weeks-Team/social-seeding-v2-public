@@ -6,7 +6,7 @@ import {
   type Report,
   type ReportTrigger,
 } from "@ss/contracts";
-import { campaignRepo, reportRepo } from "@ss/db";
+import { campaignRepo, creatorRepo, reportRepo } from "@ss/db";
 import { invokeCapability } from "@ss/capabilities";
 import {
   analystAgent,
@@ -135,6 +135,21 @@ export async function reportDeliverHandler(
     );
   }
 
+  // ── 3a. Resolve creatorId → @handle for the tracks the report cites ───────
+  // #29 P0-C: the analyst (and the rendered report / share page) should say
+  // `@username`, not `id_freshly`. Resolve via creatorRepo.getById (same
+  // pattern tiktok-post-poller uses). Verified tracks first (they carry the
+  // numbers the narrative leans on); falls back to the id when not found.
+  const creatorHandles = await step.run("resolve-handles", async () => {
+    const map: Record<string, string> = {};
+    const ids = Array.from(new Set(parsed.data.tracks.map((t) => t.creatorId)));
+    for (const id of ids) {
+      const creator = await creatorRepo.getById(id);
+      if (creator?.uniqueId) map[id] = `@${creator.uniqueId.replace(/^@/, "")}`;
+    }
+    return map;
+  });
+
   // ── 3. Analyst narrative ──────────────────────────────────────────────────
   const narrativeOutcome = await step.run("analyst-narrative", async () =>
     runAgent(
@@ -142,11 +157,7 @@ export async function reportDeliverHandler(
       {
         brief: campaign.brief,
         report: parsed.data,
-        // Phase 4 follow-up: resolve creatorId → @handle via creatorRepo for
-        // every verified track so the agent cites by handle. Skipping for
-        // C3 keeps the workflow free of TikTok-handle lookups; the agent
-        // falls back to creatorId, which is correct but less friendly.
-        creatorHandles: {},
+        creatorHandles,
       },
       agentCtx,
     ),
