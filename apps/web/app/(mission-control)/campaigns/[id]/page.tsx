@@ -202,6 +202,13 @@ export default async function CampaignDetailPage({
               >
                 report
               </Link>
+              <span className="text-slate-300">·</span>
+              <Link
+                href={`/campaigns/${id}/performance`}
+                className="text-slate-600 hover:text-slate-900 underline-offset-2 hover:underline"
+              >
+                performance
+              </Link>
             </div>
             <div className="flex gap-2">
               {campaign.status === "running" || campaign.status === "paused" ? (
