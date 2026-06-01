@@ -31,7 +31,7 @@
 
 - **109 commits** since the scaffold (`66f4390`).
 - **`pnpm run verify-build` green** (lint → next build → tsc --noEmit across 7 packages, FULL TURBO).
-- **354 tests** pass: 4 observability · 64 agents · 183 capabilities · 103 workflows.
+- **449 TS tests** pass: 77 web · 64 agents · 191 capabilities · 113 workflows · 4 observability (+ 2932 agents-adk pytest).
 - **10 Inngest functions** registered: brand-campaign / creator-track / lead-campaign / lead-track / report-deliver / report-deliver-cron / campaign-progression / shipment-tracking-poller / tiktok-post-poller / gmail-watch-renew.
 - **23 MongoDB indexes** on the v2_* collections (`scripts/init-indexes.ts`).
 - **6 SMOKE-TEST docs** logging credential-free end-to-end smokes per phase: `docs/SMOKE-TEST.md` (P2), `-P3.md`, `-P4.md`, `-P5.md`, `-P6.md`.

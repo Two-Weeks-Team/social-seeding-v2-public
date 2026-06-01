@@ -27,7 +27,7 @@ Devpost caps at 10 images. Upload these, in this order — the hero is the live 
 7. ★ `real-imagen-generation.png` — real Imagen multimodal output (S-07)
 8. ★ `wow-business-roi-tam.png` — $0.01/view ROI + TAM/SAM/SOM scene (S-08)
 9. ★ `a2a-animation-diagram.png` — animated A2A cross-call diagram still (S-09)
-10. ★ `pytest-2924-passing.png` — 2,924 passed / 0 failed (S-10)
+10. ★ `pytest-2932-passing.png` — 2,924 passed / 0 failed (S-10)
 
 The remaining captures (S-11..S-18) are committed to the repo and linked from the README so judges can find them; they do not ride the 10-slot gallery.
 
@@ -72,7 +72,7 @@ The remaining captures (S-11..S-18) are committed to the repo and linked from th
 
 | # | Filename | Where to capture | Dimensions | Notes |
 |---|----------|------------------|------------|-------|
-| S-10 ★ | `pytest-2924-passing.png` | Terminal: `pnpm exec pytest packages/agents-adk` summary | 1280 × 800 | **2,924 passed / 0 failed.** Show the last ~30 lines. |
+| S-10 ★ | `pytest-2932-passing.png` | Terminal: `pnpm exec pytest packages/agents-adk` summary | 1280 × 800 | **2,924 passed / 0 failed.** Show the last ~30 lines. |
 | S-17 | `cloud-run-scale-to-zero.png` | Cloud Console → Cloud Run → `ss-mcp-server` detail | 1920 × 1080 | Show `minScale=0` (scale-to-zero, ~$0/mo idle), revision `00003-22m`, region us-central1. Per D46. |
 | S-18 | `model-armor-policy.png` | Model Armor policy details (design-target config) | 1920 × 1080 | PI/JB + PII block + RAI + custom regex + Anomaly Detection. Per D21. **Caption must note: design target; live enforcement gated on O-A..O-E (stub-mode honest gap).** |
 

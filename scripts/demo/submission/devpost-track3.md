@@ -288,7 +288,7 @@ clean-text safety check are pinned in `tests/tools/test_prompt_guard.py`.
   ecosystem.
 - **All six official Track 3 requirements met** + Agent Identity (crypto ID). See the gate table.
 - **Three live Cloud Run endpoints**, all 200, all scale-to-zero (~$1-5/mo, all `min=0`, D46).
-- **2924 pytest cases pass** (`packages/agents-adk`); `verify-build` green.
+- **2932 pytest cases pass** (`packages/agents-adk`); `verify-build` green.
 - **One real Imagen 4 generation** (D49), not a stub — a real **1024×1024, 950 KB** image from the
   committed standalone `scripts/demo/gen_sample_image.py` script (~$0.04, run once). Honest note: the
   in-fleet `creative` agent's `imagen.generate` capability tool is **W7-staged — live mode raises
@@ -443,9 +443,12 @@ disclosures are consolidated, not scattered. The load-bearing headlines, with th
 - **Agent Identity mTLS is declared, not enforced** on the demo (Agent Gateway mTLS is in
   Google Private Preview); the SPIFFE identity and the agent card are real.
   ([`HONEST-SCOPE.md` rows 12, 13](./HONEST-SCOPE.md))
-- **The live `ss-mcp-server` runs a deterministic heuristic ranker** — the A2A v0.3 card, task
-  envelope, and ~3.7s cross-call are real; the ranking *data* is heuristic until the full topology is
-  deployed. ([`HONEST-SCOPE.md` row 8](./HONEST-SCOPE.md))
+- **The live `ss-mcp-server` runs a real ADK LLM ranker** (searcher `gemini-3.1-flash-lite` →
+  ranker `gemini-3.5-flash` on Vertex `global`) — the A2A v0.3 card, task envelope, and ~3.7s
+  cross-call are real, and an authenticated `plan_creator_search` returns LLM-ranked creators with
+  semantic `fit_score` + per-creator reasoning. `_heuristic_rank` is the in-code fallback only;
+  `engagement_rate: 0` is a backend Group-B quota artifact, not heuristic data.
+  ([`HONEST-SCOPE.md` row 8](./HONEST-SCOPE.md))
 - **AP2 v0.2 is early-Preview**, scoped to Intent Mandate only (D27); Cart and Payment Mandate
   deferred. ([`HONEST-SCOPE.md` §4 supplemental disclosures](./HONEST-SCOPE.md))
 
