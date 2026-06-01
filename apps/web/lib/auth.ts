@@ -27,6 +27,33 @@ function secretKey(): Uint8Array {
 
 const DEFAULT_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days, v1 parity
 
+/**
+ * Workspace assigned to a freshly signed-in Google user. Multi-tenant
+ * user→workspace mapping is a follow-up (see HONEST-SCOPE); for now every
+ * sign-in lands in the operator workspace, overridable per deployment via
+ * `DEFAULT_LOGIN_WORKSPACE_ID`.
+ */
+export function defaultWorkspaceId(): string {
+  return process.env.DEFAULT_LOGIN_WORKSPACE_ID?.trim() || "ws_demo";
+}
+
+/** Cookie options for the ss_session cookie, shared by every route that sets it. */
+export function sessionCookieOptions(): {
+  httpOnly: true;
+  sameSite: "lax";
+  path: string;
+  maxAge: number;
+  secure: boolean;
+} {
+  return {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: DEFAULT_TTL_SECONDS,
+    secure: process.env.NODE_ENV === "production",
+  };
+}
+
 export async function signSession(claims: SessionClaims, ttlSeconds: number = DEFAULT_TTL_SECONDS): Promise<string> {
   return new SignJWT({ ...claims })
     .setProtectedHeader({ alg: "HS256" })

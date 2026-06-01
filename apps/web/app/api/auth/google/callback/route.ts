@@ -1,20 +1,24 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { decodeState, exchangeCode, getConnectedEmail, storeToken } from "@/lib/gmail-oauth";
+import { SESSION_COOKIE, defaultWorkspaceId, sessionCookieOptions, signSession } from "@/lib/auth";
+import { decodeIdentity, decodeState, exchangeCode, getConnectedEmail, storeToken } from "@/lib/gmail-oauth";
 
 /**
- * Gmail OAuth callback — the registered redirect URI
- * (`<origin>/api/auth/google/callback`).
+ * Shared Google OAuth callback — the registered redirect URI
+ * (`<origin>/api/auth/google/callback`). Serves two flows, branched on
+ * `state.purpose`:
+ *
+ *   "login"   → resolve identity from the id_token (openid/email scopes) and
+ *               mint the ss_session cookie, then redirect to returnUrl.
+ *   "connect" → exchange + persist the Gmail refresh token (default; v1 parity)
+ *               and redirect with a `gmail_connected=` flag.
  *
  *   GET /api/auth/google/callback?code=&state=
  *   1. Verify the CSRF nonce (cookie ↔ state).
- *   2. Exchange the code for tokens (refresh_token via access_type=offline).
- *   3. Resolve the connected mailbox (gmail.readonly getProfile).
- *   4. Upsert the token into the shared backend user_tokens store.
- *   5. Redirect back to returnUrl with a connected= flag.
- *
- * Reusable by every user; the ADK fleet + TS outreach then send with the
- * persisted token.
+ *   2. Exchange the code for tokens.
+ *   3a. login:   decode id_token → signSession → set cookie.
+ *   3b. connect: getProfile → upsert token into shared backend user_tokens.
+ *   4. Redirect back to returnUrl.
  */
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -24,7 +28,7 @@ export async function GET(req: NextRequest) {
 
   const origin = process.env.GMAIL_OAUTH_ORIGIN?.trim() || url.origin;
   const fail = (reason: string, status = 400) =>
-    NextResponse.json({ error: "gmail_oauth_callback_failed", reason }, { status });
+    NextResponse.json({ error: "google_oauth_callback_failed", reason }, { status });
 
   if (oauthError) return fail(`google_error:${oauthError}`);
   if (!code || !stateRaw) return fail("missing_code_or_state");
@@ -36,6 +40,33 @@ export async function GET(req: NextRequest) {
   const cookieNonce = req.cookies.get("gmail_oauth_nonce")?.value;
   if (!cookieNonce || cookieNonce !== state.nonce) return fail("state_nonce_mismatch", 403);
 
+  // ── Login flow: identity-only, mint the session cookie. ──────────────────
+  if (state.purpose === "login") {
+    // Open-redirect guard: only same-origin relative paths.
+    let dest = state.returnUrl || "/campaigns";
+    if (!dest.startsWith("/") || dest.startsWith("//")) dest = "/campaigns";
+    let identity;
+    try {
+      const tokens = await exchangeCode({ code, origin });
+      if (!tokens.id_token) return fail("no_id_token", 502);
+      identity = decodeIdentity(tokens.id_token);
+    } catch (err) {
+      return fail(`exchange_error:${(err as Error).message}`, 502);
+    }
+    if (!identity) return fail("invalid_identity", 502);
+
+    const token = await signSession({
+      userId: identity.sub,
+      workspaceId: defaultWorkspaceId(),
+      email: identity.email,
+    });
+    const res = NextResponse.redirect(new URL(dest, origin).toString(), { status: 302 });
+    res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
+    res.cookies.delete("gmail_oauth_nonce");
+    return res;
+  }
+
+  // ── Connect flow (default): persist the Gmail refresh token. ─────────────
   let connectedEmail: string;
   try {
     const tokens = await exchangeCode({ code, origin });
