@@ -24,6 +24,7 @@ const PRIMARY: NavItem[] = [
   { href: "/approvals", label: "승인 인박스" },
   { href: "/policies", label: "자율성 정책" },
   { href: "/usage", label: "사용량 + 비용" },
+  { href: "/settings", label: "연동 (Gmail)" },
 ];
 
 const SECONDARY: NavItem[] = [

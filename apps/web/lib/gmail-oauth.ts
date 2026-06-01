@@ -131,6 +131,31 @@ export async function getConnectedEmail(accessToken: string): Promise<string> {
   return d.emailAddress;
 }
 
+export interface GmailConnectionStatus {
+  connected: boolean;
+  needsReauth: boolean;
+  expiresAt?: string;
+}
+
+/** Check whether `email` has a (valid) connected Gmail token in the shared
+ * backend store. Used by the settings page to render connect vs reconnect.
+ * Never throws — returns `connected:false` on any error. */
+export async function gmailConnectionStatus(email: string): Promise<GmailConnectionStatus> {
+  try {
+    const key = await backendKey();
+    const res = await fetch(
+      `${backendBaseUrl()}/api/v1/auth/token-status?email=${encodeURIComponent(email)}`,
+      { headers: { "X-API-Key": key, accept: "application/json" }, cache: "no-store" },
+    );
+    if (!res.ok) return { connected: false, needsReauth: true };
+    const d = (await res.json()) as { isValid?: boolean; needsReauth?: boolean; expiresAt?: string; error?: string };
+    if (d.error) return { connected: false, needsReauth: true };
+    return { connected: Boolean(d.isValid), needsReauth: Boolean(d.needsReauth), expiresAt: d.expiresAt };
+  } catch {
+    return { connected: false, needsReauth: true };
+  }
+}
+
 /** Mint a short-lived backend X-API-Key (same /auth/login the TikTok client uses). */
 async function backendKey(): Promise<string> {
   const email = process.env.BACKEND_DASHBOARD_EMAIL?.trim();
