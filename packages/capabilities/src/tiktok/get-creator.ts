@@ -78,7 +78,9 @@ const KEY_CACHE_TTL_MS = 5 * 60 * 1000;
 const KEY_REFRESH_AHEAD_MS = 60 * 1000;
 
 export function backendBaseUrl(): string {
-  return (process.env.SS_BACKEND_URL ?? DEFAULT_BACKEND_URL).replace(/\/+$/, "");
+  // `||` (not `??`) so an empty/whitespace SS_BACKEND_URL falls back to the
+  // default instead of producing a "" base that breaks fetch URL parsing.
+  return (process.env.SS_BACKEND_URL?.trim() || DEFAULT_BACKEND_URL).replace(/\/+$/, "");
 }
 
 interface CachedBackendKey {
@@ -364,14 +366,15 @@ function defaultFetcher(): TikTokFetcher {
       const baseUrl = backendBaseUrl();
       const apiKey = await getActiveBackendKey(baseUrl); // static or rotating (/auth/login)
       const handle = uniqueId.replace(/^@/, "");
-      const url = `${baseUrl}/api/v1/user/info?uniqueId=${encodeURIComponent(handle)}`;
+      const params = new URLSearchParams({ uniqueId: handle });
+      const url = `${baseUrl}/api/v1/user/info?${params.toString()}`;
       const res = await fetch(url, {
         method: "GET",
         headers: { "X-API-Key": apiKey, accept: "application/json" },
         signal: AbortSignal.timeout(15_000),
       });
       if (!res.ok) {
-        throw new Error(`tiktok.getUserInfo: backend.socialseed.ing returned ${res.status} for @${handle}`);
+        throw new Error(`tiktok.getUserInfo: backend proxy returned ${res.status} for @${handle}`);
       }
       const body = (await res.json()) as unknown;
       const creator = mapRapidApiCreator(body);
@@ -398,7 +401,7 @@ function defaultFetcher(): TikTokFetcher {
         signal: AbortSignal.timeout(15_000),
       });
       if (!res.ok) {
-        throw new Error(`tiktok.getUserPosts: backend.socialseed.ing returned ${res.status} for @${handle}`);
+        throw new Error(`tiktok.getUserPosts: backend proxy returned ${res.status} for @${handle}`);
       }
       const body = (await res.json()) as unknown;
       return mapRapidApiPosts(body);

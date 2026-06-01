@@ -213,7 +213,7 @@ describe("defaultFetcher.getUserInfo — backend.socialseed.ing proxy path", () 
     setTikTokFetcher(undefined);
     vi.stubGlobal("fetch", vi.fn(async () => new Response("not found", { status: 404 })));
     await expect(getTikTokFetcher().getUserInfo("@ghost"))
-      .rejects.toThrow(/backend\.socialseed\.ing returned 404/);
+      .rejects.toThrow(/backend proxy returned 404/);
   });
 
   it("response with no user object → throws clearly (mapper returned null)", async () => {

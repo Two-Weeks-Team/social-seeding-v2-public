@@ -193,7 +193,7 @@ describe("defaultFetcher.getUserPosts — backend.socialseed.ing proxy path", ()
     setTikTokFetcher(undefined);
     vi.stubGlobal("fetch", vi.fn(async () => new Response("rate limited", { status: 429 })));
     await expect(getTikTokFetcher().getUserPosts("@freshly"))
-      .rejects.toThrow(/backend\.socialseed\.ing returned 429/);
+      .rejects.toThrow(/backend proxy returned 429/);
   });
 
   it("SS_BACKEND_URL override honored (e.g. internal :8080)", async () => {
