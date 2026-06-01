@@ -2,7 +2,7 @@
 
 [![demo](https://img.shields.io/badge/demo-YouTube%20Unlisted-FF0000?logo=youtube)](https://youtu.be/_REPLACE_AFTER_UPLOAD_mcp_)
 [![build](https://img.shields.io/badge/build-passing-44CC11?logo=github)](https://github.com/_owner_/tiktok-mcp-server/actions)
-[![uptime](https://img.shields.io/badge/uptime-99.5%25%20%5B60d%5D-44CC11)](https://status.socialseed.ing)
+[![live](https://img.shields.io/badge/live-Cloud%20Run-44CC11?logo=googlecloud)](https://ss-mcp-server-1049119860518.us-central1.run.app/.well-known/agent.json)
 [![license](https://img.shields.io/badge/license-BUSL--1.1-blue)](LICENSE)
 [![track](https://img.shields.io/badge/Google%20for%20Startups-AI%20Agents%20Track%203-4285F4?logo=googlecloud)](https://cloud.google.com/blog/topics/startups/startups-are-building-the-agentic-future-with-google-cloud)
 [![marketplace](https://img.shields.io/badge/Cloud%20Marketplace-PENDING%20%E2%80%94%20KR%20payment%20region-EA4335)](docs/marketplace-submission.png)
@@ -13,7 +13,7 @@
 
 `tiktok-mcp-server` is a dual-surface connector:
 
-- **MCP path** — four tools exposed at `https://mcp.socialseed.ing/tools/*` over HTTPS, MCP-spec-compliant. Standard MCP clients (Claude Desktop, Cursor, any compliant client) work unmodified.
+- **MCP path** — four TikTok tools (`search_users`, `user_info`, `user_posts`, `post_detail`) declared in the agent card's `mcp_tools[]` and shipped as the MCP-spec HTTP surface in the OSS `tiktok-mcp-server` distribution for self-hosting (standard MCP clients — Claude Desktop, Cursor — work unmodified). The deployed Cloud Run node fronts them over the A2A surface below.
 - **A2A path** — the same backend, fronted by an **ADK orchestration agent** on Vertex AI Agent Runtime that emits an A2A v0.3 surface via `.well-known/agent.json`. Other agents inside Gemini Enterprise discover and call us via Agent Registry; the v2 `sourcing` agent already does this in our integration tests.
 
 Authentication is multi-tenant **Identity Platform** OAuth (D19). Per-call billing flows through **Apigee X** (D28) at three published tiers. The underlying scrapers (5 services: 4 Go + 1 Python) are existing production traffic, registered to our v1 backend with a shared `INTERNAL_API_KEY` and Cloud Service Mesh mTLS between the MCP frontend and the scraper backend.
@@ -48,7 +48,7 @@ Pricing:
 
 | Metric                                  | Value           | How measured                                                            |
 |-----------------------------------------|-----------------|-------------------------------------------------------------------------|
-| Uptime (last 60 days)                   | 99.5%           | `status.socialseed.ing` dashboard, observed against Cloud Monitoring uptime probes |
+| Availability                            | live on Cloud Run | managed Cloud Run SLA; live node verifiable at `…run.app/.well-known/agent.json` (200) + `verify-live-evidence.sh` |
 | Cold start (Agent Runtime)              | < 1 s p99       | matches the D17 sub-second cold-start claim                              |
 | End-to-end failover (Beat 6 of demo)    | **8 s**         | live drill: `gcloud run services delete --region=us-central1`; Global LB re-routes |
 | p99 latency under load                  | < 1 s           | D31 SLO; observed via Cloud Trace + OpenTelemetry on 10 k req/min synthetic |
@@ -66,16 +66,16 @@ cp .env.example .env.local
 # 1. Run the MCP server locally:
 docker compose up -d mcp-frontend             # binds :8090
 
-# 2. Probe the public MCP manifest:
-curl -s https://mcp.socialseed.ing/.well-known/mcp-manifest | jq
+# 2. Probe the live, signed A2A agent card (public — returns 200):
+curl -s https://ss-mcp-server-1049119860518.us-central1.run.app/.well-known/agent.json | jq
 
-# 3. Call a tool (requires a starter tenant token — see docs/auth.md for the OAuth flow):
-curl -s https://mcp.socialseed.ing/tools/search_users \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{"query": "korean skincare creators", "limit": 5}'
+# 3. Fetch the JWKS that verifies the card's JWS (ES256) signature (200):
+curl -s https://ss-mcp-server-1049119860518.us-central1.run.app/.well-known/jwks.json | jq
 
-# 4. Probe the A2A surface:
-curl -s https://mcp.socialseed.ing/.well-known/agent.json | jq
+# 4. Call a tool over A2A v0.3 (auth required — 401 without an Identity Platform token):
+curl -s -X POST https://ss-mcp-server-1049119860518.us-central1.run.app/v1/message:send \
+  -H "Authorization: Bearer $TOKEN" -H "content-type: application/json" \
+  -d '{"message":{"role":"user","messageId":"demo-1","parts":[{"kind":"text","text":"korean skincare creators"}]}}'
 ```
 
 The reproduce-in-5-minutes path was tested by a teammate who had never seen the repo on 2026-05-18.
