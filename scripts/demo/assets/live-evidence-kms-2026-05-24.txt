@@ -1,0 +1,20 @@
+================================================================
+ Agent-card signing key: Secret-Manager PEM -> Cloud KMS
+ Captured: 2026-05-24T05:04:45Z  (operator: app.2weeks@gmail.com)
+================================================================
+
+## KMS key
+NAME  STATE    ALGORITHM
+1     ENABLED  EC_SIGN_P256_SHA256
+
+## Cloud Run traffic (100% on the KMS revision; rev 00010-j26 = PEM rollback)
+{'latestRevision': True, 'percent': 100, 'revisionName': 'ss-mcp-server-00012-rk9', 'tag': 'kmscanary2', 'url': 'https://kmscanary2---ss-mcp-server-s2le2ic2eq-uc.a.run.app'}
+
+## Live agent card signature (KMS path proven by kid '-v1')
+protected: {'alg': 'ES256', 'jku': 'https://mcp.socialseed.ing/.well-known/jwks.json', 'kid': 'ss-agent-card-prod-v1'}
+
+## JWKS (public key per enabled version)
+[('ss-agent-card-prod-v1', 'EC', 'P-256')]
+
+## Cryptographic verification (live card signature verifies against live JWKS)
+verify_card_with_jwks: True

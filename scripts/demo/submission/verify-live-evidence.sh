@@ -12,7 +12,9 @@
 ###############################################################################
 set -uo pipefail
 
-MCP="https://ss-mcp-server-1049119860518.us-central1.run.app"
+# Default = the live base URL. Override MCP_URL to verify a no-traffic canary
+# revision against its tagged URL (e.g. https://kmscanary---ss-mcp-server-….run.app).
+MCP="${MCP_URL:-https://ss-mcp-server-1049119860518.us-central1.run.app}"
 MCP_TAG_HOST="https://ss-mcp-server-s2le2ic2eq-uc.a.run.app"
 LANDING="https://ss-landing-80064221403.us-central1.run.app/demo/"
 SA="ss-agents-runtime@ss-v2-prod.iam.gserviceaccount.com"

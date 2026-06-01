@@ -47,7 +47,7 @@ from .agent import (
     serialize,
     serialize_brand_assets,
 )
-from .card_signer import build_jwks, load_signing_key, sign_card
+from .card_signer import build_jwks_for_signer, load_card_signer, sign_card
 from .identity_platform import (
     IdentityClaims,
     IdentityError,
@@ -103,9 +103,10 @@ ALLOW_ANONYMOUS_DISCOVERY = os.environ.get("ALLOW_ANONYMOUS_DISCOVERY", "true").
 }
 # A2A v0.3 card signing (signatures[]). On by default so the served card always
 # carries a verifiable JWS; set SIGN_AGENT_CARD=false to serve the raw card
-# (e.g. when an upstream gateway signs). Dev key auto-managed under
-# deployment/keys/ (git-ignored); production key via AGENT_CARD_SIGNING_KEY_PEM
-# (Secret Manager). See AGENT-IDENTITY.md §3/§7 + card_signer.py.
+# (e.g. when an upstream gateway signs). Key resolution (see load_card_signer):
+# Cloud KMS (AGENT_CARD_SIGNING_KMS_KEY, production-preferred) → Secret-Manager
+# PEM (AGENT_CARD_SIGNING_KEY_PEM) → auto-managed dev key under deployment/keys/
+# (git-ignored). See AGENT-IDENTITY.md §3/§7 + card_signer.py.
 SIGN_AGENT_CARD = os.environ.get("SIGN_AGENT_CARD", "true").lower() in {"true", "1", "yes"}
 
 # ---------------------------------------------------------------------------
@@ -265,8 +266,8 @@ def _signed_card_and_jwks() -> tuple[dict[str, Any], dict[str, Any]]:
     if not SIGN_AGENT_CARD:
         return card, {"keys": []}
     try:
-        key = load_signing_key()
-        return sign_card(card, key), build_jwks([key])
+        signer = load_card_signer()
+        return sign_card(card, signer), build_jwks_for_signer(signer)
     except Exception as exc:  # noqa: BLE001 — signing is best-effort for discovery
         logger.warning("agent-card signing unavailable, serving unsigned card: %s", exc)
         return card, {"keys": []}
