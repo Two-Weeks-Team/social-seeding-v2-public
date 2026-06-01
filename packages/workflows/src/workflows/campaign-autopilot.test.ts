@@ -162,4 +162,21 @@ describe("campaign-autopilot — wooriliu fixture, full back-half", () => {
     // outreach was never reached
     expect(out.gateLog.find((g) => g.kind === "outreach_send")).toBeUndefined();
   });
+
+  it("content_review gate (auto_proceed) times out → AUTO-PROCEEDS to performance (never blocks on the human)", async () => {
+    const campaign = await campaignRepo.create(wooriliuCampaignInput());
+    const policy = defaultPolicy(campaign.brief.workspaceId); // approveContent timeout=auto_proceed
+    // operator clears budget+shipment, but never signs off content → its
+    // auto_proceed fallback fires (take the verify agent's evaluation) and the
+    // run completes through to performance instead of parking forever.
+    const step = fakeStep({ decision: "approved" }, new Set(["content_review"]));
+    const out = await campaignAutopilotHandler({ campaign, policy, step }, { compile });
+    expect(out.kind).toBe("completed");
+    if (out.kind !== "completed") throw new Error("expected completed");
+    expect(out.stagesCompleted).toEqual(["outreach", "shipping", "content_review", "performance"]);
+    const content = out.gateLog.find((g) => g.kind === "content_review");
+    expect(content?.decision).toBe("approved"); // auto_proceed → approved
+    expect(content?.timedOut).toBe(true); // ...but from the timeout fallback, not a human
+    expect(out.report.reach.verifiedViews).toBe(wooriliuExpected().views); // performance still compiled
+  });
 });
