@@ -5,7 +5,8 @@ Coverage matrix:
     TestStubDeterminism    — same (thread_id, recipient) → same message_id.
     TestDryRunPreserved    — stub forces `dry_run_applied=True` regardless of input.
     TestD10Allowlist       — live mode rejects recipients NOT in {app.2weeks@gmail.com}.
-    TestLiveModeRaises     — allow-listed recipient + live ⇒ NotImplementedError.
+    TestLiveSend           — allow-listed recipient + live ⇒ SMTP send (mocked);
+                             dry_run short-circuits; missing creds fail loud.
     TestCostAttribute      — `gmail_send_reply.usd_cost` exposed.
 """
 from __future__ import annotations
@@ -196,19 +197,84 @@ class TestD10Allowlist:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TestLiveModeRaises — allow-listed recipient + live mode ⇒ NotImplementedError.
+# TestLiveSend — W7: allow-listed recipient + live mode performs a real SMTP
+# submission (mocked here). dry_run short-circuits; missing creds fail loud.
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class TestLiveModeRaises:
-    def test_live_mode_with_allowlisted_recipient_raises_not_implemented(
+class TestLiveSend:
+    """Live mode = Gmail API send reusing the backend's connected OAuth token.
+    All network legs (backend token fetch, OAuth refresh, Gmail send) are mocked
+    so the suite stays offline."""
+
+    def test_live_dry_run_short_circuits_without_network(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Live mode with the allow-listed recipient should reach the W7
-        deploy-phase NotImplementedError — not the allow-list ValueError."""
+        """dry_run=True in live mode returns a synthetic id and contacts nothing
+        — the HITL preview gate relies on this."""
         monkeypatch.setenv("CAPABILITY_LAYER_MODE", "live")
-        with pytest.raises(NotImplementedError, match=r"W7 deploy phase"):
-            gmail_send_reply(_input(recipient_email="app.2weeks@gmail.com"))
+
+        def _boom(*_a: object, **_k: object) -> object:  # pragma: no cover
+            raise AssertionError("dry_run must not hit the network")
+
+        monkeypatch.setattr("ss_agents.tools.backend_client.fetch_gmail_token", _boom)
+        out = gmail_send_reply(_input(recipient_email="sejun@2weeks.co", dry_run=True))
+        assert out.dry_run_applied is True
+
+    def test_live_unconnected_account_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Allow-listed recipient + live + no connected token ⇒ RuntimeError
+        pointing at the connect flow (fail loud, never a silent drop)."""
+        monkeypatch.setenv("CAPABILITY_LAYER_MODE", "live")
+
+        def _no_token(_email: str) -> dict:
+            raise RuntimeError("no connected Gmail token — connect via apps/web /api/auth/gmail/start")
+
+        monkeypatch.setattr("ss_agents.tools.backend_client.fetch_gmail_token", _no_token)
+        with pytest.raises(RuntimeError, match=r"connect"):
+            gmail_send_reply(_input(recipient_email="sejun@2weeks.co"))
+
+    def test_live_send_uses_backend_token_and_gmail_api(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Allow-listed recipient + live + connected token ⇒ refresh + one Gmail
+        API send, returning the Gmail message id and dry_run_applied=False."""
+        monkeypatch.setenv("CAPABILITY_LAYER_MODE", "live")
+        monkeypatch.setenv("GOOGLE_CLIENT_ID", "cid.apps.googleusercontent.com")
+        monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "secret")
+        monkeypatch.setattr(
+            "ss_agents.tools.backend_client.fetch_gmail_token",
+            lambda _e: {"refreshToken": "rt-123", "accessToken": "at-old", "scope": "gmail.send"},
+        )
+
+        posted: list[dict[str, object]] = []
+
+        class _Resp:
+            def __init__(self, status: int, payload: dict[str, object]) -> None:
+                self.status_code = status
+                self._payload = payload
+                self.text = str(payload)
+
+            def json(self) -> dict[str, object]:
+                return self._payload
+
+        def _fake_post(url: str, **kwargs: object) -> _Resp:
+            posted.append({"url": url, **kwargs})
+            if url.endswith("/token"):
+                return _Resp(200, {"access_token": "at-fresh"})
+            return _Resp(200, {"id": "gmail-msg-id-1", "threadId": "t1"})
+
+        import httpx
+
+        monkeypatch.setattr(httpx, "post", _fake_post)
+        out = gmail_send_reply(_input(recipient_email="sejun@2weeks.co"))
+        assert out.dry_run_applied is False
+        assert out.message_id == "gmail-msg-id-1"
+        assert out.sent_to == "sejun@2weeks.co"
+        # Two POSTs: refresh + send; the send carried the fresh bearer token.
+        urls = [p["url"] for p in posted]
+        assert any(u.endswith("/token") for u in urls)
+        send_call = next(p for p in posted if "messages/send" in str(p["url"]))
+        assert send_call["headers"]["Authorization"] == "Bearer at-fresh"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

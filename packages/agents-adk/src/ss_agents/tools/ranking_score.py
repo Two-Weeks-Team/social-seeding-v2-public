@@ -290,15 +290,18 @@ def _default_weights() -> dict[str, float]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Live — wired in W7 (deploy phase). Today raises NotImplementedError; the
-# runtime converts that to an `EscalateToHuman` so the workflow routes to the
-# human queue rather than crashing.
+# Live — ranking is pure, deterministic math (no external dependency), so the
+# live path runs the SAME computation as the offline stub and differs only in
+# the `computed_via` audit marker. (Vector Search enrichment remains deferred;
+# the heuristic ranking is the production algorithm today.) Wiring this lets the
+# vetting agent's `ranking.score` tool succeed when CAPABILITY_LAYER_MODE=live.
 # ─────────────────────────────────────────────────────────────────────────────
 
 
 def _live(payload: RankingScoreInput) -> RankingScoreOutput:
-    """Live ranking call. Wired in W7 deploy phase."""
-    raise NotImplementedError("live mode wired in W7 deploy phase")
+    """Live ranking call — same deterministic computation as the stub, marked
+    ``computed_via="live"``."""
+    return _stub(payload).model_copy(update={"computed_via": "live"})
 
 
 # Marker — silences "unused import" if Any drops out of the public types

@@ -146,3 +146,21 @@ def fetch_user_posts(unique_id: str, count: int | None = None) -> list[dict]:
     if posts is None and isinstance(body.get("data"), dict):
         posts = body["data"].get("posts")
     return list(posts) if isinstance(posts, list) else []
+
+
+def fetch_gmail_token(email: str) -> dict:
+    """GET /api/v1/user-tokens/{email} → the connected Gmail OAuth token.
+
+    Returns the inner ``data`` object: ``{accessToken, refreshToken, expiresAt,
+    scope, ...}``. The token is populated by the reusable connect flow
+    (apps/web ``/api/auth/gmail/start`` → callback) — the same shared store v1
+    uses. Raises if the account is not connected.
+    """
+    body = _get(f"/api/v1/user-tokens/{quote(email, safe='')}")
+    data = body.get("data") if isinstance(body, dict) else None
+    if not isinstance(data, dict) or not (data.get("refreshToken") or data.get("accessToken")):
+        raise RuntimeError(
+            f"no connected Gmail token for {email!r} — connect it via "
+            "apps/web /api/auth/gmail/start first"
+        )
+    return data

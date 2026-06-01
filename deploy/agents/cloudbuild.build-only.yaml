@@ -1,0 +1,38 @@
+###############################################################################
+# Build-ONLY pipeline for ss-agents (no deploy).
+#
+# The main cloudbuild.yaml builds AND `gcloud run services replace`s at 100%
+# traffic. For a SAFE canary cutover we want build+push only, then deploy a
+# no-traffic canary by hand and verify before shifting traffic.
+#
+#   gcloud builds submit . \
+#     --config deploy/agents/cloudbuild.build-only.yaml \
+#     --project ss-v2-prod \
+#     --substitutions=_REGION=us-central1,_TAG=<tag>
+###############################################################################
+steps:
+  - id: build-agents
+    name: gcr.io/cloud-builders/docker
+    env: ["DOCKER_BUILDKIT=1"]
+    args:
+      - build
+      - --file=deploy/agents/Dockerfile
+      - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/ss-agents/agents:${_TAG}
+      - .
+  - id: push-agents
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["build-agents"]
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/ss-agents/agents:${_TAG}
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/ss-agents/agents:${_TAG}
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+timeout: 1800s
+substitutions:
+  _REGION: us-central1
+  _TAG: manual

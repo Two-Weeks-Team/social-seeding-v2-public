@@ -221,7 +221,10 @@ def build_vetting_system_prompt(payload: BaseModel) -> str:
             "",
             f"Flag rules — set EACH applicable code from this list:",
             f"  · below_engagement_floor — engagementRate < {brief.targeting.min_engagement_rate}",
-            f"  · wrong_language — creator language ∉ {{{languages}}}",
+            # Bracket set-notation (not braces): ADK's LlmAgent.instruction does
+            # `{var}` session-state injection, so a literal `{ko}` in the prompt
+            # is read as a state key and raises "Context variable not found".
+            f"  · wrong_language — creator language ∉ [{languages}]",
             "  · brand_unsafe — bio/captions show competing brands, unsafe content, or political extremes",
             "  · prior_flake — creator.priorOutcome == 'flaked' (fitScore must be ≤ 0.4 regardless)",
             "  · data_stale — profile data > 30 days old OR (signature empty AND no recent posts)",
