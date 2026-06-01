@@ -92,13 +92,20 @@ export async function runAgent<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
      * tries to parse as the agent's final output → escalate.
      */
     let hasCalledATool = false;
-    const callModel = async (): Promise<
+    const callModel = async (
+      forceFinal = false,
+    ): Promise<
       { kind: "text"; text: string } | { kind: "tool_use"; toolName: string; toolInput: unknown }
     > => {
-      const forceTool = !hasCalledATool && toolSpecs.length > 0;
+      // `forceFinal` strips the tools so the model MUST emit its final answer
+      // (used on the last turn + the reviser pass): otherwise an agent that
+      // keeps calling tools every turn burns all MAX_MODEL_TURNS and escalates
+      // with the 8-turn limit instead of producing output from what it gathered.
+      const tools = forceFinal ? [] : toolSpecs;
+      const forceTool = !forceFinal && !hasCalledATool && toolSpecs.length > 0;
       const turn = await ctx.trace.span(`llm:${def.model}`, "llm", { agent: def.id }, async (span) => {
         const t = await model.complete({
-          model: def.model, system, messages, tools: toolSpecs,
+          model: def.model, system, messages, tools,
           maxTokens: MAX_OUTPUT_TOKENS,
           ...(forceTool ? { toolChoice: "any" as const } : {}),
         });
@@ -168,7 +175,11 @@ export async function runAgent<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 
     let lastText = "";
     for (let turnNo = 0; turnNo < MAX_MODEL_TURNS; turnNo++) {
-      const raw = await callModel();
+      // Reserve the last turn for a forced finalization (no tools) so a
+      // tool-happy agent produces output from what it gathered rather than
+      // burning the turn budget and escalating.
+      const finalTurn = turnNo === MAX_MODEL_TURNS - 1;
+      const raw = await callModel(finalTurn);
       if (usd > def.maxUsd) return overCap();
 
       // If the model returned text, check whether it's a pseudo-tool-call we
@@ -176,7 +187,9 @@ export async function runAgent<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       // final assistant message.
       let r: typeof raw;
       if (raw.kind === "text") {
-        const decoded = tryDecodePseudoToolCall(raw.text);
+        // On the final (no-tools) turn, take the text as the answer — don't
+        // promote a pseudo-tool-call we could no longer satisfy.
+        const decoded = finalTurn ? null : tryDecodePseudoToolCall(raw.text);
         if (decoded && def.tools.includes(decoded.toolName)) {
           r = { kind: "tool_use", toolName: decoded.toolName, toolInput: decoded.toolInput };
           // Keep the assistant's text on the wire so the model sees its own turn,
@@ -228,7 +241,7 @@ export async function runAgent<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
           `Respond again with ONLY a single JSON object that matches the schema — no prose, no markdown fences. ` +
           `If you genuinely cannot, respond with {"escalate":"<reason>"}.`,
       });
-      const r2 = await callModel();
+      const r2 = await callModel(true); // reviser must finalize — no tools
       if (usd > def.maxUsd) return overCap();
       if (r2.kind !== "text") {
         return {
