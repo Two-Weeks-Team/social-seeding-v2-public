@@ -17,9 +17,39 @@ export type GateDecision = "approved" | "edited" | "rejected";
 export interface GateResolution<P> {
   decision: GateDecision;
   payload: P;
+  /** true when the decision came from the GateConfig.timeout fallback, not a human. */
+  timedOut?: boolean;
 }
 
-export type GateKind = "shortlist" | "outreach_send" | "reply_response" | "shipment" | "stage_advance";
+export type GateKind =
+  | "shortlist"
+  | "outreach_send"
+  | "reply_response"
+  | "shipment"
+  | "stage_advance"
+  | "content_review"
+  | "budget";
+
+/**
+ * Real (wall-clock) hours to wait so that `businessHours` weekday-hours
+ * elapse, starting from `now`. Weekend hours (Sat/Sun) don't count down, so a
+ * 24-business-hour window opened Friday afternoon lands Monday afternoon.
+ * Pure + deterministic given `now` — gate() memoizes it inside step.run so
+ * Inngest replays see a stable deadline. Returns an Inngest duration string.
+ */
+export function businessHoursTimeoutString(now: Date, businessHours: number): string {
+  let remaining = businessHours;
+  let elapsed = 0;
+  const cur = new Date(now.getTime());
+  // hard cap at 14 real days so a misconfig can't wait unboundedly
+  while (remaining > 0 && elapsed < 24 * 14) {
+    cur.setHours(cur.getHours() + 1);
+    elapsed++;
+    const day = cur.getUTCDay();
+    if (day !== 0 && day !== 6) remaining--;
+  }
+  return `${elapsed}h`;
+}
 
 export interface GateOpts<P> {
   campaignId: string;
@@ -160,13 +190,30 @@ export async function gate<P>(
   // `null == "<id>"` stored expression that never matches. Always use
   // `async.data.X` for fields from the awaited event.
   // (Live-demo lesson 2026-05-14, second iteration.)
+  // Non-blocking fallback: when the gate carries a `timeout`, wait only that
+  // many weekday-hours then resolve deterministically (operator instruction
+  // 2026-06-01). Absent → legacy hard 7-day wait that throws on expiry.
+  const timeoutStr = gateConfig.timeout
+    ? await step.run(`gate:deadline:${opts.kind}`, async () =>
+        businessHoursTimeoutString(new Date(), gateConfig.timeout!.businessHours),
+      )
+    : "7d";
+
   const resolved = await step.waitForEvent(`await-approval:${approvalId}`, {
     event: "approval/resolved",
     if: `async.data.approvalId == "${approvalId}"`,
-    timeout: "7d",
+    timeout: timeoutStr,
   });
 
-  if (!resolved) throw new ApprovalTimeoutError(approvalId, opts.kind);
+  if (!resolved) {
+    if (gateConfig.timeout) {
+      // auto_proceed → take the agent's recommendation (its answer IS the
+      // evaluation). abandon → reject and let the workflow take the no-go path.
+      const decision: GateDecision = gateConfig.timeout.onTimeout === "auto_proceed" ? "approved" : "rejected";
+      return { decision, payload: opts.recommendation, timedOut: true };
+    }
+    throw new ApprovalTimeoutError(approvalId, opts.kind);
+  }
 
   return {
     decision: resolved.data.decision,

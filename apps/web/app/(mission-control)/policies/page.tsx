@@ -152,8 +152,13 @@ function presetGatesFor(level: WorkspacePolicy["level"]): WorkspacePolicy["gates
         mode: "auto_unless",
         escalateIf: { replyClassIn: ["negotiating", "declined", "unsubscribe"] },
       },
-      approveShipment: { mode: "auto_unless", escalateIf: { followerCountGte: 1_000_000 } },
       approveStageAdvance: { mode: "auto" },
+      // The 3 required HITL gates stay always_ask even in the autonomous
+      // preset (shipment/content/budget = irreversible/brand/money), each
+      // with a non-blocking 24-business-hour timeout fallback.
+      approveShipment: { mode: "always_ask", timeout: { businessHours: 24, onTimeout: "abandon" } },
+      approveContent: { mode: "always_ask", timeout: { businessHours: 24, onTimeout: "auto_proceed" } },
+      approveBudget: { mode: "always_ask", timeout: { businessHours: 24, onTimeout: "abandon" } },
     };
   }
   // copilot + checkpointed: all gates ask. The user can still loosen
@@ -165,6 +170,8 @@ function presetGatesFor(level: WorkspacePolicy["level"]): WorkspacePolicy["gates
     approveReplyResponse: ask,
     approveShipment: ask,
     approveStageAdvance: ask,
+    approveContent: ask,
+    approveBudget: ask,
   };
 }
 

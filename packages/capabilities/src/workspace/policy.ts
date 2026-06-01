@@ -25,7 +25,7 @@ function resolveWorkspaceId(input: { workspaceId?: string }, ctx: { workspaceId:
 export const workspaceGetPolicy = defineCapability({
   name: "workspace.getPolicy",
   description:
-    "Read the workspace's autonomy policy (gates, budgets, voice). Returns the defaultPolicy (every gate always_ask, $25/$200 caps, blank voice) when nothing's been saved.",
+    "Read the workspace's autonomy policy (gates, budgets, voice). Returns the defaultPolicy (autonomous posture — 3 required HITL gates: shipment/content/budget; the rest auto/auto_unless; $25/$200 caps; blank voice) when nothing's been saved.",
   scope: "read",
   idempotent: true,
   rateLimitClass: "default",

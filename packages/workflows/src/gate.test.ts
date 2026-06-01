@@ -3,6 +3,7 @@ import type { GateConfig } from "@ss/contracts";
 import { approvalRepo, closeMongo, Collections, getDb } from "@ss/db";
 import {
   ApprovalTimeoutError,
+  businessHoursTimeoutString,
   evaluatePredicate,
   gate,
   type ApprovalResolvedData,
@@ -128,10 +129,62 @@ describe("gate() — slow paths (approval row created + step.waitForEvent)", () 
     expect(out.payload).toEqual(editedShortlist);
   });
 
-  it("timeout (waitForEvent returns null) throws ApprovalTimeoutError", async () => {
+  it("timeout (waitForEvent returns null) throws ApprovalTimeoutError when no GateConfig.timeout set", async () => {
     const { step } = fakeStep(null);
     const config: GateConfig = { mode: "always_ask" };
     await expect(gate(step, config, baseOpts)).rejects.toBeInstanceOf(ApprovalTimeoutError);
+  });
+});
+
+describe("gate() — non-blocking timeout fallback (operator instruction 2026-06-01)", () => {
+  it("onTimeout='auto_proceed' + window elapses → approved with the agent recommendation, timedOut=true", async () => {
+    const { step, log } = fakeStep(null); // null = the human never resolved
+    const config: GateConfig = { mode: "always_ask", timeout: { businessHours: 24, onTimeout: "auto_proceed" } };
+    const out = await gate(step, config, baseOpts);
+    expect(out.decision).toBe("approved");
+    expect(out.payload).toEqual(shortlistRec);
+    expect(out.timedOut).toBe(true);
+    // an approval row was still opened (the human had a chance) + a bounded wait
+    expect(log.events[0]?.name).toBe("approval/created");
+    expect(log.waits).toHaveLength(1);
+    expect(log.waits[0]?.timeout).not.toBe("7d"); // a computed business-hours window
+  });
+
+  it("onTimeout='abandon' + window elapses → rejected, timedOut=true (no external go-ahead)", async () => {
+    const { step } = fakeStep(null);
+    const config: GateConfig = { mode: "always_ask", timeout: { businessHours: 24, onTimeout: "abandon" } };
+    const out = await gate(step, config, baseOpts);
+    expect(out.decision).toBe("rejected");
+    expect(out.timedOut).toBe(true);
+  });
+
+  it("a human resolution before the window beats the fallback (timedOut stays falsy)", async () => {
+    const { step } = fakeStep({ decision: "approved" });
+    const config: GateConfig = { mode: "always_ask", timeout: { businessHours: 24, onTimeout: "abandon" } };
+    const out = await gate(step, config, baseOpts);
+    expect(out.decision).toBe("approved");
+    expect(out.timedOut).toBeUndefined();
+  });
+});
+
+describe("businessHoursTimeoutString — weekday-hours, skips weekends", () => {
+  it("24 business hours from a Monday 00:00 UTC = 24 real hours", () => {
+    // 2026-06-01 is a Monday.
+    expect(businessHoursTimeoutString(new Date("2026-06-01T00:00:00Z"), 24)).toBe("24h");
+  });
+
+  it("24 business hours opened Friday 12:00 UTC spills across the weekend", () => {
+    // 2026-06-05 is a Friday. 12 weekday-hours remain Fri → then Sat/Sun skip
+    // → finishes Monday. Elapsed real hours > 24.
+    const s = businessHoursTimeoutString(new Date("2026-06-05T12:00:00Z"), 24);
+    const hours = Number(s.replace("h", ""));
+    expect(hours).toBeGreaterThan(24);
+    expect(hours).toBe(12 + 48 + 12); // 12h Fri + 48h weekend + 12h Mon
+  });
+
+  it("is capped so a misconfigured huge window can't wait unboundedly", () => {
+    const s = businessHoursTimeoutString(new Date("2026-06-01T00:00:00Z"), 100_000);
+    expect(Number(s.replace("h", ""))).toBeLessThanOrEqual(24 * 14);
   });
 });
 

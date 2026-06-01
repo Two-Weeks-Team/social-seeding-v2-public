@@ -24,12 +24,18 @@ export const Events = {
   ReportDelivered: "report/delivered", // P4-C3 — report-deliver workflow persisted a row
   LeadCampaignSubmitted: "lead-campaign/submitted", // P5-C3 — operator submitted a lead-campaign brief
   LeadTrackStart: "lead-campaign/lead-track.start", // P5-C3 — fan out one per researched lead
+  CampaignAutopilotStart: "campaign/autopilot.start", // run the autonomous back-half (stages 3→6)
 } as const;
 export type EventName = (typeof Events)[keyof typeof Events];
 
 export const CampaignSubmittedEvent = z.object({
   name: z.literal(Events.CampaignSubmitted),
   data: z.object({ campaignId: z.string(), brief: CampaignBriefSchema }),
+});
+
+export const CampaignAutopilotStartEvent = z.object({
+  name: z.literal(Events.CampaignAutopilotStart),
+  data: z.object({ campaignId: z.string() }),
 });
 
 export const ApprovalResolvedEvent = z.object({
