@@ -101,6 +101,7 @@ interface GeminiLike {
       config?: {
         systemInstruction?: string;
         maxOutputTokens?: number;
+        thinkingConfig?: { thinkingBudget?: number; includeThoughts?: boolean };
         tools?: { functionDeclarations: { name: string; description: string; parameters: Record<string, unknown> }[] }[];
         toolConfig?: { functionCallingConfig: { mode: "AUTO" | "ANY" | "NONE" } };
       };
@@ -177,6 +178,7 @@ export function defaultModelClient(): ModelClient {
         config: {
           systemInstruction: system,
           maxOutputTokens: maxTokens,
+          thinkingConfig: { thinkingBudget: 0 },
           ...(functionDeclarations ? { tools: [{ functionDeclarations }] } : {}),
           ...(sendToolChoice ? { toolConfig: { functionCallingConfig: { mode: "ANY" as const } } } : {}),
         },
