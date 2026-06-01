@@ -124,14 +124,35 @@ export function defaultModelClient(): ModelClient {
   return {
     async complete({ model, system, messages, tools, maxTokens, toolChoice }) {
       if (!_gemini) {
-        const key = process.env.GEMINI_API_KEY;
-        if (!key) {
-          throw new Error(
-            "GEMINI_API_KEY is not set — runAgent needs it at runtime (tests should inject a fake ModelClient via ctx.model)",
-          );
+        const mod = (await import("@google/genai")) as unknown as {
+          GoogleGenAI: new (
+            o: { vertexai: true; project: string; location: string } | { apiKey: string },
+          ) => GeminiLike;
+        };
+        // D53: the product runs Gemini 3.5/3.1 on the Vertex AI `global`
+        // endpoint. In production we use Vertex (ADC — the Cloud Run runtime
+        // service account's credentials, no API key). Local dev / tests fall
+        // back to the Gemini Developer API via GEMINI_API_KEY.
+        const useVertex =
+          process.env.GOOGLE_GENAI_USE_VERTEXAI === "true" || process.env.GOOGLE_GENAI_USE_VERTEXAI === "1";
+        if (useVertex) {
+          const project = process.env.GOOGLE_CLOUD_PROJECT;
+          if (!project) {
+            throw new Error(
+              "GOOGLE_GENAI_USE_VERTEXAI is set but GOOGLE_CLOUD_PROJECT is missing — Vertex (D53 global) needs the project id",
+            );
+          }
+          const location = process.env.GOOGLE_CLOUD_LOCATION ?? "global";
+          _gemini = new mod.GoogleGenAI({ vertexai: true, project, location });
+        } else {
+          const key = process.env.GEMINI_API_KEY;
+          if (!key) {
+            throw new Error(
+              "GEMINI_API_KEY is not set — runAgent needs it at runtime (set GOOGLE_GENAI_USE_VERTEXAI=true for Vertex, or inject a fake ModelClient via ctx.model in tests)",
+            );
+          }
+          _gemini = new mod.GoogleGenAI({ apiKey: key });
         }
-        const mod = (await import("@google/genai")) as unknown as { GoogleGenAI: new (o: { apiKey: string }) => GeminiLike };
-        _gemini = new mod.GoogleGenAI({ apiKey: key });
       }
       const functionDeclarations = tools.length
         ? tools.map((t) => ({ name: encodeToolName(t.name), description: t.description, parameters: t.inputSchema }))
