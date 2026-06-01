@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>social-seeding-v2 — 신규 팀원 마스터 온보딩 (간략→중간→상세)</title>
+<style>
+  :root{
+    --bg:#0b1020; --panel:#141b30; --panel2:#1b2440; --ink:#e8edf7; --muted:#9aa7c7;
+    --line:#2a3656; --accent:#5b9dff; --ok:#34d399; --warn:#fbbf24; --gem:#a78bfa; --rose:#fb7185;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#0b1020,#0d1426);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;line-height:1.6}
+  .wrap{max-width:1120px;margin:0 auto;padding:44px 26px 110px}
+  header.h{text-align:center;margin-bottom:30px}
+  header.h h1{font-size:28px;margin:0 0 8px;letter-spacing:-.02em}
+  header.h .sub{color:var(--muted);font-size:14.5px}
+  .badges{margin-top:13px;display:flex;gap:7px;justify-content:center;flex-wrap:wrap}
+  .badge{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:12px;color:var(--muted)}
+  .badge b{color:var(--ok)}
+  .tierbar{display:flex;gap:10px;margin:22px 0 8px;flex-wrap:wrap}
+  .tiertab{flex:1;min-width:240px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 16px}
+  .tiertab .n{font-size:12px;color:var(--muted)} .tiertab .t{font-weight:700;font-size:15px;margin:2px 0}
+  .tiertab.t1{border-left:4px solid var(--ok)} .tiertab.t2{border-left:4px solid var(--accent)} .tiertab.t3{border-left:4px solid var(--gem)}
+  .tiertab a{color:#cdd6ee;text-decoration:none} .tiertab a:hover{color:var(--accent)}
+  nav.toc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 20px;margin:14px 0 26px;font-size:13px;columns:2;column-gap:30px}
+  nav.toc a{color:#cdd6ee;text-decoration:none;display:block;padding:2px 0} nav.toc a:hover{color:var(--accent)}
+  .tierhdr{margin:46px 0 6px;padding:10px 16px;border-radius:10px;font-weight:800;font-size:18px}
+  .tierhdr.t1{background:rgba(52,211,153,.10);border:1px solid rgba(52,211,153,.35);color:#bdf3da}
+  .tierhdr.t2{background:rgba(91,157,255,.10);border:1px solid rgba(91,157,255,.35);color:#cfe0ff}
+  .tierhdr.t3{background:rgba(167,139,250,.10);border:1px solid rgba(167,139,250,.35);color:#ddd2fb}
+  section{margin:26px 0;scroll-margin-top:16px}
+  h2{font-size:20px;border-left:4px solid var(--accent);padding-left:11px;margin:0 0 13px}
+  h3{font-size:15.5px;color:var(--accent);margin:20px 0 7px}
+  h4{font-size:13.5px;color:var(--gem);margin:15px 0 5px}
+  p{color:#cdd6ee}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:18px 20px;margin:13px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:13px} @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .gem{color:var(--gem)} .ok{color:var(--ok)} .warn{color:var(--warn)} .rose{color:var(--rose)} .mut{color:var(--muted)}
+  code,pre{font-family:var(--mono)}
+  pre{background:#0a0f1f;border:1px solid var(--line);border-radius:9px;padding:13px 15px;overflow:auto;font-size:12px;color:#d7e0f7;white-space:pre}
+  pre .c{color:#6b7aa3} pre .ok{color:var(--ok)} pre .v{color:var(--warn)}
+  p code,li code,td code{background:var(--panel2);padding:1px 6px;border-radius:5px;font-size:11.5px;color:#cfe0ff}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:7px}
+  th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:11.5px}
+  .flow{display:flex;flex-direction:column;gap:0;margin:8px 0}
+  .stage{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 16px}
+  .stage .t{font-weight:700;font-size:14px} .stage .d{color:var(--muted);font-size:12.5px;margin-top:3px}
+  .arrow{align-self:center;color:var(--accent);font-size:18px;margin:4px 0}
+  .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:10.5px;font-weight:700}
+  .pill.live{background:rgba(52,211,153,.14);color:var(--ok);border:1px solid rgba(52,211,153,.4)}
+  .pill.stub{background:rgba(155,167,199,.14);color:var(--muted);border:1px solid rgba(155,167,199,.4)}
+  .pill.gate{background:rgba(251,191,36,.14);color:var(--warn);border:1px solid rgba(251,191,36,.4)}
+  .callout{border-left:4px solid var(--warn);background:rgba(251,191,36,.07);border-radius:0 9px 9px 0;padding:11px 15px;margin:13px 0;font-size:13px}
+  .callout.danger{border-left-color:var(--rose);background:rgba(251,113,133,.08)}
+  .callout.ok{border-left-color:var(--ok);background:rgba(52,211,153,.07)}
+  .step{counter-increment:step;margin:11px 0;padding-left:38px;position:relative;font-size:13.5px}
+  .step::before{content:counter(step);position:absolute;left:0;top:0;width:26px;height:26px;border-radius:50%;
+    background:var(--accent);color:#06101f;font-weight:800;display:grid;place-items:center;font-size:13px}
+  .runbook{counter-reset:step}
+  .note{font-size:12.5px;color:var(--muted);border-top:1px dashed var(--line);margin-top:28px;padding-top:13px}
+  a{color:var(--accent)}
+  .anchor{display:block;position:relative;top:-12px;visibility:hidden}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="h">
+    <h1>social-seeding-v2 — 마스터 온보딩 매뉴얼</h1>
+    <div class="sub">신규 팀원이 <b>무엇이든 이해</b>할 수 있도록 · 간략(5분) → 중간(30분) → 상세(레퍼런스) · 에이전트별 전수 · 2026-06-01</div>
+    <div class="badges">
+      <span class="badge">22 ADK 에이전트 · 11 TS 에이전트</span>
+      <span class="badge">Gemini <b>3.5/3.1</b> · Vertex global</span>
+      <span class="badge">A2A <b>v0.3</b></span>
+      <span class="badge">Cloud Run · MongoDB Atlas</span>
+    </div>
+  </header>
+
+  <div class="tierbar">
+    <div class="tiertab t1"><div class="n">TIER 1 · 5분</div><div class="t"><a href="#t1">간략 — 이게 뭐고 어떻게 돌리나</a></div><div class="mut" style="font-size:12px">정의 · 루프 · 두 스택 · 3대 법칙 · 빠른 시작</div></div>
+    <div class="tiertab t2"><div class="n">TIER 2 · 30분</div><div class="t"><a href="#t2">중간 — 전체 그림</a></div><div class="mut" style="font-size:12px">아키텍처 · 루프 워크스루 · 에이전트 로스터 · 게이트 · 데이터 · 챌린지경로 · 셋업</div></div>
+    <div class="tiertab t3"><div class="n">TIER 3 · 레퍼런스</div><div class="t"><a href="#t3">상세 — 놓치는 것 없이</a></div><div class="mut" style="font-size:12px">에이전트 전수 · capability · DB+인덱스 · 워크플로 · 런타임 내부 · A2A · D1-53 · 트러블슈팅</div></div>
+  </div>
+
+  <nav class="toc">
+    <a href="#t1">▸ TIER 1 간략</a>
+    <a href="#t2">▸ TIER 2 중간</a>
+    <a href="#t2-arch">2.1 아키텍처 (두 스택)</a>
+    <a href="#t2-loop">2.2 6단계 루프 워크스루</a>
+    <a href="#t2-roster">2.3 에이전트 로스터</a>
+    <a href="#t2-gates">2.4 자율성 / 정책 게이트</a>
+    <a href="#t2-data">2.5 데이터 모델 요약</a>
+    <a href="#t2-challenge">2.6 챌린지 경로 (GCP)</a>
+    <a href="#t2-setup">2.7 제로부터 셋업 요약</a>
+    <a href="#t2-honest">2.8 stub/live 정직성</a>
+    <a href="#t3">▸ TIER 3 상세</a>
+    <a href="#t3-adk">3.1 ADK 22 에이전트 전수</a>
+    <a href="#t3-ts">3.2 TS 11 에이전트 전수</a>
+    <a href="#t3-cap">3.3 Capability 카탈로그</a>
+    <a href="#t3-db">3.4 데이터 모델 + 인덱스 전수</a>
+    <a href="#t3-wf">3.5 워크플로 인벤토리</a>
+    <a href="#t3-mc">3.6 Mission Control 라우트</a>
+    <a href="#t3-runtime">3.7 런타임 내부 (genai-safe)</a>
+    <a href="#t3-a2a">3.8 A2A v0.3 프로토콜</a>
+    <a href="#t3-dec">3.9 결정 D1–D53</a>
+    <a href="#t3-deploy">3.10 배포 토폴로지</a>
+    <a href="#t3-trouble">3.11 트러블슈팅</a>
+    <a href="#t3-laws">3.12 하드법칙 + 위생</a>
+    <a href="#t3-pointers">3.13 더 깊이 — 파일 포인터</a>
+  </nav>
+
+  <div class="callout">짝 문서: <b>제로부터 재현/배포 런북</b> → <code>claudedocs/2026-06-01-onboarding-zero-to-reproduce.html</code> · <b>작동방식+라이브 증거</b> → <code>claudedocs/2026-06-01-gcp-operations-manual.html</code>. 본 문서는 그 둘을 포함하는 마스터(개념+에이전트 전수).</div>
+
+  <!-- ================= TIER 1 ================= -->
+  <span class="anchor" id="t1"></span>
+  <div class="tierhdr t1">TIER 1 — 간략 (5분이면 전체를 말할 수 있다)</div>
+
+  <section>
+    <h2>한 문장</h2>
+    <div class="card">
+      <p><b>사람이 브랜드 브리프 1개를 주면, 에이전트 fleet가 TikTok 인플루언서 캠페인 루프(소싱→심사→발송→답장→배송→검증→리포트)를 자율로 운영하고, 사람은 직접 켜둔 정책 게이트에서만 개입하는 시스템.</b> 동시에 이것은 (1) v1의 v2 재작성이자 (2) Google for Startups AI Agents Challenge Track-3 단일 제출물(마감 <span class="warn">2026-06-05 17:00 PT</span>).</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>6단계 루프</h2>
+    <div class="flow">
+      <div class="stage"><div class="t">① 소싱 source</div><div class="d">브리프 → TikTok 크리에이터 후보 (sourcing 에이전트)</div></div>
+      <div class="arrow">↓</div>
+      <div class="stage"><div class="t">② 심사 vet</div><div class="d">후보별 실 팔로워/조회수 + 브랜드 적합도 점수 (vetting) · <span class="pill gate">approveShortlist</span></div></div>
+      <div class="arrow">↓</div>
+      <div class="stage"><div class="t">③ 발송 outreach</div><div class="d">근거기반 아웃리치 메일 작성 (outreach-writer) → <span class="pill gate">approveOutreachSend</span> → Gmail 실발송</div></div>
+      <div class="arrow">↓</div>
+      <div class="stage"><div class="t">④ 답장 reply</div><div class="d">수신 답장 분류(conversation) → 응답 작성(responder) → Gmail 답장. 협상은 항상 사람.</div></div>
+      <div class="arrow">↓</div>
+      <div class="stage"><div class="t">⑤ 배송 ship</div><div class="d">주소 파싱(logistics) → 배송 생성 → <span class="pill gate">approveShipment</span> → 캐리어 추적</div></div>
+      <div class="arrow">↓</div>
+      <div class="stage"><div class="t">⑥ 검증 verify → 리포트 report</div><div class="d">게시물 탐지 → 콘텐츠 검증(content-verify) → 성과 리포트(analyst)</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>두 스택 (헷갈리지 말 것)</h2>
+    <div class="grid2">
+      <div class="card"><h4>TS 제품 스택 (로컬 루프 · 제품 기반)</h4>
+        <p style="font-size:13px"><b>11개 TS 제품 에이전트</b>(<code>packages/agents</code>, <code>@google/genai</code>) ← <b>Inngest 워크플로</b>(<code>packages/workflows</code>)가 함수로 호출. I/O는 <b>capabilities</b>(<code>packages/capabilities</code>)로만. DB는 <b>MongoDB Atlas</b>(<code>packages/db</code>). UI는 <b>Next 16 Mission Control</b>(<code>apps/web</code>).</p></div>
+      <div class="card"><h4>Python 챌린지 스택 (GCP 배포 · 심사 surface)</h4>
+        <p style="font-size:13px"><b>22개 ADK 에이전트</b>(<code>packages/agents-adk</code>, Vertex AI) ← <b>Cloud Workflow</b>가 <code>serve.py</code> 호출 → <b>A2A v0.3</b>로 OSS <code>tiktok-mcp-server</code>(<code>ss-mcp</code>)와 통신. <b>22 ADK ≠ 11 TS</b> — 다른 런타임·언어.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>3대 하드법칙 (어기면 조용히 제출이 깨짐)</h2>
+    <div class="card">
+      <table>
+        <tr><th>법칙</th><th>내용</th></tr>
+        <tr><td><b>모델 (D53)</b></td><td>Gemini <code>3.5-flash</code>(판단/coordinator) · <code>3.1-flash-lite</code>(대량)만. <span class="rose">2.5·*-pro·Claude 금지</span>. 엔드포인트 <b>Vertex global</b>(us-central1은 3.x에 404).</td></tr>
+        <tr><td><b>배포 격리</b></td><td>신규 프로젝트 <code>ss-v2-prod</code>/<code>ss-mcp-prod</code>/<code>ss-shared-infra</code>만. <span class="rose">v1 백엔드(:8080)·그 .env 무접속</span>.</td></tr>
+        <tr><td><b>정직성</b></td><td>stub/live 경계를 <code>HONEST-SCOPE.md</code>에 정직 기재. stub을 live로 주장 금지. 공유 Atlas는 read/additive-only.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>빠른 시작 (로컬, 4개 명령)</h2>
+    <pre>pnpm install                                   <span class="c"># Node 22 · pnpm 10.18.2</span>
+pnpm run dev-mongo                             <span class="c"># 인메모리 Mongo :27027 (별도 터미널)</span>
+pnpm exec tsx scripts/init-indexes.ts          <span class="c"># v2_* 인덱스</span>
+pnpm --filter @ss/web dev                       <span class="c"># Mission Control :3000</span>
+<span class="c"># (+ npx inngest-cli@latest dev  — :8288 워크플로 엔진)</span></pre>
+    <p style="font-size:13px">게이트(커밋 전): <code>pnpm run verify-build</code> · <code>pnpm test</code> · <code>cd packages/agents-adk &amp;&amp; pytest -q</code>. 상세 셋업은 <a href="#t2-setup">2.7</a> / 재현 런북 문서.</p>
+  </section>
+
+  <!-- ================= TIER 2 ================= -->
+  <span class="anchor" id="t2"></span>
+  <div class="tierhdr t2">TIER 2 — 중간 (30분이면 전체 구조가 손에 잡힌다)</div>
+
+  <section id="t2-arch">
+    <h2>2.1 아키텍처 — 두 스택 한 화면</h2>
+    <pre><span class="c"># TS 제품 루프:</span>
+Mission Control (apps/web, Next 16)  ⇄  Inngest 워크플로 (packages/workflows)
+   ⇄ 에이전트 (packages/agents — Gemini; 함수: 큐레이션 tool·Zod 출력·USD cap·escalation)
+   ⇄ capabilities (packages/capabilities — typed fn, 유일한 I/O 경계)
+   ⇄ Mongo (packages/db — 공유 v1 클러스터 DB <span class="ok">instarsearch</span> + v2_* 컬렉션)
+   + observability(trace·cost ledger) + contracts(Zod, 경계 넘는 shape의 SSOT)
+
+<span class="c"># 배포된 상시 루프 (G2/G3, 라이브 — 자가호스팅 Inngest):</span>
+campaign submit (ss-v2-web, Cloud Run)
+   ──(Direct VPC egress, 사설)──▶ <span class="ok">Inngest 엔진 VM</span> (ss-inngest, 10.128.0.2:8288, docker inngest start)
+   ◀── 함수 실행 콜백 (engine→ /api/inngest): brand-campaign·creator-track·lead·autopilot·5 crons
+   에이전트 추론 ──▶ <span class="ok">Vertex AI</span> (Gemini 3.5/3.1, global, ADC·키불요)
+   실증: submit → sourcing→vetting→approveShortlist 자율통과→3 트랙→outreach
+
+<span class="c"># 챌린지 경로 (GCP 배포):</span>
+brand-campaign Cloud Workflow → coordinator(gemini-3.5, Vertex global) → 22-ADK fleet (serve.py)
+   ── A2A v0.3 message:send ──▶ OSS tiktok-mcp-server (ss-mcp, 크리에이터 소싱 + 브랜드자산)</pre>
+    <p style="font-size:13px"><b>모노레포</b>: JIT 내부패키지(각 <code>packages/*</code>의 <code>exports</code>가 <code>src/*.ts</code> 직결, 패키지별 빌드 없음). <code>apps/web</code>는 Next <code>transpilePackages</code>로 소비. <code>turbo</code>가 lint/type-check/test/next build 그래프 조율. <code>contracts</code>(Zod)는 경계 넘는 모든 shape의 단일 진실원.</p>
+  </section>
+
+  <section id="t2-loop">
+    <h2>2.2 6단계 루프 워크스루 (브리프 입력 → 리포트)</h2>
+    <div class="card">
+      <p style="font-size:13px"><b>진입</b>: <code>POST /api/campaigns</code> → 세션 인증 + <code>promptGuard</code> + <code>workspaceId</code>/<code>createdBy</code>를 세션에 고정(body 불신) → 초안 저장 → <code>inngest.send(campaign/submitted)</code>. 이후는 durable 워크플로가 소유. 루프는 <b>3개 durable 함수</b>로 분할: <code>brand-campaign</code>(1-2단계+fan-out), <code>creator-track</code>(크리에이터별 3-5단계), <code>campaign-autopilot</code>(자율 3→6 배치) + 크론들이 수명주기 마감.</p>
+      <table>
+        <tr><th>단계</th><th>트리거 / 함수</th><th>에이전트</th><th>DB read/write</th><th>게이트</th></tr>
+        <tr><td>① overview</td><td><code>campaign/submitted</code> → brand-campaign</td><td>—</td><td>v2_workspace_policies(r) · v2_campaigns.stage(w)</td><td>—</td></tr>
+        <tr><td>② sourcing+vet</td><td>brand-campaign</td><td>sourcing → vetting(후보별 fan-out, Promise.all)</td><td>v2_campaigns.tracks(w) · accounts_tiktok.contactEmail(additive r)</td><td><span class="pill gate">approveShortlist</span> auto_unless fit&lt;0.4</td></tr>
+        <tr><td>③ outreach</td><td><code>creator-track.start</code>(크리에이터별) → creator-track</td><td>outreach-writer(토너먼트)</td><td>v2_campaigns.tracks(w) · v2_outbox(w)</td><td><span class="pill gate">approveOutreachSend</span> auto_unless spam≥5 → gmail.send</td></tr>
+        <tr><td>④ reply</td><td><code>waitForEvent(gmail/reply.received, 3d)</code></td><td>conversation(분류) → conversation-responder(작성)</td><td>v2_outbox(r threadId조인) · v2_suppression_list</td><td>negotiating은 <b>항상 always_ask</b> · approveReplyResponse</td></tr>
+        <tr><td>⑤ shipping</td><td>runShippingAndContentReview · <code>waitForEvent(shipment/tracking.updated, 14d)</code></td><td>logistics(주소파싱→shipment.create)</td><td>v2_shipments(w)</td><td><span class="pill gate">approveShipment</span> always_ask(기본)</td></tr>
+        <tr><td>⑥ content_review</td><td><code>waitForEvent(tiktok/post.detected, 14d)</code></td><td>content-verify</td><td>v2_campaigns.tracks.content(w)</td><td>(approveContent은 autopilot에)</td></tr>
+        <tr><td>⑥ performance/report</td><td>campaign-progression(cron) → <code>report/deliver.request</code> → report-deliver</td><td>analyst(서사화, 숫자 재계산 안 함)</td><td>analytics.compile → v2_reports(w)</td><td>—</td></tr>
+      </table>
+    </div>
+    <div class="callout"><b>Inngest 핵심 교훈</b>: <code>waitForEvent.if</code>에서 awaited 이벤트 필드는 <code>async.data.X</code>로 참조(트리거 이벤트 <code>event.data.X</code>는 wait 생성 시점에 null로 평가되어 매칭 안 됨). 배송 wait의 <code>if</code>는 terminal 상태(delivered|cancelled|failed|returned)로 필터해야 in-transit 이벤트가 wait를 조기 해소 안 함.</div>
+  </section>
+
+  <section id="t2-roster">
+    <h2>2.3 에이전트 로스터 (요약 — 전수는 <a href="#t3-adk">3.1</a>/<a href="#t3-ts">3.2</a>)</h2>
+    <h3>Python ADK fleet — <b>22 모듈 / 24 AgentDef</b> (outreach = writer+drafter+judge)</h3>
+    <p style="font-size:12.5px" class="mut">Tier-1 도메인(16) + Tier-2 메타(coordinator·critic·optimizer) + Tier-3 워치독(anomaly·cost·security). 모델 2종만 + cost-watch는 <b>LLM 없음</b>(rule-based). <code>serve.py</code>는 <b>3개만 HTTP 라우트</b>(coordinator/sourcing/vetting), 나머지 19는 in-process+CI 테스트.</p>
+    <table>
+      <tr><th>Tier</th><th>에이전트</th></tr>
+      <tr><td>T1 도메인</td><td>intake · sourcing · vetting · outreach-writer(+drafter+judge) · lead-outreach-writer · conversation · conversation-responder · logistics · payment_mandate · content-verify · a11y · creative · analyst · research · compliance · customer_success</td></tr>
+      <tr><td>T2 메타</td><td>coordinator(라우팅) · critic(LLM-judge) · optimizer(프롬프트 튜닝, PR로만)</td></tr>
+      <tr><td>T3 워치독</td><td>anomaly-watch · cost-watch(<span class="rose">no LLM</span>) · security_watch</td></tr>
+    </table>
+    <h3>TS 제품 에이전트 — <b>11</b> (Inngest 루프가 호출)</h3>
+    <table>
+      <tr><th>#</th><th>id</th><th>모델</th><th>maxUsd</th><th>tools</th><th>호출 워크플로</th></tr>
+      <tr><td>1</td><td>intake</td><td>3.5</td><td>0.20</td><td>—</td><td>campaigns/intake</td></tr>
+      <tr><td>2</td><td>sourcing</td><td>3.5</td><td>2.50</td><td>tiktok.search, blacklist.check</td><td>brand-campaign</td></tr>
+      <tr><td>3</td><td>vetting</td><td>3.1-lite</td><td>0.10</td><td>tiktok.getCreator, blacklist.check, ranking.score</td><td>brand-campaign</td></tr>
+      <tr><td>4</td><td>outreach-writer</td><td>3.5</td><td>1.50</td><td>outreach.extractFacts/judge, templates.render</td><td>creator-track</td></tr>
+      <tr><td>5</td><td>conversation</td><td>3.1-lite</td><td>0.02</td><td>—</td><td>creator-track, lead-track</td></tr>
+      <tr><td>6</td><td>conversation-responder</td><td>3.5</td><td>1.00</td><td>outreach.judge, templates.render</td><td>creator-track, lead-track</td></tr>
+      <tr><td>7</td><td>logistics</td><td>3.1-lite</td><td>0.05</td><td>shipment.create</td><td>creator-track</td></tr>
+      <tr><td>8</td><td>content-verify</td><td>3.1-lite</td><td>0.05</td><td>—</td><td>creator-track</td></tr>
+      <tr><td>9</td><td>analyst</td><td>3.1-lite</td><td>0.10</td><td>—</td><td>report-deliver</td></tr>
+      <tr><td>10</td><td>research</td><td>3.1-lite</td><td>0.10</td><td>—</td><td>lead-campaign</td></tr>
+      <tr><td>11</td><td>lead-outreach-writer</td><td>3.5</td><td>1.20</td><td>outreach.judge, templates.render</td><td>lead-track</td></tr>
+    </table>
+    <div class="callout">동일 역할이라도 <b>두 스택의 모델 배정이 다를 수 있음</b>(예: vetting — TS는 3.1-lite, ADK는 3.5). 같은 에이전트가 아니라 다른 런타임의 별도 구현임을 기억.</div>
+  </section>
+
+  <section id="t2-gates">
+    <h2>2.4 자율성 / 정책 게이트 — 루프를 안전하게 만드는 것</h2>
+    <div class="card">
+      <p style="font-size:13px"><b>기본 정책 = autonomous</b>. 사람은 정확히 <b>3개 게이트</b>(되돌릴 수 없거나·돈·브랜드리스크)에서만 개입, 각각 <b>24영업시간 non-blocking 타임아웃</b>:</p>
+      <table>
+        <tr><th>게이트</th><th>모드</th><th>타임아웃</th></tr>
+        <tr><td>approveShipment (실물 발송)</td><td>always_ask</td><td>abandon (미승인 시 안전하게 미발송)</td></tr>
+        <tr><td>approveContent (게시 검증)</td><td>always_ask</td><td>auto_proceed (verify 에이전트 신뢰)</td></tr>
+        <tr><td>approveBudget (예산)</td><td>always_ask</td><td>abandon</td></tr>
+        <tr><td>approveShortlist</td><td>auto_unless</td><td>fitScore&lt;0.4 시만 사람</td></tr>
+        <tr><td>approveOutreachSend</td><td>auto_unless</td><td>spamScore≥5 시만 사람</td></tr>
+        <tr><td>approveReplyResponse</td><td>auto_unless</td><td>replyClass∈{negotiating,negative,unsubscribe,sensitive}</td></tr>
+        <tr><td>approveStageAdvance</td><td>auto</td><td>순수 상태전이</td></tr>
+      </table>
+      <p style="font-size:12.5px" class="mut">게이트 머신: <code>gate(step, config, opts)</code>(<code>packages/workflows/src/gate.ts</code>). 사람 필요 시 <code>v2_approvals{pending}</code> 생성 + <code>approval/created</code> emit + <code>waitForEvent(await-approval:&lt;id&gt;)</code>. 운영자가 MC 승인 인박스에서 resolve → <code>approval/resolved</code> emit → wait 해소. 게이트는 절대 사람 때문에 영구 블록되지 않음(타임아웃 fallback). <code>prompt-guard</code>가 사용자 텍스트를 에이전트 프롬프트 전에 검사(주입 6패턴+4000자). 정책 변경은 <b>신규 캠페인만</b> 영향(진행 중 런은 plan 단계 스냅샷 사용).</p>
+    </div>
+  </section>
+
+  <section id="t2-data">
+    <h2>2.5 데이터 모델 요약 (전수 <a href="#t3-db">3.4</a>)</h2>
+    <p style="font-size:13px">DB명: 코드 기본값 <code>MONGODB_DB=social_seeding</code>이나 <b>실 v1 프로덕션 클러스터의 DB는 <span class="ok">instarsearch</span></b>(자체호스팅 replica set `rs0`, 레거시 "instar search" 제품). 공유 클러스터 붙일 땐 반드시 <code>MONGODB_DB=instarsearch</code>(아니면 유저 권한 밖이라 `Unauthorized`로 전 크리에이터 드롭). v2는 <code>v2_*</code>만 소유, 공유 v1 컬렉션은 read+additive. 핵심:</p>
+    <table>
+      <tr><th>컬렉션</th><th>저장</th><th>특이</th></tr>
+      <tr><td><code>v2_campaigns</code></td><td>캠페인 + 임베디드 <code>tracks[]</code>(크리에이터별 상태)</td><td>트랙은 별도 컬렉션 아니라 캠페인 내부 배열</td></tr>
+      <tr><td><code>v2_approvals</code></td><td>승인 인박스 체크포인트(8종)</td><td>게이트가 생성, 웹이 resolve</td></tr>
+      <tr><td><code>v2_outbox</code></td><td>gmail.send 멱등 + 스케줄 + threadId 조인</td><td>idempotencyKey unique → 이중발송 방지</td></tr>
+      <tr><td><code>v2_shipments</code></td><td>배송 + 캐리어 타임라인</td><td>creatorTrackId unique → 동시생성 race guard</td></tr>
+      <tr><td><code>v2_cost_ledger</code> / <code>v2_agent_traces</code></td><td>LLM 호출당 비용 / 런당 trace</td><td>1년 TTL (Date 필드)</td></tr>
+      <tr><td><code>v2_reports</code> · <code>v2_leads</code> · <code>v2_lead_campaigns</code> · <code>v2_suppression_list</code> · <code>v2_workspace_policies</code> · <code>v2_gmail_watches</code></td><td>리포트 · B2B 리드 · 정책 · 억제목록 · gmail watch</td><td>—</td></tr>
+    </table>
+  </section>
+
+  <section id="t2-challenge">
+    <h2>2.6 챌린지 경로 (GCP) — hop by hop</h2>
+    <pre>브랜드 브리프
+  → brand-campaign-demo Cloud Workflow      (ss-v2-prod, us-central1)
+  → POST /coordinator on ss-agents          (Cloud Run, gemini-3.5, Vertex global, OIDC)
+  → 워크플로 switch (coordinator가 어느 에이전트가 소싱할지 결정)
+  → POST /v1/message:send on ss-mcp-server  (A2A v0.3, ss-mcp-prod, OIDC aud=base URL)
+  → ss-mcp ADK 랭커(searcher 3.1-lite → ranker 3.5) → 5 RankedCreators ↩</pre>
+    <p style="font-size:12.5px" class="mut">URL 하드코딩 없음(D42, args map/env fallback). Workflow→ss-agents는 OIDC(run.invoker). Workflow→ss-mcp는 OIDC(aud=ss-mcp <b>base</b> URL — path 아님; PR #41이 이 드리프트 수정). ss-mcp는 <code>REQUIRE_AUTH=true</code>(미인증 message:send→401), 서명 agent card(JWS ES256, KMS-held) + 공개 JWKS. 실증 exec <code>a36befd0</code> SUCCEEDED.</p>
+  </section>
+
+  <section id="t2-setup">
+    <h2>2.7 제로부터 셋업 (요약 — 전체는 재현 런북 문서)</h2>
+    <div class="grid2">
+      <div class="card"><h4>로컬 (①②만 있으면 됨)</h4>
+        <p style="font-size:12.5px">툴체인(Node22·pnpm10.18.2·Python3.12·uv) → <code>pnpm install</code> + <code>uv pip install -e ".[dev]"</code> → <code>.env.local</code>(MONGODB_URI·AUTH_SECRET·GOOGLE_CLIENT_*·GEMINI_API_KEY·BACKEND_DASHBOARD_*) → <code>dev-mongo</code> + <code>init-indexes</code> + web dev + inngest dev. 실 Google 없으면 <code>AUTH_TEST_LOGIN_ENABLED=true</code>.</p></div>
+      <div class="card"><h4>클라우드 (web 배포 — 검증된 경로)</h4>
+        <p style="font-size:12.5px">프로젝트 부트스트랩(API enable + AR repo) → 시크릿(<code>web-auth-secret</code>·<code>mongodb-uri</code>·<code>google-oauth-*</code>·<code>backend-dashboard-*</code>) + 런타임 SA accessor → 이미지 빌드(<code>cloudbuild.build-only.yaml</code>) → <code>gcloud run deploy ss-v2-web --image … --set-secrets …</code> → 도메인 매핑 + OAuth redirect 등록.</p></div>
+    </div>
+    <div class="callout ok"><b>MongoDB 3택</b>: 인메모리(<code>pnpm run dev-mongo</code>, 무권한 로컬) / 본인 Atlas dev(M0 무료) / 공유 Atlas(운영자 URI, prod 주의). 클라우드는 <code>mongodb-uri</code> 시크릿으로 배선. DB명은 항상 <code>social_seeding</code>. 22개 인덱스는 <code>init-indexes.ts</code>가 idempotent 생성. 상세 단계·인덱스표·트러블슈팅은 <code>2026-06-01-onboarding-zero-to-reproduce.html</code>.</div>
+  </section>
+
+  <section id="t2-honest">
+    <h2>2.8 stub/live 정직성 (HONEST-SCOPE)</h2>
+    <p style="font-size:13px"><code>scripts/demo/submission/HONEST-SCOPE.md</code>가 live-vs-stub의 <b>단일 진실원</b>(다른 문서와 충돌 시 이 파일이 이김). 16행 → <b>7 demonstrated-live · 6 GA-real · 1 Google-Preview · 2 split</b>.</p>
+    <div class="grid2">
+      <div class="card"><h4 class="ok">실제 라이브 실행됨</h4><p style="font-size:12px">A2A v0.3 cross-call(라이브 Cloud Workflow 내) · Cloud Workflow SUCCEEDED · ss-mcp ADK 랭킹(실 Gemini) · 서명 카드(JWS ES256, KMS) · Model Garden 라우팅 · Gemini Enterprise 등록 · Google Search grounding · <b>6단계 루프 7/7 OutcomeOk</b>(Vertex global+실 TikTok 4.3M+실 Gmail 도착).</p></div>
+      <div class="card"><h4 class="warn">stub/Google-gated (live 주장 금지)</h4><p style="font-size:12px">ADK 도구 중 <b>실제 live는 3개뿐</b>: <code>rapidapi_get_user_info</code>·<code>gmail_send_reply</code>·<code>a2a_invoke</code>(모두 <code>backend.socialseed.ing</code> 프록시/실 A2A). 나머지 ~47개 도구의 <code>_live</code>는 <code>NotImplementedError</code>(W7). Agent Gateway mTLS는 선언만(O7 Private Preview). Imagen/carrier는 stub.</p></div>
+    </div>
+  </section>
+
+  <!-- ================= TIER 3 ================= -->
+  <span class="anchor" id="t3"></span>
+  <div class="tierhdr t3">TIER 3 — 상세 (레퍼런스 · 놓치는 것 없이)</div>
+
+  <section id="t3-adk">
+    <h2>3.1 ADK 22 에이전트 전수 (<code>packages/agents-adk/src/ss_agents/agents/</code>)</h2>
+    <p style="font-size:12.5px" class="mut">정확히 <b>22 모듈 / 24 AgentDef</b>(outreach 모듈 = writer+drafter+judge). 카운트는 <code>agents/*.py</code> glob(밑줄 제외)로(<code>__init__.py</code> export 아님). 모델 2종 + cost-watch는 <code>none-rule-based</code> 센티넬(LLM 없음). 런타임이 live ADK 경로에서 <code>id.replace("-","_")</code>로 이름 정규화(ADK는 하이픈 거부). <code>run_agent</code>는 유일한 LLM 호출지점, 절대 raise 안 함(전부 OutcomeOk|Escalation).</p>
+    <table>
+      <tr><th>#</th><th>id(sanitized)</th><th>단계</th><th>모델</th><th>max_usd</th><th>도구</th><th>I/O / 비고</th></tr>
+      <tr><td>1</td><td>intake</td><td>source/intake</td><td>3.1-lite</td><td>0.20</td><td>forms_upsert</td><td>IntakeInput→Asking|Done(brief)</td></tr>
+      <tr><td>2</td><td>sourcing <span class="pill live">routed</span></td><td>source</td><td>3.5</td><td>2.50</td><td>rapidapi_tiktok_search, (instagram*), blacklist_check, vector_search_creator</td><td>fitScore 미기재(vetting이 채움). honesty contract.</td></tr>
+      <tr><td>3</td><td>vetting <span class="pill live">routed</span></td><td>vet</td><td>3.5</td><td>0.03</td><td>rapidapi_get_user_info, ranking_score</td><td>fitScore·flags·matchReasons·recommended_action</td></tr>
+      <tr><td>4</td><td>outreach-writer</td><td>outreach</td><td>3.5</td><td>0.10</td><td>templates_list, outreach_extract_facts, outreach_render</td><td>토너먼트(angles×judges) → winner</td></tr>
+      <tr><td>4a</td><td>outreach-drafter</td><td>outreach(sub)</td><td>3.5</td><td>0.02</td><td>—</td><td>토너먼트 내부 초안</td></tr>
+      <tr><td>4b</td><td>outreach-judge</td><td>outreach(sub)</td><td>3.5</td><td>0.005</td><td>—</td><td>토너먼트 내부 채점</td></tr>
+      <tr><td>5</td><td>lead-outreach-writer</td><td>outreach(B2B)</td><td>3.5</td><td>0.05</td><td>crm_enrich</td><td>cold-sales 1통, self-score</td></tr>
+      <tr><td>6</td><td>conversation</td><td>reply(분류)</td><td>3.1-lite</td><td>0.02</td><td>gmail_thread_classify, memory_bank_search</td><td>8분류, 절대 작성 안 함</td></tr>
+      <tr><td>7</td><td>conversation-responder</td><td>reply(작성)</td><td>3.5</td><td>0.05</td><td>gmail_send_reply, memory_bank_search</td><td>실 Gmail 발송(gateable live)</td></tr>
+      <tr><td>8</td><td>logistics</td><td>ship</td><td>3.1-lite</td><td>0.05</td><td>address_normalize, carrier_create</td><td>주소파싱→Shipment|escalate</td></tr>
+      <tr><td>9</td><td>payment_mandate</td><td>ship/pay</td><td>3.1-lite</td><td>0.01</td><td>ap2_compose_intent_mandate, gate_approveOutreachSend</td><td>AP2 Intent <b>초안만</b>, 절대 서명 안 함(D27)</td></tr>
+      <tr><td>10</td><td>content-verify</td><td>verify</td><td>3.1-lite</td><td>0.05</td><td>dam_get_brand_assets(+a2a_invoke)</td><td>실 A2A hop(DAM). performanceScore·flags</td></tr>
+      <tr><td>11</td><td>a11y</td><td>ship/verify</td><td>3.1-lite</td><td>0.02</td><td>vision_describe, stt_transcribe, tts_synthesize, translation_translate</td><td>WCAG 2.2 AA 산출물</td></tr>
+      <tr><td>12</td><td>creative</td><td>ship</td><td>3.5</td><td>0.30</td><td>imagen_generate, veo_generate, lyria_generate, assets_upload</td><td>크리에이티브 디렉션 패키지</td></tr>
+      <tr><td>13</td><td>analyst</td><td>report</td><td>3.5</td><td>0.20</td><td>bigquery_query, view_metrics_aggregate</td><td>리포트 서사화(숫자 재계산 안 함)</td></tr>
+      <tr><td>14</td><td>research</td><td>source/vet 지원</td><td>3.5</td><td>0.15</td><td>web_search, vector_search_competitor</td><td>grounding 기본 OFF(operator gate)</td></tr>
+      <tr><td>15</td><td>compliance</td><td>outreach 게이트</td><td>3.5</td><td>0.03</td><td>pipa_check_consent, canspam_check_unsubscribe, dlp_inspect</td><td>발송 전 법률 게이트(clear|block|review)</td></tr>
+      <tr><td>16</td><td>customer_success</td><td>CS</td><td>3.5</td><td>0.05</td><td>analytics_funnel, intervention_propose</td><td>온보딩 마찰 → ≤5 개입 제안</td></tr>
+      <tr><td>17</td><td>coordinator <span class="pill live">routed</span></td><td>Tier-2 M1</td><td>3.5</td><td>0.005</td><td>agent_registry_list, a2a_invoke(served시 제거)</td><td>라우팅. 정책 미충족시 ESCALATE. 최저 cap.</td></tr>
+      <tr><td>18</td><td>critic</td><td>Tier-2 M2</td><td>3.5</td><td>0.02</td><td>evaluation_score, gate_escalate</td><td>LLM-judge, 절대 rewrite 안 함</td></tr>
+      <tr><td>19</td><td>optimizer</td><td>Tier-2 M3</td><td>3.5</td><td>0.10</td><td>agent_optimizer_tune, prompt_registry_update</td><td>프롬프트 리라이트 제안 → <b>GitHub PR로만</b>(D27)</td></tr>
+      <tr><td>20</td><td>anomaly-watch</td><td>Tier-3 W1</td><td>3.1-lite</td><td>0.01</td><td>metrics_query, runbook_execute</td><td>z-score 이상감지 → runbook/page</td></tr>
+      <tr><td>21</td><td>cost-watch</td><td>Tier-3 W2</td><td><span class="rose">none-rule-based</span></td><td>0.0001</td><td>billing_query, pubsub_alert</td><td><b>LLM 없음</b>. 50/75/90/95/100/110% 크로싱 emit. FN율=0 요구.</td></tr>
+      <tr><td>22</td><td>security_watch</td><td>Tier-3 W3</td><td>3.1-lite</td><td>0.10</td><td>model_armor_query_blocks, chronicle_query, tenant_quarantine</td><td>Model Armor 차단+Chronicle → 격리/비활성</td></tr>
+    </table>
+    <p style="font-size:12px" class="mut">* <code>rapidapi_instagram_search</code>는 라우팅 대칭성 위해 배선되나 프롬프트가 호출 금지(O3 feasibility 게이트). <code>serve.py</code> 라우트: coordinator(<code>bare</code>) / sourcing·vetting(<code>envelope</code>). 나머지 19는 <code>run_agent</code> in-process + CI 테스트, <code>/healthz</code>가 "22 defined / 3 routed" 정직 노출.</p>
+  </section>
+
+  <section id="t3-ts">
+    <h2>3.2 TS 11 에이전트 전수 (<code>packages/agents/src/</code>)</h2>
+    <p style="font-size:12.5px" class="mut">에이전트 = <b>자유 ReAct 루프 아님</b>. <code>defineAgent({tools, input, output(Zod), model, maxUsd, systemPrompt})</code> 함수. 유일 LLM 호출지점 <code>runAgent()</code>(<code>runtime.ts:58</code>)가 (a)큐레이션 tool 경계(미허용 tool명→에러 반환) (b)USD cap (c)캠페인 예산 하드캡(throw) (d)8턴 제한 (e)Zod 출력 검증(1회 reviser) (f)cost ledger 강제. 모델 seam(<code>model.ts</code>)으로 테스트는 fake client 주입.</p>
+    <table>
+      <tr><th>#</th><th>id</th><th>역할</th><th>escalation 트리거</th><th>golden eval</th></tr>
+      <tr><td>1</td><td>intake</td><td>≤6턴 대화 → CampaignBrief</td><td>모순/유효 brief 불가</td><td>✅</td></tr>
+      <tr><td>2</td><td>sourcing</td><td>브리프 → 랭크된 후보(매칭 사유). 결정 안 함(approveShortlist).</td><td>0결과/전부 블랙리스트/tool 에러</td><td>✅</td></tr>
+      <tr><td>3</td><td>vetting</td><td>후보별 적합도+리스크. 후보별 fan-out.</td><td>—</td><td>✅</td></tr>
+      <tr><td>4</td><td>outreach-writer</td><td>근거기반 개인화 메일 1통(5각도 중 1). 발송 못 함.</td><td>insufficient_context</td><td>✅</td></tr>
+      <tr><td>5</td><td>conversation</td><td>수신 답장 8분류 + 신호추출. 작성 안 함.</td><td>—</td><td>✅</td></tr>
+      <tr><td>6</td><td>conversation-responder</td><td>답장 필요 turn에만 작성. deliverability≥0.8 self-check.</td><td>—</td><td><span class="rose">❌</span></td></tr>
+      <tr><td>7</td><td>logistics</td><td>자유텍스트 주소 → 구조화 → shipment.create</td><td>address_unparseable</td><td><span class="rose">❌</span></td></tr>
+      <tr><td>8</td><td>content-verify</td><td>탐지 게시물 vs 브랜드 적합 + 성과점수</td><td>—</td><td><span class="rose">❌</span></td></tr>
+      <tr><td>9</td><td>analyst</td><td>AnalyticsReport → 사람이 읽는 리포트(숫자 재계산 안 함)</td><td>—</td><td>✅</td></tr>
+      <tr><td>10</td><td>research</td><td>리드 enrichment → 피치 리서치 요약</td><td>enrichment_too_thin</td><td><span class="rose">❌</span></td></tr>
+      <tr><td>11</td><td>lead-outreach-writer</td><td>B2B cold-sales 메일(brief+research)</td><td>research_confidence_too_low</td><td><span class="rose">❌</span></td></tr>
+    </table>
+    <div class="callout"><b>알려진 갭(정직)</b>: golden eval은 <b>6/11</b>만(CLAUDE.md "각 에이전트 golden 필요"와 불일치 — responder/logistics/content-verify/research/lead-writer 누락). 라이브 carrier(yuntrack) 미포팅(<code>YUNTRACK_API_KEY</code> 설정 시 throw, #29). <code>workspace.getPlan</code>은 stub(항상 FREE).</div>
+  </section>
+
+  <section id="t3-cap">
+    <h2>3.3 Capability 카탈로그</h2>
+    <h3>TS capabilities (<code>packages/capabilities</code>) — 17개, 유일한 I/O 경계</h3>
+    <p style="font-size:12.5px" class="mut">레지스트리가 trust 경계: 각 capability는 name·Zod input/output·<code>scope(read|write|external_send)</code>·idempotent·rateLimitClass·handler. <code>invokeCapability</code>가 input검증→rate limit→handler→output검증. <code>external_send</code>는 <b>정책 게이트 없이 절대 자동 호출 안 됨</b>.</p>
+    <table>
+      <tr><th>capability</th><th>scope</th><th>외부 I/O / auth</th></tr>
+      <tr><td>tiktok.search</td><td>read</td><td>공유 accounts_tiktok(Mongo) 검색 — DB만</td></tr>
+      <tr><td>tiktok.getCreator</td><td>read</td><td><b>backend.socialseed.ing</b> 프록시(X-API-Key, /auth/login 단기키 로테이션). 24h stale시 갱신.</td></tr>
+      <tr><td><b>gmail.send</b></td><td><span class="rose">external_send</span></td><td>유저 OAuth Gmail(user_tokens). 스팸점수 pre-check·억제목록·v2_outbox 멱등·sendAt. <b>게이트 필수</b>.</td></tr>
+      <tr><td>suppression.check / .add</td><td>read / write</td><td>CAN-SPAM do-not-mail. /unsubscribe가 add.</td></tr>
+      <tr><td>crm.enrich</td><td>read</td><td>Modal 크롤러 + <b>Gemini 3.5</b>(D53, Kimi 제거됨). leadId시 persist.</td></tr>
+      <tr><td>crm.search</td><td>read</td><td>v2_leads + 공유 crm_accounts</td></tr>
+      <tr><td>outreach.extractFacts</td><td>read</td><td><b>순수, LLM/IO 없음</b>. 인용가능 fact 집합.</td></tr>
+      <tr><td>outreach.judge</td><td>read</td><td><b>결정론 휴리스틱, LLM 없음</b>. 4차원 채점.</td></tr>
+      <tr><td>ranking.score</td><td>read</td><td>순수 수학(avgViews/ER/influence)</td></tr>
+      <tr><td>shipment.create</td><td><span class="warn">write</span></td><td>campaignId는 ctx에서(에이전트 불신). 캐리어=demo 결정론(yuntrack 미포팅).</td></tr>
+      <tr><td>shipment.track</td><td>read</td><td>캐리어 추적 폴링</td></tr>
+      <tr><td>templates.render</td><td>read</td><td>순수 {{var}} 치환(HTML escape)</td></tr>
+      <tr><td>blacklist.check</td><td>read</td><td>공유 influencer_blacklist(전역)</td></tr>
+      <tr><td>workspace.getPolicy / .getPlan</td><td>read</td><td>정책 / 플랜(stub FREE)</td></tr>
+      <tr><td>analytics.compile</td><td>read</td><td>v2_campaigns+v2_cost_ledger 집계 → AnalyticsReport(LLM 없음)</td></tr>
+    </table>
+    <h3>ADK tools (<code>packages/agents-adk/src/ss_agents/tools/</code>) — ~43 모듈, stub/live seam</h3>
+    <p style="font-size:12.5px">각 도구 = 함수 + Pydantic I/O + <code>CAPABILITY_LAYER_MODE</code> stub/live 분기 + <code>usd_cost</code>. <b>실제 live는 3개뿐</b>: <code>rapidapi_get_user_info</code>(또는 <code>SS_TIKTOK_LIVE=1</code>) · <code>gmail_send_reply</code>(또는 <code>SS_GMAIL_LIVE=1</code>, D10 allow-list 강제) · <code>a2a_invoke</code>(실 A2A v0.3 message:send, SSRF guard·host allowlist). 나머지(imagen/veo/lyria/dlp/ranking_score/crm_enrich/…)는 <code>_live</code>가 <code>NotImplementedError</code>. <code>backend_client.py</code>가 라이브 프록시 auth(fetch_user_info/posts/gmail_token).</p>
+  </section>
+
+  <section id="t3-db">
+    <h2>3.4 데이터 모델 + 인덱스 전수</h2>
+    <table>
+      <tr><th>컬렉션</th><th>저장 / writer</th><th>인덱스(init-indexes.ts)</th></tr>
+      <tr><td>v2_campaigns</td><td>캠페인+tracks[] / campaignRepo(웹 create, 워크플로 patch)</td><td>{brief.workspaceId, updatedAt↓}</td></tr>
+      <tr><td>v2_creator_tracks</td><td>(인덱스 예약; 트랙은 캠페인 내부 임베디드)</td><td>{campaignId, creatorId}</td></tr>
+      <tr><td>v2_workspace_policies</td><td>워크스페이스별 정책 / workspaceRepo</td><td>{workspaceId} <b>unique</b></td></tr>
+      <tr><td>v2_approvals</td><td>승인 체크포인트 / 게이트 create, 웹 resolve</td><td>{workspaceId,status} · {campaignId}</td></tr>
+      <tr><td>v2_agent_traces</td><td>런당 trace(spans[]) / observability</td><td>{campaignId,startedAt↓} · {startedAt} <b>TTL 1y</b></td></tr>
+      <tr><td>v2_cost_ledger</td><td>LLM 호출당 비용 / observability</td><td>{campaignId} · {workspaceId,at↓} · {at} <b>TTL 1y</b></td></tr>
+      <tr><td>v2_outbox</td><td>gmail.send 멱등+스케줄+threadId / gmail.send</td><td>{idempotencyKey} <b>unique</b> · {status,sendAt} · {threadId,status}</td></tr>
+      <tr><td>v2_gmail_watches</td><td>유저별 Gmail watch / 웹훅+크론</td><td>{emailAddress} <b>unique</b></td></tr>
+      <tr><td>v2_suppression_list</td><td>워크스페이스 do-not-mail / suppression.add</td><td>{workspaceId,email} <b>unique</b>(워크스페이스 독립)</td></tr>
+      <tr><td>v2_shipments</td><td>배송+캐리어 타임라인 / logistics+poller</td><td>{campaignId,updatedAt↓} · {creatorTrackId} <b>unique</b> · {trackingNumber}</td></tr>
+      <tr><td>v2_reports</td><td>리포트(append-only) / report-deliver</td><td>{campaignId,generatedAt↓} · {workspaceId,generatedAt↓}</td></tr>
+      <tr><td>v2_leads</td><td>B2B 리드 / leadRepo</td><td>{workspaceId,updatedAt↓} · {workspaceId,sharedAccountId} <b>unique partial</b></td></tr>
+      <tr><td>v2_lead_campaigns</td><td>리드 캠페인 / leadCampaignRepo</td><td>{brief.workspaceId,updatedAt↓}</td></tr>
+    </table>
+    <p style="font-size:12px" class="mut">공유 v1(read+additive only): accounts_tiktok · posts_tiktok · crm_accounts · crm_enrichment · influencer_blacklist · workspaces(<code>v2Enabled</code> additive) · workspace_members · user_tokens(Gmail OAuth) · templates · unified_emails · *_usage(rate limit). <b>TTL 주의</b>: startedAt/at는 BSON Date여야 작동.</p>
+  </section>
+
+  <section id="t3-wf">
+    <h2>3.5 워크플로 인벤토리 (<code>packages/workflows</code> — 11 Inngest 함수)</h2>
+    <table>
+      <tr><th>함수</th><th>트리거</th><th>역할</th></tr>
+      <tr><td>brand-campaign</td><td>campaign/submitted</td><td>1-2단계: plan→sourcing→vetting fan-out→approveShortlist→tracks 저장→크리에이터별 creator-track.start fan-out</td></tr>
+      <tr><td>creator-track</td><td>campaign/creator-track.start</td><td>크리에이터별: facts→writer→approveOutreachSend→gmail.send→답장 3d 대기→분류→분기(답장/배송/검증)</td></tr>
+      <tr><td>campaign-autopilot</td><td>campaign/autopilot.start</td><td>자율 3→6 배치. approveBudget→outreach→advance→approveShipment→advance→approveContent→advance→완료</td></tr>
+      <tr><td>campaign-progression</td><td>cron 0 3 * * *</td><td>수명주기 마감: outreach→performance+리포트요청, performance→completed</td></tr>
+      <tr><td>lead-campaign</td><td>lead-campaign/submitted</td><td>B2B 부모: plan→리드 import→crm.enrich+research→advance→lead-track fan-out</td></tr>
+      <tr><td>lead-track</td><td>lead-campaign/lead-track.start</td><td>리드별: writer→approveOutreachSend→gmail.send→답장 대기→분류→분기(배송/검증 없음)</td></tr>
+      <tr><td>report-deliver</td><td>report/deliver.request</td><td>compile→analyst→v2_reports 저장→report/delivered (campaignId당 동시성 1)</td></tr>
+      <tr><td>report-deliver-cron</td><td>cron 0 9 * * 1</td><td>주간: verified&gt;0·6d 미리포트 캠페인에 리포트 요청</td></tr>
+      <tr><td>shipment-tracking-poller</td><td>cron 0 4,16 * * *</td><td>비terminal 배송 추적→상태변화시 shipment/tracking.updated emit</td></tr>
+      <tr><td>tiktok-post-poller</td><td>cron 0 2 * * *</td><td>delivered 트랙: 게시물 탐지(해시태그+배송후)→tiktok/post.detected; 14d 무게시→flaked</td></tr>
+      <tr><td>gmail-watch-renew</td><td>cron 0 4 * * *</td><td>Gmail Pub/Sub watch 7일 만료 전 재무장</td></tr>
+    </table>
+  </section>
+
+  <section id="t3-mc">
+    <h2>3.6 Mission Control 라우트 (<code>apps/web/app</code>)</h2>
+    <p style="font-size:12.5px"><b>인증</b>: <code>lib/auth.ts</code> — jose HS256 JWT를 <code>ss_session</code> httpOnly 쿠키(<code>{userId,workspaceId,email}</code>, 30일). 페이지는 <code>getServerSession()</code>(없으면 /sign-in), API는 <code>getSessionOr401</code>(Bearer→쿠키). 실 Google 로그인은 <code>/api/auth/google/start</code>→콜백(<code>state.purpose</code> 분기: login=ss_session 발급 / connect=Gmail 토큰).</p>
+    <table>
+      <tr><th>경로</th><th>내용</th></tr>
+      <tr><td><code>/</code> · <code>/sign-in</code></td><td>랜딩(미인증 first impression, "Google로 시작") · sign-in(실 Google 버튼 + dev test-login 게이트)</td></tr>
+      <tr><td><code>(mission-control)/layout</code></td><td>사이드바 + 대기 승인 배지(approvalRepo.listPending)</td></tr>
+      <tr><td><code>campaigns</code> · <code>campaigns/[id]</code></td><td>캠페인 테이블 · 상세(timeline|canvas, trace, 필요결정 패널, cancel/pause 서버액션)</td></tr>
+      <tr><td><code>campaigns/[id]/{shipments,posts,report,performance}</code></td><td>드릴인. report는 v2_reports + "재생성" + 공유링크</td></tr>
+      <tr><td><code>leads</code> · <code>leads/[id]</code> · <code>leads/new</code></td><td>B2B 미러(읽기전용, 워크플로/크론이 write)</td></tr>
+      <tr><td><code>approvals</code> · <code>approvals/[id]</code></td><td>승인 인박스(kind별) · 드릴인 + AP2 payment-mandate UI(WebAuthn)</td></tr>
+      <tr><td><code>policies</code></td><td>자율성 정책 편집 + v1→v2 롤아웃 토글(owner/admin) + 1-click preset</td></tr>
+      <tr><td><code>usage</code> · <code>settings</code></td><td>비용 대시보드(v2_cost_ledger) · Gmail 연결(/api/auth/gmail/start)</td></tr>
+      <tr><td>API: <code>inngest</code></td><td>serve({client,functions}) — Inngest가 호출하는 단일 엔드포인트</td></tr>
+      <tr><td>API: <code>campaigns</code> · <code>approvals/[id]/{resolve,sign-mandate,reject-mandate}</code></td><td>생성+emit · 승인 resolve(editedPayload 재귀 prompt-guard) · AP2 서명(nonce 안티리플레이+WebAuthn)</td></tr>
+      <tr><td>API: <code>webhooks/gmail</code> · <code>webhooks/nicepay</code> · <code>auth/*</code> · <code>healthz</code></td><td>Gmail Pub/Sub push→reply.received · 결제 · OAuth · 헬스</td></tr>
+    </table>
+  </section>
+
+  <section id="t3-runtime">
+    <h2>3.7 런타임 내부 (genai-safe — live ADK 경로 전용)</h2>
+    <p style="font-size:12.5px">google-adk 1.34(Vertex) + Gemini <code>types.Schema</code>가 일반 Pydantic JSON-schema를 거부해서 만든 shim들(전부 <code>runtime.py</code>, live 경로만):</p>
+    <table>
+      <tr><th>shim</th><th>해결</th></tr>
+      <tr><td><code>_SchemaFunctionTool</code></td><td>ref-free FunctionDeclaration 직접 빌드 + response schema 없음(중첩 Pydantic tool param·반환타입 파싱 실패 회피)</td></tr>
+      <tr><td><code>_adk_tool</code></td><td>문자열 annotation 해소(<code>from __future__ import annotations</code> NameError 회피), 반환 <code>-&gt;dict</code> 재작성, dict args→Pydantic 재수화</td></tr>
+      <tr><td><code>_deref_schema</code></td><td>$ref 인라인 + Gemini 거부 키 제거($defs/$ref/title/additionalProperties/exclusiveMin·Max/multipleOf/prefixItems/unevaluatedItems), tuple→items 합성</td></tr>
+      <tr><td><code>_prompt_output_shape</code></td><td>제약 없는 출력 shape를 instruction에 주입(min/max/pattern/format 제거) — 모델이 제약 메타를 출력키로 echo하지 않게</td></tr>
+      <tr><td>tools+response_schema 400 fix</td><td>tool 쓰는 에이전트는 <code>output_schema=None</code> + shape-only instruction, 이후 final_text를 실 schema로 재검증</td></tr>
+      <tr><td>이름 정규화 · {ko} gotcha</td><td>name=<code>id.replace("-","_")</code>(ADK 하이픈 거부) · 프롬프트 locale은 <code>[ko,en,ja]</code> 대괄호(중괄호 <code>{ko}</code>는 ADK 상태변수로 오인→KeyError)</td></tr>
+      <tr><td>cost 콜백</td><td><code>cost_guard</code>(before)가 cap 초과시 BudgetExceeded raise · <code>cost_record</code>(after)가 usage_metadata로 집계</td></tr>
+    </table>
+  </section>
+
+  <section id="t3-a2a">
+    <h2>3.8 A2A v0.3 프로토콜 (<code>gcp-research/refactor-mcp</code>, ss-mcp)</h2>
+    <p style="font-size:12.5px"><b>서버 surface</b>: <code>/.well-known/agent.json</code>(서명 카드)·<code>/.well-known/jwks.json</code>(검증 공개키)·<code>/v1/message:send</code>(A2A REST 바인딩)·skill alias·<code>/chat</code>. task 봉투 반환 <code>{kind:task, status:{state:completed}, artifacts[].parts[].data}</code>.</p>
+    <table>
+      <tr><th>요소</th><th>내용</th></tr>
+      <tr><td>카드 서명</td><td>RFC 7515 JWS over JCS-canonical(RFC 8785) 카드, <b>ES256</b>(P-256). 키: Cloud KMS(<code>kid ss-agent-card-prod-v1</code>, private 절대 KMS 밖으로 안 나감)→Secret PEM→dev 자동키. JWKS는 old+new 오버랩.</td></tr>
+      <tr><td>Agent Identity</td><td>SPIFFE <code>spiffe://ss-mcp-prod.svc.id.goog/ns/agents/sa/tiktok-mcp-runner</code>, Cloud Run workload SA에 anchor. 카드가 에이전트를 <i>명명</i>(SPIFFE) + 저작 <i>증명</i>(JWS).</td></tr>
+      <tr><td>auth</td><td><code>REQUIRE_AUTH=true</code>(기본). Google 서비스 OIDC(내부 A2A) 또는 Firebase ID(외부). 미인증 message:send→<b>401</b>. 카드/JWKS 엔드포인트는 의도적 공개(서명 검증 위해). per-IP rate limit 100/min.</td></tr>
+      <tr><td>intents (Track-3 #6)</td><td><code>A2A-INTENTS.md</code>: 6 exposed(2 A2A skill + 4 MCP tool) · 2 consumed(MCP sidecar + OIDC verify) · 0 A2A-consumed(producer). <code>_a2a_intents</code>가 카드에 선언.</td></tr>
+      <tr><td>클라이언트 hardening</td><td><code>a2a_invoke.py</code>: SSRF guard(metadata/loopback/RFC1918 차단, host suffix allowlist <code>.run.app</code>), HTTPS 강제, 3회 backoff retry(5xx만), 실패=라우팅 신호(raise 안 함).</td></tr>
+    </table>
+  </section>
+
+  <section id="t3-dec">
+    <h2>3.9 결정 D1–D53 (필수 ~15, 전문 <code>gcp-research/decisions/DECISIONS.md</code>)</h2>
+    <table>
+      <tr><th>D</th><th>요지</th></tr>
+      <tr><td><b>D53</b></td><td>Gemini 3.5/3.1만(judgment=3.5-flash, bulk=3.1-flash-lite). 2.5·Claude·*-pro 금지(*-pro는 ss-v2-prod 404). Vertex <b>global</b>(us-central1은 3.x 404).</td></tr>
+      <tr><td>D47</td><td>LLM 추론을 Model Garden(publishers/google/models/…) 경유. Track-3 #3. <code>MODEL_GARDEN_ROUTING=1</code>.</td></tr>
+      <tr><td>D48</td><td>A2A intents manifest + Agent Identity(SPIFFE) + agent.json 하드닝 + 서명카드. Track-3 #6.</td></tr>
+      <tr><td>D45 / D50</td><td>전 플랫폼을 포괄하는 <b>단일 Track-3 제출</b> / Grand Prize 겨냥 단일 grand-narrative(Build→Optimize→Refactor).</td></tr>
+      <tr><td>D18 / D17</td><td>챌린지 오케스트레이션=Cloud Workflows(Inngest 은퇴) / 에이전트 런타임=Vertex AI Agent Runtime(설계). <i>TS 제품 스택은 로컬 Inngest 유지.</i></td></tr>
+      <tr><td>D23 / D24</td><td>22-에이전트 fleet(16 T1 + 3 T2 + 3 T3) / 단계적 coordination(0→1 in-process, 1→100 RemoteA2A fan-out).</td></tr>
+      <tr><td>D41</td><td>capability-layer stub/live seam <code>CAPABILITY_LAYER_MODE</code>. stub=기본/테스트.</td></tr>
+      <tr><td>D27</td><td>AP2 v0.2 Intent Mandate <b>초안만</b> — 사람이 승인(WebAuthn). 자율 서명 없음.</td></tr>
+      <tr><td>D21</td><td>Model Armor 최대 정책(PI/JB/PII 차단). 라이브는 ss-mcp A2A 경로.</td></tr>
+      <tr><td>D2/D3 · D9</td><td>KR 법인 Marketplace 결제 제외 → <b>A2A-only distribution</b> 혁신으로 reframe / OSS 라이선스(core BUSL-1.1, ancillary Apache-2.0).</td></tr>
+      <tr><td>D10</td><td>Gmail 데모는 운영자 소유 테스트 계정에만 발송(CAN-SPAM/PIPA).</td></tr>
+      <tr><td>D51/D52</td><td>Optimize before/after는 로컬 결정론 패스(라이브 Prompt Optimizer는 operator-gated) / 안티오버핏 holdout 실제(train 40.5%→100%, holdout 71.4%, 28.6pp gap 유지).</td></tr>
+    </table>
+  </section>
+
+  <section id="t3-deploy">
+    <h2>3.10 배포 토폴로지 (2026-06-01 현재)</h2>
+    <table>
+      <tr><th>서비스</th><th>프로젝트 / 위치</th><th>auth · 상태</th><th>리비전</th></tr>
+      <tr><td>ss-agents (serve.py: coordinator/sourcing/vetting)</td><td>ss-v2-prod · Cloud Run us-central1 · Vertex global</td><td>OIDC(run.invoker)</td><td>ss-agents-00013-sav</td></tr>
+      <tr><td>ss-mcp-server (A2A v0.3 노드, 서명카드, ADK 랭커)</td><td>ss-mcp-prod · Cloud Run · minScale=1</td><td>REQUIRE_AUTH=true(미인증 401) · workflows-invoker allowlist(PR #41)</td><td>ss-mcp-server-00014-xw8</td></tr>
+      <tr><td>ss-v2-web (Next 16 Mission Control)</td><td>ss-v2-prod · Cloud Run · <code>agents.socialseed.ing</code> · Direct VPC egress</td><td><span class="ok">실 Google 로그인 + 데이터레이어 라이브</span> · AUTH_SECRET·MONGODB_URI(<code>instarsearch</code>)·Inngest·<b>Vertex(ADC, 키불요)</b> 배선</td><td><b>ss-v2-web-00015-nz8</b></td></tr>
+      <tr><td><b>ss-inngest</b> (자가호스팅 Inngest 엔진 VM)</td><td>ss-v2-prod · Compute Engine us-central1-a · e2-small · COS <code>inngest start</code> · 내부 10.128.0.2:8288</td><td><span class="ok">상시 오케스트레이션 라이브</span> · 키 자가생성 · 8288 내부전용 firewall</td><td>RUNNING (G2/G3)</td></tr>
+      <tr><td>brand-campaign-demo (Cloud Workflow)</td><td>ss-v2-prod · Cloud Workflows</td><td>workflows-invoker SA → OIDC</td><td>exec a36befd0 SUCCEEDED</td></tr>
+      <tr><td>backend.socialseed.ing (v1 :8080)</td><td>외부 v1 (frozen)</td><td>X-API-Key</td><td><span class="rose">절대 무접속</span></td></tr>
+    </table>
+    <p style="font-size:12px" class="mut">비용 ≈ $1–10/월(ss-mcp warm minScale=1 + ss-inngest e2-small, 나머지 min=0). <b>주의</b>: <code>SERVICE-INVENTORY.md</code>는 <i>설계</i> 플랫폼(95 GCP 서비스)이지 배포된 것 아님 — 실제 라이브는 위 5개. live-vs-stub은 HONEST-SCOPE이 진실원.</p>
+    <div class="callout ok"><b>G2/G3 상시 루프 라이브(2026-06-01)</b>: 캠페인 submit → 자가호스팅 Inngest 엔진 픽업 → sourcing(Vertex Gemini, 실 instarsearch 크리에이터)→vetting→approveShortlist 자율통과→3 트랙→outreach 까지 실증. 고친 근본버그 5개(PR #46–#50): Vertex 모드 · env case-fold · force-final 턴 · <code>language:null</code> safeParse 드롭 · Gemini 3.x thinking 토큰 출력예산 소진. 상세: <code>2026-06-01-g2-g3-continuous-loop-runbook.md</code>.</div>
+  </section>
+
+  <section id="t3-trouble">
+    <h2>3.11 트러블슈팅 (실제 발생)</h2>
+    <table>
+      <tr><th>증상</th><th>원인 → 해결</th></tr>
+      <tr><td>/campaigns 500, digest 2347156499</td><td><code>MONGODB_URI is not set</code> → ss-v2-web에 <code>mongodb-uri</code> 시크릿 배선</td></tr>
+      <tr><td>로그인 후 500 / 세션 없음</td><td><code>AUTH_SECRET</code> 미설정(≥16자) → <code>web-auth-secret</code> 배선</td></tr>
+      <tr><td>OAuth redirect_uri_mismatch</td><td>콜백 origin 미등록 → 콘솔에 <code>https://&lt;origin&gt;/api/auth/google/callback</code> 추가</td></tr>
+      <tr><td>Gemini 404</td><td>*-pro 사용 / us-central1에서 3.x → 3.5·3.1 + <b>global</b></td></tr>
+      <tr><td>A2A message:send 401</td><td>OIDC <code>aud</code>가 path → ss-mcp <b>base</b> URL로(PR #41 교훈)</td></tr>
+      <tr><td>Gmail 7일 만료</td><td>OAuth 동의화면 Testing → Production 전환(+gmail.send 검증) 또는 test user 재연결</td></tr>
+      <tr><td>waitForEvent 안 깨어남</td><td><code>event.data.X</code> 사용 → <code>async.data.X</code>로</td></tr>
+      <tr><td>ADK tool live 호출 NotImplementedError</td><td>해당 tool 아직 stub만(W7) — stub 모드로 실행하거나 wired 3개(rapidapi_get_user_info/gmail_send_reply/a2a_invoke)만 live</td></tr>
+    </table>
+  </section>
+
+  <section id="t3-laws">
+    <h2>3.12 하드법칙 + 협업 위생</h2>
+    <table>
+      <tr><th>항목</th><th>규칙</th></tr>
+      <tr><td>모델(D53)</td><td>3.5-flash/3.1-flash-lite만 · Vertex global</td></tr>
+      <tr><td>배포 격리</td><td>ss-v2-prod/ss-mcp-prod/ss-shared-infra만 · v1 :8080·.env 무접속</td></tr>
+      <tr><td>공유 Atlas</td><td>read 자유 / write additive만 · v2는 v2_* 소유 · run-demo는 공유 prod 직접쓰기 거부</td></tr>
+      <tr><td>Gmail</td><td>D10 allow-list(운영자 메일만)</td></tr>
+      <tr><td>Git</td><td>feature 브랜치 · <b>no-squash</b>(<code>gh pr merge --merge</code>) · 게이트 green 후 푸시 · 1 task 1 commit</td></tr>
+      <tr><td>에이전트</td><td>함수(큐레이션 tool·Zod 출력·USD cap·escalation), 자유 루프 아님 · 각 에이전트 golden eval(현재 갭 있음)</td></tr>
+      <tr><td>정직</td><td>stub을 live로 주장 금지 · 선언/배선/라이브 경계 HONEST-SCOPE 기재</td></tr>
+    </table>
+  </section>
+
+  <section id="t3-pointers">
+    <h2>3.13 더 깊이 — "X는 어디?" 파일 포인터</h2>
+    <table>
+      <tr><th>찾는 것</th><th>위치</th></tr>
+      <tr><td>라이브 챌린지 요청 경로</td><td><code>terraform/modules/integration/workflows/brand-campaign-demo.workflows.yaml</code></td></tr>
+      <tr><td>ADK HTTP front / 런타임</td><td><code>packages/agents-adk/serve.py</code> · <code>src/ss_agents/runtime.py</code></td></tr>
+      <tr><td>22 ADK 에이전트</td><td><code>packages/agents-adk/src/ss_agents/agents/*.py</code></td></tr>
+      <tr><td>A2A 클라이언트 / OSS 서버</td><td><code>…/tools/a2a_invoke.py</code> · <code>gcp-research/refactor-mcp/code/agent/.../main.py</code> · <code>oss/a2a-only-distribution/</code></td></tr>
+      <tr><td>11 TS 에이전트 / capabilities / contracts</td><td><code>packages/agents/src/*.agent.ts</code> · <code>packages/capabilities/src/</code> · <code>packages/contracts/src/</code></td></tr>
+      <tr><td>워크플로 / 게이트 / DB</td><td><code>packages/workflows/src/</code> · <code>…/gate.ts</code> · <code>packages/db/src/</code></td></tr>
+      <tr><td>결정 / 서비스 매트릭스 / 정직성</td><td><code>gcp-research/decisions/DECISIONS.md</code> · <code>SERVICE-INVENTORY.md</code> · <code>scripts/demo/submission/HONEST-SCOPE.md</code></td></tr>
+      <tr><td>배포 / IaC</td><td><code>deploy/README.md</code> · <code>deploy/{agents,web}/</code> · <code>terraform/{environments,modules}/</code></td></tr>
+      <tr><td>제로부터 재현 런북</td><td><code>claudedocs/2026-06-01-onboarding-zero-to-reproduce.html</code></td></tr>
+      <tr><td>작동방식 + 라이브 증거</td><td><code>claudedocs/2026-06-01-gcp-operations-manual.html</code></td></tr>
+      <tr><td>최신 세션 상태</td><td>최신 <code>claudedocs/*-handoff.md</code></td></tr>
+    </table>
+  </section>
+
+  <div class="note">
+    생성 2026-06-01 · 본 매뉴얼의 에이전트/capability/워크플로/DB 상세는 코드베이스 4영역 병렬 심층탐색으로 file:line 검증. 카운트 reconcile: ADK <b>22 모듈/24 AgentDef</b>(outreach=writer+drafter+judge), TS <b>11 에이전트/17 capability/6-of-11 golden</b>, ADK 라이브 도구 <b>3개</b>(rapidapi_get_user_info·gmail_send_reply·a2a_invoke). 배포 상태는 이번 세션 기준(ss-v2-web <b>00004-jw7</b>, AUTH_SECRET 배선, 실 Google 로그인 라이브; /campaigns는 MONGODB_URI 배선 시 정상). 짝 문서: zero-to-reproduce · gcp-operations-manual.
+  </div>
+</div>
+</body>
+</html>

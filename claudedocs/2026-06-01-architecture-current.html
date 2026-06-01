@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>social-seeding-v2 — 시스템 아키텍처 (현재 상태, 2026-06-01)</title>
+<style>
+  :root{
+    --bg0:#070b16; --bg1:#0b1124; --ink:#e8edf7; --mut:#94a3c8; --line:#27314f;
+    --blue:#5b9dff; --ok:#34d399; --gem:#a78bfa; --warn:#fbbf24; --rose:#fb7185; --cyan:#22d3ee;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 700px at 70% -10%,#11203f 0%,var(--bg0) 60%);
+    color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif}
+  .wrap{max-width:1280px;margin:0 auto;padding:34px 30px 60px}
+  header{margin-bottom:18px}
+  h1{font-size:25px;margin:0 0 4px;letter-spacing:-.02em}
+  .sub{color:var(--mut);font-size:13.5px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;font-size:11.5px;color:var(--mut)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+  .arch{display:grid;grid-template-columns:1fr 320px;gap:18px;margin-top:8px}
+  @media(max-width:1000px){.arch{grid-template-columns:1fr}}
+  .zone{border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:16px;position:relative;background:rgba(255,255,255,.012)}
+  .zone .ztag{position:absolute;top:-9px;left:16px;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;
+    background:var(--bg0);padding:0 8px;color:var(--mut);border:1px solid var(--line);border-radius:999px;line-height:18px}
+  .zone.client{border-color:#33415f}
+  .zone.run{border-color:rgba(91,157,255,.42);box-shadow:inset 0 0 0 1px rgba(91,157,255,.05)}
+  .zone.engine{border-color:rgba(52,211,153,.42)}
+  .zone.vertex{border-color:rgba(167,139,250,.42)}
+  .zone.data{border-color:rgba(34,211,238,.36)}
+  .zone.challenge{border-color:rgba(251,191,36,.40)}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:stretch}
+  .node{flex:1;min-width:150px;background:linear-gradient(180deg,#141d33,#0f1830);border:1px solid var(--line);
+    border-radius:12px;padding:11px 13px}
+  .node .t{font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:7px}
+  .node .t .ic{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;font-size:11px;font-weight:800;flex:none}
+  .node .d{color:var(--mut);font-size:11.5px;margin-top:5px;line-height:1.5}
+  .node code,.tag code{font-family:var(--mono);font-size:10.5px;background:#0a1124;border:1px solid var(--line);padding:1px 5px;border-radius:5px;color:#cfe0ff}
+  .node.b{border-color:rgba(91,157,255,.5)} .node.b .ic{background:rgba(91,157,255,.18);color:var(--blue)}
+  .node.g{border-color:rgba(52,211,153,.5)} .node.g .ic{background:rgba(52,211,153,.18);color:var(--ok)}
+  .node.p{border-color:rgba(167,139,250,.5)} .node.p .ic{background:rgba(167,139,250,.18);color:var(--gem)}
+  .node.c{border-color:rgba(34,211,238,.45)} .node.c .ic{background:rgba(34,211,238,.16);color:var(--cyan)}
+  .node.w{border-color:rgba(251,191,36,.5)} .node.w .ic{background:rgba(251,191,36,.18);color:var(--warn)}
+  .node.r{border-color:rgba(251,113,133,.45)} .node.r .ic{background:rgba(251,113,133,.16);color:var(--rose)}
+  .flow{display:flex;align-items:center;justify-content:center;gap:8px;color:var(--mut);font-size:11px;margin:9px 0}
+  .flow .ln{flex:1;height:0;border-top:1.5px dashed var(--line)}
+  .flow .lbl{white-space:nowrap;color:#aeb9d8;font-family:var(--mono);font-size:10.5px;background:var(--bg0);padding:2px 8px;border:1px solid var(--line);border-radius:999px}
+  .arrow{color:var(--blue);font-size:15px}
+  .arrow.g{color:var(--ok)} .arrow.w{color:var(--warn)}
+  .pill{display:inline-block;font-size:9.5px;font-weight:700;padding:1px 7px;border-radius:999px;vertical-align:middle}
+  .pill.live{background:rgba(52,211,153,.16);color:var(--ok);border:1px solid rgba(52,211,153,.4)}
+  .pill.ext{background:rgba(251,113,133,.14);color:var(--rose);border:1px solid rgba(251,113,133,.4)}
+  .pill.stub{background:rgba(148,163,200,.14);color:var(--mut);border:1px solid var(--line)}
+  .col-side .zone{margin-bottom:14px}
+  .laws{margin-top:6px;border:1px dashed var(--line);border-radius:14px;padding:13px 16px;font-size:11.5px;color:var(--mut);background:rgba(255,255,255,.012)}
+  .laws b{color:#cdd6ee}
+  .laws .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px 22px;margin-top:6px}
+  @media(max-width:700px){.laws .grid{grid-template-columns:1fr}}
+  .foot{margin-top:16px;color:#6f7ca3;font-size:11px;border-top:1px solid var(--line);padding-top:12px;font-family:var(--mono)}
+  .crosslink{text-align:center;color:var(--gem);font-size:11px;margin:2px 0 10px;font-family:var(--mono)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>social-seeding-v2 — 시스템 아키텍처 <span class="pill live" style="font-size:11px;vertical-align:middle">현재 라이브 · 2026-06-01</span></h1>
+    <div class="sub">에이전트-운영 TikTok 캠페인 오퍼레이터 · 상시 오케스트레이션 루프(자가호스팅 Inngest) + Vertex AI 에이전트 + A2A v0.3 챌린지 경로</div>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--blue)"></span>Cloud Run (ss-v2-prod)</span>
+      <span><span class="dot" style="background:var(--ok)"></span>Compute / 상시 엔진</span>
+      <span><span class="dot" style="background:var(--gem)"></span>Vertex AI (Gemini 3.5/3.1)</span>
+      <span><span class="dot" style="background:var(--cyan)"></span>데이터 / 외부 I/O</span>
+      <span><span class="dot" style="background:var(--warn)"></span>챌린지 스택 (A2A)</span>
+      <span><span class="dot" style="background:var(--rose)"></span>외부·불가침(v1)</span>
+    </div>
+  </header>
+
+  <div class="arch">
+    <!-- ===== 좌측: 제품 상시 루프 (메인) ===== -->
+    <div class="col-main">
+      <div class="zone client">
+        <span class="ztag">Client</span>
+        <div class="row">
+          <div class="node b"><div class="t"><span class="ic">U</span>운영자 / 심사관</div><div class="d">브라우저 · <code>agents.socialseed.ing</code> (Cloudflare → Cloud Run, TLS)</div></div>
+          <div class="node b"><div class="t"><span class="ic">G</span>Google OAuth</div><div class="d">로그인(openid email) → <code>ss_session</code> · Gmail 연결(send/readonly)</div></div>
+        </div>
+      </div>
+
+      <div class="flow"><span class="ln"></span><span class="lbl">HTTPS · ss_session(JWT)</span><span class="arrow">▼</span><span class="ln"></span></div>
+
+      <div class="zone run">
+        <span class="ztag">Cloud Run · ss-v2-web (Next 16 Mission Control) <span class="pill live">rev 00015</span></span>
+        <div class="row">
+          <div class="node b"><div class="t"><span class="ic">▦</span>Mission Control UI</div><div class="d">campaigns · approvals 인박스 · policies · usage · settings (RSC, server actions)</div></div>
+          <div class="node b"><div class="t"><span class="ic">⇄</span>API 라우트</div><div class="d"><code>/api/campaigns</code> · <code>/api/inngest</code> · <code>/api/auth/*</code> · <code>/api/webhooks/gmail</code></div></div>
+          <div class="node b"><div class="t"><span class="ic">fn</span>capabilities</div><div class="d">유일한 I/O 경계 · Zod 검증 · rate limit · scope(read/write/external_send)</div></div>
+        </div>
+      </div>
+
+      <div class="flow"><span class="ln"></span><span class="lbl g">inngest.send() · Direct VPC egress (사설, private-ranges-only)</span><span class="arrow g">▼ ▲</span><span class="ln"></span></div>
+
+      <div class="zone engine">
+        <span class="ztag">Compute Engine · 자가호스팅 Inngest 엔진 <span class="pill live">G2/G3 라이브</span></span>
+        <div class="row">
+          <div class="node g"><div class="t"><span class="ic">◆</span>ss-inngest VM</div><div class="d">e2-small · COS · <code>docker inngest start</code> (단일 바이너리·내장 Redis·SQLite) · 내부 <code>10.128.0.2:8288</code> · 키 자가생성 · 8288 내부전용 firewall</div></div>
+          <div class="node g"><div class="t"><span class="ic">⟳</span>durable 워크플로 · 크론</div><div class="d">brand-campaign · creator-track · lead · autopilot + 5 crons(배송/게시물 폴러·watch 갱신) · 3일/14일 durable 타이머 · waitForEvent</div></div>
+        </div>
+        <div class="flow" style="margin:9px 0 2px"><span class="lbl g">engine → 함수 실행 콜백: POST /api/inngest (서명 검증)</span></div>
+      </div>
+
+      <div class="flow"><span class="ln"></span><span class="lbl">runAgent() — 함수가 에이전트 호출</span><span class="arrow">▼</span><span class="ln"></span></div>
+
+      <div class="zone vertex">
+        <span class="ztag">Vertex AI · global (D53) · ADC · 키 불요</span>
+        <div class="row">
+          <div class="node p"><div class="t"><span class="ic">A</span>11 TS 제품 에이전트</div><div class="d">함수(큐레이션 tool·Zod 출력·USD cap·escalation) · gemini-3.5(판단)/3.1-lite(대량) · sourcing·vetting·outreach·conversation·logistics·content-verify·analyst·research·lead·intake</div></div>
+          <div class="node p"><div class="t"><span class="ic">⛨</span>정책 게이트</div><div class="d">approveShortlist/OutreachSend/Reply(auto_unless) · Shipment/Content/Budget(always_ask) · prompt-guard</div></div>
+        </div>
+      </div>
+
+      <div class="flow"><span class="ln"></span><span class="lbl">capabilities I/O</span><span class="arrow">▼</span><span class="ln"></span></div>
+
+      <div class="zone data">
+        <span class="ztag">데이터 · 외부 I/O</span>
+        <div class="row">
+          <div class="node c"><div class="t"><span class="ic">⬢</span>MongoDB (공유 v1 클러스터)</div><div class="d">DB <code>instarsearch</code>(rs0) · v2_* 컬렉션(소유) + 공유 v1(accounts_tiktok 174k·user_tokens·workspaces, read+additive)</div></div>
+          <div class="node c"><div class="t"><span class="ic">↗</span>backend.socialseed.ing</div><div class="d">TikTok 프록시(X-API-Key 로테이션) · Gmail OAuth 토큰 저장 <span class="pill ext">v1 :8080 무접속</span></div></div>
+        </div>
+      </div>
+
+      <div class="crosslink">실증 흐름: submit → sourcing → vetting → approveShortlist 자율통과 → 3 트랙 → outreach</div>
+    </div>
+
+    <!-- ===== 우측: 챌린지 A2A 경로 ===== -->
+    <div class="col-side">
+      <div class="zone challenge">
+        <span class="ztag">챌린지 경로 (Track-3, GCP)</span>
+        <div class="node w"><div class="t"><span class="ic">⇢</span>brand-campaign Cloud Workflow</div><div class="d">ss-v2-prod · exec SUCCEEDED · URL 하드코딩 없음(D42)</div></div>
+        <div class="flow"><span class="lbl w">OIDC</span><span class="arrow w">▼</span></div>
+        <div class="node w"><div class="t"><span class="ic">◉</span>coordinator (ss-agents)</div><div class="d">gemini-3.5 · Vertex global · 어느 에이전트가 소싱할지 결정 <span class="pill live">live</span></div></div>
+        <div class="flow"><span class="lbl w">A2A v0.3 message:send · OIDC(aud=base)</span><span class="arrow w">▼</span></div>
+        <div class="node w"><div class="t"><span class="ic">▣</span>ss-mcp-server</div><div class="d">OSS tiktok-mcp · A2A 노드 · 서명 카드(JWS ES256, KMS)+JWKS · REQUIRE_AUTH(미인증 401) · ADK 랭커(searcher 3.1→ranker 3.5) <span class="pill live">live</span></div></div>
+        <div class="flow"><span class="lbl">← 5 RankedCreators (task completed)</span></div>
+      </div>
+
+      <div class="zone">
+        <span class="ztag">22 ADK fleet (Python)</span>
+        <div class="node p"><div class="t"><span class="ic">22</span>ss_agents (Vertex)</div><div class="d">16 도메인 + 3 메타(coordinator·critic·optimizer) + 3 워치독 · serve.py는 3개만 라우트, 19는 in-process+CI · <span class="pill stub">대부분 도구 stub(HONEST-SCOPE)</span></div></div>
+        <div class="node c" style="margin-top:10px"><div class="t"><span class="ic">⊞</span>oss/a2a-only-distribution</div><div class="d">포터블 A2A 템플릿(Apache-2.0) · KR Marketplace 결제 제외(D2)를 A2A 배포로 reframe(D3)</div></div>
+      </div>
+
+      <div class="zone r">
+        <span class="ztag">불가침 (v1, frozen)</span>
+        <div class="node r"><div class="t"><span class="ic">✕</span>v1 backend :8080 / .env</div><div class="d">절대 무접속·무수정 · 공유 Atlas는 소유자 승인 하 읽기전용 재사용</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 하드 법칙 -->
+  <div class="laws">
+    <b>하드 법칙 (배포·모델)</b>
+    <div class="grid">
+      <span>• 모델 <b>Gemini 3.5-flash / 3.1-flash-lite</b>만 · Vertex <b>global</b> 엔드포인트 (D53; 2.5·*-pro·Claude·us-central1 금지)</span>
+      <span>• 배포 격리 <b>ss-v2-prod / ss-mcp-prod / ss-shared-infra</b>만 · v1 :8080·.env 무접속</span>
+      <span>• 공유 클러스터 = <b>DB instarsearch</b> · v2_* 소유 · 공유 컬렉션 read+additive only</span>
+      <span>• 정직성: stub/live 경계 <b>HONEST-SCOPE.md</b> 진실원 · stub을 live로 주장 금지</span>
+    </div>
+  </div>
+
+  <div class="foot">
+    배포 rev: ss-v2-web <b>00015-nz8</b> · ss-agents 00013-sav · ss-mcp-server 00014-xw8 · ss-inngest RUNNING(e2-small) ·
+    G2/G3 근본수정 PR #46–#50 (Vertex 모드·env case-fold·force-final 턴·language:null·Gemini thinking) · 모두 no-squash merge.
+    상세: claudedocs/2026-06-01-onboarding-master.html · …-g2-g3-continuous-loop-runbook.md
+  </div>
+</div>
+</body>
+</html>

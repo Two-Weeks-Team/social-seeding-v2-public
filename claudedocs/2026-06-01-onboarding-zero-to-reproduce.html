@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>social-seeding-v2 — 신규 팀원 온보딩 · 제로부터 재현 매뉴얼</title>
+<style>
+  :root{
+    --bg:#0b1020; --panel:#141b30; --panel2:#1b2440; --ink:#e8edf7; --muted:#9aa7c7;
+    --line:#2a3656; --accent:#5b9dff; --ok:#34d399; --warn:#fbbf24; --gem:#a78bfa; --rose:#fb7185;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#0b1020,#0d1426);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;line-height:1.62}
+  .wrap{max-width:1080px;margin:0 auto;padding:48px 28px 96px}
+  header.h{text-align:center;margin-bottom:36px}
+  header.h h1{font-size:29px;margin:0 0 8px;letter-spacing:-.02em}
+  header.h .sub{color:var(--muted);font-size:15px}
+  .badges{margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+  .badge{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:5px 13px;font-size:12.5px;color:var(--muted)}
+  .badge b{color:var(--ok)}
+  nav.toc{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 22px;margin:8px 0 30px}
+  nav.toc ol{margin:8px 0 0;padding-left:20px;columns:2;column-gap:32px;font-size:13.5px}
+  nav.toc a{color:#cdd6ee;text-decoration:none}
+  nav.toc a:hover{color:var(--accent)}
+  section{margin:36px 0;scroll-margin-top:18px}
+  h2{font-size:21px;border-left:4px solid var(--accent);padding-left:12px;margin:0 0 14px}
+  h3{font-size:16px;color:var(--accent);margin:22px 0 8px}
+  h4{font-size:14px;color:var(--gem);margin:16px 0 6px}
+  p{color:#cdd6ee}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin:14px 0}
+  .gem{color:var(--gem)} .ok{color:var(--ok)} .warn{color:var(--warn)} .rose{color:var(--rose)}
+  code,pre{font-family:var(--mono)}
+  pre{background:#0a0f1f;border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow:auto;font-size:12.5px;color:#d7e0f7;white-space:pre}
+  pre .c{color:#6b7aa3} pre .ok{color:var(--ok)} pre .v{color:var(--warn)}
+  p code,li code,td code{background:var(--panel2);padding:2px 6px;border-radius:6px;font-size:12px;color:#cfe0ff}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:8px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600}
+  .pill.live{background:rgba(52,211,153,.14);color:var(--ok);border:1px solid rgba(52,211,153,.4)}
+  .pill.op{background:rgba(251,191,36,.14);color:var(--warn);border:1px solid rgba(251,191,36,.4)}
+  .pill.local{background:rgba(91,157,255,.14);color:var(--accent);border:1px solid rgba(91,157,255,.4)}
+  .step{counter-increment:step;margin:14px 0;padding-left:42px;position:relative}
+  .step::before{content:counter(step);position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;
+    background:var(--accent);color:#06101f;font-weight:800;display:grid;place-items:center;font-size:14px}
+  .runbook{counter-reset:step}
+  .callout{border-left:4px solid var(--warn);background:rgba(251,191,36,.07);border-radius:0 10px 10px 0;padding:12px 16px;margin:14px 0;font-size:13.5px}
+  .callout.danger{border-left-color:var(--rose);background:rgba(251,113,133,.08)}
+  .callout.ok{border-left-color:var(--ok);background:rgba(52,211,153,.07)}
+  .note{font-size:13px;color:var(--muted);border-top:1px dashed var(--line);margin-top:30px;padding-top:14px}
+  a{color:var(--accent)}
+  .kbd{background:var(--panel2);border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:1px 7px;font-size:12px;font-family:var(--mono)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="h">
+    <h1>social-seeding-v2 — 신규 팀원 온보딩 매뉴얼</h1>
+    <div class="sub">빈 계정에서 <b>제로부터 재현</b> · 로컬 dev → MongoDB → Google OAuth → GCP 배포 → 검증 · 2026-06-01</div>
+    <div class="badges">
+      <span class="badge">Node <b>22</b> · pnpm <b>10.18.2</b></span>
+      <span class="badge">Python <b>3.12</b> · uv</span>
+      <span class="badge">MongoDB <b>Atlas</b> (social_seeding)</span>
+      <span class="badge">GCP <b>Cloud Run</b> · Vertex global</span>
+      <span class="badge">Gemini <b>3.5/3.1</b> only (D53)</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <b>이 문서가 답하는 것</b>: "새 노트북 + 새 계정만 가진 팀원이, 이 저장소를 클론해서 로컬에서 돌리고 → MongoDB를 붙이고 → 자기 GCP 프로젝트에 web을 배포해 실 Google 로그인까지 재현하려면?"
+    <ol>
+      <li><a href="#s0">0. 0-day 체크리스트 (필요 접근 권한)</a></li>
+      <li><a href="#s1">1. 로컬 개발 환경 (제로부터)</a></li>
+      <li><a href="#s2">2. MongoDB 셋업 (신규 Atlas 기준 · 상세)</a></li>
+      <li><a href="#s3">3. Google OAuth 셋업 (로그인 + Gmail)</a></li>
+      <li><a href="#s4">4. GCP 배포 — web을 내 프로젝트로 (검증된 경로)</a></li>
+      <li><a href="#s5">5. 무거운 인프라 (agents·mcp·workflows) 재현</a></li>
+      <li><a href="#s6">6. 검증 — 실증 커맨드</a></li>
+      <li><a href="#s7">7. 트러블슈팅 (실제 발생 에러)</a></li>
+      <li><a href="#s8">8. 하드 제약 + 협업 위생</a></li>
+    </ol>
+    <p style="margin:10px 0 0;font-size:12.5px;color:var(--muted)">짝 문서 → 작동 방식·라이브 증거: <code>claudedocs/2026-06-01-gcp-operations-manual.html</code></p>
+  </nav>
+
+  <!-- 0 -->
+  <section id="s0">
+    <h2>0. 0-day 체크리스트 — 무엇에 대한 접근이 필요한가</h2>
+    <div class="card">
+      <p>아래 5가지 접근이 준비되면 이 문서를 처음부터 끝까지 따라갈 수 있습니다. <span class="pill local">로컬만</span> 하려면 ①②만 있으면 됩니다.</p>
+      <table>
+        <tr><th>#</th><th>접근 대상</th><th>누가 주나 / 어떻게</th><th>필요 범위</th></tr>
+        <tr><td>①</td><td>GitHub 저장소 <code>Two-Weeks-Team/social-seeding-v2</code></td><td>팀 admin이 org 멤버 초대</td><td>로컬·PR <span class="pill local">로컬</span></td></tr>
+        <tr><td>②</td><td>MongoDB — <b>택1</b>: 로컬 인메모리 / 본인 Atlas dev / 공유 Atlas</td><td>로컬 인메모리는 무권한(§2-A). 공유 Atlas URI는 운영자만.</td><td>로컬·배포</td></tr>
+        <tr><td>③</td><td>Google Cloud OAuth 클라이언트 (로그인·Gmail)</td><td>공유 클라이언트(<code>842411…</code>, owner app.2weeks@gmail.com) 재사용 <b>또는</b> 본인 신규(§3)</td><td>로그인·Gmail</td></tr>
+        <tr><td>④</td><td>GCP 프로젝트 + 결제 (배포용)</td><td>운영자 프로젝트(<code>ss-v2-prod</code>) IAM <b>또는</b> 본인 신규 프로젝트(§4-0)</td><td>배포</td></tr>
+        <tr><td>⑤</td><td>(선택) 도메인 — Cloudflare DNS</td><td>운영자(<code>socialseed.ing</code>). 본인 재현은 Cloud Run 기본 URL로 충분</td><td>배포(선택)</td></tr>
+      </table>
+      <div class="callout">로컬 데모만 빠르게 보고 싶다면 <b>§1 → §2-A(인메모리 Mongo)</b> 까지만 하면 됩니다. 클라우드 배포(§3–§5)는 자기 GCP/OAuth가 있을 때.</div>
+    </div>
+  </section>
+
+  <!-- 1 -->
+  <section id="s1">
+    <h2>1. 로컬 개발 환경 — 제로부터</h2>
+
+    <h3>1-1. 툴체인 설치</h3>
+    <div class="card">
+      <table>
+        <tr><th>도구</th><th>버전(고정)</th><th>설치</th></tr>
+        <tr><td>Node.js</td><td><code>22</code> (<code>.nvmrc</code>)</td><td><code>nvm install 22 &amp;&amp; nvm use</code></td></tr>
+        <tr><td>pnpm</td><td><code>10.18.2</code> (<code>packageManager</code> 고정)</td><td><code>corepack enable &amp;&amp; corepack prepare pnpm@10.18.2 --activate</code></td></tr>
+        <tr><td>Python</td><td><code>3.12</code> (<code>&gt;=3.12,&lt;3.13</code>)</td><td><code>pyenv install 3.12 &amp;&amp; pyenv local 3.12</code></td></tr>
+        <tr><td>uv</td><td>최신</td><td><code>curl -LsSf https://astral.sh/uv/install.sh | sh</code></td></tr>
+        <tr><td>gcloud</td><td>최신 (배포 시)</td><td>Google Cloud SDK</td></tr>
+      </table>
+    </div>
+
+    <h3>1-2. 클론 + 의존성</h3>
+    <pre><span class="c"># TS 모노레포 (JIT 내부패키지 — 패키지별 빌드 단계 없음)</span>
+git clone https://github.com/Two-Weeks-Team/social-seeding-v2.git
+cd social-seeding-v2
+pnpm install
+
+<span class="c"># Python ADK fleet (별도 uv 프로젝트)</span>
+cd packages/agents-adk
+uv pip install --system -e ".[dev]"
+cd ../..</pre>
+
+    <h3>1-3. <code>.env.local</code> 작성</h3>
+    <p><code>.env.example</code>를 복사해 <code>.env.local</code>로. 로컬에서 web을 띄우는 데 <b>실제로 필요한 최소</b>는 굵게 표시:</p>
+    <pre><span class="c"># cp .env.example .env.local — 아래는 로컬 web 기준 핵심</span>
+<span class="v">MONGODB_URI</span>="mongodb://127.0.0.1:27027"   <span class="c"># §2-A 인메모리면 이 값 / Atlas면 SRV URI</span>
+MONGODB_DB="social_seeding"                  <span class="c"># v1과 같은 DB명 (변경 금지)</span>
+<span class="v">AUTH_SECRET</span>="$(openssl rand -hex 24)"        <span class="c"># >=16자. 세션 JWT 서명 — 없으면 로그인 死</span>
+AUTH_URL="http://localhost:3000"
+<span class="v">GOOGLE_CLIENT_ID</span>="…apps.googleusercontent.com"   <span class="c"># §3 OAuth 클라이언트</span>
+<span class="v">GOOGLE_CLIENT_SECRET</span>="…"
+AUTH_TEST_LOGIN_ENABLED="true"               <span class="c"># 로컬 dev 한정: 실 Google 없이 테스트 세션</span>
+AUTH_TEST_LOGIN_SECRET="$(openssl rand -hex 16)"
+GEMINI_API_KEY="…"                           <span class="c"># 에이전트 호출 시 (D53: Gemini만)</span>
+SS_BACKEND_URL="https://backend.socialseed.ing"   <span class="c"># TikTok 프록시 + Gmail 토큰 (운영자 백엔드)</span>
+BACKEND_DASHBOARD_EMAIL="…"                   <span class="c"># /auth/login → X-API-Key (Gmail/TikTok)</span>
+BACKEND_DASHBOARD_PASSWORD="…"
+INNGEST_DEV="1"</pre>
+      <div class="callout">로그인을 <b>실 Google</b>로 보려면 <code>GOOGLE_CLIENT_ID/SECRET</code>가 필요(§3). 그게 없으면 <code>AUTH_TEST_LOGIN_ENABLED=true</code>로 sign-in의 "테스트 세션" 버튼이 세션을 발급합니다(로컬 전용, 프로덕션 비활성).</div>
+
+    <h3>1-4. 실행</h3>
+    <pre><span class="c"># 1) 로컬 Mongo (인메모리, :27027) — 별도 터미널</span>
+pnpm run dev-mongo
+<span class="c"># 2) 인덱스 프로비저닝 (idempotent, 22개 v2_* 인덱스)</span>
+pnpm exec tsx scripts/init-indexes.ts
+<span class="c"># 3) Mission Control (Next 16, :3000 — /api/inngest 서빙)</span>
+pnpm --filter @ss/web dev
+<span class="c"># 4) Inngest Dev Server (:8288) — 별도 터미널</span>
+npx inngest-cli@latest dev</pre>
+    <p><span class="ok">→</span> <a href="http://localhost:3000">localhost:3000</a> 접속 → 랜딩 → "Google로 시작"(실 OAuth) 또는 sign-in "테스트 세션". 로그인 후 <code>/campaigns</code>·<code>/settings</code>.</p>
+
+    <h3>1-5. 게이트 (커밋 전 반드시 green)</h3>
+    <pre>pnpm run verify-build        <span class="c"># lint → turbo build(incl next build) → tsc --noEmit</span>
+pnpm test                    <span class="c"># 전체 TS vitest (ephemeral mongo 자동 부팅)</span>
+cd packages/agents-adk &amp;&amp; pytest -q   <span class="c"># ADK (offline — conftest가 SS_OFFLINE 강제)</span></pre>
+  </section>
+
+  <!-- 2 -->
+  <section id="s2">
+    <h2>2. MongoDB 셋업 — 신규 Atlas 계정 기준 (상세)</h2>
+    <div class="card">
+      <p><b>v2의 데이터 모델</b>: Mission Control(<code>apps/web</code>)의 ~20개 페이지와 워크플로가 <code>@ss/db</code>로 MongoDB를 <b>직접</b> read/write 합니다(<code>packages/db/src/client.ts</code> → <code>MONGODB_URI</code>, DB명 기본 <code>social_seeding</code>). v2는 <code>v2_*</code> 컬렉션만 소유하고, v1 공유 컬렉션(<code>accounts_tiktok</code>·<code>workspaces</code>·<code>user_tokens</code>·<code>crm_accounts</code>·<code>templates</code>·<code>unified_emails</code>…)은 <b>read + additive-only</b>입니다.</p>
+    </div>
+
+    <h3>2-A. 옵션 비교 — 어떤 Mongo를 쓸까</h3>
+    <table>
+      <tr><th>옵션</th><th>용도</th><th>설정</th><th>주의</th></tr>
+      <tr><td><span class="pill local">인메모리</span> <code>mongodb-memory-server</code></td><td>로컬 dev/test (권장 기본)</td><td><code>pnpm run dev-mongo</code> → <code>:27027</code>. <code>MONGODB_URI=mongodb://127.0.0.1:27027</code></td><td>휘발성(프로세스 종료 시 소멸). 무권한.</td></tr>
+      <tr><td>본인 Atlas dev 클러스터</td><td>지속 로컬 dev, 배포 재현</td><td>§2-B</td><td>무료 M0 가능. 본인 계정.</td></tr>
+      <tr><td>공유 Atlas (v1과 동일)</td><td>실데이터 연동·프로덕션</td><td>운영자에게 URI 수령 → 시크릿</td><td><span class="rose">prod 데이터</span>. write는 <code>v2_*</code>·additive만. <code>run-demo.ts</code>는 공유 prod 직접쓰기 거부.</td></tr>
+    </table>
+
+    <h3>2-B. 신규 Atlas 클러스터 만들기 (제로부터)</h3>
+    <div class="card runbook">
+      <div class="step"><b>계정 + 클러스터</b>: <a href="https://cloud.mongodb.com">cloud.mongodb.com</a> 가입 → 새 Project → "Build a Database" → <b>M0(Free)</b> 또는 dedicated → 리전 선택(Cloud Run과 가까운 곳).</div>
+      <div class="step"><b>DB 사용자</b>: Database Access → Add user (SCRAM, 강한 비번) → role <code>readWrite@social_seeding</code> (또는 Atlas admin for dev).</div>
+      <div class="step"><b>네트워크 접근</b>: Network Access → 로컬 dev는 본인 IP 추가. Cloud Run에서 붙이려면 SRV 연결이라 <code>0.0.0.0/0</code> 허용(또는 VPC peering/Private Endpoint — 운영 권장). <span class="warn">0.0.0.0/0는 인증으로만 보호되므로 강한 DB 비번 필수.</span></div>
+      <div class="step"><b>연결 문자열</b>: "Connect" → "Drivers" → <code>mongodb+srv://&lt;user&gt;:&lt;pass&gt;@&lt;cluster&gt;/?retryWrites=true&amp;w=majority</code>. DB명은 코드가 <code>MONGODB_DB</code>(기본 <code>social_seeding</code>)로 붙이므로 경로에 DB명 불필요.</div>
+      <div class="step"><b>인덱스 생성</b>: <code>MONGODB_URI</code>를 <code>.env.local</code>(또는 ambient env)에 넣고 <pre>pnpm exec tsx scripts/init-indexes.ts</pre> → 아래 22개 인덱스가 idempotent하게 생성됩니다.</div>
+    </div>
+
+    <h3>2-C. v2가 만드는 인덱스 (<code>scripts/init-indexes.ts</code>)</h3>
+    <table>
+      <tr><th>컬렉션</th><th>키</th><th>옵션</th></tr>
+      <tr><td><code>v2_campaigns</code></td><td>brief.workspaceId↑, updatedAt↓</td><td>리스트(워크스페이스별 최신순)</td></tr>
+      <tr><td><code>v2_creator_tracks</code></td><td>campaignId↑, creatorId↑</td><td></td></tr>
+      <tr><td><code>v2_approvals</code></td><td>workspaceId↑,status↑ / campaignId↑</td><td>승인 인박스</td></tr>
+      <tr><td><code>v2_agent_traces</code></td><td>campaignId↑,startedAt↓ / startedAt↑</td><td><span class="warn">TTL 1y</span> (startedAt = BSON Date)</td></tr>
+      <tr><td><code>v2_cost_ledger</code></td><td>campaignId↑ / workspaceId↑,at↓ / at↑</td><td><span class="warn">TTL 1y</span> (at = Date)</td></tr>
+      <tr><td><code>v2_workspace_policies</code></td><td>workspaceId↑</td><td><span class="ok">unique</span></td></tr>
+      <tr><td><code>v2_outbox</code></td><td>idempotencyKey↑ / status↑,sendAt↑ / threadId↑,status↑</td><td><span class="ok">unique</span>(idemKey) — gmail.send 멱등</td></tr>
+      <tr><td><code>v2_gmail_watches</code></td><td>emailAddress↑</td><td><span class="ok">unique</span></td></tr>
+      <tr><td><code>v2_suppression_list</code></td><td>workspaceId↑,email↑</td><td><span class="ok">unique</span> (워크스페이스별 독립 do-not-mail)</td></tr>
+      <tr><td><code>v2_shipments</code></td><td>campaignId↑,updatedAt↓ / creatorTrackId↑ / trackingNumber↑</td><td><span class="ok">unique</span>(creatorTrackId) — 중복배송 방지</td></tr>
+      <tr><td><code>v2_reports</code></td><td>campaignId↑,generatedAt↓ / workspaceId↑,generatedAt↓</td><td></td></tr>
+      <tr><td><code>v2_leads</code></td><td>workspaceId↑,updatedAt↓ / workspaceId↑,sharedAccountId↑</td><td><span class="ok">unique</span>(partial: sharedAccountId 존재 시) — v1 중복임포트 방지</td></tr>
+      <tr><td><code>v2_lead_campaigns</code></td><td>brief.workspaceId↑,updatedAt↓</td><td></td></tr>
+    </table>
+    <div class="callout">TTL 주의: <code>v2_agent_traces.startedAt</code> / <code>v2_cost_ledger.at</code>는 <b>BSON Date</b>여야 TTL이 작동합니다(epoch 숫자면 안 됨). 관측성 싱크가 Date로 기록.</div>
+
+    <h3>2-D. 클라우드(Cloud Run)에 Mongo 연결 = 시크릿</h3>
+    <pre><span class="c"># URI를 Secret Manager에 저장 (값은 셸 히스토리/채팅에 남기지 말 것)</span>
+printf '%s' '&lt;MONGODB_URI&gt;' | gcloud secrets create mongodb-uri \
+  --project &lt;PROJECT&gt; --replication-policy=automatic --data-file=-
+<span class="c"># 런타임 SA에 accessor 부여</span>
+gcloud secrets add-iam-policy-binding mongodb-uri --project &lt;PROJECT&gt; \
+  --member="serviceAccount:&lt;RUNTIME_SA&gt;" --role="roles/secretmanager.secretAccessor"
+<span class="c"># 서비스에 배선 (기존 env/시크릿 보존)</span>
+gcloud run services update ss-v2-web --project &lt;PROJECT&gt; --region &lt;REGION&gt; \
+  --update-secrets=MONGODB_URI=mongodb-uri:latest
+<span class="c"># MONGODB_DB는 코드 기본값 social_seeding이라 별도 불필요</span></pre>
+    <div class="callout danger"><b>왜 백엔드 API가 아니라 직접 Mongo?</b> v1 백엔드 API는 v1 도메인(CRM·토큰·TikTok 프록시)만 노출합니다. 캠페인/승인/리드 같은 <code>v2_*</code> 상태는 v2가 새로 만든 컬렉션이라 백엔드에 엔드포인트가 없습니다. 그래서 v2 web은 <b>v1과 같은 Atlas 클러스터에 직접</b> 연결합니다(CLAUDE.md: "DB = v1과 같은 Atlas"). 단, <code>v2_*</code>만 쓰고 공유 컬렉션은 read/additive.</div>
+  </section>
+
+  <!-- 3 -->
+  <section id="s3">
+    <h2>3. Google OAuth 셋업 — 로그인 + Gmail</h2>
+    <div class="card">
+      <p>두 가지 흐름이 <b>하나의 OAuth 클라이언트 + 하나의 콜백</b>(<code>/api/auth/google/callback</code>)을 공유합니다. 콜백이 <code>state.purpose</code>로 분기:</p>
+      <table>
+        <tr><th>흐름</th><th>start</th><th>scope</th><th>콜백 동작</th><th>앱검증</th></tr>
+        <tr><td><b>로그인</b></td><td><code>/api/auth/google/start</code></td><td><code>openid email profile</code></td><td>id_token→sub/email→<code>signSession</code>→<code>ss_session</code> 쿠키</td><td><span class="ok">불필요</span></td></tr>
+        <tr><td><b>Gmail 연결</b></td><td><code>/api/auth/gmail/start</code></td><td><code>gmail.send gmail.readonly</code></td><td>refresh token→공유 백엔드 <code>user_tokens</code> 저장</td><td><span class="rose">필요</span>(민감)</td></tr>
+      </table>
+    </div>
+
+    <h3>3-A. 공유 클라이언트 재사용 (가장 빠름)</h3>
+    <p>운영자 클라이언트(<code>842411…</code>, 프로젝트 <code>balmy-apogee-452007-r5</code>)의 <code>client_id/secret</code>을 받아 env/시크릿에 넣고, 콜백 URI에 본인 origin을 추가 등록받으면 끝. localhost와 <code>agents.socialseed.ing</code>는 이미 등록됨.</p>
+
+    <h3>3-B. 본인 신규 OAuth 클라이언트 (독립 재현)</h3>
+    <div class="card runbook">
+      <div class="step"><b>OAuth 동의화면</b>: GCP Console → APIs &amp; Services → OAuth consent screen → User type <b>External</b> → 앱 이름/지원 이메일. Scopes에 <code>openid</code>·<code>email</code>·<code>profile</code>(로그인) + (Gmail 쓸 거면) <code>gmail.send</code>·<code>gmail.readonly</code>.</div>
+      <div class="step"><b>Test users</b> 추가: Publishing status가 "Testing"이면 등록된 test user만 로그인/연결 가능(+ refresh token 7일 만료). 공개 사용자 대상이면 "Production" 전환 + <span class="rose">gmail.send 민감 스코프 Google 검증(수 주)</span> 필요. 로그인용 <code>openid/email</code>은 검증 불필요.</div>
+      <div class="step"><b>OAuth 클라이언트(Web)</b> 생성 → <b>Authorized redirect URIs</b>:<pre>http://localhost:3000/api/auth/google/callback
+https://&lt;your-domain-or-cloud-run-url&gt;/api/auth/google/callback</pre></div>
+      <div class="step"><code>client_id</code>/<code>client_secret</code> → 로컬은 <code>.env.local</code>(<code>GOOGLE_CLIENT_ID/SECRET</code>), 클라우드는 Secret Manager(<code>google-oauth-client-id</code>/<code>google-oauth-client-secret</code> → 서비스가 <code>GOOGLE_OAUTH_CLIENT_ID/SECRET</code>로 주입). <span class="warn">코드는 두 이름 모두 허용</span>(<code>gmail-oauth.ts</code> <code>googleClientId()</code>).</div>
+    </div>
+    <div class="callout">로그인 콜백은 origin을 <code>GMAIL_OAUTH_ORIGIN</code>(설정 시) 또는 요청 origin으로 잡습니다. 배포 시 <code>GMAIL_OAUTH_ORIGIN=https://&lt;도메인&gt;</code>을 등록된 redirect와 일치시키세요.</div>
+  </section>
+
+  <!-- 4 -->
+  <section id="s4">
+    <h2>4. GCP 배포 — web을 내 프로젝트로 <span class="pill live">이번 세션 검증 경로</span></h2>
+    <p>아래는 <b>2026-06-01 실제로 실행해 rev <code>ss-v2-web-00004-jw7</code>를 띄운 경로</b>입니다. <code>&lt;PROJECT&gt;</code>=본인 프로젝트(예 <code>ss-v2-prod</code>), <code>&lt;REGION&gt;</code>=<code>us-central1</code>.</p>
+
+    <h3>4-0. 프로젝트 부트스트랩 (신규 계정)</h3>
+    <pre><span class="c"># 프로젝트 + 결제 연결 (결제는 콘솔/조직 정책에 따름)</span>
+gcloud projects create &lt;PROJECT&gt;
+gcloud config set project &lt;PROJECT&gt;
+<span class="c"># 필요한 API 활성화</span>
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com \
+  artifactregistry.googleapis.com secretmanager.googleapis.com \
+  aiplatform.googleapis.com workflows.googleapis.com
+<span class="c"># 이미지 레포 (web 빌드 산출물)</span>
+gcloud artifacts repositories create ss-web --repository-format=docker --location=&lt;REGION&gt;</pre>
+
+    <h3>4-1. 시크릿 일괄 생성 + 런타임 SA 권한</h3>
+    <p>ss-v2-web가 기대하는 시크릿(이번 세션 <code>describe</code> 기준). 런타임 SA(기본 compute SA 또는 전용 SA)에 각 accessor 부여.</p>
+    <pre>RUNTIME_SA="&lt;PROJECT_NUMBER&gt;-compute@developer.gserviceaccount.com"
+for s in web-auth-secret mongodb-uri google-oauth-client-id google-oauth-client-secret \
+         backend-dashboard-email backend-dashboard-password; do
+  gcloud secrets add-iam-policy-binding "$s" --project &lt;PROJECT&gt; \
+    --member="serviceAccount:$RUNTIME_SA" --role="roles/secretmanager.secretAccessor"
+done
+<span class="c"># AUTH_SECRET 신규 발급 예시 (>=16자)</span>
+printf '%s' "$(openssl rand -hex 24)" | gcloud secrets create web-auth-secret \
+  --project &lt;PROJECT&gt; --replication-policy=automatic --data-file=-</pre>
+    <table>
+      <tr><th>시크릿</th><th>주입 env</th><th>용도</th></tr>
+      <tr><td><code>web-auth-secret</code></td><td><code>AUTH_SECRET</code></td><td>세션 JWT 서명 (필수 — 없으면 로그인 500)</td></tr>
+      <tr><td><code>mongodb-uri</code></td><td><code>MONGODB_URI</code></td><td>Mission Control 데이터(§2)</td></tr>
+      <tr><td><code>google-oauth-client-id/secret</code></td><td><code>GOOGLE_OAUTH_CLIENT_ID/SECRET</code></td><td>로그인 + Gmail OAuth(§3)</td></tr>
+      <tr><td><code>backend-dashboard-email/password</code></td><td><code>BACKEND_DASHBOARD_EMAIL/PASSWORD</code></td><td>백엔드 X-API-Key(Gmail 토큰·TikTok)</td></tr>
+    </table>
+
+    <h3>4-2. 이미지 빌드 + 배포</h3>
+    <pre><span class="c"># 1) 모노레포 루트 컨텍스트로 web 이미지 빌드+푸시 (Next 16 멀티스테이지)</span>
+gcloud builds submit --config=deploy/web/cloudbuild.build-only.yaml \
+  --substitutions=_PROJECT_ID=&lt;PROJECT&gt;,_REGION=&lt;REGION&gt;,_TAG=web-$(git rev-parse --short HEAD) \
+  --project &lt;PROJECT&gt;
+
+<span class="c"># 2) Cloud Run 배포 — 이미지 + env + 시크릿 (한 번에)</span>
+gcloud run deploy ss-v2-web --project &lt;PROJECT&gt; --region &lt;REGION&gt; \
+  --image &lt;REGION&gt;-docker.pkg.dev/&lt;PROJECT&gt;/ss-web/web:web-$(git rev-parse --short HEAD) \
+  --allow-unauthenticated \
+  --set-env-vars=NODE_ENV=production,NEXT_TELEMETRY_DISABLED=1,GMAIL_OAUTH_ORIGIN=https://&lt;DOMAIN&gt;,SS_BACKEND_URL=https://backend.socialseed.ing \
+  --set-secrets=AUTH_SECRET=web-auth-secret:latest,MONGODB_URI=mongodb-uri:latest,GOOGLE_OAUTH_CLIENT_ID=google-oauth-client-id:latest,GOOGLE_OAUTH_CLIENT_SECRET=google-oauth-client-secret:latest,BACKEND_DASHBOARD_EMAIL=backend-dashboard-email:latest,BACKEND_DASHBOARD_PASSWORD=backend-dashboard-password:latest</pre>
+    <div class="callout ok">이후 코드 변경 재배포는 <b>이미지만</b> 교체: <code>gcloud builds submit …</code> → <code>gcloud run deploy ss-v2-web --image &lt;새tag&gt;</code> (기존 env/시크릿 보존). 단일 시크릿 추가는 <code>--update-secrets=KEY=secret:latest</code>.</div>
+
+    <h3>4-3. 도메인 매핑 (선택)</h3>
+    <pre><span class="c"># Cloud Run 도메인 매핑</span>
+gcloud run domain-mappings create --service ss-v2-web \
+  --domain agents.&lt;your-domain&gt; --project &lt;PROJECT&gt; --region &lt;REGION&gt;
+<span class="c"># → 출력된 CNAME(ghs.googlehosted.com)을 DNS(Cloudflare 등)에 등록 → TLS 자동 발급</span>
+<span class="c"># → OAuth 콘솔에 https://&lt;도메인&gt;/api/auth/google/callback redirect 추가(§3)</span></pre>
+    <p>본인 재현은 도메인 없이 Cloud Run 기본 URL(<code>https://ss-v2-web-…run.app</code>)로 충분 — 단 그 origin을 OAuth redirect에 등록.</p>
+  </section>
+
+  <!-- 5 -->
+  <section id="s5">
+    <h2>5. 무거운 인프라 (agents · mcp · workflows) 재현</h2>
+    <div class="card">
+      <p>web만 띄우면 로그인·Mission Control·Gmail 연결까지 동작합니다. <b>에이전트 루프(source→vet→…)</b> 전체를 클라우드에서 재현하려면 추가 인프라가 필요하고, 이는 <code>terraform/</code> + <code>deploy/</code>로 코드화돼 있습니다.</p>
+      <table>
+        <tr><th>구성</th><th>코드 위치</th><th>핵심</th></tr>
+        <tr><td><code>ss-agents</code> (22-에이전트 ADK fleet)</td><td><code>deploy/agents/</code> · <code>packages/agents-adk</code></td><td>Cloud Run · OIDC(run.invoker) · Vertex <b>global</b> · <code>CAPABILITY_LAYER_MODE</code></td></tr>
+        <tr><td><code>ss-mcp-server</code> (OSS tiktok-mcp, A2A v0.3)</td><td><code>oss/a2a-only-distribution</code></td><td>Cloud Run · REQUIRE_AUTH(OIDC + allowlist)</td></tr>
+        <tr><td><code>brand-campaign-demo</code> (Cloud Workflow)</td><td><code>deploy/</code> · <code>terraform/</code></td><td>coordinator→A2A→ss-mcp 오케스트레이션</td></tr>
+        <tr><td>IaC (프로젝트·IAM·시크릿·KMS·VPC)</td><td><code>terraform/{modules,environments}</code></td><td>per-env tfvars (D44)</td></tr>
+      </table>
+      <div class="callout">상세 실행/검증은 짝 문서 <code>claudedocs/2026-06-01-gcp-operations-manual.html</code> §3 런북(워크플로 1회 실행 · authed vetting E2E · Gmail 연결)을 따르세요. ADK는 오프라인 테스트(<code>pytest</code> + golden-eval)가 GCP 자격증명 없이 회귀를 잡습니다.</div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section id="s6">
+    <h2>6. 검증 — 실증 커맨드 (재현 성공 판정)</h2>
+    <h3>로컬</h3>
+    <pre>pnpm run verify-build        <span class="ok"># green</span>
+pnpm test                    <span class="ok"># TS 전체 (web 86 등)</span>
+cd packages/agents-adk &amp;&amp; pytest -q   <span class="ok"># offline</span>
+<span class="c"># 데모 pre-flight (DB 쓰기 없음 — env 매트릭스만)</span>
+pnpm exec tsx scripts/run-demo.ts --dry-run --type=brand</pre>
+    <h3>배포 (web)</h3>
+    <pre><span class="c"># 1) 랜딩 — 200 + 리다이렉트 아님</span>
+curl -sS -o /dev/null -w "%{http_code}\n" https://&lt;DOMAIN&gt;/        <span class="ok"># 200</span>
+<span class="c"># 2) 로그인 라우트 — 302 → Google consent (openid email profile)</span>
+curl -sS -o /dev/null -D - 'https://&lt;DOMAIN&gt;/api/auth/google/start?returnUrl=/campaigns' | grep -i location
+<span class="c">#   → accounts.google.com/...&scope=openid+email+profile&redirect_uri=.../api/auth/google/callback</span>
+<span class="c"># 3) 리비전 + 시크릿 배선 확인</span>
+gcloud run services describe ss-v2-web --project &lt;PROJECT&gt; --region &lt;REGION&gt; \
+  --format='value(status.latestReadyRevisionName)'
+<span class="c"># 4) 로그인 후(브라우저): /campaigns 정상 렌더 + /settings에서 "Gmail 연결" → 동의 → 연결됨</span></pre>
+    <div class="callout ok"><b>재현 성공 기준</b>: 게이트 green · 랜딩 200 · 로그인 302(scope=openid email profile) · 로그인 후 <code>/campaigns</code> 500 아님(= MONGODB_URI 배선됨) · <code>/settings</code>에서 Gmail 연결 시 <code>연결됨</code> pill.</div>
+  </section>
+
+  <!-- 7 -->
+  <section id="s7">
+    <h2>7. 트러블슈팅 — 실제 발생한 에러</h2>
+    <table>
+      <tr><th>증상</th><th>원인</th><th>해결</th></tr>
+      <tr><td><code>/campaigns</code> 500 · "This page couldn't load" · digest <code>2347156499</code></td><td><code>Error: MONGODB_URI is not set</code> — Mongo 미배선</td><td>§2-D 시크릿 배선 (<code>mongodb-uri</code> → <code>MONGODB_URI</code>)</td></tr>
+      <tr><td>로그인 클릭 후 500 / 세션 안 생김</td><td><code>AUTH_SECRET</code> 미설정(≥16자) — JWT 서명 불가</td><td><code>web-auth-secret</code> 생성 + <code>AUTH_SECRET</code> 배선(§4-1)</td></tr>
+      <tr><td>OAuth <code>redirect_uri_mismatch</code></td><td>콜백 origin 미등록</td><td>OAuth 콘솔에 <code>https://&lt;origin&gt;/api/auth/google/callback</code> 추가(§3-B)</td></tr>
+      <tr><td>Gemini 호출 404</td><td><code>*-pro</code> 사용 / <code>us-central1</code>에서 3.x 호출</td><td>모델 <code>3.5-flash</code>·<code>3.1-flash-lite</code> + 엔드포인트 <b>global</b> (D53)</td></tr>
+      <tr><td>Gmail 토큰이 자꾸 7일 만료</td><td>OAuth 동의화면 "Testing" → refresh token 7일</td><td>운영자가 "Production" 전환(+ gmail.send 검증) 또는 test user로 재연결</td></tr>
+      <tr><td>Gmail 발송이 막힘</td><td>D10 allow-list 밖 계정</td><td>발송 계정을 allow-list(app.2weeks@gmail.com·sejun@2weeks.co·centisgood@gmail.com)로</td></tr>
+      <tr><td><code>init-indexes</code>가 "not a real connection string"</td><td><code>MONGODB_URI</code>에 <code>...</code> placeholder 남음</td><td><code>.env.local</code>에 실 SRV URI 입력</td></tr>
+      <tr><td>pnpm 버전 경고 / lockfile 충돌</td><td>pnpm 버전 불일치</td><td><code>corepack prepare pnpm@10.18.2 --activate</code></td></tr>
+    </table>
+  </section>
+
+  <!-- 8 -->
+  <section id="s8">
+    <h2>8. 하드 제약 + 협업 위생 (반드시 준수)</h2>
+    <table>
+      <tr><th>항목</th><th>규칙</th></tr>
+      <tr><td>모델 (D53)</td><td>Gemini <b>3.5-flash</b>(judgment) / <b>3.1-flash-lite</b>(bulk)만. 2.5·<code>*-pro</code>·Claude 금지.</td></tr>
+      <tr><td>엔드포인트</td><td>Vertex <b>global</b> (us-central1은 3.x에 404).</td></tr>
+      <tr><td>배포 격리</td><td>신규 프로젝트 <code>ss-v2-prod</code>/<code>ss-mcp-prod</code>/<code>ss-shared-infra</code>만. v1 backend(<code>:8080</code>)·그 <code>.env</code> <b>무접속</b>.</td></tr>
+      <tr><td>공유 Atlas 컬렉션</td><td>read 자유 / write는 <b>additive 필드만</b> · 제거·리타입 금지. v2는 <code>v2_*</code> 소유.</td></tr>
+      <tr><td>Gmail 발송</td><td>D10 allow-list = 운영자 메일만.</td></tr>
+      <tr><td>Git</td><td>feature 브랜치 · <b>no-squash</b>(<code>gh pr merge --merge</code>) · 커밋 히스토리 보존 · 푸시 전 게이트 green.</td></tr>
+      <tr><td>비밀</td><td>실 값은 Secret Manager / <code>.env.local</code>(gitignore)에만. 커밋·로그·채팅에 평문 금지.</td></tr>
+    </table>
+  </section>
+
+  <div class="note">
+    생성: 2026-06-01 · 본 매뉴얼은 빈 계정 기준 제로부터 재현 절차. §4 배포 명령은 이번 세션 실행으로 rev
+    <code>ss-v2-web-00004-jw7</code>를 띄운 검증된 경로(이미지 빌드 SUCCESS 1m37s, <code>AUTH_SECRET</code>+로그인 302 실증). §4-0 부트스트랩과 §5 무거운 인프라는 표준 절차/IaC 참조.
+    짝 문서(작동 방식·라이브 증거): <code>claudedocs/2026-06-01-gcp-operations-manual.html</code>. 코드: PR #45(실 Google 로그인+랜딩).
+  </div>
+</div>
+</body>
+</html>
