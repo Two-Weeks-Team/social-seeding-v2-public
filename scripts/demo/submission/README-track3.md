@@ -48,7 +48,7 @@ Pricing:
 
 | Metric                                  | Value           | How measured                                                            |
 |-----------------------------------------|-----------------|-------------------------------------------------------------------------|
-| Availability                            | live on Cloud Run | managed Cloud Run SLA; live node verifiable at `…run.app/.well-known/agent.json` (200) + `verify-live-evidence.sh` |
+| Availability                            | live on Cloud Run | managed Cloud Run SLA; live node verifiable at `https://ss-mcp-server-1049119860518.us-central1.run.app/.well-known/agent.json` (200) + `verify-live-evidence.sh` |
 | Cold start (Agent Runtime)              | < 1 s p99       | matches the D17 sub-second cold-start claim                              |
 | End-to-end failover (Beat 6 of demo)    | **8 s**         | live drill: `gcloud run services delete --region=us-central1`; Global LB re-routes |
 | p99 latency under load                  | < 1 s           | D31 SLO; observed via Cloud Trace + OpenTelemetry on 10 k req/min synthetic |
@@ -74,7 +74,7 @@ curl -s https://ss-mcp-server-1049119860518.us-central1.run.app/.well-known/jwks
 
 # 4. Call a tool over A2A v0.3 (auth required — 401 without an Identity Platform token):
 curl -s -X POST https://ss-mcp-server-1049119860518.us-central1.run.app/v1/message:send \
-  -H "Authorization: Bearer $TOKEN" -H "content-type: application/json" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"message":{"role":"user","messageId":"demo-1","parts":[{"kind":"text","text":"korean skincare creators"}]}}'
 ```
 
