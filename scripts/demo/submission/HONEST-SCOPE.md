@@ -102,6 +102,17 @@ synthesis-target 16 data rows (17 lines including header).
    seam with offline coverage), **not** silent breakage. A judge driving the fleet with
    `CAPABILITY_LAYER_MODE=live` against unwired tools will hit these seams by design. The live A2A path
    actually demonstrated (`plan_creator_search`, exec `9cc843c1`) runs the wired tiktok tools end-to-end.
+2c. **TS campaign-loop carrier (shipment tracking).** `packages/capabilities/src/shipment/carrier.ts`'s
+   default factory now returns a **deterministic offline demo carrier** when no `YUNTRACK_API_KEY` is
+   set — a faithful port of v1's `getEnhancedFallbackData` (Seller → … → delivered timeline). This is
+   what lets the campaign loop reach `delivered → content_review → performance` in a demo/test run
+   without live shipping. **It is demo data, not a live carrier scrape**; with `YUNTRACK_API_KEY`
+   present the factory throws (`live yuntrack port pending`, issue #29) rather than silently faking a
+   live track. The content-verify baseline (`avgViews`) is now real (from the creator's `recentPosts`),
+   and report-deliver resolves `creatorId → @handle` (issue #29 P0-A/B/C). The *live* creator-track leg
+   still needs Gemini credentials for its agents (conversation/logistics/content-verify) — that path is
+   operator/Google-gated; offline it is driven by the mocked-model harness (creator-track tests reach
+   `verified`).
 3. **DAM is no longer a stand-in.** After W3, `content_verify → get_brand_assets` is a **real A2A v0.3
    hop on `ss-mcp`** — Build Example #2 is transport-exact (row 9).
 4. **mTLS is declared, not enforced** on the demo (row 13); the heuristic ranker is real-at-the-wire,
