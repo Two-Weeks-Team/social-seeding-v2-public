@@ -1,4 +1,4 @@
-import type { ShipmentCarrier, TrackingEvent } from "@ss/contracts";
+import type { ShipmentCarrier, ShipmentStatus, TrackingEvent } from "@ss/contracts";
 
 /**
  * Injectable carrier-client seam — same pattern as the `GmailClient` /
@@ -62,14 +62,80 @@ export interface CarrierClient {
 
 export type CarrierClientFactory = (carrier: ShipmentCarrier) => Promise<CarrierClient>;
 
+/**
+ * Deterministic offline carrier — a faithful port of v1's
+ * `getEnhancedFallbackData` (`~/.../social-seeding-frontend/src/lib/tracking/
+ * yuntrack.ts`): a fixed Seller → warehouse → export → in-transit → customs →
+ * out-for-delivery → delivered timeline. No network, no key, fully
+ * reproducible. This is what the default factory returns when no
+ * `YUNTRACK_API_KEY` is set — it lets the full campaign loop reach
+ * `delivered` (and therefore content_review → performance) in a demo run.
+ *
+ * HONEST SCOPE: this is a DETERMINISTIC DEMO timeline, not a live carrier
+ * scrape. The real yuntrack integration (network scrape / API) is the
+ * follow-up that activates when `YUNTRACK_API_KEY` is present.
+ */
+const DEMO_TIMELINE: ReadonlyArray<{ daysBack: number; status: ShipmentStatus; location: string; desc: string }> = [
+  { daysBack: 9.5, status: "pending", location: "Seller", desc: "Parcel information created" },
+  { daysBack: 9.2, status: "pending", location: "YunExpress Warehouse", desc: "Shipment information received" },
+  { daysBack: 8.4, status: "shipped", location: "YunExpress Warehouse", desc: "Package processed at facility" },
+  { daysBack: 7.0, status: "shipped", location: "China Export Hub", desc: "Export clearance completed" },
+  { daysBack: 5.0, status: "in_transit", location: "Destination Airport", desc: "Arrived at destination country" },
+  { daysBack: 3.5, status: "in_transit", location: "Customs", desc: "Customs clearance completed" },
+  { daysBack: 1.5, status: "in_transit", location: "Local Distribution Center", desc: "Arrived at local delivery facility" },
+  { daysBack: 0.4, status: "out_for_delivery", location: "Local Courier", desc: "Out for delivery" },
+  { daysBack: 0.1, status: "delivered", location: "Destination", desc: "Delivered - Signed by recipient" },
+];
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+// Fixed anchor for the demo timeline. trackShipment derives its base from the
+// tracking number (NOT wall-clock), so event timestamps are STABLE across
+// poll cycles — otherwise shifting timestamps would defeat the
+// (timestamp, statusCode) dedup in shipmentRepo and append duplicate events on
+// every poll (CodeRabbit #33 high).
+const DEMO_ANCHOR_MS = new Date("2026-06-01T00:00:00Z").getTime();
+
+/** Build the deterministic demo carrier client (no network, no key). */
+export function demoCarrierClient(now: () => number = Date.now): CarrierClient {
+  return {
+    async createShipment(input: CarrierCreateInput): Promise<CarrierCreateResult> {
+      const seed = `${input.recipientName}|${input.reference}`;
+      const hash = Array.from(seed).reduce((acc, c) => acc + c.charCodeAt(0), 0);
+      return {
+        trackingNumber: `SSDEMO${100000 + (hash % 900000)}`,
+        estimatedDeliveryAt: new Date(now() + 2 * DAY_MS),
+      };
+    },
+    async trackShipment(trackingNumber: string): Promise<CarrierTrackResult> {
+      // Deterministic, poll-stable base derived from the tracking number.
+      const digits = trackingNumber.match(/\d+/)?.[0] ?? "0";
+      const seed = Number(digits) || 0;
+      const base = DEMO_ANCHOR_MS + (seed % 1000) * 60_000;
+      const events: TrackingEvent[] = DEMO_TIMELINE.map((t) => ({
+        timestamp: new Date(base - t.daysBack * DAY_MS),
+        statusCode: t.status,
+        status: t.status,
+        location: t.location,
+        description: `(${t.location}) ${t.desc} [demo:${trackingNumber}]`,
+      }));
+      return { events };
+    },
+  };
+}
+
 async function defaultCarrierClientFactory(carrier: ShipmentCarrier): Promise<CarrierClient> {
-  // The yuntrack-backed factory needs YUNTRACK_API_KEY at invocation time;
-  // until that wiring (Phase-3.5 follow-up port of
-  // `~/social-seeding/src/lib/tracking/yuntrack.ts`) lands, throw loudly.
-  throw new Error(
-    `defaultCarrierClientFactory: carrier='${carrier}' is not wired yet — set up the real ` +
-      "carrier SDK or inject a fake via setCarrierClient(...) for tests.",
-  );
+  // With a real key present we must NOT silently fake a live carrier — the
+  // real yuntrack network integration is a follow-up (issue #29). Fail loudly
+  // so prod doesn't mistake demo data for live tracking.
+  if (process.env.YUNTRACK_API_KEY) {
+    throw new Error(
+      `defaultCarrierClientFactory: live yuntrack integration for carrier='${carrier}' is not ported yet ` +
+        "(issue #29 follow-up). Unset YUNTRACK_API_KEY to use the deterministic demo carrier, " +
+        "or inject a client via setCarrierClientFactory(...).",
+    );
+  }
+  // No key → deterministic, offline demo timeline (Seller → … → delivered).
+  return demoCarrierClient();
 }
 
 let _factory: CarrierClientFactory | undefined;

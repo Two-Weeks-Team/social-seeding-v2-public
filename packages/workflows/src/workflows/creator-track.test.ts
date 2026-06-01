@@ -67,8 +67,8 @@ const creator: TikTokCreator = {
 };
 
 const recentPosts = [
-  { desc: "겨울철 보습 루틴 공유합니다!", hashtags: ["스킨케어"] },
-  { desc: "신상 세럼 후기. 발림성 만족.", hashtags: [] },
+  { desc: "겨울철 보습 루틴 공유합니다!", hashtags: ["스킨케어"], views: 12_000, likes: 800, comments: 40, shares: 12 },
+  { desc: "신상 세럼 후기. 발림성 만족.", hashtags: [], views: 8_000, likes: 500, comments: 20, shares: 6 },
 ];
 
 const cleanDraft: OutreachDraft = {

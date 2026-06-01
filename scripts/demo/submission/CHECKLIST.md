@@ -1,6 +1,6 @@
 # CHECKLIST.md — final operator submission checklist (single grand-narrative Track 3 entry)
 
-> **Goal**: paste the text into the **single** Devpost Track 3 form + click Submit before **2026-06-05 23:59 PT (2026-06-06 15:59 KST)**.
+> **Goal**: paste the text into the **single** Devpost Track 3 form + click Submit before **2026-06-05 17:00 PT (2026-06-06 09:00 KST)**.
 > **Strategy**: ONE Devpost entry under **Track 3 (Refactor)** telling the whole product as a single **Build → Optimize → Refactor** arc, aimed at the **Overall Grand Prize** (Refactor theme + APAC Regional in range as fallbacks). D50 (grand narrative, supersedes the dual-submission idea D1; D45 single-submission still holds). There is **no second form**.
 > **Reference**: D50 (grand narrative, Grand Prize aim) · D45 (single submission) · D6 (Devpost gated invite) · D30 (8× demo recording) · D47-D49 (Track 3 requirement hardening) · D25 (optimize/learning loop).
 > **Authority**: This file is the executable runbook. If anything here disagrees with `gcp-research/decisions/DECISIONS.md`, that file wins.
@@ -201,10 +201,10 @@ If Devpost does NOT allow edits after submit (gated-invite events sometimes lock
 
 ## 12. If anything is unclear
 
-- **Operator's primary instruction**: paste text into the single Track 3 Devpost form + click Submit before 2026-06-05 23:59 PT. Nothing else.
+- **Operator's primary instruction**: paste text into the single Track 3 Devpost form + click Submit before 2026-06-05 17:00 PT. Nothing else.
 - **For Devpost-form questions** (field location, character limit): the Devpost console preview is the source of truth.
 - **For content questions** (is this claim right): `gcp-research/decisions/DECISIONS.md` is the source of truth; cite the D-ID in any edit.
-- **For deadline questions**: deadline is **2026-06-05 23:59 PT** (= **2026-06-06 15:59 KST**). Submit ≥ 6 hours early to allow recovery from any Devpost or YouTube outage.
+- **For deadline questions**: deadline is **2026-06-05 17:00 PT** (= **2026-06-06 09:00 KST**) — per CLAUDE.md / Google's official announcement (corrects a prior 23:59 PT typo, issue #31). Submit ≥ 6 hours early to allow recovery from any Devpost or YouTube outage.
 
 ---
 

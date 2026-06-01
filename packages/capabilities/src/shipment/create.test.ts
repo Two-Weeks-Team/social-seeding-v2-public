@@ -245,21 +245,25 @@ describe("shipment.create", () => {
     expect(c.lastCreateInput?.declaredValueUsdCents).toBe(3000);
   });
 
-  it("default carrier factory throws when the implementation isn't wired (no setCarrierClient → no silent success)", async () => {
+  it("default carrier factory (no YUNTRACK_API_KEY) uses the deterministic demo carrier — shipment gets an SSDEMO tracking number", async () => {
+    // #29 P0-A: the default factory now yields a working offline demo carrier
+    // (no key) so the full loop can reach delivered. (With a key set it throws
+    // — the real yuntrack port is a follow-up; that branch is covered in
+    // carrier.test.ts.)
     setCarrierClientFactory(undefined);
-    await expect(
-      shipmentCreate.handler(
-        {
-          creatorTrackId: "camp_3a:cr_x",
-          creatorId: "cr_x",
-          carrier: "yuntrack",
-          shippingAddress: address,
-          products: [product],
-          reference: "",
-          notes: "",
-        },
-        ctx,
-      ),
-    ).rejects.toThrow(/not wired/);
+    delete process.env.YUNTRACK_API_KEY;
+    const out = await shipmentCreate.handler(
+      {
+        creatorTrackId: "camp_3a:cr_x",
+        creatorId: "cr_x",
+        carrier: "yuntrack",
+        shippingAddress: address,
+        products: [product],
+        reference: "",
+        notes: "",
+      },
+      ctx,
+    );
+    expect(out.trackingNumber).toMatch(/^SSDEMO\d{6}$/);
   });
 });
