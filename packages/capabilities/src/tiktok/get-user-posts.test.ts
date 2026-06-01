@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mapRapidApiPosts, setTikTokFetcher, getTikTokFetcher } from "./get-creator";
+import { mapRapidApiPosts, resetBackendKeyCache, setTikTokFetcher, getTikTokFetcher } from "./get-creator";
 
 /**
  * Phase 6 carry-over — defaultFetcher.getUserPosts now lives wired against
@@ -11,6 +11,7 @@ import { mapRapidApiPosts, setTikTokFetcher, getTikTokFetcher } from "./get-crea
 
 afterEach(() => {
   setTikTokFetcher(undefined);
+  resetBackendKeyCache();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
@@ -124,11 +125,33 @@ describe("mapRapidApiPosts — defensive shape normalization", () => {
 });
 
 describe("defaultFetcher.getUserPosts — backend.socialseed.ing proxy path", () => {
-  it("throws clearly when SS_BACKEND_API_KEY is unset", async () => {
+  it("throws clearly when no static key AND no /auth/login credentials", async () => {
     vi.stubEnv("SS_BACKEND_API_KEY", "");
+    vi.stubEnv("BACKEND_DASHBOARD_EMAIL", "");
+    vi.stubEnv("BACKEND_DASHBOARD_PASSWORD", "");
+    resetBackendKeyCache();
     setTikTokFetcher(undefined);
     const fetcher = getTikTokFetcher();
-    await expect(fetcher.getUserPosts("@freshly")).rejects.toThrow(/SS_BACKEND_API_KEY is not set/);
+    await expect(fetcher.getUserPosts("@freshly")).rejects.toThrow(/SS_BACKEND_API_KEY unset and BACKEND_DASHBOARD_EMAIL/);
+  });
+
+  it("X-API-Key rotation: caches the minted key (one /auth/login for two calls)", async () => {
+    vi.stubEnv("SS_BACKEND_API_KEY", "");
+    vi.stubEnv("BACKEND_DASHBOARD_EMAIL", "ops@2weeks.co");
+    vi.stubEnv("BACKEND_DASHBOARD_PASSWORD", "pw");
+    resetBackendKeyCache();
+    setTikTokFetcher(undefined);
+    const fetchSpy = vi.fn(async (url: string) => {
+      if (url.endsWith("/auth/login")) {
+        return new Response(JSON.stringify({ success: true, api_key: "rk", api_key_expires_at: new Date(Date.now() + 30 * 60_000).toISOString() }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ posts: [] }), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchSpy as unknown as typeof fetch);
+    await getTikTokFetcher().getUserPosts("@a");
+    await getTikTokFetcher().getUserPosts("@b");
+    const loginCalls = (fetchSpy.mock.calls as unknown as Array<[string]>).filter(([u]) => u.endsWith("/auth/login"));
+    expect(loginCalls).toHaveLength(1); // key cached across the two fetches
   });
 
   it("happy path: hits {BASE}/api/v1/user/posts?uniqueId=&preferRapidAPI=true with X-API-Key + maps", async () => {

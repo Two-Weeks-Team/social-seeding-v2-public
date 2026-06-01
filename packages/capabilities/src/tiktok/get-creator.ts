@@ -57,7 +57,7 @@ export interface TikTokFetcher {
   getUserPosts(uniqueId: string, limit?: number): Promise<TikTokPost[]>;
 }
 
-// ── backend.socialseed.ing proxy config ─────────────────────────────────────
+// ── backend.socialseed.ing proxy config + key rotation ──────────────────────
 //
 // v2 fetches TikTok creator info + posts through the SAME backend proxy v1
 // used (`backend.socialseed.ing`, internally the Go backend), NOT by calling
@@ -66,21 +66,79 @@ export interface TikTokFetcher {
 // stays a thin authenticated client. Contract (v1 parity):
 //   GET {BASE}/api/v1/user/info?uniqueId=<h>           header X-API-Key
 //   GET {BASE}/api/v1/user/posts?uniqueId=<h>[&count]  header X-API-Key
-// Base URL is overridable via SS_BACKEND_URL; the key is SS_BACKEND_API_KEY.
+//
+// X-API-Key ROTATION (v1 parity — `lib/api-key-rotation.ts`): the backend
+// X-API-Key is a SHORT-LIVED key minted via `POST {BASE}/auth/login`
+// ({email,password} → {success, api_key, api_key_expires_at}). We cache it
+// (5-min TTL) and refresh proactively ≤1 min before expiry, so v2 never sends
+// a stale key. A static `SS_BACKEND_API_KEY` short-circuits login (fixed-key
+// operators / tests). Credentials: BACKEND_DASHBOARD_EMAIL / _PASSWORD.
 const DEFAULT_BACKEND_URL = "https://backend.socialseed.ing";
+const KEY_CACHE_TTL_MS = 5 * 60 * 1000;
+const KEY_REFRESH_AHEAD_MS = 60 * 1000;
 
-interface BackendConfig {
-  baseUrl: string;
-  apiKey: string;
+export function backendBaseUrl(): string {
+  return (process.env.SS_BACKEND_URL ?? DEFAULT_BACKEND_URL).replace(/\/+$/, "");
 }
 
-function backendConfig(): BackendConfig | null {
-  const apiKey = process.env.SS_BACKEND_API_KEY;
-  if (!apiKey) return null;
-  return {
-    apiKey,
-    baseUrl: (process.env.SS_BACKEND_URL ?? DEFAULT_BACKEND_URL).replace(/\/+$/, ""),
-  };
+interface CachedBackendKey {
+  key: string;
+  expiresAt: number; // epoch ms the key itself expires
+  cachedAt: number; // epoch ms we fetched it
+}
+let _keyCache: CachedBackendKey | undefined;
+
+/** Reset the rotating-key cache — tests call this between cases. */
+export function resetBackendKeyCache(): void {
+  _keyCache = undefined;
+}
+
+function keyCacheValid(c: CachedBackendKey, now: number): boolean {
+  return now - c.cachedAt < KEY_CACHE_TTL_MS && c.expiresAt - now > KEY_REFRESH_AHEAD_MS;
+}
+
+/** Mint a fresh X-API-Key from the backend's /auth/login (v1 parity). */
+async function loginForBackendKey(baseUrl: string): Promise<CachedBackendKey> {
+  const email = process.env.BACKEND_DASHBOARD_EMAIL;
+  const password = process.env.BACKEND_DASHBOARD_PASSWORD;
+  if (!email || !password) {
+    throw new Error(
+      "SS_BACKEND_API_KEY unset and BACKEND_DASHBOARD_EMAIL/BACKEND_DASHBOARD_PASSWORD not set — " +
+        "cannot mint a backend.socialseed.ing key (tests should inject a fake via setTikTokFetcher)",
+    );
+  }
+  const res = await fetch(`${baseUrl}/auth/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({ email, password }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) {
+    throw new Error(`backend.socialseed.ing /auth/login returned ${res.status}`);
+  }
+  const d = (await res.json()) as { success?: boolean; api_key?: string; api_key_expires_at?: string };
+  if (!d.success || !d.api_key) {
+    throw new Error("backend.socialseed.ing /auth/login: response had no api_key");
+  }
+  const parsed = d.api_key_expires_at ? new Date(d.api_key_expires_at).getTime() : NaN;
+  const now = Date.now();
+  // Fall back to the cache TTL if the backend didn't return a usable expiry.
+  const expiresAt = Number.isFinite(parsed) && parsed > now ? parsed : now + KEY_CACHE_TTL_MS;
+  return { key: d.api_key, expiresAt, cachedAt: now };
+}
+
+/**
+ * Resolve the X-API-Key for a backend call. Static `SS_BACKEND_API_KEY` wins
+ * (fixed-key/dev/test); otherwise return the cached rotating key or mint a new
+ * one via /auth/login. Exported for the rotation unit test.
+ */
+export async function getActiveBackendKey(baseUrl: string = backendBaseUrl()): Promise<string> {
+  const fixed = process.env.SS_BACKEND_API_KEY;
+  if (fixed) return fixed;
+  const now = Date.now();
+  if (_keyCache && keyCacheValid(_keyCache, now)) return _keyCache.key;
+  _keyCache = await loginForBackendKey(baseUrl);
+  return _keyCache.key;
 }
 
 /**
@@ -297,19 +355,16 @@ function pickHashtagArray(r: Record<string, unknown>, keys: string[]): string[] 
   return [];
 }
 
-const NO_KEY_MSG =
-  "SS_BACKEND_API_KEY is not set — tiktok.getCreator goes through the backend.socialseed.ing proxy and needs its key at runtime (tests should inject a fake via setTikTokFetcher)";
-
 function defaultFetcher(): TikTokFetcher {
   return {
     async getUserInfo(uniqueId) {
-      const cfg = backendConfig();
-      if (!cfg) throw new Error(NO_KEY_MSG);
+      const baseUrl = backendBaseUrl();
+      const apiKey = await getActiveBackendKey(baseUrl); // static or rotating (/auth/login)
       const handle = uniqueId.replace(/^@/, "");
-      const url = `${cfg.baseUrl}/api/v1/user/info?uniqueId=${encodeURIComponent(handle)}`;
+      const url = `${baseUrl}/api/v1/user/info?uniqueId=${encodeURIComponent(handle)}`;
       const res = await fetch(url, {
         method: "GET",
-        headers: { "X-API-Key": cfg.apiKey, accept: "application/json" },
+        headers: { "X-API-Key": apiKey, accept: "application/json" },
         signal: AbortSignal.timeout(15_000),
       });
       if (!res.ok) {
@@ -323,8 +378,8 @@ function defaultFetcher(): TikTokFetcher {
       return creator;
     },
     async getUserPosts(uniqueId, limit) {
-      const cfg = backendConfig();
-      if (!cfg) throw new Error(NO_KEY_MSG);
+      const baseUrl = backendBaseUrl();
+      const apiKey = await getActiveBackendKey(baseUrl); // static or rotating (/auth/login)
       const handle = uniqueId.replace(/^@/, "");
       // preferRapidAPI=true mirrors v1's userposts route (secUid lookup →
       // RapidAPI); the backend handles the DB-cache → pool → RapidAPI fallback.
@@ -332,10 +387,10 @@ function defaultFetcher(): TikTokFetcher {
       if (typeof limit === "number" && limit > 0) {
         params.set("count", String(Math.min(limit, 50)));
       }
-      const url = `${cfg.baseUrl}/api/v1/user/posts?${params.toString()}`;
+      const url = `${baseUrl}/api/v1/user/posts?${params.toString()}`;
       const res = await fetch(url, {
         method: "GET",
-        headers: { "X-API-Key": cfg.apiKey, accept: "application/json" },
+        headers: { "X-API-Key": apiKey, accept: "application/json" },
         // backend proxies a slow upstream — 15s is v1's cap.
         signal: AbortSignal.timeout(15_000),
       });

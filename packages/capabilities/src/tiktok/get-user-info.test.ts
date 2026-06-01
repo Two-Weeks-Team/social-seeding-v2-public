@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mapRapidApiCreator, setTikTokFetcher, getTikTokFetcher } from "./get-creator";
+import { mapRapidApiCreator, resetBackendKeyCache, setTikTokFetcher, getTikTokFetcher } from "./get-creator";
 
 /**
  * Carry-over completion — defaultFetcher.getUserInfo wired against
@@ -10,6 +10,7 @@ import { mapRapidApiCreator, setTikTokFetcher, getTikTokFetcher } from "./get-cr
 
 afterEach(() => {
   setTikTokFetcher(undefined);
+  resetBackendKeyCache();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
@@ -120,10 +121,37 @@ describe("mapRapidApiCreator — defensive shape normalization", () => {
 });
 
 describe("defaultFetcher.getUserInfo — backend.socialseed.ing proxy path", () => {
-  it("throws clearly when SS_BACKEND_API_KEY is unset", async () => {
+  it("throws clearly when no static key AND no /auth/login credentials", async () => {
     vi.stubEnv("SS_BACKEND_API_KEY", "");
+    vi.stubEnv("BACKEND_DASHBOARD_EMAIL", "");
+    vi.stubEnv("BACKEND_DASHBOARD_PASSWORD", "");
+    resetBackendKeyCache();
     setTikTokFetcher(undefined);
-    await expect(getTikTokFetcher().getUserInfo("@freshly")).rejects.toThrow(/SS_BACKEND_API_KEY is not set/);
+    await expect(getTikTokFetcher().getUserInfo("@freshly"))
+      .rejects.toThrow(/SS_BACKEND_API_KEY unset and BACKEND_DASHBOARD_EMAIL/);
+  });
+
+  it("X-API-Key rotation: no static key → mints via POST /auth/login, then calls user/info", async () => {
+    vi.stubEnv("SS_BACKEND_API_KEY", "");
+    vi.stubEnv("SS_BACKEND_URL", "https://backend.socialseed.ing");
+    vi.stubEnv("BACKEND_DASHBOARD_EMAIL", "ops@2weeks.co");
+    vi.stubEnv("BACKEND_DASHBOARD_PASSWORD", "pw");
+    resetBackendKeyCache();
+    setTikTokFetcher(undefined);
+    const fetchSpy = vi.fn(async (url: string) => {
+      if (url.endsWith("/auth/login")) {
+        return new Response(JSON.stringify({ success: true, api_key: "rotated_key_abc", api_key_expires_at: new Date(Date.now() + 30 * 60_000).toISOString() }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ user: { uniqueId: "freshly", nickname: "F" } }), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchSpy as unknown as typeof fetch);
+    await getTikTokFetcher().getUserInfo("@freshly");
+    const calls = fetchSpy.mock.calls as unknown as Array<[string, RequestInit]>;
+    // first call = login (POST), second = user/info with the minted key
+    expect(calls[0]?.[0]).toBe("https://backend.socialseed.ing/auth/login");
+    expect(calls[0]?.[1]?.method).toBe("POST");
+    const infoCall = calls.find(([u]) => u.includes("/api/v1/user/info"));
+    expect((infoCall?.[1].headers as Record<string, string>)["X-API-Key"]).toBe("rotated_key_abc");
   });
 
   it("happy path: hits {BASE}/api/v1/user/info?uniqueId= with X-API-Key + maps the response", async () => {
