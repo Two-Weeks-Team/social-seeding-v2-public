@@ -103,9 +103,18 @@ class IPBucketLimiter:
         self._lock = threading.Lock()
 
     def _gc_locked(self, now: float) -> None:
-        stale = [ip for ip, b in self._buckets.items() if (now - b.updated_at) > self._GC_IDLE_SECONDS]
-        for ip in stale:
-            del self._buckets[ip]
+        # O(stale) sweep instead of O(N): buckets are held in LRU order (a
+        # touched bucket is moved to the end on access), so the oldest live at
+        # the front. Drop expired buckets from the front and stop at the first
+        # live one — avoids a full scan under the global lock when _buckets
+        # grows large (IP spray / DoS).
+        while self._buckets:
+            ip = next(iter(self._buckets))
+            bucket = self._buckets[ip]
+            if (now - bucket.updated_at) > self._GC_IDLE_SECONDS:
+                del self._buckets[ip]
+            else:
+                break
 
     def acquire(self, ip: str) -> tuple[bool, float]:
         """Try to consume one token for ``ip``.
@@ -127,6 +136,10 @@ class IPBucketLimiter:
                 elapsed = max(0.0, now - bucket.updated_at)
                 bucket.tokens = min(self.capacity, bucket.tokens + elapsed * self.refill_per_sec)
                 bucket.updated_at = now
+                # Keep LRU order for _gc_locked: move the just-touched bucket to
+                # the end so the front always holds the least-recently-used IP.
+                del self._buckets[ip]
+                self._buckets[ip] = bucket
 
             if bucket.tokens >= 1.0:
                 bucket.tokens -= 1.0

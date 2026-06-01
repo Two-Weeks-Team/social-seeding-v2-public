@@ -139,7 +139,7 @@ export function ActivityTimeline({ traces }: { traces: PersistedTraceDoc[] }) {
       {traces.map((run) => {
         const tree = buildTree(run.spans);
         return (
-          <section key={run.runId} aria-label={`실행 ${run.runId.slice(0, 12)}`}>
+          <section key={run.runId} role="article" aria-label={`실행 ${run.runId.slice(0, 12)}`}>
             <div className="text-[10px] mono text-slate-400 mb-1 flex items-center gap-2">
               <span>run_{run.runId.slice(0, 12)}</span>
               <span>·</span>
