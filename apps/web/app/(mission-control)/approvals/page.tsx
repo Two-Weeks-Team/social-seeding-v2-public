@@ -21,6 +21,8 @@ const KIND_LABEL: Record<Approval["kind"], string> = {
   reply_response: "REPLY_RESPONSE",
   shipment: "SHIPMENT",
   stage_advance: "STAGE_ADVANCE",
+  content_review: "CONTENT_REVIEW", // approveContent — final sign-off on a verified post.
+  budget: "BUDGET", // approveBudget — spend release / contract execution.
   payment_mandate: "PAYMENT_MANDATE", // AP2 Intent Mandate sign checkpoint (D27).
 };
 
@@ -30,6 +32,8 @@ const KIND_PHASE: Record<Approval["kind"], string | null> = {
   reply_response: null, // P2-C6b: drill-in live
   shipment: null, // P3-C7a: drill-in live (approveShipment producer = creator-track P3-C6)
   stage_advance: null,
+  content_review: null, // approveContent producer = campaign-autopilot content_review stage
+  budget: null, // approveBudget producer = campaign-autopilot budget gate
   payment_mandate: null, // Phase 6 — AP2 drill-in live (renderPaymentMandateApproval).
 };
 
@@ -38,6 +42,8 @@ const REVIEWABLE_KINDS = new Set<Approval["kind"]>([
   "outreach_send",
   "reply_response",
   "shipment",
+  "content_review",
+  "budget",
   "payment_mandate",
 ]);
 
@@ -83,7 +89,7 @@ export default async function ApprovalsPage() {
       </header>
 
       <div className="space-y-5">
-        {(["shortlist", "outreach_send", "reply_response", "shipment", "stage_advance"] as Approval["kind"][]).map((kind) => {
+        {(["shortlist", "outreach_send", "reply_response", "shipment", "content_review", "budget", "stage_advance"] as Approval["kind"][]).map((kind) => {
           const rows = grouped.get(kind) ?? [];
           const phase = KIND_PHASE[kind];
           return (

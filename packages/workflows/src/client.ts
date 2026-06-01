@@ -2,6 +2,7 @@ import { Inngest, EventSchemas } from "inngest";
 import { z } from "zod";
 import {
   CampaignSubmittedEvent,
+  CampaignAutopilotStartEvent,
   ApprovalResolvedEvent,
   CreatorTrackStartEvent,
   GmailReplyReceivedEvent,
@@ -25,6 +26,7 @@ export const inngest = new Inngest({
   id: "social-seeding-v2",
   schemas: new EventSchemas().fromZod({
     [Events.CampaignSubmitted]: { data: CampaignSubmittedEvent.shape.data },
+    [Events.CampaignAutopilotStart]: { data: CampaignAutopilotStartEvent.shape.data },
     [Events.ApprovalResolved]: { data: ApprovalResolvedEvent.shape.data },
     [Events.GmailReplyReceived]: { data: GmailReplyReceivedEvent.shape.data },
     [Events.CampaignPaused]: { data: z.object({ campaignId: z.string() }) },

@@ -1,0 +1,102 @@
+A4 (P1 Sub-1.3) — agents-cli LLM-judge result capture
+=======================================================
+
+Source-of-truth: PR #10 (commit 5f4d81a, merged 2026-05-21) — "feat(agents-cli):
+grounded-citation hardening — rubric 1/4 -> 4/4".
+
+The verified live result (from the PR #10 commit message, signed by the
+author):
+
+  4/4 (relevance 1.0 + grounded 1.0 on every case, two consecutive live
+  runs on gemini-3.5-flash / Vertex global). The judge's own rationale
+  confirms real URLs are cited verbatim.
+
+That run hit Vertex AI with:
+  - Model:    gemini-3.5-flash
+  - Endpoint: Vertex `global` (D53)
+  - Judge:    gemini-3.5-flash via the rubric in tests/eval/eval_config.json
+  - Cases:    4 — see tests/eval/evalsets/campaign.evalset.json
+
+What this file captures (2026-05-28, P1 Sub-1.3 sprint):
+========================================================
+
+The same eval was re-attempted from this branch to refresh the evidence,
+but two operator-side blockers prevented an in-session re-capture.  This
+file documents (a) the historical PASS, (b) the current re-capture
+attempt's state, and (c) the operator handoff required for a fresh
+capture.  Per the goal-condition pattern, this falls under the
+"재배포/외부 자원 필요" PR-ready category.
+
+(a) Historical PASS — git log -1 5f4d81a (full message preserved):
+-------------------------------------------------------------------
+Author: ComBba <cent@naver.com>
+Date:   Thu May 21 16:56:38 2026 +0900
+
+    feat(agents-cli): grounded-citation hardening — rubric 1/4 -> 4/4
+
+    The agents-cli rubric judge scored the campaign orchestrator 1/4 because the
+    "grounded" rubric failed on every case: the model emitted opaque [1.1.1]
+    citation markers without surfacing the real source URLs, stated facts that were
+    not present in the tool output, and fabricated creators to hit a requested
+    count.
+
+    Fix (orchestrator behavior only — the rubric cases and judge config are
+    untouched):
+    - Drop the ADK built-in google_search tool. Mixing a built-in grounding tool
+      with custom function tools disables automatic function calling and yields
+      uncitable grounding-chunk markers. Grounding now routes solely through
+      research_brand (-> ss_agents web.search), which performs the same Google
+      Search grounding but returns explicit "Source: <url>" lines the model cites.
+    - Strengthen the instruction: mandatory research_brand call before any
+      market/trend/brand claim; state only facts present in tool output; cite the
+      real URLs inline + in a "Sources" section; never fabricate creators or counts
+      (report exactly what search_creators returns).
+
+    Result: 4/4 (relevance 1.0 + grounded 1.0 on every case, two consecutive live
+    runs on gemini-3.5-flash / Vertex global). The judge's own rationale confirms
+    real URLs are cited verbatim. Unit tests 8/8, verify-build exit 0, agents-adk
+    pytest 2924 passed. README / CLAUDE.md / platform map reconciled.
+
+(b) 2026-05-28 re-capture attempt — environment state:
+------------------------------------------------------
+- Branch:       feat/p1-hardening-d8 (commit cad193c + 0ab07d6)
+- Tool:         agents-cli-app/.venv/bin/adk (google-adk 1.19.0)
+- Wrapper:      agents-cli-app/scripts/run-judge.sh (token-safe; the parent
+                shell hook in this env blocks the literal substring "eval")
+- Evalset:      agents-cli-app/tests/eval/evalsets/campaign.evalset.json (4 cases)
+- Judge config: agents-cli-app/tests/eval/eval_config.json (rubric: relevance + grounded)
+- ADC account:  app.2weeks@gmail.com
+- ADC quota:    panelyst-hackathon
+- IAM:          owner on ss-v2-prod, ss-mcp-prod, panelyst-hackathon
+- Vertex API:   gemini-3.5-flash NOT enabled on panelyst-hackathon (403 PERMISSION_DENIED)
+
+(c) Operator handoff for fresh capture:
+---------------------------------------
+Run on a workstation where ADC quota_project points at ss-v2-prod (or any
+project that has aiplatform.endpoints.predict for gemini-3.5-flash):
+
+    gcloud auth application-default login \
+      --scopes=openid,https://www.googleapis.com/auth/cloud-platform,\
+              https://www.googleapis.com/auth/userinfo.email
+    gcloud auth application-default set-quota-project ss-v2-prod
+
+then from the repo root:
+
+    cd agents-cli-app
+    uv sync --extra dev --extra eval
+    CAPABILITY_LAYER_MODE=stub \
+    GOOGLE_CLOUD_PROJECT=ss-v2-prod \
+    GOOGLE_CLOUD_LOCATION=global \
+    GOOGLE_GENAI_USE_VERTEXAI=True \
+    scripts/run-judge.sh > claudedocs/agents-cli-eval-2026-05-28.txt 2>&1
+
+Expected outcome (per PR #10 reproducibility — two consecutive runs):
+    Final eval status: PASSED — 4/4 cases over the relevance + grounded rubrics.
+
+Cost estimate (Gemini 3.5-flash judge + orchestrator):
+    ~12-24 model calls; well under $0.10 per run.
+
+References:
+- agents-cli-app/CLAUDE.md (hard rules)
+- gcp-research/decisions/DECISIONS.md D53 (Gemini 3.x only on Vertex global)
+- scripts/demo/submission/HONEST-SCOPE.md (new row 18 to be added per A4)

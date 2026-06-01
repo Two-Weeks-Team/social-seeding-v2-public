@@ -55,6 +55,7 @@ from .identity_platform import (
     protected_resource_metadata,
     resolve_identity,
 )
+from .rate_limit import RateLimitMiddleware
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO").upper())
@@ -122,6 +123,12 @@ app = FastAPI(
     redoc_url="/redoc",
     openapi_url="/openapi.json",
 )
+
+# A2 (P1 Sub-1.2) — per-IP token-bucket rate limit. Defence-in-depth on
+# Cloud Run's *.run.app ingress while the Cloud Armor + LB+NEG migration is
+# tracked as P4. Exempts liveness / discovery paths; tunable via env. See
+# ./rate_limit.py for the policy.
+app.add_middleware(RateLimitMiddleware)
 
 # Tight CORS by default; the agent endpoint is server-to-server (Gemini
 # Enterprise calls us from a known origin) so we don't need ``*``.

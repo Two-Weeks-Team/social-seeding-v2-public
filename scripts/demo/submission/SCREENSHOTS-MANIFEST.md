@@ -27,7 +27,7 @@ Devpost caps at 10 images. Upload these, in this order — the hero is the live 
 7. ★ `real-imagen-generation.png` — real Imagen multimodal output (S-07)
 8. ★ `wow-business-roi-tam.png` — $0.01/view ROI + TAM/SAM/SOM scene (S-08)
 9. ★ `a2a-animation-diagram.png` — animated A2A cross-call diagram still (S-09)
-10. ★ `pytest-2713-passing.png` — 2,713 passed / 0 failed (S-10)
+10. ★ `pytest-2924-passing.png` — 2,924 passed / 0 failed (S-10)
 
 The remaining captures (S-11..S-18) are committed to the repo and linked from the README so judges can find them; they do not ride the 10-slot gallery.
 
@@ -72,7 +72,7 @@ The remaining captures (S-11..S-18) are committed to the repo and linked from th
 
 | # | Filename | Where to capture | Dimensions | Notes |
 |---|----------|------------------|------------|-------|
-| S-10 ★ | `pytest-2713-passing.png` | Terminal: `pnpm exec pytest packages/agents-adk` summary | 1280 × 800 | **2,713 passed / 0 failed.** Show the last ~30 lines. |
+| S-10 ★ | `pytest-2924-passing.png` | Terminal: `pnpm exec pytest packages/agents-adk` summary | 1280 × 800 | **2,924 passed / 0 failed.** Show the last ~30 lines. |
 | S-17 | `cloud-run-scale-to-zero.png` | Cloud Console → Cloud Run → `ss-mcp-server` detail | 1920 × 1080 | Show `minScale=0` (scale-to-zero, ~$0/mo idle), revision `00003-22m`, region us-central1. Per D46. |
 | S-18 | `model-armor-policy.png` | Model Armor policy details (design-target config) | 1920 × 1080 | PI/JB + PII block + RAI + custom regex + Anomaly Detection. Per D21. **Caption must note: design target; live enforcement gated on O-A..O-E (stub-mode honest gap).** |
 
@@ -88,7 +88,7 @@ Before opening Devpost:
    - `curl -sI https://ss-v2-web-722660901814.us-central1.run.app/api/healthz` → 200
    - `curl -sI https://ss-landing-80064221403.us-central1.run.app/` → 200
 2. **Verify cross-call green within 24 h**: `bash scripts/smoke-test/run-integration-a2a.sh` exits 0 (318 ms / 5 creators).
-3. **Verify pytest green**: `pnpm exec pytest packages/agents-adk` → 2,713 passed / 0 failed.
+3. **Verify pytest green**: `pnpm exec pytest packages/agents-adk` → 2,924 passed / 0 failed.
 4. **Set browser zoom to 100%**, viewport 1920 × 1080 for desktop, 1280 × 720/800 for terminal/mobile.
 5. **Disable browser extensions** (ad blockers, dark-mode forcers) — captures should match the deployed UI.
 6. **Verify no PII in captures**: redact tenant IDs, operator email (`app.2weeks@gmail.com`), real influencer handles per D10.

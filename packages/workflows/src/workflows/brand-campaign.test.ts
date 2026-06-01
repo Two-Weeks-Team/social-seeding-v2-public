@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { closeMongo, Collections, getDb, campaignRepo } from "@ss/db";
+import { closeMongo, Collections, defaultPolicy, getDb, campaignRepo, workspaceRepo } from "@ss/db";
 import { memorySink, setObservabilitySink } from "@ss/observability";
 import { setUsageStore, type UsageStore } from "@ss/capabilities";
 import { type ModelClient } from "@ss/agents";
@@ -112,6 +112,13 @@ beforeEach(async () => {
   await db.collection(Collections.V2_CAMPAIGNS).deleteMany({});
   await db.collection(Collections.V2_APPROVALS).deleteMany({});
   await db.collection(Collections.V2_WORKSPACE_POLICIES).deleteMany({});
+  // These WF1 tests exercise the human-gated shortlist path; the default
+  // posture now auto-approves the shortlist (auto_unless), so pin
+  // approveShortlist=always_ask for ws_wf1 to drive the gate→human flow.
+  await workspaceRepo.savePolicy({
+    ...defaultPolicy("ws_wf1"),
+    gates: { ...defaultPolicy("ws_wf1").gates, approveShortlist: { mode: "always_ask" } },
+  });
   setObservabilitySink(memorySink());
   setUsageStore(memUsageStore);
 });

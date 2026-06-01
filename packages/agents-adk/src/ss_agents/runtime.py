@@ -378,7 +378,7 @@ async def run_agent(
         try:
             system_prompt = agent_def.system_prompt(validated_input)
         except Exception as exc:  # pragma: no cover — only happens on programmer error
-            record_outcome(span, kind="escalate", usd_spent=0.0)
+            record_outcome(span, kind="escalate", usd_spent=0.0, elapsed_ms=(time.monotonic() - start) * 1000.0)
             return Escalation(
                 reason=f"system_prompt builder raised: {type(exc).__name__}: {exc}",
                 partial={},
@@ -406,21 +406,21 @@ async def run_agent(
                     ctx=ctx,
                 )
         except BudgetExceeded as exc:
-            record_outcome(span, kind="escalate", usd_spent=exc.spent_usd)
+            record_outcome(span, kind="escalate", usd_spent=exc.spent_usd, elapsed_ms=(time.monotonic() - start) * 1000.0)
             return Escalation(
                 reason=str(exc),
                 partial={"max_usd": exc.max_usd},
                 usdSpent=exc.spent_usd,
             )
         except EscalateToHuman as exc:
-            record_outcome(span, kind="escalate", usd_spent=usd_spent)
+            record_outcome(span, kind="escalate", usd_spent=usd_spent, elapsed_ms=(time.monotonic() - start) * 1000.0)
             return Escalation(
                 reason=exc.reason,
                 partial=exc.partial,
                 usdSpent=usd_spent,
             )
         except ValidationError as exc:
-            record_outcome(span, kind="escalate", usd_spent=usd_spent)
+            record_outcome(span, kind="escalate", usd_spent=usd_spent, elapsed_ms=(time.monotonic() - start) * 1000.0)
             return Escalation(
                 reason=f"output validation failed: {_first_validation_message(exc)}",
                 partial={},
@@ -431,7 +431,7 @@ async def run_agent(
                 "agent_runtime_unexpected",
                 extra={"agent_id": agent_def.id, "trace_id": ctx.trace_id},
             )
-            record_outcome(span, kind="escalate", usd_spent=usd_spent)
+            record_outcome(span, kind="escalate", usd_spent=usd_spent, elapsed_ms=(time.monotonic() - start) * 1000.0)
             return Escalation(
                 reason=f"unexpected runtime error: {type(exc).__name__}: {exc}",
                 partial={},
@@ -439,7 +439,7 @@ async def run_agent(
             )
 
         # 6. Success — stamp the outcome onto the span before it closes.
-        record_outcome(span, kind="ok", usd_spent=usd_spent)
+        record_outcome(span, kind="ok", usd_spent=usd_spent, elapsed_ms=(time.monotonic() - start) * 1000.0)
 
     elapsed_ms = int((time.monotonic() - start) * 1000)
     logger.info(

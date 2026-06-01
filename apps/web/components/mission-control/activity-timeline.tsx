@@ -110,19 +110,36 @@ function SpanRow({ node, depth }: { node: TreeNode; depth: number }) {
 }
 
 export function ActivityTimeline({ traces }: { traces: PersistedTraceDoc[] }) {
+  // A10 (P1 Sub-1.4) — the timeline is a streaming feed of agent activity, so
+  // a screen reader benefits from role="feed" + aria-live="polite" so newly
+  // streamed spans are announced (without interrupting current focus). The
+  // outermost wrapper carries the role even in the empty state so AT users
+  // hear a consistent "Agent activity timeline" landmark.
   if (traces.length === 0) {
     return (
-      <div className="text-[12px] text-slate-500 py-4 text-center">
+      <div
+        role="feed"
+        aria-label="에이전트 활동 타임라인"
+        aria-live="polite"
+        aria-busy="false"
+        className="text-[12px] text-slate-500 py-4 text-center"
+      >
         아직 활동이 없습니다. 캠페인이 sourcing 단계로 진입하면 sourcing/vetting span 들이 여기에 실시간으로 쌓입니다.
       </div>
     );
   }
   return (
-    <div className="space-y-4">
+    <div
+      role="feed"
+      aria-label="에이전트 활동 타임라인"
+      aria-live="polite"
+      aria-busy="false"
+      className="space-y-4"
+    >
       {traces.map((run) => {
         const tree = buildTree(run.spans);
         return (
-          <section key={run.runId}>
+          <section key={run.runId} role="article" aria-label={`실행 ${run.runId.slice(0, 12)}`}>
             <div className="text-[10px] mono text-slate-400 mb-1 flex items-center gap-2">
               <span>run_{run.runId.slice(0, 12)}</span>
               <span>·</span>

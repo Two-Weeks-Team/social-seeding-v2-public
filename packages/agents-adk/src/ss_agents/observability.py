@@ -138,12 +138,23 @@ def llm_child_span(*, model: str, agent_id: str) -> Iterator[Any]:
         yield span
 
 
-def record_outcome(span: Any, *, kind: str, usd_spent: float) -> None:
-    """Stamp the span with the final outcome. No-op when span is None."""
+def record_outcome(span: Any, *, kind: str, usd_spent: float, elapsed_ms: float = 0.0) -> None:
+    """Stamp the span with the final outcome. No-op when span is None.
+
+    A5 (P1 Sub-1.5): ``elapsed_ms`` is the agent's end-to-end wall clock as
+    measured by ``runtime.run_agent`` (= the time spent waiting on Vertex +
+    tool dispatch + envelope serialization). Recording it on the span lets
+    Cloud Trace draw a latency histogram per agent.id, which is the
+    "Optimize" half of the Build/Scale/Govern/Optimize lifecycle the deck
+    highlights (Slide 03). The keyword is defaulted so existing callers
+    (and tests) that don't pass it keep working.
+    """
     if span is None:
         return
     span.set_attribute("agent.outcome", kind)
     span.set_attribute("agent.usd_spent", float(usd_spent))
+    if elapsed_ms > 0:
+        span.set_attribute("agent.latency_ms", float(elapsed_ms))
 
 
 __all__ = ["agent_span", "llm_child_span", "record_outcome", "setup_observability"]

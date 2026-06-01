@@ -26,15 +26,24 @@ afterAll(async () => {
 });
 
 describe("workspace.getPolicy", () => {
-  it("returns defaultPolicy (every gate always_ask, $25/$200 caps) when no doc is saved", async () => {
+  it("returns defaultPolicy (autonomous posture: 3 required HITL gates, rest auto/auto_unless, $25/$200 caps) when no doc is saved", async () => {
     const policy = await workspaceGetPolicy.handler({}, ctx);
     expect(policy.workspaceId).toBe(ctx.workspaceId);
-    expect(policy.level).toBe("checkpointed");
-    expect(policy.gates.approveShortlist.mode).toBe("always_ask");
-    expect(policy.gates.approveOutreachSend.mode).toBe("always_ask");
-    expect(policy.gates.approveReplyResponse.mode).toBe("always_ask");
+    expect(policy.level).toBe("autonomous");
+    // autonomous-by-default gates (B1 over-HITL fix, 2026-06-01)
+    expect(policy.gates.approveShortlist.mode).toBe("auto_unless");
+    expect(policy.gates.approveOutreachSend.mode).toBe("auto_unless");
+    expect(policy.gates.approveReplyResponse.mode).toBe("auto_unless");
+    expect(policy.gates.approveStageAdvance.mode).toBe("auto");
+    // the 3 required human gates
     expect(policy.gates.approveShipment.mode).toBe("always_ask");
-    expect(policy.gates.approveStageAdvance.mode).toBe("always_ask");
+    expect(policy.gates.approveContent.mode).toBe("always_ask");
+    expect(policy.gates.approveBudget.mode).toBe("always_ask");
+    // each required gate has a non-blocking timeout fallback (no forever-block)
+    expect(policy.gates.approveShipment.timeout?.onTimeout).toBe("abandon");
+    expect(policy.gates.approveContent.timeout?.onTimeout).toBe("auto_proceed");
+    expect(policy.gates.approveBudget.timeout?.onTimeout).toBe("abandon");
+    expect(policy.gates.approveShipment.timeout?.businessHours).toBe(24);
     expect(policy.budgets.maxUsdPerCampaign).toBe(25);
     expect(policy.budgets.maxUsdPerWorkspaceMonthly).toBe(200);
   });

@@ -14,7 +14,7 @@
 | # | Gate | Verify with | Pass criteria | Reference |
 |---|------|------------|---------------|-----------|
 | G-0 | O1 Devpost console GAPs answered | Devpost team registration page | All 10 GAPs answered: team size, license, video length cap, repo visibility, multi-track rules, IP grant clauses | D6 / O1 |
-| G-1 | pytest green | `pnpm exec pytest packages/agents-adk` | `0 failed`, **2925 passed** | brief 2026-05-20 |
+| G-1 | pytest green | `pnpm exec pytest packages/agents-adk` | `0 failed`, **2924 passed** | brief 2026-05-20 |
 | G-1b | **Hardening before/after + holdout reproducible** | `bash scripts/smoke-test/run-hardening-measure.sh` | prints **40.5% → 100.0% (train, +59.5pp)** and **holdout 71.4%** (28.6pp gap), 56 cases (42 train / 14 holdout); rewrites `hardening-before-after.json` + the two trace assets | D25 / D37 / D50 / `HARDENING-CHAPTER.md` |
 | G-2 | **Cross-call smoke green within 24 h (now in-workflow)** | `bash scripts/smoke-test/run-integration-a2a.sh` | exit 0; coordinator → a2a_invoke → ss-mcp **inside the brand-campaign Cloud Workflow**; **~3.7s**; 5 creators | D45 |
 | G-3 | Live A2A endpoint 200 | `curl -s https://ss-mcp-server-1049119860518.us-central1.run.app/.well-known/agent.json \| jq .protocolVersion` | `"0.3.0"` | I1 / req ④ |
@@ -74,7 +74,7 @@ Copy each matching section from `devpost-track3.md` and paste directly into Devp
 | What it does | "What it does" + "What we hardened" | 250–400 | the 3-stage arc: built fleet + hardened reliability + refactored A2A ecosystem |
 | How we built it | "How we built it" | 450–600 | cites D47 (Model Garden), D48 (A2A intents/Identity), D18, D17; include the **6-requirement gate table** + **Build Example #2 match** here; A2A now **in the Cloud Workflow** |
 | Challenges we ran into | "Challenges we ran into" | 250–350 | the ambiguous-reply stall (hardening) + KR gap + `/healthz` + Inngest→GCP + CJK (BN-9→D40) |
-| Accomplishments | "Accomplishments we're proud of" | 150–250 | **40.5%→100% train / 71.4% holdout (28.6pp gap)** + A2A-in-workflow ~3.7s + 6 requirements + 2925 tests + real Imagen |
+| Accomplishments | "Accomplishments we're proud of" | 150–250 | **40.5%→100% train / 71.4% holdout (28.6pp gap)** + A2A-in-workflow ~3.7s + 6 requirements + 2924 tests + real Imagen |
 | What we learned | "What we learned" | 120–180 | 3 bullets, lead with reliability-as-measurement |
 | What's next | "What's next" | 80–150 | Optimizer stub→prod + mTLS enforce + Gemini Enterprise approval + foreign sub-entity + DAM-agent A2A promote |
 | Built With | `built-with-tags.txt` | ~80 tags | paste verbatim |
@@ -98,12 +98,12 @@ Order matters — Devpost shows the gallery in upload order. The grand-narrative
 7. `mission-control-fleet.png`
 8. `real-imagen-generation.png` (1024×1024, 950 KB)
 9. `wow-business-roi-tam.png`
-10. `pytest-2925-passing.png`
+10. `pytest-2924-passing.png`
 
 > If the older screenshot filenames (`live-a2a-crosscall-318ms.png`, `pytest-2713-passing.png`,
 > `pytest-2832-passing.png`, `hardening-before-after-42-to-100.png`, `a2a-animation-diagram.png`,
 > `ap2-mandate-detail.png`) are still on disk, re-capture them to match the verified numbers (~3.7s,
-> 2925, train 100% / holdout 71.4%) and the grand-narrative ordering before upload. The hero MUST be
+> 2924, train 100% / holdout 71.4%) and the grand-narrative ordering before upload. The hero MUST be
 > the hardening before/after bar (now with the holdout number on it) — it carries both Technical-30%
 > and Demo-20%.
 
