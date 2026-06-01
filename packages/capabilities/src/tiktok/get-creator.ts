@@ -7,14 +7,17 @@ import { defineCapability } from "../registry";
  * tiktok.getCreator — port of v1 `~/social-seeding/src/app/api/tiktok/userinfo`
  * + `userposts` + `lib/tiktok-mappers.ts`. Reads SHARED `accounts_tiktok`
  * first; if absent / stale (>24h, v1's policy) / forceRefresh, calls the
- * injectable `TikTokFetcher` (RapidAPI in prod, fake in tests) and additively
- * upserts the refresh. `withRecentPosts: true` adds a one-shot posts fetch
- * (no posts cache yet — that's Phase 2/3 work).
+ * injectable `TikTokFetcher` (the **backend.socialseed.ing** proxy in prod,
+ * fake in tests) and additively upserts the refresh. `withRecentPosts: true`
+ * adds a one-shot posts fetch (no posts cache yet — that's Phase 2/3 work).
  *
- * The default fetcher is a stub that *throws* unless RAPIDAPI_KEY_TIKTOK is
- * set AND the actual RapidAPI client is wired in (Phase 1+ follow-up — see
- * docs/SCOPE-DECISIONS.md). For tests, inject a fake via
- * `setTikTokFetcher(fake)` — same pattern as `@ss/agents`' ModelClient seam.
+ * Provider: v2 does NOT call RapidAPI directly. Like v1, it goes through the
+ * `backend.socialseed.ing` proxy (the Go backend), which owns the RapidAPI
+ * key-rotation pool + the DB-cache → browser-pool → internal → RapidAPI
+ * fallback. v2 is a thin authenticated client (`X-API-Key`). The default
+ * fetcher *throws* unless `SS_BACKEND_API_KEY` is set (no silent fake). For
+ * tests, inject a fake via `setTikTokFetcher(fake)` — same seam as
+ * `@ss/agents`' ModelClient.
  */
 
 const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
@@ -54,35 +57,29 @@ export interface TikTokFetcher {
   getUserPosts(uniqueId: string, limit?: number): Promise<TikTokPost[]>;
 }
 
-// ── RapidAPI defaults ──────────────────────────────────────────────────────
+// ── backend.socialseed.ing proxy config ─────────────────────────────────────
 //
-// Configurable via env so operators can swap providers without a code
-// change. Defaults target tiktok-scraper7 which is one of the
-// commonly-used RapidAPI TikTok scraping providers — covers user info
-// + posts on a single host. v1 used its own Go-backend proxy + a key
-// rotation pool; v2 uses the direct RapidAPI call (one provider, one
-// key) for simplicity. Operators with a key pool can layer rotation
-// at the network level (Cloudflare worker / etc) without touching
-// this code.
-const DEFAULT_RAPIDAPI_HOST = "tiktok-scraper7.p.rapidapi.com";
-const DEFAULT_USERINFO_PATH = "/user/info";
-const DEFAULT_USERPOSTS_PATH = "/user/posts";
+// v2 fetches TikTok creator info + posts through the SAME backend proxy v1
+// used (`backend.socialseed.ing`, internally the Go backend), NOT by calling
+// RapidAPI directly. The backend owns the RapidAPI key-rotation pool + the
+// 3-tier fallback (DB cache → browser pool → internal API → RapidAPI), so v2
+// stays a thin authenticated client. Contract (v1 parity):
+//   GET {BASE}/api/v1/user/info?uniqueId=<h>           header X-API-Key
+//   GET {BASE}/api/v1/user/posts?uniqueId=<h>[&count]  header X-API-Key
+// Base URL is overridable via SS_BACKEND_URL; the key is SS_BACKEND_API_KEY.
+const DEFAULT_BACKEND_URL = "https://backend.socialseed.ing";
 
-interface RapidApiConfig {
-  host: string;
-  userInfoPath: string;
-  userPostsPath: string;
+interface BackendConfig {
+  baseUrl: string;
   apiKey: string;
 }
 
-function rapidApiConfig(): RapidApiConfig | null {
-  const apiKey = process.env.RAPIDAPI_KEY_TIKTOK;
+function backendConfig(): BackendConfig | null {
+  const apiKey = process.env.SS_BACKEND_API_KEY;
   if (!apiKey) return null;
   return {
     apiKey,
-    host: process.env.RAPIDAPI_TIKTOK_HOST ?? DEFAULT_RAPIDAPI_HOST,
-    userInfoPath: process.env.RAPIDAPI_TIKTOK_USERINFO_PATH ?? DEFAULT_USERINFO_PATH,
-    userPostsPath: process.env.RAPIDAPI_TIKTOK_USERPOSTS_PATH ?? DEFAULT_USERPOSTS_PATH,
+    baseUrl: (process.env.SS_BACKEND_URL ?? DEFAULT_BACKEND_URL).replace(/\/+$/, ""),
   };
 }
 
@@ -300,65 +297,50 @@ function pickHashtagArray(r: Record<string, unknown>, keys: string[]): string[] 
   return [];
 }
 
+const NO_KEY_MSG =
+  "SS_BACKEND_API_KEY is not set — tiktok.getCreator goes through the backend.socialseed.ing proxy and needs its key at runtime (tests should inject a fake via setTikTokFetcher)";
+
 function defaultFetcher(): TikTokFetcher {
   return {
     async getUserInfo(uniqueId) {
-      const cfg = rapidApiConfig();
-      if (!cfg) {
-        throw new Error(
-          "RAPIDAPI_KEY_TIKTOK is not set — tiktok.getCreator needs it at runtime (tests should inject a fake via setTikTokFetcher)",
-        );
-      }
+      const cfg = backendConfig();
+      if (!cfg) throw new Error(NO_KEY_MSG);
       const handle = uniqueId.replace(/^@/, "");
-      const params = new URLSearchParams({ unique_id: handle });
-      const url = `https://${cfg.host}${cfg.userInfoPath}?${params.toString()}`;
+      const url = `${cfg.baseUrl}/api/v1/user/info?uniqueId=${encodeURIComponent(handle)}`;
       const res = await fetch(url, {
         method: "GET",
-        headers: {
-          "x-rapidapi-key": cfg.apiKey,
-          "x-rapidapi-host": cfg.host,
-          accept: "application/json",
-        },
+        headers: { "X-API-Key": cfg.apiKey, accept: "application/json" },
         signal: AbortSignal.timeout(15_000),
       });
       if (!res.ok) {
-        throw new Error(`tiktok.getUserInfo: RapidAPI returned ${res.status} for @${handle}`);
+        throw new Error(`tiktok.getUserInfo: backend.socialseed.ing returned ${res.status} for @${handle}`);
       }
       const body = (await res.json()) as unknown;
       const creator = mapRapidApiCreator(body);
       if (!creator) {
-        throw new Error(`tiktok.getUserInfo: response for @${handle} had no usable user object`);
+        throw new Error(`tiktok.getUserInfo: backend response for @${handle} had no usable user object`);
       }
       return creator;
     },
     async getUserPosts(uniqueId, limit) {
-      const cfg = rapidApiConfig();
-      if (!cfg) {
-        throw new Error(
-          "RAPIDAPI_KEY_TIKTOK is not set — tiktok.getCreator needs it at runtime (tests should inject a fake via setTikTokFetcher)",
-        );
-      }
-      // Build the URL — `unique_id` is the standard query param across
-      // tiktok-scraper7 + similar providers. `count` caps the result;
-      // most providers default to 20-30 and max at 50.
+      const cfg = backendConfig();
+      if (!cfg) throw new Error(NO_KEY_MSG);
       const handle = uniqueId.replace(/^@/, "");
-      const params = new URLSearchParams({ unique_id: handle });
+      // preferRapidAPI=true mirrors v1's userposts route (secUid lookup →
+      // RapidAPI); the backend handles the DB-cache → pool → RapidAPI fallback.
+      const params = new URLSearchParams({ uniqueId: handle, preferRapidAPI: "true" });
       if (typeof limit === "number" && limit > 0) {
         params.set("count", String(Math.min(limit, 50)));
       }
-      const url = `https://${cfg.host}${cfg.userPostsPath}?${params.toString()}`;
+      const url = `${cfg.baseUrl}/api/v1/user/posts?${params.toString()}`;
       const res = await fetch(url, {
         method: "GET",
-        headers: {
-          "x-rapidapi-key": cfg.apiKey,
-          "x-rapidapi-host": cfg.host,
-          accept: "application/json",
-        },
-        // RapidAPI is consistently slow under load — 15s is the v1 cap.
+        headers: { "X-API-Key": cfg.apiKey, accept: "application/json" },
+        // backend proxies a slow upstream — 15s is v1's cap.
         signal: AbortSignal.timeout(15_000),
       });
       if (!res.ok) {
-        throw new Error(`tiktok.getUserPosts: RapidAPI returned ${res.status} for @${handle}`);
+        throw new Error(`tiktok.getUserPosts: backend.socialseed.ing returned ${res.status} for @${handle}`);
       }
       const body = (await res.json()) as unknown;
       return mapRapidApiPosts(body);
@@ -370,7 +352,7 @@ let _fetcher: TikTokFetcher | undefined;
 export function getTikTokFetcher(): TikTokFetcher {
   return (_fetcher ??= defaultFetcher());
 }
-/** Pass `undefined` to reset to the default (RapidAPI-backed) fetcher. */
+/** Pass `undefined` to reset to the default (backend.socialseed.ing-proxy-backed) fetcher. */
 export function setTikTokFetcher(f: TikTokFetcher | undefined): void {
   _fetcher = f;
 }
@@ -425,8 +407,8 @@ export const tiktokGetCreator = defineCapability({
         recentPosts = await fetcher.getUserPosts(input.uniqueId);
       } catch (err) {
         // Live-demo lesson 2026-05-14: vetting + post-poller both want
-        // recent posts, but a missing RAPIDAPI_KEY_TIKTOK (or a 401 / 5xx
-        // from the provider) shouldn't fail the entire vetting call.
+        // recent posts, but a missing SS_BACKEND_API_KEY (or a 401 / 5xx
+        // from the backend.socialseed.ing proxy) shouldn't fail the whole vetting call.
         // The cached creator profile is enough for a coarse fitScore;
         // posts inform the engagement-rate refinement but vetting has
         // sensible defaults when posts are empty. Log + degrade.

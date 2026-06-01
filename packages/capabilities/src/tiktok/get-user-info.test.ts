@@ -119,24 +119,22 @@ describe("mapRapidApiCreator — defensive shape normalization", () => {
   });
 });
 
-describe("defaultFetcher.getUserInfo — env + HTTP path", () => {
-  it("throws clearly when RAPIDAPI_KEY_TIKTOK is unset", async () => {
-    vi.stubEnv("RAPIDAPI_KEY_TIKTOK", "");
+describe("defaultFetcher.getUserInfo — backend.socialseed.ing proxy path", () => {
+  it("throws clearly when SS_BACKEND_API_KEY is unset", async () => {
+    vi.stubEnv("SS_BACKEND_API_KEY", "");
     setTikTokFetcher(undefined);
-    await expect(getTikTokFetcher().getUserInfo("@freshly")).rejects.toThrow(/RAPIDAPI_KEY_TIKTOK is not set/);
+    await expect(getTikTokFetcher().getUserInfo("@freshly")).rejects.toThrow(/SS_BACKEND_API_KEY is not set/);
   });
 
-  it("happy path: builds the right URL + headers + maps the response", async () => {
-    vi.stubEnv("RAPIDAPI_KEY_TIKTOK", "test_key_xxx");
-    vi.stubEnv("RAPIDAPI_TIKTOK_HOST", "tiktok-scraper7.p.rapidapi.com");
-    vi.stubEnv("RAPIDAPI_TIKTOK_USERINFO_PATH", "/user/info");
+  it("happy path: hits {BASE}/api/v1/user/info?uniqueId= with X-API-Key + maps the response", async () => {
+    vi.stubEnv("SS_BACKEND_API_KEY", "test_key_xxx");
+    vi.stubEnv("SS_BACKEND_URL", "https://backend.socialseed.ing");
     setTikTokFetcher(undefined);
     const fetchSpy = vi.fn(async () => new Response(
       JSON.stringify({
-        data: {
-          user: { unique_id: "freshly", nickname: "Freshly", sec_uid: "u_fresh", verified: true },
-          stats: { follower_count: 42_000, video_count: 80, heart_count: 1_500_000 },
-        },
+        // backend.socialseed.ing normalizes to camelCase { user, stats }
+        user: { uniqueId: "freshly", nickname: "Freshly", secUid: "u_fresh", verified: true },
+        stats: { followerCount: 42_000, videoCount: 80, heartCount: 1_500_000 },
       }),
       { status: 200 },
     ));
@@ -144,24 +142,35 @@ describe("defaultFetcher.getUserInfo — env + HTTP path", () => {
     const out = await getTikTokFetcher().getUserInfo("@freshly");
     expect(fetchSpy).toHaveBeenCalledOnce();
     const [calledUrl, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit];
-    expect(calledUrl).toMatch(/^https:\/\/tiktok-scraper7\.p\.rapidapi\.com\/user\/info\?/);
-    expect(calledUrl).toContain("unique_id=freshly"); // @-stripped
-    expect((init.headers as Record<string, string>)["x-rapidapi-key"]).toBe("test_key_xxx");
+    expect(calledUrl).toMatch(/^https:\/\/backend\.socialseed\.ing\/api\/v1\/user\/info\?/);
+    expect(calledUrl).toContain("uniqueId=freshly"); // @-stripped
+    expect((init.headers as Record<string, string>)["X-API-Key"]).toBe("test_key_xxx");
     expect(out).toMatchObject({
       id: "u_fresh", uniqueId: "freshly", followerCount: 42_000, verified: true,
     });
   });
 
-  it("RapidAPI returns non-2xx → throws with the status code", async () => {
-    vi.stubEnv("RAPIDAPI_KEY_TIKTOK", "test_key_xxx");
+  it("SS_BACKEND_URL override honored (trailing slash trimmed)", async () => {
+    vi.stubEnv("SS_BACKEND_API_KEY", "k");
+    vi.stubEnv("SS_BACKEND_URL", "http://127.0.0.1:8080/");
+    setTikTokFetcher(undefined);
+    const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ user: { uniqueId: "x", nickname: "X" } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchSpy);
+    await getTikTokFetcher().getUserInfo("@x");
+    const [calledUrl] = fetchSpy.mock.calls[0] as unknown as [string];
+    expect(calledUrl).toMatch(/^http:\/\/127\.0\.0\.1:8080\/api\/v1\/user\/info\?/);
+  });
+
+  it("backend returns non-2xx → throws with the status code", async () => {
+    vi.stubEnv("SS_BACKEND_API_KEY", "test_key_xxx");
     setTikTokFetcher(undefined);
     vi.stubGlobal("fetch", vi.fn(async () => new Response("not found", { status: 404 })));
     await expect(getTikTokFetcher().getUserInfo("@ghost"))
-      .rejects.toThrow(/RapidAPI returned 404/);
+      .rejects.toThrow(/backend\.socialseed\.ing returned 404/);
   });
 
   it("response with no user object → throws clearly (mapper returned null)", async () => {
-    vi.stubEnv("RAPIDAPI_KEY_TIKTOK", "test_key_xxx");
+    vi.stubEnv("SS_BACKEND_API_KEY", "test_key_xxx");
     setTikTokFetcher(undefined);
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ data: {} }), { status: 200 })));
     await expect(getTikTokFetcher().getUserInfo("@empty"))
