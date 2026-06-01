@@ -174,7 +174,12 @@ def gmail_send_reply(payload: GmailSendReplyInput) -> GmailSendReplyOutput:
             but the W7 deploy-phase Gmail client is not yet wired. The
             runtime converts to a typed `EscalateToHuman`.
     """
-    mode = os.getenv("CAPABILITY_LAYER_MODE", "stub")
+    # SS_GMAIL_LIVE=1 forces THIS tool live independent of the global
+    # CAPABILITY_LAYER_MODE — mirrors SS_TIKTOK_LIVE, so a full-loop run can keep
+    # the still-stubbed W7 tools (carrier/dam/bigquery) deterministic while gmail
+    # really sends to the D10 allow-listed operator mailbox.
+    gmail_live = os.getenv("SS_GMAIL_LIVE") == "1"
+    mode = "live" if gmail_live else os.getenv("CAPABILITY_LAYER_MODE", "stub")
     if mode == "stub":
         return _stub(payload)
     return _live(payload)
