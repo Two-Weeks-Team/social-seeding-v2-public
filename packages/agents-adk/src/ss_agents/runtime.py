@@ -621,8 +621,11 @@ def _tool_parameters_schema_dict(fn: Callable[..., Any]) -> dict[str, Any]:
         if name in ("tool_context", "input_stream"):
             continue
         ann = resolved.get(name, param.annotation)
+        primitive = {int: "integer", float: "number", bool: "boolean", str: "string"}
         if isinstance(ann, type) and issubclass(ann, BaseModel):
             properties[name] = _deref_schema(ann.model_json_schema())
+        elif ann in primitive:
+            properties[name] = {"type": primitive[ann]}
         else:
             properties[name] = {"type": "string"}
         if param.default is inspect.Parameter.empty:

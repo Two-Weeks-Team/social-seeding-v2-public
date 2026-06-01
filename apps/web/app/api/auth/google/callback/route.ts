@@ -46,7 +46,13 @@ export async function GET(req: NextRequest) {
   }
 
   // Redirect back into the app with the result; clear the nonce cookie.
-  const dest = new URL(state.returnUrl || "/", origin);
+  // Open-redirect guard: returnUrl is user-controlled (round-tripped via state),
+  // so only honor same-origin relative paths — reject absolute/`//` URLs.
+  let safeReturnUrl = state.returnUrl || "/";
+  if (!safeReturnUrl.startsWith("/") || safeReturnUrl.startsWith("//")) {
+    safeReturnUrl = "/";
+  }
+  const dest = new URL(safeReturnUrl, origin);
   dest.searchParams.set("gmail_connected", connectedEmail);
   const res = NextResponse.redirect(dest.toString(), { status: 302 });
   res.cookies.delete("gmail_oauth_nonce");

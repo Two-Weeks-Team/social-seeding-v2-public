@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from datetime import UTC, datetime
 from email.message import EmailMessage
 from email.utils import formataddr, formatdate, make_msgid
@@ -251,6 +252,10 @@ def _synth_message_id(thread_id: str, recipient_email: str) -> str:
 _GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 _GMAIL_SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
 _HTTP_TIMEOUT = 30.0
+# Gmail thread ids are hex strings (e.g. "19e8248d22073209"). Used to decide
+# whether thread_id is a real Gmail thread (pass to the API) or a synthetic
+# workflow id (omit, so the API doesn't 404).
+_GMAIL_THREAD_ID_RE = re.compile(r"[0-9a-f]{8,20}")
 
 
 def _sender_address(payload: GmailSendReplyInput) -> str:
@@ -353,16 +358,21 @@ def _live(payload: GmailSendReplyInput) -> GmailSendReplyOutput:
     message["Date"] = formatdate(localtime=False)
     msg_id = make_msgid(domain="socialseed.ing")
     message["Message-ID"] = msg_id
-    # Thread the reply onto the existing conversation (RFC 5322 §3.6.4).
-    message["In-Reply-To"] = payload.thread_id
-    message["References"] = payload.thread_id
     message.set_content(payload.reply_body)
 
     raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+    # Gmail threads via the API `threadId`, not RFC In-Reply-To/References (we
+    # don't have the parent Message-ID here). Only pass threadId when thread_id
+    # is a real Gmail thread id (hex) — a synthetic id (e.g. a demo
+    # "thr_…"/"goal-…") would make the API 404, so omit it and let Gmail open a
+    # new conversation.
+    send_body: dict[str, str] = {"raw": raw}
+    if _GMAIL_THREAD_ID_RE.fullmatch(payload.thread_id):
+        send_body["threadId"] = payload.thread_id
     resp = httpx.post(
         _GMAIL_SEND_URL,
         headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
-        json={"raw": raw},
+        json=send_body,
         timeout=_HTTP_TIMEOUT,
     )
     if resp.status_code != 200:
