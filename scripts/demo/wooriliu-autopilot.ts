@@ -112,7 +112,11 @@ async function main(): Promise<void> {
     funnel: r.funnel,
     goals: r.goals,
     reach: r.reach,
-    performance: r.performance,
+    // drop topPerformerCreatorId — it's a creator handle (PII). Aggregates only.
+    performance: {
+      avgPerformanceScore: r.performance.avgPerformanceScore,
+      medianPerformanceScore: r.performance.medianPerformanceScore,
+    },
     cost: r.cost,
     flags: r.flags,
     leaderboard,
