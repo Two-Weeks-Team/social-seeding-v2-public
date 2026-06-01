@@ -583,7 +583,19 @@ def _adk_tool(fn: Callable[..., Any]) -> Callable[..., Any]:
 # into an inline, ref-free schema and hand ADK a manual declaration. (Invisible
 # to the offline unit suite, which stubs the model client and never builds a
 # declaration.)
-_SCHEMA_DROP_KEYS = frozenset({"$defs", "$ref", "title", "additionalProperties"})
+# `exclusiveMinimum`/`exclusiveMaximum`/`multipleOf` come from Pydantic gt/lt
+# constraints but are not fields on Gemini's `types.Schema` — leaving them in a
+# tool's parameter schema makes `types.Schema.model_validate` reject it ("Extra
+# inputs are not permitted"), which fails the whole tool declaration. Dropped
+# here since function-call arg generation doesn't need the numeric bounds.
+_SCHEMA_DROP_KEYS = frozenset({
+    "$defs", "$ref", "title", "additionalProperties",
+    "exclusiveMinimum", "exclusiveMaximum", "multipleOf",
+    # `prefixItems`/`unevaluatedItems` come from Pydantic tuple types; Gemini's
+    # `types.Schema` has no tuple form, so dropping them leaves a generic array
+    # (which it accepts) — the concrete list is still validated by Pydantic.
+    "prefixItems", "unevaluatedItems",
+})
 
 
 def _deref_schema(schema: dict[str, Any]) -> dict[str, Any]:
@@ -602,13 +614,48 @@ def _deref_schema(schema: dict[str, Any]) -> dict[str, Any]:
                     out.update({k: resolve(v) for k, v in node.items() if k != "$ref"})
                     return out
                 return merged
-            return {k: resolve(v) for k, v in node.items() if k not in _SCHEMA_DROP_KEYS}
+            out = {k: resolve(v) for k, v in node.items() if k not in _SCHEMA_DROP_KEYS}
+            # A tuple type loses its `prefixItems` above; Gemini requires every
+            # array to carry `items`. Synthesise it from the (dropped) first
+            # tuple element, or a generic string, so the declaration stays valid.
+            if out.get("type") == "array" and "items" not in out:
+                prefix = node.get("prefixItems")
+                out["items"] = (
+                    resolve(prefix[0]) if isinstance(prefix, list) and prefix else {"type": "string"}
+                )
+            return out
         if isinstance(node, list):
             return [resolve(x) for x in node]
         return node
 
     resolved = resolve(schema)
     return resolved if isinstance(resolved, dict) else {"type": "object"}
+
+
+_PROMPT_SHAPE_DROP = frozenset({
+    "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "minLength",
+    "maxLength", "pattern", "minItems", "maxItems", "multipleOf", "default",
+    "format", "examples", "example",
+})
+
+
+def _prompt_output_shape(schema: dict[str, Any]) -> dict[str, Any]:
+    """A ref-free, constraint-free view of an output schema for prompt injection.
+
+    Dereferences `$ref`/`$defs` and strips JSON-schema validation keywords
+    (`exclusiveMinimum`, `minLength`, …) so the model sees only the target SHAPE
+    (field names + types + enums) and emits concrete values rather than echoing
+    constraint metadata into the output."""
+    derefed = _deref_schema(schema)
+
+    def strip(node: Any) -> Any:
+        if isinstance(node, dict):
+            return {k: strip(v) for k, v in node.items() if k not in _PROMPT_SHAPE_DROP}
+        if isinstance(node, list):
+            return [strip(x) for x in node]
+        return node
+
+    return strip(derefed)
 
 
 def _tool_parameters_schema_dict(fn: Callable[..., Any]) -> dict[str, Any]:
@@ -747,20 +794,32 @@ async def _run_with_adk(
     has_tools = bool(agent_def.tools)
     instruction = system_prompt
     if has_tools:
+        # Inject a SHAPE-ONLY schema (field names + types + enums, refs inlined),
+        # with JSON-schema constraint keywords stripped. The raw model_json_schema
+        # carries `exclusiveMinimum`/`minLength`/… which the model can echo back
+        # as literal output keys on a complex nested output (→ extra-key
+        # validation failure, e.g. logistics.parcelDims). run_agent still
+        # validates the result against the real output_schema, so dropping the
+        # constraints from the *prompt* only clarifies the target shape.
         schema_json = json.dumps(
-            agent_def.output_schema.model_json_schema(), ensure_ascii=False
+            _prompt_output_shape(agent_def.output_schema.model_json_schema()),
+            ensure_ascii=False,
         )
         instruction = (
             f"{system_prompt}\n\n"
             "When you have finished using tools, respond with ONLY a single JSON "
-            "object that conforms to this JSON Schema — no prose, no markdown "
-            f"code fence:\n{schema_json}"
+            "object matching this shape (plain values, not the schema itself; "
+            "no prose, no markdown code fence). Field types/enums are shown; "
+            f"emit concrete values:\n{schema_json}"
         )
 
     # Build a fresh LlmAgent per invocation — system prompt is parameterized
     # by input. Same pattern as PORTING-V2.md §5 lines 534-567.
     agent = LlmAgent(
-        name=agent_def.id,
+        # ADK requires a valid identifier for the agent name; several fleet ids
+        # use hyphens (content-verify, outreach-drafter, conversation-responder)
+        # which LlmAgent rejects — sanitize to underscores.
+        name=agent_def.id.replace("-", "_"),
         model=runtime_model,  # D47: Model Garden publisher path when routing is on
         description=agent_def.description,
         instruction=instruction,
