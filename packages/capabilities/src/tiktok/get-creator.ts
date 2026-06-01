@@ -257,7 +257,10 @@ export function mapRapidApiCreator(raw: unknown): RawCreator | null {
   // Walk candidate (user, parent) pairs so stats lookup checks both
   // the user object AND the doc one level up.
   const candidates: Array<{ user: Record<string, unknown>; parent: Record<string, unknown> }> = [];
-  for (const path of ["data.user", "user", "result.user"]) {
+  // `userInfo.user` is backend.socialseed.ing's real /api/v1/user/info envelope
+  // ({ userInfo: { user, stats } }) — verified live 2026-06-01. `data.user` /
+  // `user` cover the RapidAPI-direct + tiktok-scraper shapes.
+  for (const path of ["userInfo.user", "data.user", "user", "result.user"]) {
     const u = pickObject(r, [path]);
     if (u) {
       const parentPath = path.split(".").slice(0, -1).join(".");

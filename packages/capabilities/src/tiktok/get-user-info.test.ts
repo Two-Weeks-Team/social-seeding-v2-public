@@ -54,6 +54,25 @@ describe("mapRapidApiCreator — defensive shape normalization", () => {
     });
   });
 
+  it("backend.socialseed.ing real shape: { userInfo: { user, stats } } (verified live 2026-06-01)", () => {
+    const out = mapRapidApiCreator({
+      lastUpdated: "2026-06-01T05:00:00Z",
+      source: "rapidapi",
+      userInfo: {
+        user: { uniqueId: "lizethhv2", id: "6524791681676481551", nickname: "Lizeth HV", secUid: "MS4wLjABAA", verified: false },
+        stats: { followerCount: 1_300_000, followingCount: 200, videoCount: 2_230, heartCount: 47_600_000 },
+      },
+    });
+    expect(out).toMatchObject({
+      id: "MS4wLjABAA", // secUid wins for id
+      uniqueId: "lizethhv2",
+      nickname: "Lizeth HV",
+      followerCount: 1_300_000,
+      videoCount: 2_230,
+      heartCount: 47_600_000,
+    });
+  });
+
   it("top-level shape (no data nesting): {unique_id, follower_count, …}", () => {
     const out = mapRapidApiCreator({
       unique_id: "@dewy",
