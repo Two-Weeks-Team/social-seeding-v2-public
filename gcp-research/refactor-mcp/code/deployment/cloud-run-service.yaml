@@ -136,7 +136,11 @@ spec:
             # caller's Google service-identity OIDC token. Caller = ss-agents
             # runtime SA; audiences = every URL the caller may POST to.
             - name: ALLOWED_CALLER_SERVICE_ACCOUNTS
-              value: "ss-agents-runtime@ss-v2-prod.iam.gserviceaccount.com"
+              # ss-agents-runtime: the ADK fleet's direct A2A caller.
+              # workflows-invoker: the brand-campaign-demo Cloud Workflow's SA —
+              # it A2A-invokes ss-mcp as a workflow step (D45 cross-component edge),
+              # so it must be allowlisted for the live GCP loop to complete.
+              value: "ss-agents-runtime@ss-v2-prod.iam.gserviceaccount.com,workflows-invoker@ss-v2-prod.iam.gserviceaccount.com"
             - name: SERVICE_IDENTITY_AUDIENCES
               value: "https://ss-mcp-server-1049119860518.us-central1.run.app,https://ss-mcp-server-s2le2ic2eq-uc.a.run.app,https://mcp.socialseed.ing"
             # D53: searcher = bulk tier, ranker = judgment tier. The only two

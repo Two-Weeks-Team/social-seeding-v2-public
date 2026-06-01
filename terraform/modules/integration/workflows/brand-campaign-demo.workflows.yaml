@@ -109,12 +109,17 @@ main:
     # ── D45: THE cross-component edge. Cloud Workflows A2A-invokes the OSS
     #    tiktok-mcp-server's plan_creator_search intent over A2A v0.3
     #    message:send. Body mirrors a2a_invoke._build_a2a_message exactly.
-    #    NO `auth:` block — ss-mcp runs REQUIRE_AUTH=false on the demo deploy
-    #    (Identity Platform Bearer, not Cloud Run OIDC — see header note). ──────
+    #    ss-mcp now runs REQUIRE_AUTH=true and accepts a Google service-identity
+    #    OIDC token whose `aud` is one of its SERVICE_IDENTITY_AUDIENCES (the
+    #    run.app base URL). So we send an OIDC token with audience = the ss-mcp
+    #    BASE url (NOT the …/v1/message:send path, which isn't an accepted aud). ──
     - a2a_invoke_remote:
         call: http.post
         args:
           url: ${default(map.get(args.agent_urls, "tiktok-mcp-search"), sys.get_env("AGENT_URL_TIKTOK_MCP")) + "/v1/message:send"}
+          auth:
+            type: OIDC
+            audience: ${default(map.get(args.agent_urls, "tiktok-mcp-search"), sys.get_env("AGENT_URL_TIKTOK_MCP"))}
           body:
             message:
               role: "user"
