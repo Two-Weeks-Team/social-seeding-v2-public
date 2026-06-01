@@ -87,12 +87,31 @@ class _FakeContent:
         self.parts = parts or []
 
 
+class _FakeSchema:
+    """Stand-in for google.genai.types.Schema — `_SchemaFunctionTool` only
+    calls `model_validate(dict)` and hands the result to FunctionDeclaration."""
+
+    @classmethod
+    def model_validate(cls, data: Any) -> Any:
+        return data
+
+
+class _FakeFunctionDeclaration:
+    """Stand-in for google.genai.types.FunctionDeclaration — only constructed,
+    never introspected (the fake LlmAgent ignores tool declarations)."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        self.kwargs = kwargs
+
+
 class _FakeGenaiTypes:
-    """Mimics `from google.genai import types as genai_types` — only the two
-    constructors `_run_with_adk` calls are needed."""
+    """Mimics `from google.genai import types as genai_types` — the constructors
+    `_run_with_adk` + `_SchemaFunctionTool` reach for."""
 
     Part = _FakePart
     Content = _FakeContent
+    Schema = _FakeSchema
+    FunctionDeclaration = _FakeFunctionDeclaration
 
 
 class _FakeEvent:

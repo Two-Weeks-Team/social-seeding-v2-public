@@ -66,6 +66,9 @@ WORKDIR /build
 # Copy only the manifest first to maximize layer caching.
 COPY packages/agents-adk/pyproject.toml packages/agents-adk/uv.lock packages/agents-adk/README.md ./
 COPY packages/agents-adk/src ./src
+# serve.py is the FastAPI/uvicorn entrypoint (sibling of src/, not inside the
+# package) — copy it so the runtime stage can boot it.
+COPY packages/agents-adk/serve.py ./serve.py
 
 # Create the venv and resolve deps from the lock file (reproducible builds).
 RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
@@ -100,6 +103,7 @@ WORKDIR /app
 # Python resolves imports against /app/src, not the venv site-packages copy.
 COPY --from=builder --chown=adk:adk /opt/venv /opt/venv
 COPY --from=builder --chown=adk:adk /build/src /app/src
+COPY --from=builder --chown=adk:adk /build/serve.py /app/serve.py
 
 USER adk
 
@@ -111,10 +115,11 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 # tini handles PID 1 signal forwarding cleanly under Cloud Run scale-to-zero.
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
-# The runtime CLI is exposed as a Python module entrypoint.
-# `python -m ss_agents.runtime serve --port=${PORT}` boots the FastAPI surface
-# that wraps every Tier-1/2/3 agent and exposes /healthz + /invoke.
-CMD ["sh", "-c", "exec python -m ss_agents.runtime serve --port=${PORT} --host=${HOST}"]
+# serve.py boots the FastAPI surface (uvicorn serve:app) that wraps every agent
+# and exposes /healthz + the per-agent routes. It reads PORT/HOST from env.
+# (Was `python -m ss_agents.runtime serve` — stale: serve moved to serve.py,
+# the runtime module has no `serve` subcommand so it exited(0) on boot.)
+CMD ["sh", "-c", "exec python /app/serve.py"]
 
 ###############################################################################
 # OCI image labels — SLSA / supply-chain provenance

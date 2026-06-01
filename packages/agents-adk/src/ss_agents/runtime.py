@@ -37,6 +37,8 @@ from __future__ import annotations
 import asyncio
 import inspect
 import logging
+import inspect
+import json
 import time
 from collections.abc import Awaitable, Callable
 from typing import (
@@ -433,7 +435,10 @@ async def run_agent(
             )
             record_outcome(span, kind="escalate", usd_spent=usd_spent, elapsed_ms=(time.monotonic() - start) * 1000.0)
             return Escalation(
-                reason=f"unexpected runtime error: {type(exc).__name__}: {exc}",
+                # Truncate: Escalation.reason caps at 500 chars, and a raw
+                # provider error (e.g. a Vertex 403 JSON blob) can blow past it —
+                # which would turn a clean escalation into a ValidationError crash.
+                reason=f"unexpected runtime error: {type(exc).__name__}: {exc}"[:500],
                 partial={},
                 usdSpent=usd_spent,
             )
@@ -505,6 +510,132 @@ async def _run_with_stub(
     return output_obj, usd_spent  # type: ignore[return-value]
 
 
+def _adk_tool(fn: Callable[..., Any]) -> Callable[..., Any]:
+    """Adapt a typed capability fn for ADK's automatic function calling.
+
+    Two google-adk 1.34 (Vertex variant) constraints this resolves so the live
+    fleet can actually call its tools — both invisible to the offline unit
+    suite, which swaps in a stub model client and never builds an ADK
+    declaration:
+
+      1. **Return schema.** On the Vertex variant ADK builds a *response*
+         schema from the tool's return annotation. Our tools return rich
+         Pydantic models (nested models + ``Literal``) whose schema the builder
+         rejects ("Failed to parse the parameter return_value …"). We expose
+         ``-> dict`` and dump the model — semantically identical to what the
+         LLM would otherwise receive.
+      2. **Arg coercion.** ADK delivers the function-call arguments as plain
+         JSON, so a ``payload: SomeModel`` parameter arrives as a ``dict``. We
+         reconstruct the declared Pydantic model before calling the underlying
+         fn (which does ``payload.field`` access).
+
+    The shim keeps the original parameter signature (so ADK derives the same
+    input schema) and only rewrites the return annotation. Annotations are
+    resolved against the *original* fn's module globals up front — the tool
+    modules use ``from __future__ import annotations`` (string annotations), and
+    ADK calls ``typing.get_type_hints`` on the tool, which would otherwise
+    evaluate ``payload: RapidApiUserInfoInput`` against this module's namespace
+    and raise ``NameError``.
+    """
+    # eval_str=True resolves the string annotations using fn.__globals__.
+    resolved = inspect.get_annotations(fn, eval_str=True)
+    resolved["return"] = dict
+
+    sig = inspect.signature(fn)
+    params = [
+        p.replace(annotation=resolved.get(p.name, p.annotation))
+        for p in sig.parameters.values()
+    ]
+
+    def shim(**kwargs: Any) -> Any:
+        coerced: dict[str, Any] = {}
+        for p in params:
+            if p.name not in kwargs:
+                continue
+            value = kwargs[p.name]
+            ann = p.annotation
+            if (
+                isinstance(value, dict)
+                and isinstance(ann, type)
+                and issubclass(ann, BaseModel)
+            ):
+                value = ann.model_validate(value)
+            coerced[p.name] = value
+        result = fn(**coerced)
+        if isinstance(result, BaseModel):
+            return result.model_dump(by_alias=True, mode="json")
+        return result
+
+    shim.__name__ = getattr(fn, "__name__", "tool")
+    shim.__doc__ = fn.__doc__
+    shim.__annotations__ = resolved
+    shim.__signature__ = sig.replace(  # type: ignore[attr-defined]
+        parameters=params, return_annotation=dict
+    )
+    return shim
+
+
+# google-adk 1.34 (Vertex variant) builds a Gemini function declaration from the
+# tool signature, but Gemini's function-call schema has no `$ref`/`$defs` — so a
+# tool whose parameter is a *nested* Pydantic model (e.g. RankingScoreInput →
+# {creator_profile, campaign_brief}) makes ADK's schema builder raise
+# "Failed to parse the parameter …". We dereference the Pydantic JSON schema
+# into an inline, ref-free schema and hand ADK a manual declaration. (Invisible
+# to the offline unit suite, which stubs the model client and never builds a
+# declaration.)
+_SCHEMA_DROP_KEYS = frozenset({"$defs", "$ref", "title", "additionalProperties"})
+
+
+def _deref_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    """Inline every `$ref` against the schema's `$defs` and drop the JSON-schema
+    keywords Gemini's `types.Schema` does not accept. Returns a ref-free dict
+    that `types.Schema.model_validate` accepts."""
+    defs = schema.get("$defs", {})
+
+    def resolve(node: Any) -> Any:
+        if isinstance(node, dict):
+            if "$ref" in node:
+                target = defs.get(str(node["$ref"]).split("/")[-1], {})
+                merged = resolve(target)
+                if isinstance(merged, dict):
+                    out = dict(merged)
+                    out.update({k: resolve(v) for k, v in node.items() if k != "$ref"})
+                    return out
+                return merged
+            return {k: resolve(v) for k, v in node.items() if k not in _SCHEMA_DROP_KEYS}
+        if isinstance(node, list):
+            return [resolve(x) for x in node]
+        return node
+
+    resolved = resolve(schema)
+    return resolved if isinstance(resolved, dict) else {"type": "object"}
+
+
+def _tool_parameters_schema_dict(fn: Callable[..., Any]) -> dict[str, Any]:
+    """Build a ref-free OBJECT schema for ``fn``'s parameters (skipping ADK's
+    ``tool_context``). Each Pydantic-model param is dereferenced inline."""
+    resolved = inspect.get_annotations(fn, eval_str=True)
+    properties: dict[str, Any] = {}
+    required: list[str] = []
+    for name, param in inspect.signature(fn).parameters.items():
+        if name in ("tool_context", "input_stream"):
+            continue
+        ann = resolved.get(name, param.annotation)
+        primitive = {int: "integer", float: "number", bool: "boolean", str: "string"}
+        if isinstance(ann, type) and issubclass(ann, BaseModel):
+            properties[name] = _deref_schema(ann.model_json_schema())
+        elif ann in primitive:
+            properties[name] = {"type": primitive[ann]}
+        else:
+            properties[name] = {"type": "string"}
+        if param.default is inspect.Parameter.empty:
+            required.append(name)
+    schema: dict[str, Any] = {"type": "object", "properties": properties}
+    if required:
+        schema["required"] = required
+    return schema
+
+
 async def _run_with_adk(
     *,
     agent_def: AgentDef[I, O],
@@ -533,11 +664,35 @@ async def _run_with_adk(
         from google.adk.agents.callback_context import CallbackContext
         from google.adk.models import LlmRequest, LlmResponse
         from google.adk.runners import InMemoryRunner
+        from google.adk.tools import FunctionTool
         from google.genai import types as genai_types
     except ImportError as exc:  # pragma: no cover — ADK is a hard dep
         raise RuntimeError(
             "google-adk not installed. Run: uv pip install -e '.[dev]'"
         ) from exc
+
+    class _SchemaFunctionTool(FunctionTool):
+        """FunctionTool with a hand-built, ref-free declaration.
+
+        ADK's automatic builder can't render our nested-Pydantic tool params (no
+        `$ref` in Gemini schemas) and, on the Vertex variant, also tries to build
+        a response schema from the rich return type. We override `_get_declaration`
+        with a dereferenced parameter schema and no response schema; the wrapped
+        fn (via `_adk_tool`) returns a plain dict, and ADK's own `_preprocess_args`
+        re-hydrates the Pydantic arg from the LLM's JSON."""
+
+        def __init__(self, original: Callable[..., Any]) -> None:
+            super().__init__(_adk_tool(original))
+            self._ss_declaration = genai_types.FunctionDeclaration(
+                name=getattr(original, "__name__", "tool"),
+                description=(original.__doc__ or "").strip()[:1024] or None,
+                parameters=genai_types.Schema.model_validate(
+                    _tool_parameters_schema_dict(original)
+                ),
+            )
+
+        def _get_declaration(self) -> Any:
+            return self._ss_declaration
 
     # Cost accounting keys off the declared short id; the model string actually
     # sent to Vertex may be a Model Garden publisher path (D47) — see below.
@@ -581,15 +736,36 @@ async def _run_with_adk(
         callback_context.state["last_call_usd"] = cost
         return None
 
+    # Gemini rejects a request that carries BOTH function-calling `tools` and a
+    # structured-output `response_schema` (→ 400 INVALID_ARGUMENT). ADK derives
+    # the response_schema from `output_schema`, so for a tool-using agent we drop
+    # output_schema from the LlmAgent and instead pin the output contract into
+    # the instruction; run_agent re-validates `final_text` against
+    # `agent_def.output_schema` regardless (see below), so the typed-output
+    # guarantee is unchanged. Tool-less agents (e.g. the served coordinator) keep
+    # native structured output.
+    has_tools = bool(agent_def.tools)
+    instruction = system_prompt
+    if has_tools:
+        schema_json = json.dumps(
+            agent_def.output_schema.model_json_schema(), ensure_ascii=False
+        )
+        instruction = (
+            f"{system_prompt}\n\n"
+            "When you have finished using tools, respond with ONLY a single JSON "
+            "object that conforms to this JSON Schema — no prose, no markdown "
+            f"code fence:\n{schema_json}"
+        )
+
     # Build a fresh LlmAgent per invocation — system prompt is parameterized
     # by input. Same pattern as PORTING-V2.md §5 lines 534-567.
     agent = LlmAgent(
         name=agent_def.id,
         model=runtime_model,  # D47: Model Garden publisher path when routing is on
         description=agent_def.description,
-        instruction=system_prompt,
-        output_schema=agent_def.output_schema,
-        tools=list(agent_def.tools),
+        instruction=instruction,
+        output_schema=None if has_tools else agent_def.output_schema,
+        tools=[_SchemaFunctionTool(t) for t in agent_def.tools],
         before_model_callback=cost_guard,
         after_model_callback=cost_record,
     )
@@ -627,15 +803,34 @@ async def _run_with_adk(
         )
 
     # responseSchema enforcement may have already validated this on Vertex's
-    # side, but we re-validate for defense in depth (same as PORTING-V2.md §5
-    # line 612 `OutreachDraft.model_validate_json(final_text)`).
-    output_obj = agent_def.output_schema.model_validate_json(final_text)
+    # side (tool-less agents), but we re-validate for defense in depth (same as
+    # PORTING-V2.md §5 line 612 `OutreachDraft.model_validate_json(final_text)`).
+    # Tool-using agents emit free text (no native structured output), so strip a
+    # stray ```json … ``` fence the model may add before validating.
+    output_obj = agent_def.output_schema.model_validate_json(_strip_json_fence(final_text))
     return output_obj, usd_spent  # type: ignore[return-value]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
+
+def _strip_json_fence(text: str) -> str:
+    """Strip a leading/trailing markdown code fence if the model wrapped its
+    JSON in one (```json … ``` or ``` … ```). Returns the inner payload, or the
+    original text unchanged when no fence is present."""
+    s = text.strip()
+    if not s.startswith("```"):
+        return s
+    # Drop the opening fence line (``` or ```json) and the closing fence.
+    first_newline = s.find("\n")
+    if first_newline == -1:
+        return s
+    body = s[first_newline + 1 :]
+    if body.rstrip().endswith("```"):
+        body = body.rstrip()[: -3]
+    return body.strip()
 
 
 def _first_validation_message(exc: ValidationError) -> str:

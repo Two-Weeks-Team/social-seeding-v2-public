@@ -471,7 +471,10 @@ def build_sourcing_system_prompt(payload: BaseModel) -> str:
             "",
             "Flag rules — set EACH applicable code from this list:",
             f"  · below_engagement_floor — engagementRate < {targeting.min_engagement_rate}",
-            f"  · wrong_language — creator.language ∉ {{{languages_line}}}",
+            # Bracket set-notation (not braces): ADK injects `{var}` from session
+            # state into the instruction, so a literal `{ko}` would be read as a
+            # state key and raise "Context variable not found".
+            f"  · wrong_language — creator.language ∉ [{languages_line}]",
             "  · brand_unsafe — bio/captions show competing brands or unsafe content",
             "  · prior_flake — creator.priorOutcome == 'flaked'",
             "  · data_stale — profile data > 30 days old",

@@ -199,16 +199,22 @@ def test_stub_brand_safety_drops_on_banned_keywords() -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Live mode — NotImplementedError until W7.
+# Live mode — same deterministic math as the stub, marked computed_via="live".
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def test_live_mode_raises_not_implemented(
+def test_live_mode_computes_same_math_marked_live(
     monkeypatch: pytest.MonkeyPatch, canonical_input: RankingScoreInput
 ) -> None:
+    monkeypatch.setenv("CAPABILITY_LAYER_MODE", "stub")
+    stub_out = ranking_score(canonical_input)
     monkeypatch.setenv("CAPABILITY_LAYER_MODE", "live")
-    with pytest.raises(NotImplementedError, match="W7"):
-        ranking_score(canonical_input)
+    live_out = ranking_score(canonical_input)
+    assert live_out.computed_via == "live"
+    assert stub_out.computed_via == "stub"
+    # Ranking is pure math — the score + sub-scores must be identical.
+    assert live_out.score == stub_out.score
+    assert live_out.sub_scores == stub_out.sub_scores
 
 
 # ─────────────────────────────────────────────────────────────────────────────
