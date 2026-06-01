@@ -6,18 +6,48 @@ import { Collections } from "../collections";
 /** v1's billing plans (lib/feature-flags.ts). */
 export type PlanName = "FREE" | "BEAUTY_VERIFIED" | "STARTER" | "PRO" | "BUSINESS";
 
-/** A conservative default: every gate asks the human. Owners relax over time. */
+/**
+ * Default autonomy posture (operator instruction 2026-06-01, B1 "over-HITL"
+ * fix). The agent fleet runs the loop; the human is in the loop at exactly
+ * **three** gates — the irreversible / money / brand-risk ones:
+ *
+ *   · approveShipment   — always_ask (physical sample goes out)
+ *   · approveContent    — always_ask (final sign-off on a live post)
+ *   · approveBudget     — always_ask (spend release / contract)
+ *
+ * Everything else runs autonomously, escalating to the human ONLY when a
+ * risk predicate matches (`auto_unless`):
+ *
+ *   · approveShortlist  — auto unless a candidate is low-fit (fitScore < 0.4)
+ *   · approveOutreachSend — auto unless the draft scores spammy (spamScore ≥ 5)
+ *   · approveReplyResponse — auto unless the reply is negative/exiting/sensitive
+ *   · approveStageAdvance — auto (pure state transition, no external effect)
+ *
+ * Each required gate carries a non-blocking `timeout`: after 24 weekday-hours
+ * with no human decision it falls back deterministically rather than parking
+ * the loop forever — shipment/budget `abandon` (safe: no spend, no send),
+ * content `auto_proceed` (trust the verify agent's score; stalling a live post
+ * costs more than the residual judgment risk). See GateTimeoutSchema.
+ *
+ * Owners can still tighten any gate back to always_ask (or relax the required
+ * ones) per workspace via savePolicy.
+ */
 export function defaultPolicy(workspaceId: string): WorkspacePolicy {
-  const askGate = { mode: "always_ask" as const };
+  const autoStage = { mode: "auto" as const };
   return WorkspacePolicySchema.parse({
     workspaceId,
-    level: "checkpointed",
+    level: "autonomous",
     gates: {
-      approveShortlist: askGate,
-      approveOutreachSend: askGate,
-      approveReplyResponse: askGate,
-      approveShipment: askGate,
-      approveStageAdvance: askGate,
+      approveShortlist: { mode: "auto_unless", escalateIf: { fitScoreLt: 0.4 } },
+      approveOutreachSend: { mode: "auto_unless", escalateIf: { spamScoreGte: 5 } },
+      approveReplyResponse: {
+        mode: "auto_unless",
+        escalateIf: { replyClassIn: ["negotiating", "negative", "unsubscribe", "sensitive"] },
+      },
+      approveStageAdvance: autoStage,
+      approveShipment: { mode: "always_ask", timeout: { businessHours: 24, onTimeout: "abandon" } },
+      approveContent: { mode: "always_ask", timeout: { businessHours: 24, onTimeout: "auto_proceed" } },
+      approveBudget: { mode: "always_ask", timeout: { businessHours: 24, onTimeout: "abandon" } },
     },
     budgets: { maxUsdPerCampaign: 25, maxUsdPerWorkspaceMonthly: 200 },
     voice: { toneNotes: "", signatureBlock: "", bannedPhrases: [] },

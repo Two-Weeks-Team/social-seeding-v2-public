@@ -72,15 +72,18 @@ describe("import-v1-workspaces", () => {
     expect(r.created).toBe(3);
     expect(r.alreadyImported).toBe(0);
     expect(r.skippedCanceled).toBe(0);
-    // All three got default policies (mode='always_ask' on all 5 gates).
+    // All three got default policies (autonomous posture: 3 required HITL
+    // gates always_ask, rest auto/auto_unless — see defaultPolicy).
     for (const id of [id1, id2, id3]) {
       const p = await workspaceRepo.getPolicy(id);
-      expect(p.level).toBe("checkpointed");
-      expect(p.gates.approveShortlist.mode).toBe("always_ask");
-      expect(p.gates.approveOutreachSend.mode).toBe("always_ask");
-      expect(p.gates.approveReplyResponse.mode).toBe("always_ask");
+      expect(p.level).toBe("autonomous");
+      expect(p.gates.approveShortlist.mode).toBe("auto_unless");
+      expect(p.gates.approveOutreachSend.mode).toBe("auto_unless");
+      expect(p.gates.approveReplyResponse.mode).toBe("auto_unless");
+      expect(p.gates.approveStageAdvance.mode).toBe("auto");
       expect(p.gates.approveShipment.mode).toBe("always_ask");
-      expect(p.gates.approveStageAdvance.mode).toBe("always_ask");
+      expect(p.gates.approveContent.mode).toBe("always_ask");
+      expect(p.gates.approveBudget.mode).toBe("always_ask");
     }
   });
 
@@ -162,6 +165,8 @@ describe("import-v1-workspaces", () => {
         approveReplyResponse: { mode: "auto" },
         approveShipment: { mode: "auto" },
         approveStageAdvance: { mode: "auto" },
+        approveContent: { mode: "auto" },
+        approveBudget: { mode: "auto" },
       },
       budgets: { maxUsdPerCampaign: 200, maxUsdPerWorkspaceMonthly: 1000 },
       voice: { toneNotes: "custom", signatureBlock: "", bannedPhrases: [] },
@@ -179,9 +184,9 @@ describe("import-v1-workspaces", () => {
     expect(surviving.gates.approveShortlist.mode).toBe("auto");
     expect(surviving.budgets.maxUsdPerCampaign).toBe(200);
     expect(surviving.voice.toneNotes).toBe("custom");
-    // Fresh import on id1 has the default policy
+    // Fresh import on id1 has the default policy (autonomous posture)
     const fresh = await workspaceRepo.getPolicy(id1);
-    expect(fresh.level).toBe("checkpointed");
-    expect(fresh.gates.approveShortlist.mode).toBe("always_ask");
+    expect(fresh.level).toBe("autonomous");
+    expect(fresh.gates.approveShortlist.mode).toBe("auto_unless");
   });
 });

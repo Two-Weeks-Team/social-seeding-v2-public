@@ -15,6 +15,28 @@ export const AutonomyLevelSchema = z.enum([
 ]);
 export type AutonomyLevel = z.infer<typeof AutonomyLevelSchema>;
 
+/**
+ * What the gate does when a human-required checkpoint (`always_ask`, or
+ * `auto_unless` with a predicate hit) sits unresolved past its window.
+ *
+ * The point (operator instruction 2026-06-01): a gate must never block the
+ * autonomous loop *forever* on a human. After the window elapses the gate
+ * falls back deterministically — it either
+ *   · "abandon"      — resolve as `rejected` and let the workflow take the
+ *                      no-go branch (safe default for irreversible / spend
+ *                      actions: shipment, budget). Nothing external fires.
+ *   · "auto_proceed" — resolve as `approved` with the agent's own
+ *                      recommendation (the agent's pre-filled answer *is* the
+ *                      evaluation). Use where stalling costs more than the
+ *                      agent's judgment risk (e.g. content_review).
+ */
+export const GateTimeoutSchema = z.object({
+  /** Weekday hours to wait before the fallback fires. Default 24 (one business day). */
+  businessHours: z.number().positive().default(24),
+  onTimeout: z.enum(["abandon", "auto_proceed"]).default("abandon"),
+});
+export type GateTimeout = z.infer<typeof GateTimeoutSchema>;
+
 /** A single configurable gate. `auto` predicates are evaluated against run context. */
 export const GateConfigSchema = z.object({
   mode: z.enum(["always_ask", "auto", "auto_unless"]),
@@ -29,6 +51,13 @@ export const GateConfigSchema = z.object({
     })
     .partial()
     .optional(),
+  /**
+   * Optional non-blocking fallback. When present and the human path is taken,
+   * the gate waits `businessHours` weekday-hours then resolves per `onTimeout`
+   * instead of throwing. Absent → legacy behavior (throw ApprovalTimeoutError
+   * after the hard 7-day wait).
+   */
+  timeout: GateTimeoutSchema.optional(),
 });
 export type GateConfig = z.infer<typeof GateConfigSchema>;
 
@@ -39,8 +68,10 @@ export const WorkspacePolicySchema = z.object({
     approveShortlist: GateConfigSchema, // after sourcing+vetting
     approveOutreachSend: GateConfigSchema, // before sending each batch
     approveReplyResponse: GateConfigSchema, // before sending a drafted reply
-    approveShipment: GateConfigSchema, // before creating a shipment
+    approveShipment: GateConfigSchema, // before creating a shipment (required HITL)
     approveStageAdvance: GateConfigSchema, // moving the whole campaign to the next stage
+    approveContent: GateConfigSchema, // content_review — final sign-off on a verified post (required HITL)
+    approveBudget: GateConfigSchema, // releasing spend / executing a contract (required HITL)
   }),
   budgets: z.object({
     maxUsdPerCampaign: z.number().positive().default(25),
@@ -103,6 +134,8 @@ export const ApprovalSchema = z.object({
     "reply_response",
     "shipment",
     "stage_advance",
+    "content_review", // final human sign-off on a verified post (approveContent gate).
+    "budget", // spend release / contract execution (approveBudget gate).
     "payment_mandate", // AP2 Intent Mandate sign checkpoint — see D27.
   ]),
   recommendation: z.unknown(), // the agent's pre-filled answer (shape depends on kind)
