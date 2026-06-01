@@ -51,6 +51,7 @@ export {
 // Carrier seam — same shape as Gmail / TikTok seams; tests inject fakes.
 export {
   defaultCarrierClientFactory,
+  demoCarrierClient,
   getCarrierClientFactory,
   setCarrierClientFactory,
   type CarrierClient,
@@ -59,6 +60,9 @@ export {
   type CarrierCreateResult,
   type CarrierTrackResult,
 } from "./shipment/carrier";
+// Ranking pure helpers — vetting / content-verify / analyst consume avgViews
+// as the per-creator baseline for "campaign post vs their typical reach".
+export { avgViewsOf, engagementRateOf, influenceScoreOf } from "./ranking/score";
 // CrmEnrich seam — Modal+Kimi for sales-lead enrichment (Phase 5).
 export {
   defaultCrmEnrichClientFactory,

@@ -90,6 +90,14 @@ export const CreatorTrackStartEvent = z.object({
         z.object({
           desc: z.string().default(""),
           hashtags: z.array(z.string()).default([]),
+          // Engagement metrics — used by content-verify as the per-creator
+          // baseline (avgViews). Additive + defaulted so existing producers
+          // (which only set desc/hashtags) stay valid; sourcing / the demo
+          // driver populate them.
+          views: z.number().int().nonnegative().default(0),
+          likes: z.number().int().nonnegative().default(0),
+          comments: z.number().int().nonnegative().default(0),
+          shares: z.number().int().nonnegative().default(0),
         }),
       )
       .default([]),

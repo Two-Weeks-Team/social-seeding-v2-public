@@ -14,7 +14,7 @@ import {
   isTerminalShipmentStatus,
 } from "@ss/contracts";
 import { campaignRepo, workspaceRepo } from "@ss/db";
-import { invokeCapability } from "@ss/capabilities";
+import { avgViewsOf, invokeCapability } from "@ss/capabilities";
 import {
   conversationAgent,
   conversationResponderAgent,
@@ -474,6 +474,7 @@ export async function creatorTrackHandler(
         uniqueId: creator.uniqueId,
         followerCount: creator.followerCount,
       },
+      recentPosts,
     });
   }
 
@@ -643,6 +644,8 @@ interface ShippingArgs {
    * gate silently auto-approves every shipment.
    */
   creator: { id: string; uniqueId: string; followerCount: number };
+  /** Creator's recent posts — used as the content-verify baseline (avgViews). */
+  recentPosts: CreatorTrackEventData["recentPosts"];
 }
 
 async function runShippingAndContentReview(args: ShippingArgs): Promise<CreatorTrackResult> {
@@ -658,6 +661,7 @@ async function runShippingAndContentReview(args: ShippingArgs): Promise<CreatorT
     products,
     threadId,
     classification,
+    recentPosts,
   } = args;
 
   // ── 1. address_collected → approveShipment gate ─────────────────────────
@@ -862,8 +866,11 @@ async function runShippingAndContentReview(args: ShippingArgs): Promise<CreatorT
           createdAt: postEvent.data.createdAt,
           matchedHashtags: postEvent.data.matchedHashtags,
         },
-        baselineAvgViews: 0,
-        competitorNames: [],
+        // Real baseline (#29 P0-B): the creator's own typical reach, so the
+        // verify agent scores "campaign post vs their norm" instead of vs 0.
+        // Falls back to 0 only when recentPosts is genuinely empty.
+        baselineAvgViews: avgViewsOf(recentPosts),
+        competitorNames: [], // brief has no competitor field yet — keep []; no false "competitor mention" claims.
       },
       agentCtx,
     ),
