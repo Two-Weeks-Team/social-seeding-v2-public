@@ -56,7 +56,7 @@ spec:
         run.googleapis.com/vpc-access-egress: private-ranges-only
         run.googleapis.com/sla-tier: enterprise-99-99
     spec:
-      serviceAccountName: agents-runner@__PROJECT__.iam.gserviceaccount.com
+      serviceAccountName: ss-agents-runtime@__PROJECT__.iam.gserviceaccount.com
       timeoutSeconds: 60
       containerConcurrency: 20
       containers:
@@ -79,13 +79,33 @@ spec:
             # D41 stub/live seam — Cloud Run fallback runs in `live` mode.
             - name: CAPABILITY_LAYER_MODE
               value: "live"
-            # D5 model families — adjust per-env via Secret Manager if needed.
+            # D53 model law: Gemini 3.5 / 3.1 ONLY on Vertex `global` — no 2.5,
+            # no *-pro (*-pro returns 404 in prod). 3.5-flash = judgment+coordinator,
+            # 3.1-flash-lite = bulk. (No pro tier; pro maps to 3.5-flash.)
             - name: ADK_FLASH_MODEL
-              value: "gemini-2.5-flash"
+              value: "gemini-3.5-flash"
             - name: ADK_PRO_MODEL
-              value: "gemini-2.5-pro"
+              value: "gemini-3.5-flash"
             - name: ADK_FLASH_LITE_MODEL
-              value: "gemini-2.5-flash-lite"
+              value: "gemini-3.1-flash-lite"
+            # TikTok data via the v1 backend.socialseed.ing proxy (NOT RapidAPI
+            # directly). SS_TIKTOK_LIVE makes rapidapi_get_user_info live without
+            # flipping other still-stubbed tools; the X-API-Key is minted +
+            # auto-rotated via /auth/login (backend_client) from the creds below.
+            - name: SS_BACKEND_URL
+              value: "https://backend.socialseed.ing"
+            - name: SS_TIKTOK_LIVE
+              value: "1"
+            - name: BACKEND_DASHBOARD_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: backend-dashboard-email
+                  key: latest
+            - name: BACKEND_DASHBOARD_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backend-dashboard-password
+                  key: latest
             # Model Armor templates (D21).
             - name: MODEL_ARMOR_INPUT_TEMPLATE
               value: "projects/__PROJECT__/locations/__REGION__/templates/ss-input"
