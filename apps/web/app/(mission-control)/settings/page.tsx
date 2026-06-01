@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardBody, SectionLabel } from "@/components/ui/card";
+import { cn } from "@/lib/cn";
 import { getServerSession } from "@/lib/auth";
 import { gmailConnectionStatus } from "@/lib/gmail-oauth";
 
@@ -28,6 +29,10 @@ export default async function SettingsPage({
   const status = await gmailConnectionStatus(email);
 
   const startHref = `/api/auth/gmail/start?email=${encodeURIComponent(email)}&returnUrl=/settings`;
+  // Primary (slate-900) is reserved for the action we want them to take —
+  // connect / reauth. A healthy connected state demotes reconnect to secondary.
+  const actionPrimary = !status.connected || status.needsReauth;
+  const buttonLabel = status.connected ? "Gmail 재연결" : status.needsReauth ? "Gmail 다시 연결" : "Gmail 연결";
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-10">
@@ -38,8 +43,11 @@ export default async function SettingsPage({
       </p>
 
       {gmail_connected ? (
-        <div className="mt-4 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          ✅ <b>{gmail_connected}</b> 연결 완료 — 이제 이 계정으로 메일을 보낼 수 있습니다.
+        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" aria-hidden />
+          <span>
+            <b className="mono">{gmail_connected}</b> 연결 완료 — 이제 이 계정으로 메일을 보낼 수 있습니다.
+          </span>
         </div>
       ) : null}
 
@@ -51,19 +59,35 @@ export default async function SettingsPage({
               <div className="text-sm font-medium text-slate-900">{email}</div>
               <div className="mt-1">
                 {status.connected ? (
-                  <Badge>연결됨{status.expiresAt ? ` · 만료 ${new Date(status.expiresAt).toLocaleString("ko-KR")}` : ""}</Badge>
+                  <Badge variant="emerald">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" aria-hidden /> 연결됨
+                    {status.expiresAt ? (
+                      <span className="mono ml-1">만료 {new Date(status.expiresAt).toLocaleString("ko-KR")}</span>
+                    ) : null}
+                  </Badge>
                 ) : status.needsReauth ? (
-                  <span className="text-xs text-amber-700">재인증 필요 (토큰 만료/미연결)</span>
+                  <Badge variant="amber">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" aria-hidden /> 재인증 필요
+                  </Badge>
                 ) : (
-                  <span className="text-xs text-slate-500">미연결</span>
+                  <Badge variant="slate">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" aria-hidden /> 미연결
+                  </Badge>
                 )}
               </div>
             </div>
             <a
               href={startHref}
-              className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 transition-colors"
+              aria-label={buttonLabel}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors",
+                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-400 focus-visible:outline-offset-1",
+                actionPrimary
+                  ? "bg-slate-900 text-white hover:bg-slate-700"
+                  : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
+              )}
             >
-              {status.connected ? "Gmail 재연결" : "Gmail 연결"}
+              {buttonLabel}
             </a>
           </div>
           <p className="mt-3 text-xs text-slate-500">

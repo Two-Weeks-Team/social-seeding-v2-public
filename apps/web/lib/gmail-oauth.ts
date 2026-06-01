@@ -28,6 +28,11 @@ export const GMAIL_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
 ] as const;
 
+/** Sign-in scopes — identity only, no sensitive Gmail scope, so no Google app
+ * verification is required for public users (D-gate). The id_token carries
+ * `sub` (the 21-char Google user id, v1 parity) + `email`. */
+export const LOGIN_SCOPES = ["openid", "email", "profile"] as const;
+
 const DEFAULT_BACKEND_URL = "https://backend.socialseed.ing";
 
 export function googleClientId(): string {
@@ -60,6 +65,13 @@ export interface OAuthState {
   /** Hint for which account the operator intends to connect (display only). */
   emailHint?: string;
   nonce: string;
+  /**
+   * Which flow this consent round-trip serves. The callback branches on it:
+   *   "login"   → resolve identity from the id_token, mint an ss_session cookie.
+   *   "connect" → exchange + persist the Gmail refresh token (default; v1 parity).
+   * Absent ⇒ treated as "connect" for backward compatibility with existing links.
+   */
+  purpose?: "login" | "connect";
 }
 
 export function encodeState(state: OAuthState): string {
@@ -70,20 +82,32 @@ export function decodeState(raw: string): OAuthState | null {
   try {
     const parsed = JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as OAuthState;
     if (typeof parsed.returnUrl !== "string" || typeof parsed.nonce !== "string") return null;
+    if (parsed.purpose !== undefined && parsed.purpose !== "login" && parsed.purpose !== "connect") return null;
     return parsed;
   } catch {
     return null;
   }
 }
 
-export function buildConsentUrl(params: { origin: string; state: string; emailHint?: string }): string {
+export function buildConsentUrl(params: {
+  origin: string;
+  state: string;
+  emailHint?: string;
+  /** Defaults to the Gmail connect scopes (v1 parity). Login passes LOGIN_SCOPES. */
+  scopes?: readonly string[];
+  /** "offline" yields a refresh_token (connect). Login uses "online" — identity only. */
+  accessType?: "offline" | "online";
+  /** "consent" forces re-consent (connect, to mint a refresh_token); login uses "select_account". */
+  prompt?: "consent" | "select_account" | "none";
+}): string {
+  const scopes = params.scopes ?? GMAIL_SCOPES;
   const q = new URLSearchParams({
     client_id: googleClientId(),
     redirect_uri: redirectUri(params.origin),
     response_type: "code",
-    scope: GMAIL_SCOPES.join(" "),
-    access_type: "offline",
-    prompt: "consent", // force a refresh_token even on re-consent
+    scope: scopes.join(" "),
+    access_type: params.accessType ?? "offline",
+    prompt: params.prompt ?? "consent",
     state: params.state,
   });
   if (params.emailHint) q.set("login_hint", params.emailHint);
@@ -96,6 +120,47 @@ export interface GoogleTokenResponse {
   expires_in: number;
   scope: string;
   token_type: string;
+  /** Present when `openid` is in scope (login flow). A signed JWT carrying `sub`+`email`. */
+  id_token?: string;
+}
+
+export interface GoogleIdentity {
+  /** 21-char Google account id (`sub`) — v1 parity for SessionClaims.userId. */
+  sub: string;
+  email: string;
+}
+
+/**
+ * Resolve the signed-in identity from a Google id_token.
+ *
+ * The token is obtained directly from Google's token endpoint over TLS in the
+ * authorization-code exchange (server-to-server), so the payload is trusted
+ * without re-verifying the JWT signature; we still assert `aud` matches our
+ * client id and `iss` is Google to reject a swapped/forged token. Returns null
+ * on any malformed/mismatched token.
+ */
+export function decodeIdentity(idToken: string): GoogleIdentity | null {
+  try {
+    const parts = idToken.split(".");
+    if (parts.length !== 3) return null;
+    const payloadRaw = parts[1];
+    if (!payloadRaw) return null;
+    const payload = JSON.parse(Buffer.from(payloadRaw, "base64url").toString("utf8")) as {
+      sub?: unknown;
+      email?: unknown;
+      email_verified?: unknown;
+      aud?: unknown;
+      iss?: unknown;
+    };
+    const iss = typeof payload.iss === "string" ? payload.iss : "";
+    if (iss !== "https://accounts.google.com" && iss !== "accounts.google.com") return null;
+    if (typeof payload.aud !== "string" || payload.aud !== googleClientId()) return null;
+    if (typeof payload.sub !== "string" || !payload.sub) return null;
+    if (typeof payload.email !== "string" || !payload.email) return null;
+    return { sub: payload.sub, email: payload.email };
+  } catch {
+    return null;
+  }
 }
 
 export async function exchangeCode(params: { code: string; origin: string }): Promise<GoogleTokenResponse> {
