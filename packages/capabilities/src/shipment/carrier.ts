@@ -88,6 +88,12 @@ const DEMO_TIMELINE: ReadonlyArray<{ daysBack: number; status: ShipmentStatus; l
 ];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+// Fixed anchor for the demo timeline. trackShipment derives its base from the
+// tracking number (NOT wall-clock), so event timestamps are STABLE across
+// poll cycles — otherwise shifting timestamps would defeat the
+// (timestamp, statusCode) dedup in shipmentRepo and append duplicate events on
+// every poll (CodeRabbit #33 high).
+const DEMO_ANCHOR_MS = new Date("2026-06-01T00:00:00Z").getTime();
 
 /** Build the deterministic demo carrier client (no network, no key). */
 export function demoCarrierClient(now: () => number = Date.now): CarrierClient {
@@ -101,7 +107,10 @@ export function demoCarrierClient(now: () => number = Date.now): CarrierClient {
       };
     },
     async trackShipment(trackingNumber: string): Promise<CarrierTrackResult> {
-      const base = now();
+      // Deterministic, poll-stable base derived from the tracking number.
+      const digits = trackingNumber.match(/\d+/)?.[0] ?? "0";
+      const seed = Number(digits) || 0;
+      const base = DEMO_ANCHOR_MS + (seed % 1000) * 60_000;
       const events: TrackingEvent[] = DEMO_TIMELINE.map((t) => ({
         timestamp: new Date(base - t.daysBack * DAY_MS),
         statusCode: t.status,

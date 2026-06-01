@@ -143,10 +143,13 @@ export async function reportDeliverHandler(
   const creatorHandles = await step.run("resolve-handles", async () => {
     const map: Record<string, string> = {};
     const ids = Array.from(new Set(parsed.data.tracks.map((t) => t.creatorId)));
-    for (const id of ids) {
-      const creator = await creatorRepo.getById(id);
-      if (creator?.uniqueId) map[id] = `@${creator.uniqueId.replace(/^@/, "")}`;
-    }
+    // Resolve in parallel — one lookup per distinct creator, no sequential round-trips.
+    await Promise.all(
+      ids.map(async (id) => {
+        const creator = await creatorRepo.getById(id);
+        if (creator?.uniqueId) map[id] = `@${creator.uniqueId.replace(/^@/, "")}`;
+      }),
+    );
     return map;
   });
 
