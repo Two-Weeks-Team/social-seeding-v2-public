@@ -192,7 +192,7 @@ evaluator should read this as a strict improvement over "17 rows".
 | # | 항목 | 로드맵 | 상태 | 검증 근거 |
 |---|---|---|---|---|
 | A1 | AP2 Cart+Payment Mandate 스키마 + Intent→Cart→Payment SHA-256 체인 + verifier + 테스트강화 | ⑥ AP2 | ✅ | `lib/ap2/chain.ts` + `chain.test.ts` 11/11 · type-check+lint+ap2 78 tests green. (route 배선은 next: verifyMandateChain을 sign-mandate에 연결) |
-| A2 | Eval 게이트 추가(sourcing) + 케이스 강화 (2/22→3/22) | ③ Eval | ⬜ 대기 | `python -m evals --agent sourcing` |
+| A2 | **에이전트별 평가 surface** `python -m evals --all` — 22/22 계약게이트(pytest tests/agents, 1493 pass) + 2/22 정확도게이트(golden holdout) | ③ Eval | ✅ | `--all` exit 0 · 정확도: coordinator 13/14(holdout75%)·conversation holdout71.4% · full pytest 2933 green. **정직**: 22/22 *정확도* 게이트는 per-agent deterministic predictor(다일 P3) 필요 — golden replay는 과적합이라 미실시 |
 | A3 | Memory Bank fleet 주입(run_agent recall/remember, env-gated) | ① Memory | ⬜ 대기 | pytest -k memory |
 | A4 | Model Armor fleet 배선(run_agent wrap, env-gated) + block test | ② Armor | ⬜ 대기 | pytest -k model_armor |
 | A5 | Observability OTel always-on 옵션 + per-agent cost attribution | ③ Obs | ⬜ 대기 | pytest -k observability |
@@ -224,3 +224,4 @@ evaluator should read this as a strict improvement over "17 rows".
 ## 진행 로그
 - 2026-06-02 — 네이티브 로드맵 추적 섹션 생성. Phase A 자율 트랙 착수(A1 AP2 체인). 브랜치 `feat/native-roadmap-impl`.
 - 2026-06-02 — **A1 ✅**: `lib/ap2/chain.ts`(CartMandate·PaymentMandate canonical 스키마 + canonical-JSON SHA-256 바인딩 `bindCart`/`bindPayment` + `verifyMandateChain`) + 11 테스트(유효·변조·오참조·한도초과·합계·만료·통화). 검증: vitest 11/11, web type-check, eslint, ap2 78 tests 전부 green. 다음: A2(eval).
+- 2026-06-03 — **A2 ✅**: `evals/__main__.py`에 `--all` 에이전트별 평가 surface 추가 — fleet 22 커버리지 표 + 정확도게이트 2종(coordinator·conversation) 라이브 실행. 실측: 22 에이전트 테스트 1493 pass, 정확도 둘 다 PASS(holdout 75%/71.4%), 전체 pytest 2933 green. 정직 디스클로저: 22/22 *정확도* 게이트는 per-agent predictor(P3 도메인작업) — golden replay 과적합이라 미실시. 다음: A3(Memory Bank fleet).
