@@ -61,7 +61,7 @@ import { genkit, z } from 'genkit';
 
 export const ai = genkit({
   plugins: [googleAI()],                       // reads GEMINI_API_KEY / GOOGLE_API_KEY
-  model: googleAI.model('gemini-2.5-flash', {
+  model: googleAI.model('gemini-3.1-flash-lite', {
     temperature: 0.8,
   }),
 });
@@ -122,7 +122,7 @@ export const menuSuggestionFlow = ai.defineFlow(
   },
   async ({ theme }, { sendChunk }) => {
     const { stream, response } = ai.generateStream({
-      model: googleAI.model('gemini-2.5-flash'),
+      model: googleAI.model('gemini-3.1-flash-lite'),
       prompt: `Invent a menu item for a ${theme} themed restaurant.`,
     });
     for await (const chunk of stream) sendChunk(chunk.text);
@@ -286,7 +286,7 @@ export const summarizeFlow = ai.defineFlow(
   async ({ url }) => {
     const body = await fetch(url).then(r => r.text());
     const { text } = await ai.generate({
-      model: googleAI.model('gemini-2.5-flash'),
+      model: googleAI.model('gemini-3.1-flash-lite'),
       prompt: `Summarize in 3 sentences:\n\n${body}`,
     });
     return { summary: text, wordCount: text.split(/\s+/).length };
@@ -329,7 +329,7 @@ Two ways to define prompts. **Dotprompt** is the recommended path — prompts li
 
 ```
 ---
-model: googleai/gemini-2.5-flash
+model: googleai/gemini-3.1-flash-lite
 config:
   temperature: 0.9
 input:
@@ -364,7 +364,7 @@ Programmatic equivalent:
 ```typescript
 const myPrompt = ai.definePrompt({
   name: 'myPrompt',
-  model: 'googleai/gemini-2.5-flash',
+  model: 'googleai/gemini-3.1-flash-lite',
   input:  { schema: z.object({ name: z.string() }) },
   prompt: 'Hello, {{name}}. How are you today?',
 });
@@ -384,7 +384,7 @@ Evaluators score flow outputs against datasets — faithfulness, relevance, mali
 
 ```typescript
 const { text, output } = await ai.generate({
-  model:  googleAI.model('gemini-2.5-flash'),
+  model:  googleAI.model('gemini-3.1-flash-lite'),
   prompt: 'Pick a TikTok creator niche for athleisure.',
   output: { schema: z.object({ niche: z.string(), rationale: z.string() }) },
   tools:  [getWeather],
@@ -412,7 +412,7 @@ export const ai = genkit({
 });
 
 const { text } = await ai.generate({
-  model: vertexAI.model('gemini-2.5-pro'),
+  model: vertexAI.model('gemini-3.5-flash'),
   prompt: 'Hello',
 });
 ```
@@ -421,11 +421,8 @@ Auth: Application Default Credentials. Locally, `gcloud auth application-default
 
 Models available via `vertexAI.model(...)` as of May 2026:
 
-- `gemini-2.5-pro` (GA, 1M context)
-- `gemini-2.5-flash` (GA, fastest GA tier)
-- `gemini-2.5-flash-lite` (GA, cheapest)
-- `gemini-3.1-pro-preview` (preview, May 2026 — Genkit docs reference it explicitly)
-- `gemini-pro-latest` (rolling alias)
+- `gemini-3.5-flash` (judgment tier — GA on the global endpoint)
+- `gemini-3.1-flash-lite` (bulk tier — cheapest)
 - Embedders: `text-embedding-005`, `text-embedding-large-exp-03-07`, `gemini-embedding-001`
 
 The 2.0 generation (`gemini-2.0-flash-001`, `gemini-2.0-flash-lite-001`) is retired to existing customers only as of March 2026. New v2 work should pin to 2.5 or 3.1.
@@ -451,11 +448,11 @@ The recommended pattern: keep one `genkit({...})` init and choose the model per-
 
 ```typescript
 // Cheap path
-await ai.generate({ model: googleAI.model('gemini-2.5-flash-lite'), prompt });
+await ai.generate({ model: googleAI.model('gemini-3.1-flash-lite'), prompt });
 // Heavy reasoning path
-await ai.generate({ model: googleAI.model('gemini-2.5-pro'),       prompt });
+await ai.generate({ model: googleAI.model('gemini-3.5-flash'),       prompt });
 // Preview / experimental
-await ai.generate({ model: vertexAI.model('gemini-3.1-pro-preview'), prompt });
+await ai.generate({ model: vertexAI.model('gemini-3.5-flash'), prompt });
 ```
 
 This maps cleanly onto v2's "Opus 4.7 for judgment, Haiku 4.5 for bulk" pattern: 2.5-pro/3.1-pro-preview as the judgment tier, 2.5-flash/flash-lite as the bulk tier.
@@ -538,7 +535,7 @@ export const askAboutCreatorsFlow = ai.defineFlow(
       options: { limit: 5, where: { country: 'US' } },
     });
     const { text } = await ai.generate({
-      model: vertexAI.model('gemini-2.5-pro'),
+      model: vertexAI.model('gemini-3.5-flash'),
       prompt: `Answer the question using ONLY the provided creator profiles. Cite by handle.\n\nQuestion: ${query}`,
       docs,
     });
@@ -755,11 +752,11 @@ export const ai = genkit({
 });
 
 export const proModel   = useVertex
-  ? vertexAI.model('gemini-2.5-pro')
-  : googleAI.model('gemini-2.5-pro');
+  ? vertexAI.model('gemini-3.5-flash')
+  : googleAI.model('gemini-3.5-flash');
 export const flashModel = useVertex
-  ? vertexAI.model('gemini-2.5-flash')
-  : googleAI.model('gemini-2.5-flash');
+  ? vertexAI.model('gemini-3.1-flash-lite')
+  : googleAI.model('gemini-3.1-flash-lite');
 ```
 
 ### 9.2 `src/genkit/tools/tiktokSearch.ts`

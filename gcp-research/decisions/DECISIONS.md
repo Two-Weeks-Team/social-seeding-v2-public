@@ -115,7 +115,7 @@ Status legend: ✅ active · 🔁 superseded · ⏸ deferred · ❓ outstanding
 
 | ID | Decision | Source | Status | Implication |
 |---|---|---|---|---|
-| **D39** | **GCP credits available**: **$1,500 USD** (vibeCat 수상 외) — replaces challenge $500 cap assumption | user 2026-05-19 | ✅ | Cost-saving levers in COST-PLAN.md relaxed; Gemini 3.1 Pro Preview enabled for final demo; Memorystore + Memory Bank + AlloyDB run 24×7 during judging window |
+| **D39** | **GCP credits available**: **$1,500 USD** (vibeCat 수상 외) — replaces challenge $500 cap assumption | user 2026-05-19 | ✅ | Cost-saving levers in COST-PLAN.md relaxed; Memorystore + Memory Bank + AlloyDB run 24×7 during judging window. **(2026-06-02, operator) the once-enabled `gemini-3.1-pro-preview` demo-recording tier is removed to fully align with D53 — product *and* demo are Gemini 3.5/3.1 only; no `*-pro` anywhere.** |
 
 ### Round 9 — Security hardening (D40)
 

@@ -37,8 +37,6 @@
       "enum": [
         "gemini-3.5-flash",
         "gemini-3.1-flash-lite",
-        "gemini-3.1-flash-lite",
-        "gemini-3.1-pro-preview",
         "imagen-4",
         "veo-3",
         "lyria-1"

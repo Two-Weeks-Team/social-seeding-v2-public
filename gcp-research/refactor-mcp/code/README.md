@@ -109,7 +109,7 @@ Expected response shape (`#/definitions/RankedCreators` in
     { "unique_id": "…", "follower_count": 87412, "engagement_rate": 0.072, "fit_score": 0.91, "reasoning": "…" }
   ],
   "source_attribution": "Source: Social Seeding — https://socialseed.ing",
-  "trace": { "model": "gemini-2.5-pro", "tools": ["tiktok_search", "tiktok_user_info"] }
+  "trace": { "model": "gemini-3.5-flash", "tools": ["tiktok_search", "tiktok_user_info"] }
 }
 ```
 

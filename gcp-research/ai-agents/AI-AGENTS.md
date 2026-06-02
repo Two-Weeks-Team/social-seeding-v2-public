@@ -79,7 +79,7 @@ from google.adk.tools import google_search
 
 root_agent = LlmAgent(
     name="researcher",
-    model="gemini-2.5-flash",                       # or gemini-3-pro-preview for hard reasoning
+    model="gemini-3.5-flash",                       # judgment tier (gemini-3.1-flash-lite for bulk)
     instruction="You research topics and cite sources.",
     tools=[google_search],
 )
@@ -89,9 +89,9 @@ root_agent = LlmAgent(
 # 3. Compose a multi-agent workflow (Sequential + Parallel + Loop)
 from google.adk.agents import LlmAgent, SequentialAgent, ParallelAgent, LoopAgent
 
-positive_critic = LlmAgent(name="PositiveCritic", model="gemini-2.5-flash",
+positive_critic = LlmAgent(name="PositiveCritic", model="gemini-3.1-flash-lite",
                            instruction="List strengths.", output_key="pros")
-negative_critic = LlmAgent(name="NegativeCritic", model="gemini-2.5-flash",
+negative_critic = LlmAgent(name="NegativeCritic", model="gemini-3.1-flash-lite",
                            instruction="List weaknesses.", output_key="cons")
 
 parallel_critique = ParallelAgent(
@@ -99,7 +99,7 @@ parallel_critique = ParallelAgent(
     sub_agents=[positive_critic, negative_critic],
 )
 
-refine = LlmAgent(name="Refine", model="gemini-2.5-pro",
+refine = LlmAgent(name="Refine", model="gemini-3.5-flash",
                   instruction="Refine based on {pros} and {cons}.", output_key="draft")
 critic_loop = LoopAgent(name="critic_loop",
                         sub_agents=[parallel_critique, refine],
@@ -265,7 +265,7 @@ from google import genai
 client = genai.Client(vertexai=True, project="PROJECT_ID", location="us-central1")
 
 resp = client.models.generate_content(
-    model="gemini-3-pro-preview",
+    model="gemini-3.5-flash",
     contents="Summarize this in 3 bullets: ...",
     config={"thinking_config": {"include_thoughts": True}},
 )
@@ -324,7 +324,7 @@ mcp_tools = MCPToolset(
 
 agent = LlmAgent(
     name="storage_agent",
-    model="gemini-2.5-pro",
+    model="gemini-3.5-flash",
     tools=[mcp_tools],
     instruction="Use MCP to read/write GCS objects on the user's behalf.",
 )
@@ -366,7 +366,7 @@ card = AgentCard(name="researcher",
                  defaultOutputModes=["text/plain"],
                  skills=[skill])
 
-executor = AgentExecutor(agent=LlmAgent(name="r", model="gemini-2.5-flash",
+executor = AgentExecutor(agent=LlmAgent(name="r", model="gemini-3.1-flash-lite",
                                         instruction="Research and cite."),
                          task_store=InMemoryTaskStore())
 # bind executor + card to an HTTP/gRPC server (see a2a-protocol.org docs)
@@ -506,7 +506,7 @@ vertexai.init(project="PROJECT_ID", location="us-central1",
               staging_bucket="gs://STAGING_BUCKET")
 
 root_agent = LlmAgent(name="researcher",
-                      model="gemini-2.5-pro",
+                      model="gemini-3.5-flash",
                       instruction="You research and cite.")
 
 # Wrap the agent so it’s deployable

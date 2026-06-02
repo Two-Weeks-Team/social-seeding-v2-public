@@ -43,7 +43,7 @@ A **user-simulator model** (configurable; we default to **Gemini 2.5 Pro** for h
 
 Configuration knobs:
 - `max_turn` — conversation length cap (default 5; we use 8 for outreach loops, 12 for full brand-campaign end-to-end).
-- `model_name` — the simulator model (`gemini-2.5-pro` or `gemini-2.5-flash`).
+- `model_name` — the simulator model (`gemini-3.5-flash` or `gemini-3.1-flash-lite`).
 - `model_config` — temperature, top-k, system-prompt overrides for the simulator.
 
 ### 1.3 Reward shape
@@ -373,7 +373,7 @@ This costs more (~$0.005 / scenario extra) but it's the only way the Layer 3 gat
 │         │                                                         │
 │         ▼                                                         │
 │  Vertex AI Agent Simulation (1000 parallel runs, max 50 concurrent)│
-│    - User-simulator model: gemini-2.5-pro                         │
+│    - User-simulator model: gemini-3.5-flash                         │
 │    - Agent under test: each Tier-1 + Meta + Watchdog from §3      │
 │    - Traces → Cloud Storage gs://ss-v2-sim-traces/N/              │
 │    - Autorater scores → BigQuery agent_sim_scores                 │

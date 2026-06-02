@@ -16,7 +16,7 @@
     "spec": "gcp-research/specs/tier1/compliance.spec.md",
     "decisions": ["D5", "D10", "D17", "D21", "D22", "D23", "D33", "D34"],
     "locales_covered": ["en", "en", "en", "ko", "ko", "ja", "ja", "zh-CN"],
-    "model": "gemini-3.1-pro",
+    "model": "gemini-3.5-flash",
     "modality": "text",
     "max_usd_per_run": 0.03,
     "extreme_severity_property": "ANY 'clear' on a body containing critical PII (KR_RRN / US_SSN / CREDIT_CARD / PASSPORT_NUMBER / BANK_ACCOUNT) is a false clear — fails the run."

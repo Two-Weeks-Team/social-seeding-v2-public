@@ -13,10 +13,10 @@
 Vertex AI Model Garden is the catalog + serving plane for first-party (Gemini) and third-party/open-source publisher models. A model served through Model Garden is addressed by a **publisher-model resource path** rather than a bare model id:
 
 ```
-projects/{project}/locations/{location}/publishers/google/models/gemini-2.5-flash
+projects/{project}/locations/{location}/publishers/google/models/gemini-3.1-flash-lite
 ```
 
-(The location-free form `publishers/google/models/gemini-2.5-flash` is also accepted by the `google-genai` Vertex backend.)
+(The location-free form `publishers/google/models/gemini-3.1-flash-lite` is also accepted by the `google-genai` Vertex backend.)
 
 The contrast the PDF draws is against the **AI Studio** path — `generativelanguage.googleapis.com` with a `GOOGLE_API_KEY`, which is convenient but is *not* covered by the Google Cloud project-level security perimeter. Routing through Model Garden (the Vertex AI plane) is what lets the "strict data security" controls in §3 apply to every reasoning call.
 
@@ -25,7 +25,7 @@ This package's runtime makes the routing **one env-var flip**, with no per-agent
 | Knob | Effect |
 |---|---|
 | `GOOGLE_GENAI_USE_VERTEXAI=TRUE` | The `google-genai` SDK (used by ADK) targets the **Vertex AI** backend, not AI Studio. Already the default in `config.py` and `.env.example`. This is the prerequisite for any Model Garden routing. |
-| `MODEL_GARDEN_ROUTING=true` | Each agent's short Gemini id (`gemini-2.5-flash`) is rewritten to the **Model Garden publisher-model path** before the ADK `LlmAgent` is constructed. Explicit, auditable routing string. |
+| `MODEL_GARDEN_ROUTING=true` | Each agent's short Gemini id (`gemini-3.1-flash-lite`) is rewritten to the **Model Garden publisher-model path** before the ADK `LlmAgent` is constructed. Explicit, auditable routing string. |
 | `MODEL_GARDEN_ROUTING=false` (default) | The short id is passed straight through. The Vertex backend still resolves it to the same publisher model, but the wire string is the short form — used for dev/CI where the verbose path adds nothing and where the stub model client is in play anyway. |
 
 The flag is **gated, not always-on**, precisely so the offline stub path (`SS_LIVE=0` / `SS_OFFLINE=1`, the entire pytest suite) is unaffected. See `tests/test_model_garden.py`.
@@ -69,28 +69,28 @@ All 22 agents (D23, `DECISIONS.md:82`) share the single `runtime.py` seam, so wh
 
 | # | Agent | Tier | Declared Gemini model | Routes through Model Garden when gate on |
 |---|---|---|---|---|
-| 1 | `sourcing` | 1 | `gemini-2.5-pro` | yes |
-| 2 | `vetting` | 1 | `gemini-2.5-pro` | yes |
-| 3 | `outreach_writer` | 1 | `gemini-2.5-pro` | yes |
-| 4 | `conversation` | 1 | `gemini-2.5-flash-lite` | yes |
-| 5 | `conversation_responder` | 1 | `gemini-2.5-pro` | yes |
-| 6 | `logistics` | 1 | `gemini-2.5-flash` | yes |
-| 7 | `content_verify` | 1 | `gemini-2.5-flash` (multimodal) | yes |
-| 8 | `analyst` | 1 | `gemini-2.5-pro` | yes |
-| 9 | `research` | 1 | `gemini-2.5-pro` | yes |
-| 10 | `intake` | 1 | `gemini-2.5-flash` | yes |
-| 11 | `lead_outreach_writer` | 1 | `gemini-2.5-pro` | yes |
-| 12 | `payment_mandate` | 1 | `gemini-2.5-flash` | yes |
-| 13 | `compliance` | 1 | `gemini-2.5-pro` | yes |
-| 14 | `creative` | 1 | `gemini-2.5-pro` (+ Imagen 4 / Veo 3 via capability layer) | yes (text reasoning) |
-| 15 | `a11y` | 1 | `gemini-2.5-flash` (multimodal) | yes |
-| 16 | `customer_success` | 1 | `gemini-2.5-pro` | yes |
-| M1 | `coordinator` | 2 | `gemini-2.5-flash` | yes |
-| M2 | `critic` | 2 | `gemini-2.5-pro` | yes |
-| M3 | `optimizer` | 2 | `gemini-2.5-pro` | yes |
-| W1 | `anomaly_watch` | 3 | `gemini-2.5-flash` | yes |
+| 1 | `sourcing` | 1 | `gemini-3.5-flash` | yes |
+| 2 | `vetting` | 1 | `gemini-3.5-flash` | yes |
+| 3 | `outreach_writer` | 1 | `gemini-3.5-flash` | yes |
+| 4 | `conversation` | 1 | `gemini-3.1-flash-lite` | yes |
+| 5 | `conversation_responder` | 1 | `gemini-3.5-flash` | yes |
+| 6 | `logistics` | 1 | `gemini-3.1-flash-lite` | yes |
+| 7 | `content_verify` | 1 | `gemini-3.1-flash-lite` (multimodal) | yes |
+| 8 | `analyst` | 1 | `gemini-3.5-flash` | yes |
+| 9 | `research` | 1 | `gemini-3.5-flash` | yes |
+| 10 | `intake` | 1 | `gemini-3.1-flash-lite` | yes |
+| 11 | `lead_outreach_writer` | 1 | `gemini-3.5-flash` | yes |
+| 12 | `payment_mandate` | 1 | `gemini-3.1-flash-lite` | yes |
+| 13 | `compliance` | 1 | `gemini-3.5-flash` | yes |
+| 14 | `creative` | 1 | `gemini-3.5-flash` (+ Imagen 4 / Veo 3 via capability layer) | yes (text reasoning) |
+| 15 | `a11y` | 1 | `gemini-3.1-flash-lite` (multimodal) | yes |
+| 16 | `customer_success` | 1 | `gemini-3.5-flash` | yes |
+| M1 | `coordinator` | 2 | `gemini-3.1-flash-lite` | yes |
+| M2 | `critic` | 2 | `gemini-3.5-flash` | yes |
+| M3 | `optimizer` | 2 | `gemini-3.5-flash` | yes |
+| W1 | `anomaly_watch` | 3 | `gemini-3.1-flash-lite` | yes |
 | W2 | `cost_watch` | 3 | `none-rule-based` (sentinel, **no LLM**) | n/a — rule-based, never calls a model |
-| W3 | `security_watch` | 3 | `gemini-2.5-flash` | yes |
+| W3 | `security_watch` | 3 | `gemini-3.1-flash-lite` | yes |
 
 `cost_watch` intentionally declares a sentinel that is **absent from `MODEL_PRICING`**, so if anyone ever wires it to call a model, `model_pricing()` raises a loud `KeyError` (see `cost_watch.py` and `tests/agents/test_cost_watch.py`). It is a rule-based watchdog and has nothing to route.
 
@@ -161,7 +161,7 @@ uv run --extra dev pytest tests/runtime/test_run_with_adk_integration.py -q
 assert captured["llm_agent_kwargs"]["model"] == model_garden_model_path(
     intake_agent_def.model, project="ss-v2-prod", location="us-central1"
 )
-# == "projects/ss-v2-prod/locations/us-central1/publishers/google/models/gemini-2.5-flash"
+# == "projects/ss-v2-prod/locations/us-central1/publishers/google/models/gemini-3.1-flash-lite"
 ```
 
 That is the gating evidence for D47's "reasoning is routed through Model Garden": the publisher path is the string that reaches the one place an `LlmAgent` is built. It also exercises the real `_run_with_adk` reasoning path end-to-end (closing the G3 "real-reasoning coverage 0%" gap) and proves `usd_spent > 0` is tallied off the short-id pricing.
@@ -181,7 +181,7 @@ GOOGLE_CLOUD_LOCATION=us-central1 \
   bash scripts/smoke-test/run-model-garden-live.sh
 ```
 
-It prints the resolved Model Garden model path (`projects/ss-v2-prod/locations/us-central1/publishers/google/models/gemini-2.5-flash`), the response JSON (`status:"asking"` or `"done"`), and `usd_spent` (~$0.005–0.01 for one Flash turn). A routing/auth failure surfaces as exit 3 with the `Escalation` reason. This call is **not** part of CI; the offline §6.1 tests are.
+It prints the resolved Model Garden model path (`projects/ss-v2-prod/locations/us-central1/publishers/google/models/gemini-3.1-flash-lite`), the response JSON (`status:"asking"` or `"done"`), and `usd_spent` (~$0.005–0.01 for one Flash turn). A routing/auth failure surfaces as exit 3 with the `Escalation` reason. This call is **not** part of CI; the offline §6.1 tests are.
 
 ---
 

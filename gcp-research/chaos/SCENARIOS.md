@@ -377,14 +377,14 @@ A legitimate outreach message is blocked by the Model Armor `pii_block` policy b
 - **Recovery validation**: blocked-but-cleared cases reach Gmail send; blocked-and-confirmed cases stay blocked.
 - **Pass/fail**: false-positive rate < 1% after escalation; zero true-positive bypass.
 
-#### CHAOS-MODEL-03 — Gemini 3.1 Preview deprecation mid-run
+#### CHAOS-MODEL-03 — Gemini 3.1 Flash-Lite deprecation mid-run
 
-A workflow opens a long-lived agent session pinned to Gemini 3.1 Preview, which Google deprecates on date X. <https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference>.
+A workflow opens a long-lived agent session pinned to the bulk tier (`gemini-3.1-flash-lite`), which Google deprecates on date X. <https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference>.
 
-- **Trigger**: simulate the deprecation by returning HTTP 410 from a mocked endpoint for `gemini-3.1-pro-preview`.
+- **Trigger**: simulate the deprecation by returning HTTP 410 from a mocked endpoint for `gemini-3.1-flash-lite`.
 - **Expected RTO / RPO**: cold-path; sessions must auto-migrate to GA or to a fallback model.
 - **Observed SLI breach**: `vertex.gemini.errors.410` rate alert.
-- **Auto-runbook**: `runbook-model-migrate` — atomically swaps to `gemini-2.5-pro` for sessions affected; logs the swap.
+- **Auto-runbook**: `runbook-model-migrate` — atomically swaps to the judgment tier (`gemini-3.5-flash`) for sessions affected; logs the swap.
 - **Recovery validation**: session continues; eval scores stay within tolerance.
 - **Pass/fail**: no campaign aborted; eval scores within tolerance.
 

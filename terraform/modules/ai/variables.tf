@@ -86,13 +86,13 @@ variable "model_defaults" {
     judgment   = string # outreach_writer, research, analyst, compliance, critic, optimizer
     bulk       = string # vetting (fan-out), logistics, intake, a11y, anomaly_watch, security_watch
     classifier = string # conversation (intent classification)
-    demo       = string # 3.1 Pro Preview — only for final demo recording
   })
+  # D53: Gemini 3.5/3.1 only. No `*-pro` (404 in ss-v2-prod, Preview allowlist not granted).
+  # The former `demo` tier (gemini-3.1-pro-preview, D39) was removed 2026-06-02 — demo recording now uses the judgment tier.
   default = {
     judgment   = "gemini-3.5-flash"
     bulk       = "gemini-3.1-flash-lite"
     classifier = "gemini-3.1-flash-lite"
-    demo       = "gemini-3.1-pro-preview-0428"
   }
 }
 

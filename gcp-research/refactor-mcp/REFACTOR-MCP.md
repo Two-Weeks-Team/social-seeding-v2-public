@@ -199,8 +199,8 @@ from pydantic import BaseModel, Field
 # ── Model routing (Vertex AI) ───────────────────────────────────────────
 PROJECT = os.environ["GOOGLE_CLOUD_PROJECT"]
 LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
-FLASH = "gemini-2.5-flash"
-PRO = "gemini-2.5-pro"
+FLASH = "gemini-3.1-flash-lite"
+PRO = "gemini-3.5-flash"
 
 # ── MCP toolset — point at our own MCP server ───────────────────────────
 # In Cloud Run multi-container, the Node MCP server is a sidecar on

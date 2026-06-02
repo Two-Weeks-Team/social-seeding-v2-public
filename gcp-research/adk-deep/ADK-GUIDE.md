@@ -240,7 +240,7 @@ def block_pii_in_outbound(callback_context, tool, args, **_) -> dict | None:
     return None  # allow
 
 agent = LlmAgent(
-    model="gemini-2.5-pro",
+    model="gemini-3.5-flash",
     name="outreach",
     tools=[gmail_send, tiktok_dm, escalate_to_human],
     before_tool_callback=block_pii_in_outbound,
@@ -277,7 +277,7 @@ from google.adk.v2.workflow import Workflow, Node, Edge, ParallelGroup
 from google.adk.v2.agents import LlmAgent
 
 researcher = LlmAgent(
-    model="gemini-2.5-pro",
+    model="gemini-3.5-flash",
     name="researcher",
     instruction="Given a brand brief, surface 3 search angles as JSON list.",
     output_key="angles",
@@ -285,7 +285,7 @@ researcher = LlmAgent(
 
 # Each angle is searched in parallel
 searcher_template = LlmAgent(
-    model="gemini-2.5-flash",
+    model="gemini-3.1-flash-lite",
     name="searcher",
     instruction="For the given angle {angle}, return top 10 TikTok creators.",
     tools=[tiktok_search],
@@ -293,7 +293,7 @@ searcher_template = LlmAgent(
 )
 
 aggregator = LlmAgent(
-    model="gemini-2.5-pro",
+    model="gemini-3.5-flash",
     name="aggregator",
     instruction="Merge per-angle creator lists; dedupe by handle; rank by fit.",
     output_key="ranked_creators",
@@ -388,7 +388,7 @@ from google.adk.tools.agent_tool import AgentTool
 
 planner = LlmAgent(
     name="planner",
-    model="gemini-2.5-pro",
+    model="gemini-3.5-flash",
     description="Breaks a fuzzy user goal into a JSON list of concrete steps.",
     instruction=(
         "Given a user goal, output a JSON array of steps. Each step is "
@@ -399,7 +399,7 @@ planner = LlmAgent(
 
 worker = LlmAgent(
     name="worker",
-    model="gemini-2.5-flash",
+    model="gemini-3.1-flash-lite",
     description="Executes a single concrete step using available tools.",
     instruction=(
         "You are given one step from a plan: {step}. Execute it using your tools. "
@@ -411,7 +411,7 @@ worker = LlmAgent(
 
 critic = LlmAgent(
     name="critic",
-    model="gemini-2.5-pro",
+    model="gemini-3.5-flash",
     description="Critiques the worker's artifact against the original goal.",
     instruction=(
         "Original goal: {user_goal}. Artifact produced: {artifact}. "
@@ -422,7 +422,7 @@ critic = LlmAgent(
 
 coordinator = LlmAgent(
     name="planner_worker_critic",
-    model="gemini-2.5-pro",
+    model="gemini-3.5-flash",
     instruction=(
         "1. Call the planner tool to get a plan. "
         "2. For each step, call the worker tool. "
@@ -562,7 +562,7 @@ reply_classifier = load_skill_from_dir(
 skill_toolset = SkillToolset(skills=[email_style, reply_classifier])
 
 agent = Agent(
-    model="gemini-2.5-pro",
+    model="gemini-3.5-flash",
     name="outreach_agent",
     tools=[skill_toolset, gmail_send, tiktok_dm],
 )
@@ -615,7 +615,7 @@ remote_mcp = McpToolset(
 )
 
 agent = LlmAgent(
-    model="gemini-2.5-pro",
+    model="gemini-3.5-flash",
     name="filesys_agent",
     tools=[local_mcp, remote_mcp],
 )
@@ -646,7 +646,7 @@ from google.adk.tools.bigquery import BigQueryToolset
 bq = BigQueryToolset(project="my-project", credentials=None)  # uses ADC
 
 analyst = LlmAgent(
-    model="gemini-2.5-pro",
+    model="gemini-3.5-flash",
     name="bq_analyst",
     instruction="Answer questions by querying BigQuery. Always show the SQL.",
     tools=[bq],
@@ -671,7 +671,7 @@ with open("backend.openapi.yaml") as f:
     )
 
 agent = LlmAgent(
-    model="gemini-2.5-pro",
+    model="gemini-3.5-flash",
     name="backend_agent",
     tools=[backend],
 )
@@ -695,7 +695,7 @@ remote_vetter = RemoteA2AAgent(
 )
 
 router = LlmAgent(
-    model="gemini-2.5-pro",
+    model="gemini-3.5-flash",
     name="router",
     sub_agents=[remote_vetter],     # or tools=[AgentTool(remote_vetter)]
 )
@@ -1041,8 +1041,8 @@ from .tools import (
     escalate_to_human,
 )
 
-MODEL_PRIMARY = "gemini-2.5-pro"   # judgement, planning
-MODEL_FAST = "gemini-2.5-flash"    # bulk extraction
+MODEL_PRIMARY = "gemini-3.5-flash"   # judgement, planning
+MODEL_FAST = "gemini-3.1-flash-lite"    # bulk extraction
 
 # ---- Specialist 1: Searcher ------------------------------------------------
 searcher_agent = LlmAgent(

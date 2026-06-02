@@ -175,7 +175,7 @@ a Cloud Workflows step, or — if we keep Inngest — exactly the same JS step.
 
 | v2 concept | Claude SDK / today | ADK / Vertex equivalent | Effort | Notes |
 |---|---|---|---|---|
-| `runAgent({tools, output, maxUsd, escalate})` | custom runtime in `runtime.ts`; one `ModelClient.complete()` loop | `LlmAgent(model="gemini-2.5-pro", tools=[...], output_schema=Pydantic, before_model_callback=cost_guard)` | M | ADK has the right primitives; the cost-cap callback is custom (~30 LOC). |
+| `runAgent({tools, output, maxUsd, escalate})` | custom runtime in `runtime.ts`; one `ModelClient.complete()` loop | `LlmAgent(model="gemini-3.5-flash", tools=[...], output_schema=Pydantic, before_model_callback=cost_guard)` | M | ADK has the right primitives; the cost-cap callback is custom (~30 LOC). |
 | `tools: string[]` (dotted capability names resolved via `getCapability`) | `getCapability(name)` returns an `invokeCapability` wrapper | `FunctionTool(func)` or `LongRunningFunctionTool` per capability; share registry between TS and Python via a thin HTTP shim | M | The 13 capability families (gmail, tiktok, outreach, ranking, blacklist, shipment, suppression, templates, workspace, analytics, crm, usage, prompt-guard) are typed TS functions — wrap them as a `FastAPI` adapter and have ADK tools `requests.post(...)`. Alternative: re-implement the 3-4 most-used ones in Python. |
 | Zod `output` schema → typed `creator` / `OutreachDraft` / `ShipmentRow` | `OutreachDraftSchema` from `@ss/contracts` | Pydantic `BaseModel` passed as `LlmAgent.output_schema` (forces structured JSON output via Gemini's `responseSchema`) | S | Mechanical translation. Keep Zod as source-of-truth in TS; generate Pydantic via `pydantic-zod` script or hand-port the ~25 `@ss/contracts` schemas. |
 | `maxUsd` per-invocation cap | post-turn `if (usd > def.maxUsd) escalate()` | `before_model_callback` reads `tool_context.state["agent_usd_spent"]` + Vertex's per-call response usage metadata; escalate via `EventActions.escalate = True` | M | ADK doesn't natively cap USD; the math (input + output tokens × Gemini per-1k price) is ~15 LOC. |
@@ -544,7 +544,7 @@ def make_outreach_writer_agent(
     pattern at AgentDef.systemPrompt: (input) => string)."""
     return LlmAgent(
         name="outreach_writer",
-        model="gemini-2.5-pro",
+        model="gemini-3.5-flash",
         description=(
             "Write a grounded, personalized outreach email for one creator. "
             "Returns a structured OutreachDraft; the 4 deterministic judges "
@@ -833,14 +833,14 @@ output**. Conservative same-prompt-same-token-mix estimate:
 
 | Agent | Gemini model | Est. USD per campaign |
 |---|---|---|
-| sourcing | gemini-2.5-pro | ~$0.10 |
-| vetting × 4 | gemini-2.5-pro | ~$0.15 |
-| outreach-writer × 2 | gemini-2.5-pro | ~$0.06 |
-| conversation × 2 | gemini-2.5-flash | ~$0.001 |
-| responder | gemini-2.5-pro | ~$0.025 |
-| logistics | gemini-2.5-flash | ~$0.001 |
-| content-verify × 2 | gemini-2.5-flash | ~$0.002 |
-| analyst | gemini-2.5-pro | ~$0.04 |
+| sourcing | gemini-3.5-flash | ~$0.10 |
+| vetting × 4 | gemini-3.5-flash | ~$0.15 |
+| outreach-writer × 2 | gemini-3.5-flash | ~$0.06 |
+| conversation × 2 | gemini-3.1-flash-lite | ~$0.001 |
+| responder | gemini-3.5-flash | ~$0.025 |
+| logistics | gemini-3.1-flash-lite | ~$0.001 |
+| content-verify × 2 | gemini-3.1-flash-lite | ~$0.002 |
+| analyst | gemini-3.5-flash | ~$0.04 |
 | **Total per brand campaign** | | **~$0.38** |
 
 **~8× cost reduction at same prompt fidelity.** This is the headline win

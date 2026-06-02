@@ -248,7 +248,7 @@ content_verify  →  dam_get_brand_assets  →  a2a_invoke (A2A v0.3 message/sen
 | PDF Build Example #2 element | Social Seeding implementation | Source |
 |---|---|---|
 | Marketing agent on **Cloud Run / GKE** | Track-2 fleet on Vertex AI Agent Runtime; this refactored agent on multi-container Cloud Run (D17) | `cloud-run-service.yaml` |
-| **Powered by Gemini, multi-modal** | `content_verify` runs **Gemini 2.5 Flash multimodal** (text + image + video URIs) — the first multimodal Tier-1 agent | `content_verify.py` `content_verify_agent_def(model="gemini-2.5-flash")`; D5 |
+| **Powered by Gemini, multi-modal** | `content_verify` runs **Gemini 2.5 Flash multimodal** (text + image + video URIs) — the first multimodal Tier-1 agent | `content_verify.py` `content_verify_agent_def(model="gemini-3.1-flash-lite")`; D5 |
 | **A2A to an internal DAM Agent** for **approved brand logos / product imagery** | `content_verify` calls **`dam_get_brand_assets`**, which **A2A-invokes** the DAM `get_brand_assets` skill (via `a2a_invoke`, A2A v0.3 `message/send`) to retrieve the seeded brand's *approved* logos/assets — a **real A2A hop**, not an in-process call | `content_verify.py` `tools=[dam_get_brand_assets]`; `dam_get_brand_assets.py`; ss-mcp `agent.py` `get_brand_assets()` |
 | **"remains on-brand and compliant"** | The DAM returns `{brand_assets, logo_detected, confidence_0_1, on_brand, compliance_notes}`; `content_verify` consumes that and returns `{matches, mentionsBrand, logoDetected, performanceScore, flags[8], rationale}` — flags include `competitor_mention`, `logo_only`, `ai_generated_suspect` | `dam_get_brand_assets.py` `DamGetBrandAssetsOutput`; `content_verify.py` `ContentVerifyOutput` |
 

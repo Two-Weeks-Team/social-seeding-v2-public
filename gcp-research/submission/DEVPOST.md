@@ -55,7 +55,7 @@ The **learning loop** (D25) is the full GCP stack: **Vertex AI Agent Evaluation*
 
 ## Built With
 
-**Build pillar:** `agent-development-kit-python-2.0-beta`, `agent-studio`, `agent-garden`, `agents-cli`, `gemini-3.1-pro-preview` (final demo recording only — D39), `gemini-3.5-flash` (judgment + coordinator), `gemini-3.1-flash-lite` (bulk + classifier), `model-context-protocol`, `a2a-protocol-v0.3`, `ap2-protocol-v0.2`, `google-search-grounding`, `vertex-ai-search-agent-search`, `cloud-marketplace`.
+**Build pillar:** `agent-development-kit-python-2.0-beta`, `agent-studio`, `agent-garden`, `agents-cli`, `gemini-3.5-flash` (judgment + coordinator), `gemini-3.1-flash-lite` (bulk + classifier), `model-context-protocol`, `a2a-protocol-v0.3`, `ap2-protocol-v0.2`, `google-search-grounding`, `vertex-ai-search-agent-search`, `cloud-marketplace`.
 
 **Scale pillar:** `vertex-ai-agent-runtime`, `agent-sandbox`, `agent-memory-bank`, `agent-sessions`.
 
