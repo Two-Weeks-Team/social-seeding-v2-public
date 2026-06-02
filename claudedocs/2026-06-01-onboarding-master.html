@@ -158,6 +158,7 @@
       <table>
         <tr><th>법칙</th><th>내용</th></tr>
         <tr><td><b>모델 (D53)</b></td><td>Gemini <code>3.5-flash</code>(판단/coordinator) · <code>3.1-flash-lite</code>(대량)만. <span class="rose">2.5·*-pro·Claude 금지</span>. 엔드포인트 <b>Vertex global</b>(us-central1은 3.x에 404).</td></tr>
+        <tr><td><b>명칭 (2026-06)</b></td><td>플랫폼명이 <b>Gemini Enterprise Agent Platform</b>(formerly Vertex AI)로 변경. 단 <b>모델 서빙·global 엔드포인트·<code>aiplatform.googleapis.com</code>·Prompt Optimizer(VAPO)</b>는 여전히 "Vertex AI"가 공식이라 유지. 매니지드 런타임만 접두어 빠져 <b>Agent Runtime</b>(formerly "Vertex AI Agent Engine").</td></tr>
         <tr><td><b>배포 대상</b></td><td>프로젝트 <code>ss-v2-prod</code> / <code>ss-mcp-prod</code> / <code>ss-shared-infra</code>.</td></tr>
         <tr><td><b>정직성</b></td><td>stub/live 경계를 <code>HONEST-SCOPE.md</code>에 정직 기재. stub을 live로 주장 금지. 공유 Atlas는 read/additive-only.</td></tr>
       </table>
@@ -486,7 +487,7 @@ brand-campaign Cloud Workflow → coordinator(gemini-3.5, Vertex global) → 22-
       <tr><td>D47</td><td>LLM 추론을 Model Garden(publishers/google/models/…) 경유. Track-3 #3. <code>MODEL_GARDEN_ROUTING=1</code>.</td></tr>
       <tr><td>D48</td><td>A2A intents manifest + Agent Identity(SPIFFE) + agent.json 하드닝 + 서명카드. Track-3 #6.</td></tr>
       <tr><td>D45 / D50</td><td>전 플랫폼을 포괄하는 <b>단일 Track-3 제출</b> / Grand Prize 겨냥 단일 grand-narrative(Build→Optimize→Refactor).</td></tr>
-      <tr><td>D18 / D17</td><td>챌린지 오케스트레이션=Cloud Workflows(Inngest 은퇴) / 에이전트 런타임=Vertex AI Agent Runtime(설계). <i>TS 제품 스택은 로컬 Inngest 유지.</i></td></tr>
+      <tr><td>D18 / D17</td><td>챌린지 오케스트레이션=Cloud Workflows(Inngest 은퇴) / 에이전트 런타임=Agent Runtime(설계). <i>TS 제품 스택은 로컬 Inngest 유지.</i></td></tr>
       <tr><td>D23 / D24</td><td>22-에이전트 fleet(16 T1 + 3 T2 + 3 T3) / 단계적 coordination(0→1 in-process, 1→100 RemoteA2A fan-out).</td></tr>
       <tr><td>D41</td><td>capability-layer stub/live seam <code>CAPABILITY_LAYER_MODE</code>. stub=기본/테스트.</td></tr>
       <tr><td>D27</td><td>AP2 v0.2 Intent Mandate <b>초안만</b> — 사람이 승인(WebAuthn). 자율 서명 없음.</td></tr>

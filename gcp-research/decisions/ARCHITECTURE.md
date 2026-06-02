@@ -40,7 +40,7 @@ flowchart TB
   end
 
   subgraph RUNTIME[Runtime — D17]
-    AR[Vertex AI Agent Runtime<br/>managed · sub-second cold]
+    AR[Agent Runtime<br/>managed · sub-second cold]
     AS[Agent Sandbox<br/>GKE Autopilot · gVisor]
     AMB[Agent Memory Bank<br/>Firestore-backed]
     ASES[Agent Sessions]
