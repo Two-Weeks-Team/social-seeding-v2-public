@@ -15,6 +15,13 @@ export interface SessionClaims {
   userId: string;
   workspaceId: string;
   email: string;
+  /**
+   * Present (and `true`) only on the judge-demo bypass session. Read-only:
+   * every state-mutating API route refuses when this is set, so a publicly
+   * shared demo link can tour Mission Control but never trigger a real
+   * workflow / outbound send. Real Google / test-login sessions omit it.
+   */
+  demo?: true;
 }
 
 function secretKey(): Uint8Array {
@@ -66,7 +73,9 @@ export async function verifySession(token: string): Promise<SessionClaims | null
   try {
     const { payload } = await jwtVerify(token, secretKey(), { algorithms: ["HS256"] });
     if (typeof payload.userId === "string" && typeof payload.workspaceId === "string" && typeof payload.email === "string") {
-      return { userId: payload.userId, workspaceId: payload.workspaceId, email: payload.email };
+      const claims: SessionClaims = { userId: payload.userId, workspaceId: payload.workspaceId, email: payload.email };
+      if (payload.demo === true) claims.demo = true;
+      return claims;
     }
     return null;
   } catch {
@@ -79,6 +88,22 @@ function unauthorized(): Response {
     status: 401,
     headers: { "content-type": "application/json" },
   });
+}
+
+/**
+ * Read-only guard for the judge-demo session. State-mutating API routes call
+ * this right after resolving the session: returns a ready-to-return 403 when
+ * `session.demo` is set, otherwise `null` (proceed). Keeps the demo bypass a
+ * tour, never an actuator.
+ */
+export function denyIfDemo(session: SessionClaims): Response | null {
+  if (session.demo) {
+    return new Response(JSON.stringify({ error: "demo_session_readonly" }), {
+      status: 403,
+      headers: { "content-type": "application/json" },
+    });
+  }
+  return null;
 }
 
 /** Returns the session, or a ready-to-return 401 Response. Bearer-only (API routes). */

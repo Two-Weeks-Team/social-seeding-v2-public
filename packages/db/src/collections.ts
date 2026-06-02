@@ -33,5 +33,6 @@ export const Collections = {
   V2_REPORTS: "v2_reports", // Phase 4 — persisted analytics + analyst narrative; one row per delivery
   V2_LEADS: "v2_leads", // Phase 5 — sales leads (B2B). v1's crm_accounts is the shared source-of-truth; v2_leads is the v2-owned overlay (enrichment + research + stage).
   V2_LEAD_CAMPAIGNS: "v2_lead_campaigns", // Phase 5 — lead-campaign briefs (parallel to v2_campaigns for the brand loop).
+  V2_JUDGE_DEMO_TOKEN_USAGE: "v2_judge_demo_token_usage", // judge-demo 1-click login: usage counter keyed `_id: HMAC(token)` (atomic cap).
 } as const;
 export type CollectionName = (typeof Collections)[keyof typeof Collections];

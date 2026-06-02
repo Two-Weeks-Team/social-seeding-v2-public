@@ -3,7 +3,7 @@ import { z } from "zod";
 import { approvalRepo } from "@ss/db";
 import { Events } from "@ss/contracts";
 import { inngest } from "@ss/workflows";
-import { getSessionOr401 } from "@/lib/auth";
+import { denyIfDemo, getSessionOr401 } from "@/lib/auth";
 import { promptGuard, PromptGuardError } from "@/lib/prompt-guard";
 
 /**
@@ -65,6 +65,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const auth = await getSessionOr401(req);
   if (!auth.ok) return auth.response;
   const { session } = auth;
+  const denied = denyIfDemo(session);
+  if (denied) return denied;
   const { id } = await params;
 
   const parsed = Body.safeParse(await req.json().catch(() => null));

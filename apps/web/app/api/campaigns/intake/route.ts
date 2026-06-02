@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { intakeAgent, runAgent, type AgentRunContext } from "@ss/agents";
 import { startTrace } from "@ss/observability";
-import { getSessionOr401 } from "@/lib/auth";
+import { denyIfDemo, getSessionOr401 } from "@/lib/auth";
 
 /**
  * W2 — A-intake conversation endpoint (request/response, one deliberation
@@ -28,6 +28,8 @@ export async function POST(req: NextRequest) {
   const auth = await getSessionOr401(req);
   if (!auth.ok) return auth.response;
   const { session } = auth;
+  const denied = denyIfDemo(session);
+  if (denied) return denied;
 
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
