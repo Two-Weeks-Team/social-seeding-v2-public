@@ -4,14 +4,14 @@
  * tracks) into the mongo at $MONGODB_URI, so the Mission Control performance
  * page (/campaigns/[id]/performance) can render it. Prints the campaign id.
  *
- *   MONGODB_URI=mongodb://127.0.0.1:27027/social_seeding \
+ *   MONGODB_URI=mongodb://127.0.0.1:27027/instarsearch \
  *     pnpm exec tsx scripts/demo/wooriliu-seed.ts
  */
 import process from "node:process";
 
 async function main(): Promise<void> {
   if (!process.env.MONGODB_URI) {
-    process.env.MONGODB_URI = "mongodb://127.0.0.1:27027/social_seeding";
+    process.env.MONGODB_URI = "mongodb://127.0.0.1:27027/instarsearch";
   }
   const { campaignRepo, closeMongo, getDb, Collections } = await import("../../packages/db/src/index.ts");
   const { wooriliuCampaignInput } = await import("../../packages/workflows/src/fixtures/wooriliu.ts");

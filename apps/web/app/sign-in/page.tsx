@@ -21,7 +21,7 @@ async function devLogin(): Promise<void> {
   }
   const workspaceId = process.env.DEMO_LOGIN_WORKSPACE_ID ?? "ws_demo";
   const userId = process.env.DEMO_LOGIN_USER_ID ?? "102248148591352004682";
-  const email = process.env.DEMO_LOGIN_EMAIL ?? "sangguen@2weeks.co";
+  const email = process.env.DEMO_LOGIN_EMAIL ?? "tester@2weeks.co";
   const token = await signSession({ userId, workspaceId, email });
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -38,7 +38,7 @@ export default async function SignInPage(): Promise<React.ReactNode> {
 
   const devLoginEnabled = process.env.AUTH_TEST_LOGIN_ENABLED === "true";
   const demoWorkspaceId = process.env.DEMO_LOGIN_WORKSPACE_ID ?? "ws_demo";
-  const demoEmail = process.env.DEMO_LOGIN_EMAIL ?? "sangguen@2weeks.co";
+  const demoEmail = process.env.DEMO_LOGIN_EMAIL ?? "tester@2weeks.co";
 
   return (
     <main className="min-h-screen grid place-items-center px-6 bg-slate-50">

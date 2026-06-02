@@ -16,8 +16,8 @@ import process from "node:process";
 import { MongoMemoryServer } from "mongodb-memory-server";
 
 async function main(): Promise<void> {
-  const server = await MongoMemoryServer.create({ instance: { dbName: "social_seeding" } });
-  process.env.MONGODB_URI = server.getUri() + "social_seeding";
+  const server = await MongoMemoryServer.create({ instance: { dbName: "instarsearch" } });
+  process.env.MONGODB_URI = server.getUri() + "instarsearch";
   if (!process.env.AUTH_SECRET) process.env.AUTH_SECRET = "wooriliu-demo-secret-0123456789";
 
   // dynamic imports AFTER env is set so @ss/db connects to the ephemeral mongo.

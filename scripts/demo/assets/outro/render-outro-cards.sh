@@ -47,8 +47,8 @@ render_card() {
   echo "[outro] wrote ${outfile}"
 }
 
-render_card "track2" "social-seeding-v2"  "v2.socialseed.ing"  "Apache 2.0 + BUSL-1.1 (D9)"
-render_card "track3" "tiktok-mcp-server"  "mcp.socialseed.ing" "BUSL-1.1 (D9)"
+render_card "track2" "social-seeding-v2"  "agents.socialseed.ing"  "Apache 2.0 + BUSL-1.1 (D9)"
+render_card "track3" "tiktok-mcp-server"  "ss-mcp-server-1049119860518.us-central1.run.app" "BUSL-1.1 (D9)"
 
 echo "Done. Operator may regenerate with a different GITHUB_OWNER env var."
 exit 0

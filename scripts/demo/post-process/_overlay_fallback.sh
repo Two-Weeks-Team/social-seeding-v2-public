@@ -10,7 +10,7 @@
 #
 #   - top bar:    "Beat N / 6 — <label>"               (1920×64 @ #1A1A1A 70%)
 #   - cost ticker:"$0.18 / $1.50 budget"                (top-right 360×80)
-#   - agent tag:  "vetting × 12 · Gemini 2.5 Pro"       (bottom-left 540×48)
+#   - agent tag:  "vetting × 12 · Gemini 3.5 Flash"       (bottom-left 540×48)
 #
 # It does NOT render the Mermaid mini-diagram — that requires per-beat .mmd
 # files plus a renderer chain. The fallback simply leaves the diagram region
@@ -42,8 +42,8 @@ if [[ ! -f "$beats_tsv" ]]; then
 # tsv format: beat_index<TAB>start_s<TAB>end_s<TAB>section_label<TAB>cost_ticker<TAB>agent_tag
 #
 # v2 track defaults (SCRIPT.md §3):
-1	0	30	Beat 1 / 6 — Brief intake + sourcing	$0.00 → $0.04	Gemini 2.5 Pro · Agent Runtime · Vector Search
-2	30	60	Beat 2 / 6 — Vetting fan-out	$0.04 → $0.18	parallel × 12 · Gemini 2.5 Pro · critic M2
+1	0	30	Beat 1 / 6 — Brief intake + sourcing	$0.00 → $0.04	Gemini 3.5 Flash · Agent Runtime · Vector Search
+2	30	60	Beat 2 / 6 — Vetting fan-out	$0.04 → $0.18	parallel × 12 · Gemini 3.5 Flash · critic M2
 3	60	90	Beat 3 / 6 — Outreach tournament + approval	$0.18 → $0.31	5 × 4 tournament · AP2 Intent Mandate · human gate
 4	90	120	Beat 4 / 6 — Real send + reply	$0.31 → $0.39	Gmail API · real timestamp · classify + respond
 5	120	150	Beat 5 / 6 — Logistics + verify	$0.39 → $0.52	+5d durable timer · Vision AI · brand logo detect
@@ -53,8 +53,8 @@ TSV
   # Track 3 needs different copy — overwrite if mcp.
   if [[ "$track" == "mcp" ]]; then
     cat > "$beats_tsv" <<'TSV'
-1	0	30	Beat 1 / 6 — Public MCP endpoint	Cloud Run · MCP spec · 4 tools live	mcp.socialseed.ing · /tools/*
-2	30	60	Beat 2 / 6 — ADK orchestration	ADK · Agent Engine · Gemini 2.5 Flash	tiktok-mcp-orchestrator
+1	0	30	Beat 1 / 6 — Public MCP endpoint	Cloud Run · MCP spec · 4 tools live	ss-mcp-server-1049119860518.us-central1.run.app · /tools/*
+2	30	60	Beat 2 / 6 — ADK orchestration	ADK · Agent Engine · Gemini 3.5 Flash	tiktok-mcp-orchestrator
 3	60	90	Beat 3 / 6 — A2A registration	A2A v0.3 · agent.json · cross-agent invoke	verified · public · agent.json
 4	90	120	Beat 4 / 6 — Model Armor block	Model Armor max · PI block · audit log	403 policy_violation · prompt_injection
 5	120	150	Beat 5 / 6 — KR-gap reframing	D2 · D3 · A2A-only distribution	Marketplace PENDING · A2A live

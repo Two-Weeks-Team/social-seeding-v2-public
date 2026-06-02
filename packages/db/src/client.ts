@@ -29,7 +29,7 @@ export async function getMongoClient(): Promise<MongoClient> {
 
 export async function getDb(): Promise<Db> {
   const client = await getMongoClient();
-  return client.db(process.env.MONGODB_DB ?? "social_seeding");
+  return client.db(process.env.MONGODB_DB ?? "instarsearch");
 }
 
 export async function closeMongo(): Promise<void> {

@@ -193,11 +193,11 @@ fi
 if [[ "$DEMO_TRACK" == "mcp" ]]; then
   log_header "Section 5 — MCP server endpoint (Track 3)"
 
-  : "${DEMO_MCP_URL:=https://mcp.socialseed.ing}"
-  if curl -fsS -o /dev/null -m 5 "$DEMO_MCP_URL/.well-known/mcp-manifest"; then
-    log_ok "MCP manifest reachable at $DEMO_MCP_URL/.well-known/mcp-manifest"
+  : "${DEMO_MCP_URL:=https://ss-mcp-server-1049119860518.us-central1.run.app}"
+  if curl -fsS -o /dev/null -m 5 "$DEMO_MCP_URL/.well-known/agent.json"; then
+    log_ok "A2A agent card reachable at $DEMO_MCP_URL/.well-known/agent.json"
   else
-    log_fail "MCP manifest NOT reachable — Beat 1 will fail"
+    log_fail "A2A agent card NOT reachable — Beat 1 will fail"
   fi
 
   if curl -fsS -o /dev/null -m 5 "$DEMO_MCP_URL/.well-known/agent.json"; then
