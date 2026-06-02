@@ -4,6 +4,8 @@
   <a href="https://ss-landing-80064221403.us-central1.run.app/demo/"><img src="https://img.shields.io/badge/LIVE%20DEMO-Cloud%20Run-1A73E8?style=for-the-badge&logo=googlecloud&logoColor=white" alt="Live Demo"/></a>
   <a href="#track-3--the-6-official-requirements"><img src="https://img.shields.io/badge/Google%20for%20Startups-AI%20Agents%20Track%203-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white" alt="Track 3"/></a>
   <a href="#live-evidence"><img src="https://img.shields.io/badge/A2A%20v0.3-LIVE%20in%20Cloud%20Workflow-34A853?style=for-the-badge&logo=googlecloud&logoColor=white" alt="A2A live"/></a>
+  <a href="https://agents.socialseed.ing"><img src="https://img.shields.io/badge/Mission%20Control-LIVE%20%C2%B7%20Google%20login-34A853?style=for-the-badge&logo=googlecloud&logoColor=white" alt="Mission Control live"/></a>
+  <a href="https://storage.googleapis.com/ss-social-seeding-v2-docs/index.html"><img src="https://img.shields.io/badge/Docs-architecture%20%C2%B7%20manual-5b9dff?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Docs"/></a>
 </p>
 
 > **What it is.** Social Seeding v2 turns a brand brief into a finished TikTok influencer campaign by handing the loop — **source → vet → outreach → reply-handling → ship → verify content → report** — to a fleet of 22 specialized agents, with the human stepping in only at the policy gates they choose to keep on. The dashboard becomes **Mission Control**: a timeline of what the agents did + an approval inbox, not a manual-labor surface.
@@ -11,6 +13,34 @@
 **Live demo (no install, runs in your browser):** **<https://ss-landing-80064221403.us-central1.run.app/demo/>**
 
 **The Build → Optimize → Refactor arc (Track 3, single grand-narrative submission, D45/D50).** We **built** a 22-agent ADK fleet on Vertex AI that runs the full campaign loop as durable orchestration. We **optimized** its weakest link — the reply-triage agent — with a data-driven hardening pass that lifted routing accuracy 40.5% → 100% on the training set and 71.4% on a held-out adversarial set the rules never saw (28.6pp gap, kept honest). We **refactored** the TikTok capability into a standalone OSS `tiktok-mcp-server` that the coordinator reaches over **A2A v0.3** — an edge that runs **live inside a deployed Cloud Workflow** (execution `7c08ce50`, SUCCEEDED 15.8s, 5 real ranked creators).
+
+---
+
+## The product loop runs itself — live (2026-06-02)
+
+Beyond the challenge-stack A2A path above, the v2 **product** loop now runs end-to-end on its own infrastructure:
+
+- **Mission Control is live** at **<https://agents.socialseed.ing>** with **real Google sign-in** (OAuth → `ss_session` cookie), the campaign timeline + approval inbox, and a Gmail-connect settings page.
+- **A self-hosted Inngest durable-orchestration engine** runs on a Compute Engine VM (`ss-inngest`, `docker inngest start` — single binary, no external Postgres/Redis), reached privately from Cloud Run over **Direct VPC egress**. No external SaaS account; signing/event keys are self-generated. It picks up a submitted campaign and drives the durable workflows + crons (brand-campaign · creator-track · lead · pollers).
+- The **11 TypeScript product agents** run on the **Vertex AI `global` endpoint via ADC** — no API key, D53-compliant.
+- **Proven live:** a submitted campaign flows `submit → sourcing` (real creators from the shared cluster) `→ vetting → approveShortlist` (auto-approved) `→ 3 creator tracks → outreach`, autonomously, on the self-hosted engine.
+
+This shipped with five **measured** root-cause fixes (PRs #46–#50): TS Vertex mode (ADC, no key), env-flag case-fold, a forced-final agent turn, accepting `language: null` on the creator schema (it was silently dropping every creator → sourcing returned zero), and disabling Gemini-3.x thinking so agents emit their JSON instead of burning the output budget.
+
+A further hardening pass (PRs #57–#59), each verified against the live deploy:
+
+- **DB-name default unified to the real prod `instarsearch`**, and a `run-demo` safety guard that only checked the never-existed `social_seeding` — so a live run against the real prod DB was **not actually blocked** — now fails closed on both names.
+- **The signed A2A card's `jku` now points at the verified-reachable Cloud Run JWKS.** It had defaulted to a not-yet-cut-over vanity domain (`mcp.socialseed.ing`, 404), so a spec-pure verifier following the card's own `jku` couldn't fetch the key — `verify_card_with_jwks(card, jwks_from_jku)` now passes end-to-end (rev `ss-mcp-server-00015`).
+- **Outbound email goes out as `multipart/alternative`** so HTML bodies render — the ADK send path was emitting a lone `text/plain` part, so `<br>` showed literally; fixed + a regression test that decodes the actual Gmail `raw`, then proven on a real send (the received message reads back as `multipart/alternative` with the HTML part intact).
+
+## Documentation (rendered)
+
+Polished, shareable renders — self-contained, open in any browser ([index](https://storage.googleapis.com/ss-social-seeding-v2-docs/index.html)):
+
+- 🏛️ **[System architecture](https://storage.googleapis.com/ss-social-seeding-v2-docs/architecture-current.html)** — color-zoned diagram of both stacks + the live continuous loop.
+- 📘 **[Master onboarding manual](https://storage.googleapis.com/ss-social-seeding-v2-docs/onboarding-master.html)** — brief → intermediate → detailed; all 22 ADK + 11 TS agents, capabilities, data model, workflows, A2A, decisions D1–D53.
+- 🧰 **[Zero-to-reproduce runbook](https://storage.googleapis.com/ss-social-seeding-v2-docs/onboarding-zero-to-reproduce.html)** — stand the whole thing up from a blank account.
+- ⚙️ **[GCP operations manual](https://storage.googleapis.com/ss-social-seeding-v2-docs/gcp-operations-manual.html)** — how it works + team runbook + live evidence.
 
 ---
 
@@ -148,7 +178,7 @@ Both hops use the same A2A v0.3 `message:send` envelope (`{"message":{"role":"us
 |---|---|---|
 | **Models** | `gemini-3.5-flash` (judgment + coordinator; GA 2026-05-19) + `gemini-3.1-flash-lite` (bulk) | Served on the Vertex **`global`** endpoint. `$1.50/$9.00` and `$0.25/$1.50` per 1M tokens. Gemini-3.x family only — the larger pro tier returns 404 (Preview allowlist not granted in our project), so we use flash; no prior-generation or third-party models remain in the product (D53). |
 | **Agent runtime** | Agent Development Kit (ADK) · `run_agent` (curated tools, Zod/Pydantic output contract, USD cap, escalation) | 22-agent fleet (16 domain + 3 meta + 3 watchdog, D23). Routed through the **Model Garden** publisher plane (`publishers/google/models/...`, D47). |
-| **Orchestration** | **Cloud Workflows** (`brand-campaign-demo`, LIVE) | Durable; the coordinator routes, then the workflow does the A2A transport switch. |
+| **Orchestration** | **Cloud Workflows** (`brand-campaign-demo`, LIVE) for the challenge path · **self-hosted Inngest** engine (Compute Engine VM, LIVE) for the TS product loop | Cloud Workflows: coordinator routes, then the workflow does the A2A transport switch. Inngest: durable timers/`waitForEvent`/crons drive brand-campaign · creator-track · pollers, reached privately over Direct VPC egress. |
 | **Agent compute** | **Cloud Run** — `ss-agents` (FastAPI `serve.py` over `run_agent`) + `ss-mcp-server` (OSS A2A node) | `ss-agents` `min=0`; `ss-mcp-server` `minScale=1` (kept warm for A2A/demo latency + a stable card-signing key). `ss-landing` (Cloud Run) serves the demo + report. |
 | **Inter-agent protocol** | **A2A v0.3** `message:send` + signed agent card (JWS ES256 / RFC 7515, JCS RFC 8785) + JWKS | SPIFFE Agent Identity per agent (D48). |
 | **Grounding** | **Google Search grounding** on the `web.search` capability | `gemini-3.5-flash` + built-in `GoogleSearch` tool, cites `grounding_metadata` sources — demonstrated live (D53), not a chat completion. |
@@ -157,7 +187,7 @@ Both hops use the same A2A v0.3 `message:send` envelope (`{"message":{"role":"us
 | **Memory** | Vertex AI **Memory Bank** (Firestore as zero-config default) | Env-gated managed backend (D51). |
 | **Optimization** | Vertex AI **Prompt Optimizer** (data-driven / VAPO), wired operator-gated | D51. |
 | **Multimodal** | Imagen 4 (real 1024×1024 sample via standalone script; in-fleet tool W7-staged) | See [`HONEST-SCOPE.md`](scripts/demo/submission/HONEST-SCOPE.md) row 10. |
-| **Data (product)** | MongoDB Atlas (shared v1 cluster + `v2_*` collections) | The TS app layer; the ADK fleet's data plane targets Spanner/AlloyDB/Firestore per the architecture-of-record. |
+| **Data (product)** | MongoDB (shared v1 cluster, DB `instarsearch` + v2-owned `v2_*` collections) | The TS app layer reads shared v1 collections (174k creators) + writes `v2_*` additively. The ADK fleet's data plane targets Spanner/AlloyDB/Firestore per the architecture-of-record. |
 | **Distribution** | OSS `tiktok-mcp-server` + the **A2A-only distribution** forkable template (`oss/a2a-only-distribution/`) | KR-region Marketplace-payment gap reframed as the innovation contribution (D2/D3). |
 
 ---
