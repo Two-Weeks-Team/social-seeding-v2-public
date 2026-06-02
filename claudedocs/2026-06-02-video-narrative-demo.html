@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Social Seeding — 2:00 demo narrative (the agent is the operator)</title>
+<style>
+  :root{
+    --bg:#0a0a0f; --panel:#14141c; --panel2:#1c1c27; --ink:#f4f4f8; --mut:#9aa0ad; --line:#2a2a37;
+    --blue:#4285F4; --green:#34A853; --yellow:#FBBC04; --red:#EA4335; --purple:#9334E6;
+    --build:#4285F4; --opt:#FBBC04; --ref:#34A853; --inno:#9334E6; --biz:#EA4335; --hook:#9aa0ad;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:radial-gradient(1200px 700px at 70% -10%, #1a1430 0%, #0a0a0f 55%) fixed,var(--bg);
+    color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:22px 20px 28px;display:flex;flex-direction:column;min-height:100%}
+  .top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .logo{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,#4285F4,#9334E6);
+    display:grid;place-items:center;font-weight:800;font-size:12px;color:#fff;flex:none}
+  .ttl{font-weight:700;font-size:15px}
+  .sub{color:var(--mut);font-size:12.5px}
+  .grow{flex:1}
+  .badge{font-size:11px;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+
+  /* stage */
+  .stage{position:relative;background:linear-gradient(180deg,var(--panel),#101018);border:1px solid var(--line);
+    border-radius:18px;padding:30px 30px 26px;min-height:330px;overflow:hidden}
+  .stage::before{content:"";position:absolute;inset:0;background:var(--actglow,transparent);opacity:.10;transition:background .5s}
+  .beatwrap{position:relative}
+  .eyebrow{display:flex;align-items:center;gap:9px;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--mut);margin-bottom:14px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--accent,#888);box-shadow:0 0 12px var(--accent)}
+  .act{font-weight:700;color:var(--accent)}
+  .line{font-size:27px;line-height:1.28;font-weight:700;letter-spacing:-.01em;margin:0 0 6px;max-width:46ch}
+  .caption{color:#cfd3dc;font-size:14px;font-style:italic;margin:0 0 18px}
+  .shows{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .chip{font-size:12.5px;color:#d6d9e2;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 11px}
+  .chip b{color:#fff}
+  .metric{margin-top:18px;display:flex;gap:18px;flex-wrap:wrap}
+  .metric .m{background:#0e0e16;border:1px solid var(--line);border-radius:12px;padding:11px 15px;min-width:120px}
+  .metric .mv{font-size:22px;font-weight:800;color:#fff;letter-spacing:-.02em}
+  .metric .ml{font-size:11.5px;color:var(--mut);margin-top:2px}
+  .rubric{position:absolute;top:26px;right:26px;text-align:right}
+  .rubric .rl{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+  .rubric .rv{font-size:13px;font-weight:700;color:var(--accent)}
+  .fade-enter{opacity:0;transform:translateY(8px)}
+  .fade-now{opacity:1;transform:none;transition:opacity .45s ease,transform .45s ease}
+
+  /* transport */
+  .transport{margin-top:16px;display:flex;align-items:center;gap:14px}
+  button{font:inherit;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:9px 13px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+  button:hover{border-color:#3a3a4a;background:#22222e}
+  .play{background:linear-gradient(135deg,#4285F4,#9334E6);border:none;font-weight:700;min-width:104px;justify-content:center}
+  .tc{font-variant-numeric:tabular-nums;font-weight:700;color:#fff;font-size:14px;min-width:96px}
+  .tc small{color:var(--mut);font-weight:500}
+  .spd{display:flex;gap:6px}
+  .spd button{padding:7px 10px;font-size:12px}
+  .spd button.on{border-color:var(--blue);color:#cfe0ff;background:#16213a}
+
+  /* timeline */
+  .tl{margin-top:14px;position:relative;height:46px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0e0e16;cursor:pointer}
+  .seg{position:absolute;top:0;bottom:0;opacity:.16}
+  .seglab{position:absolute;top:6px;font-size:10.5px;letter-spacing:.03em;color:#cdd2dc;font-weight:600;pointer-events:none;white-space:nowrap}
+  .segtime{position:absolute;bottom:5px;font-size:9.5px;color:var(--mut);pointer-events:none}
+  .play-head{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 10px #fff;left:0;pointer-events:none}
+  .ticks{display:flex;justify-content:space-between;margin-top:5px;color:var(--mut);font-size:10px;font-variant-numeric:tabular-nums}
+
+  .rails{margin-top:18px;font-size:12px;color:var(--mut);border-top:1px solid var(--line);padding-top:13px;line-height:1.6}
+  .rails b{color:#cdd2dc;font-weight:600}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:11.5px;color:var(--mut)}
+  .legend i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:middle}
+  /* hero (PitchForge paper-title inversion) */
+  .heroribbon{font-size:11.5px;letter-spacing:.05em;color:var(--mut);margin-bottom:12px}
+  .heroribbon i{color:var(--yellow);font-style:italic;font-weight:800;text-shadow:0 0 30px rgba(251,188,4,.45)}
+  .herowow{position:absolute;inset:0;display:grid;place-items:center;background:rgba(8,8,14,.74);
+    backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .5s;z-index:5}
+  .herowow.on{opacity:1}
+  .herowow b{font-size:40px;font-weight:800;letter-spacing:-.02em;color:#fff;text-align:center;max-width:18ch}
+  .herowow b i{color:var(--yellow);font-style:italic;text-shadow:0 0 50px rgba(251,188,4,.5)}
+
+  /* recording + cinematic modes (PitchForge methodology 07) */
+  body.rec .top,body.rec .transport,body.rec .tl,body.rec .ticks,body.rec .legend,body.rec .rails{display:none!important}
+  body.rec .wrap{padding:0;max-width:none}
+  body.rec .stage{border-radius:0;min-height:100vh;border:6px solid #000;display:grid;align-content:center}
+  body.cine .caption,body.cine .rubric{visibility:hidden}
+  .rectimer{position:fixed;top:14px;right:16px;z-index:30;display:none;align-items:center;gap:7px;
+    font-variant-numeric:tabular-nums;font-weight:700;color:#fff;background:rgba(0,0,0,.5);border-radius:999px;padding:5px 12px}
+  body.rec .rectimer{display:flex}
+  .rectimer .rd{width:9px;height:9px;border-radius:50%;background:var(--red);animation:blink 1s infinite}
+  @keyframes blink{50%{opacity:.25}}
+  .overlay{position:fixed;inset:0;z-index:40;display:none;place-items:center;background:rgba(0,0,0,.82);color:#fff}
+  .overlay.on{display:grid}
+  .overlay .big{font-size:120px;font-weight:800;letter-spacing:-.03em}
+  .overlay .end{font-size:34px;font-weight:700;color:var(--mut)}
+  .kbd{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);z-index:30;font-size:11px;color:var(--mut)}
+  body.rec .kbd{display:none}
+  @media (max-width:680px){ .line{font-size:21px} .rubric{position:static;text-align:left;margin-bottom:10px} .herowow b{font-size:26px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="logo">SS</div>
+    <div>
+      <div class="ttl">Social Seeding — 2:00 submission demo</div>
+      <div class="sub">“The agent is the operator.” · Build → Optimize → Refactor · plays along the timeline</div>
+    </div>
+    <div class="grow"></div>
+    <div class="badge">Track 3 · Google for Startups AI Agents Challenge</div>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="rubric"><div class="rl">scores</div><div class="rv" id="rubric">—</div></div>
+    <div class="beatwrap" id="beat"></div>
+    <div class="herowow" id="herowow"><b>The brief is <i>all you need.</i></b></div>
+  </div>
+
+  <div class="transport">
+    <button class="play" id="play">▶ Play</button>
+    <button id="restart">⟲ Restart</button>
+    <div class="tc"><span id="tc">0:00</span> <small>/ 2:00</small></div>
+    <div class="grow"></div>
+    <div class="spd" id="spd">
+      <button data-s="1">1×</button><button data-s="2" class="on">2×</button><button data-s="4">4×</button><button data-s="8">8×</button>
+    </div>
+  </div>
+
+  <div class="tl" id="tl"><div class="play-head" id="ph"></div></div>
+  <div class="ticks"><span>0:00</span><span>0:30</span><span>1:00</span><span>1:30</span><span>2:00</span></div>
+
+  <div class="legend">
+    <span><i style="background:var(--hook)"></i>Hook</span>
+    <span><i style="background:var(--build)"></i>Build</span>
+    <span><i style="background:var(--opt)"></i>Optimize</span>
+    <span><i style="background:var(--ref)"></i>Refactor</span>
+    <span><i style="background:var(--inno)"></i>Innovation</span>
+    <span><i style="background:var(--biz)"></i>Business</span>
+  </div>
+
+  <div class="kbd">▶ Space play/pause · click timeline to scrub · <b>R</b> recording mode · <b>O/F</b> cinematic auto-record · <b>P</b> replay beat</div>
+
+  <div class="rails">
+    <b>Honesty rails (RULES.md · official Rules):</b> Gemini Enterprise is <b>registered</b>, not a Marketplace
+    <b>listing</b> (submission ≠ listing). 99.7% is cost-of-goods vs an agency management fee — <b>not</b> net margin.
+    Zero validated signups today (pre-launch); the data moat is structural, retention to be <b>validated</b> in pilots.
+    Recording per D30: silent 8×-speed real-mouse footage + on-screen captions (English) — hard 2:00 cap, only the first 2:00 are judged.
+  </div>
+</div>
+
+<div class="rectimer"><span class="rd"></span><span id="rectc">0:00</span></div>
+<div class="overlay" id="overlay"><div><div class="big" id="ovbig">3</div></div></div>
+
+<script>
+const TOTAL = 120;
+const beats = [
+  { s:0,  e:15, act:"Hook", color:"--hook", glow:"#9aa0ad",
+    eyebrow:"Opening card · on-screen",
+    line:"Influencer marketing is six hours of grunt work a day. So we gave it an operator.",
+    caption:"Cut straight into Mission Control filling itself in — the agent, not a dashboard.",
+    chips:["<b>Positioning</b> vs dashboards (Aspire/Grin) + one-step automations","Judgment at <b>every</b> step"],
+    metrics:[], rubric:"Business 30%" },
+
+  { s:15, e:45, act:"Act I · Build", color:"--build", glow:"#4285F4",
+    eyebrow:"The agent runs the loop — live",
+    line:"source → vet → outreach → reply → ship → verify → report. By a 22-agent fleet, not a person.",
+    caption:"The agent is the operator — you keep only the gates you want.",
+    chips:["sourcing surfaces <b>real creators</b>","vetting <b>rejects</b> one (brand-safety) — a judgment call","outreach drafts a real email","<b>content_verify</b> confirms the TikTok post is live","ADK fleet · Vertex · Cloud Workflows"],
+    metrics:[], rubric:"Technical 30% + Demo 20%" },
+
+  { s:45, e:65, act:"Act II · Optimize", color:"--opt", glow:"#FBBC04",
+    eyebrow:"We hardened the operator like production software",
+    line:"The triage agent used to stall. We traced it in Observability, then fixed it.",
+    caption:"Treating AI quality as a rigorous engineering discipline (the Guide’s “production-ready”).",
+    chips:["Agent Observability <b>stall → repair</b> trace","data-driven hardening pass"],
+    metrics:[{v:"40.5% → 100%",l:"routing accuracy (train)"},{v:"71.4%",l:"held-out adversarial (28.6pp gap, kept honest)"}],
+    rubric:"Technical 30%" },
+
+  { s:65, e:95, act:"Act III · Refactor", color:"--ref", glow:"#34A853",
+    eyebrow:"The operator plugs into the enterprise — over A2A",
+    line:"coordinator → A2A v0.3 message:send → tiktok-mcp-server → ranked creators, live in the Cloud Workflow.",
+    caption:"Maps exactly to the Guide’s Build Example #2: marketing agent → multimodal → A2A → brand assets, on-brand.",
+    chips:["signed agent card <b>JWS ES256</b> + JWKS","<b>Agent Identity</b> (SPIFFE)","<b>Model Garden</b> routing","exec <b>7c08ce50</b> · SUCCEEDED · 5 ranked creators"],
+    metrics:[], rubric:"Innovation 20% + Technical 30%" },
+
+  { s:95, e:110, act:"Innovation", color:"--inno", glow:"#9334E6",
+    eyebrow:"Distribution is the innovation",
+    line:"Our region can’t list on Marketplace — so we made the agent A2A-distributable.",
+    caption:"Any non-Marketplace-payment-region startup can copy the pattern (a forkable OSS template).",
+    chips:["Gemini Enterprise Agent Gallery: <b>ENABLED</b> (registered, not listed)","A2A-only distribution wedge (D2/D3)"],
+    metrics:[], rubric:"Innovation 20%" },
+
+  { s:110, e:120, act:"Business close", color:"--biz", glow:"#EA4335",
+    eyebrow:"Why it’s a business — price as proof, never the hook",
+    line:"Every campaign’s first 10,000 views are free. Then one cent per verified view — we only charge when your campaign breaks out.",
+    caption:"content_verify IS the billable event — and every campaign deposits the data moat.",
+    chips:["<b>Lock-in:</b> verified creator-performance graph + outreach/comms history","flywheel: more campaigns → more data → sharper agent","architecture diagram flash + live judge link"],
+    metrics:[{v:"49,498",l:"billable views (59,498 − 10,000 free, 우리리우)"},{v:"$494.98",l:"billed · on ~$0.05 agent compute"}],
+    rubric:"Business 30% + Demo 20%" },
+];
+
+const fmt = s => Math.floor(s/60)+":"+String(Math.floor(s%60)).padStart(2,"0");
+const stage=document.getElementById("stage"), beatEl=document.getElementById("beat"),
+      ph=document.getElementById("ph"), tcEl=document.getElementById("tc"), rubricEl=document.getElementById("rubric"),
+      tl=document.getElementById("tl"), playBtn=document.getElementById("play");
+let t=0, playing=false, speed=2, last=null, cur=-1;
+
+// build timeline segments
+beats.forEach(b=>{
+  const seg=document.createElement("div"); seg.className="seg";
+  seg.style.left=(b.s/TOTAL*100)+"%"; seg.style.width=((b.e-b.s)/TOTAL*100)+"%";
+  seg.style.background="var("+b.color+")";
+  tl.appendChild(seg);
+  const lab=document.createElement("div"); lab.className="seglab";
+  lab.style.left=(b.s/TOTAL*100+0.6)+"%"; lab.textContent=b.act; lab.style.color="var("+b.color+")";
+  tl.appendChild(lab);
+  const tm=document.createElement("div"); tm.className="segtime";
+  tm.style.left=(b.s/TOTAL*100+0.6)+"%"; tm.textContent=fmt(b.s);
+  tl.appendChild(tm);
+});
+
+function curIndex(x){ for(let i=beats.length-1;i>=0;i--){ if(x>=beats[i].s) return i; } return 0; }
+
+function renderBeat(i){
+  const b=beats[i];
+  stage.style.setProperty("--actglow", b.glow);
+  rubricEl.textContent=b.rubric; rubricEl.style.color="var("+b.color+")";
+  const metrics=b.metrics.map(m=>`<div class="m"><div class="mv">${m.v}</div><div class="ml">${m.l}</div></div>`).join("");
+  beatEl.innerHTML=`
+    <div class="fade-enter" id="fx" style="--accent:var(${b.color})">
+      <div class="heroribbon">The brief is <i>all you need.</i></div>
+      <div class="eyebrow"><span class="dot"></span><span class="act">${b.act}</span> · ${b.eyebrow}</div>
+      <p class="line">${b.line}</p>
+      ${b.caption?`<p class="caption">${b.caption}</p>`:""}
+      <div class="shows">${b.chips.map(c=>`<span class="chip">${c}</span>`).join("")}</div>
+      ${metrics?`<div class="metric">${metrics}</div>`:""}
+    </div>`;
+  requestAnimationFrame(()=>{ const fx=document.getElementById("fx"); if(fx) fx.className="fade-now"; });
+  // PitchForge hero placement: the paradigm line reveals at the wow beat (Refactor, i=3)
+  const hw=document.getElementById("herowow");
+  if(i===3){ hw.classList.add("on"); clearTimeout(window._hwT); window._hwT=setTimeout(()=>hw.classList.remove("on"),3200); }
+  else hw.classList.remove("on");
+}
+
+function frame(ts){
+  if(last==null) last=ts;
+  const dt=(ts-last)/1000; last=ts;
+  if(playing){ t+=dt*speed; if(t>=TOTAL){ t=TOTAL; playing=false; playBtn.textContent="▶ Replay"; if(cine) endCinematic(); } }
+  ph.style.left=(t/TOTAL*100)+"%";
+  tcEl.textContent=fmt(t);
+  document.getElementById("rectc").textContent=fmt(t);
+  const i=curIndex(t);
+  if(i!==cur){ cur=i; renderBeat(i); }
+  requestAnimationFrame(frame);
+}
+
+// ── recording + cinematic (PitchForge methodology 07) ──
+let cine=false;
+const overlay=document.getElementById("overlay"), ovbig=document.getElementById("ovbig");
+function toggleRec(){ document.body.classList.toggle("rec"); }
+function endCinematic(){ cine=false; document.body.classList.remove("cine");
+  overlay.classList.add("on"); ovbig.innerHTML='<span class="end">END</span>';
+  setTimeout(()=>overlay.classList.remove("on"),2400); }
+async function startCinematic(){ // O/F — countdown then auto-play from 0
+  document.body.classList.add("rec","cine"); cine=true; playing=false; t=0; cur=-1;
+  for(const n of ["3","2","1","GO"]){ overlay.classList.add("on"); ovbig.textContent=n; ovbig.className="big";
+    await new Promise(r=>setTimeout(r,800)); }
+  overlay.classList.remove("on"); speed=1; playing=true; playBtn.textContent="⏸ Pause";
+}
+function replayBeat(){ t=beats[curIndex(t)].s; cur=-1; playing=true; playBtn.textContent="⏸ Pause"; }
+requestAnimationFrame(frame);
+
+playBtn.onclick=()=>{ if(t>=TOTAL){ t=0; cur=-1; } playing=!playing; playBtn.textContent=playing?"⏸ Pause":"▶ Play"; };
+document.getElementById("restart").onclick=()=>{ t=0; cur=-1; playing=true; playBtn.textContent="⏸ Pause"; };
+document.getElementById("spd").onclick=e=>{ const b=e.target.closest("button"); if(!b)return;
+  speed=+b.dataset.s; [...e.currentTarget.children].forEach(x=>x.classList.toggle("on",x===b)); };
+tl.onclick=e=>{ const r=tl.getBoundingClientRect(); t=Math.max(0,Math.min(TOTAL,(e.clientX-r.left)/r.width*TOTAL)); cur=-1; };
+document.addEventListener("keydown",e=>{
+  if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA") return;
+  if(e.metaKey||e.ctrlKey||e.altKey) return;          // never intercept browser shortcuts
+  switch(e.key){
+    case " ": e.preventDefault(); playBtn.click(); break;
+    case "r": case "R": toggleRec(); break;
+    case "o": case "O": case "f": case "F": startCinematic(); break;
+    case "p": case "P": replayBeat(); break;
+    case "Escape": document.body.classList.remove("rec","cine"); cine=false; overlay.classList.remove("on"); break;
+  }
+});
+</script>
+</body>
+</html>
