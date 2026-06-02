@@ -73,6 +73,69 @@ export function approvalKindKo(kind: string): string {
   return APPROVAL_KIND_KO[kind] ?? kind;
 }
 
+// ── Creator track state ─────────────────────────────────────────────────────
+const TRACK_STATE_KO: Record<string, string> = {
+  sourced: "선정됨",
+  outreach_sent: "아웃리치 발송",
+  in_conversation: "대화 중",
+  agreed: "협의 완료",
+  address_collected: "주소 확인",
+  shipped: "샘플 발송",
+  delivered: "수령",
+  posted: "게시",
+  verified: "검증 완료",
+  no_response: "무응답",
+  declined: "거절",
+  flaked: "이탈",
+};
+
+const TRACK_STATE_TONE: Record<string, StatusTone> = {
+  sourced: "neutral",
+  outreach_sent: "run",
+  in_conversation: "run",
+  agreed: "ok",
+  address_collected: "ok",
+  shipped: "ok",
+  delivered: "ok",
+  posted: "ok",
+  verified: "ok",
+  no_response: "warn",
+  declined: "stop",
+  flaked: "stop",
+};
+
+export function trackState(state: string): { label: string; tone: StatusTone } {
+  return { label: TRACK_STATE_KO[state] ?? state, tone: TRACK_STATE_TONE[state] ?? "neutral" };
+}
+
+// ── Activity-timeline span names → plain Korean ─────────────────────────────
+// The audit flagged raw span names (workflow:brand-campaign, decision:approveShortlist)
+// + OTel vocabulary as the operator-facing "what the agents did" record.
+const SPAN_LABEL_KO: Array<[RegExp, string]> = [
+  [/^workflow:brand-campaign/, "캠페인 워크플로우 시작"],
+  [/^workflow:/, "워크플로우 시작"],
+  [/^decision:approveShortlist/, "후보 리스트 승인"],
+  [/^decision:approveOutreach/, "아웃리치 발송 승인"],
+  [/^decision:/, "승인 결정"],
+  [/^agent:sourcing/, "크리에이터 소싱"],
+  [/^agent:vetting/, "후보 검증"],
+  [/^agent:outreach/, "아웃리치 작성·발송"],
+  [/^agent:conversation|^agent:responder/, "회신 처리"],
+  [/^agent:logistics/, "배송 처리"],
+  [/^agent:content[_-]?verify/, "콘텐츠 검증"],
+  [/^agent:analyst|^agent:analytics/, "성과 분석"],
+  [/^agent:/, "에이전트 작업"],
+  [/^tool:tiktok/, "TikTok 조회"],
+  [/^tool:gmail/, "메일 발송"],
+  [/^tool:blacklist/, "블랙리스트 확인"],
+  [/^tool:/, "도구 실행"],
+];
+
+export function spanLabelKo(name: string): string {
+  for (const [re, label] of SPAN_LABEL_KO) if (re.test(name)) return label;
+  return name;
+}
+
 // ── Autonomy gate labels (policies page) ────────────────────────────────────
 const GATE_KO: Record<string, string> = {
   approveShortlist: "후보 리스트 확정",

@@ -46,3 +46,17 @@ export function creatorHandle(input: { handle?: string | null; uniqueId?: string
   if (!h) return "크리에이터";
   return h.startsWith("@") ? h : `@${h}`;
 }
+
+/**
+ * Creator label for a track that only carries a raw creatorId (no handle in the
+ * data model yet). If the id reads like a handle, show it as @handle; otherwise
+ * show a short, distinguishable, human ref — NEVER the raw 60-char secUid token.
+ */
+export function creatorLabel(creatorId: string | null | undefined): string {
+  const id = (creatorId ?? "").trim();
+  if (!id) return "크리에이터";
+  if (id.length <= 24 && !/^[A-Za-z0-9+/_-]{24,}$/.test(id) && /[a-z._]/i.test(id)) {
+    return id.startsWith("@") ? id : `@${id}`;
+  }
+  return `크리에이터 ·${id.slice(-4)}`;
+}
