@@ -79,7 +79,7 @@ class ScenarioRunner:
         *,
         mode: str = HARNESS_MODE,
         project_id: str = PROJECT_ID,
-        sim_model: str = "gemini-2.5-pro",
+        sim_model: str = "gemini-3.5-flash",
         max_concurrency: int = 50,
     ) -> None:
         self.mode = mode

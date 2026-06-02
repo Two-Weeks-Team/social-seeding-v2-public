@@ -2,11 +2,11 @@
 
 ## 1. Purpose + ARCHITECTURE.md citation
 
-The **Vetting agent** scores ONE candidate against the brief and surfaces risk flags. It fans out from the sourcing agent's output, one invocation per candidate, on Gemini 2.5 Pro at parallel scale (the workflow runs N concurrent calls behind a Pub/Sub fan-out per D18 + D24).
+The **Vetting agent** scores ONE candidate against the brief and surfaces risk flags. It fans out from the sourcing agent's output, one invocation per candidate, on Gemini 3.5 Flash at parallel scale (the workflow runs N concurrent calls behind a Pub/Sub fan-out per D18 + D24).
 
 - **D-ID coverage**: D23 (Tier-1 agent #2), D11 (influencer domain), D16 (Vertex AI Vector Search for brand-fit similarity), D17 (Agent Runtime), D24 (parallel fan-out is the canonical 1→100 example).
-- **ARCHITECTURE.md §3 row 2**: `vetting | 1 | Gemini 2.5 Pro (parallel) | rapidapi.get_user_info, ranking.score, vector_search.brand_fit | Session | tool_trajectory_avg_score`.
-- **v2 reference**: `packages/agents/src/vetting.agent.ts:16-40` (existing fleet) — schema mirrored, model upgraded Haiku → Gemini 2.5 Pro per D5.
+- **ARCHITECTURE.md §3 row 2**: `vetting | 1 | Gemini 3.5 Flash (parallel) | rapidapi.get_user_info, ranking.score, vector_search.brand_fit | Session | tool_trajectory_avg_score`.
+- **v2 reference**: `packages/agents/src/vetting.agent.ts:16-40` (existing fleet) — schema mirrored, model upgraded Haiku → Gemini 3.5 Flash per D5.
 
 ## 2. JSON Schema (input/output)
 
@@ -192,7 +192,7 @@ sequenceDiagram
   WF->>PS: publish N × agent.t1.vetting.requested (parallel, D24)
   loop fan-out (typically 30-100 in parallel)
     PS->>AR: deliver one VettingRequested
-    AR->>VE: invoke (Gemini 2.5 Pro)
+    AR->>VE: invoke (Gemini 3.5 Flash)
     VE->>RAPI: getUser(uniqueId, withRecentPosts=true)
     RAPI-->>VE: {profile, recentPosts[]}
     VE->>RS: score(creator, recentPosts)

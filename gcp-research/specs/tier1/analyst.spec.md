@@ -4,9 +4,9 @@
 
 The **Analyst agent** translates the deterministic `AnalyticsReport` (computed by `analytics.compile`) plus the original `CampaignBrief` into a human-readable narrative: `{summary, highlights, concerns, recommendations, markdown}`. No tools — the numbers are already in the input; the analyst's job is data-narration, not number-crunching. Concerns map 1:1 to fired report flags (`budget_exceeded`, `deadline_missed`, `low_response_rate`, `high_flake_rate`, `no_verified_yet`, `goal_met`).
 
-- **D-ID coverage**: D23 (Tier-1 agent #8), D5 (Gemini 2.5 Pro), D25 (analyst feeds Agent Evaluation `accuracy + grounding score`), D32 (analyst output feeds the weekly report email via Eventarc).
-- **ARCHITECTURE.md §3 row 8**: `analyst | 1 | Gemini 2.5 Pro | bigquery.query, view_metrics.aggregate | Memory Bank | accuracy + grounding score`.
-- **v2 reference**: `packages/agents/src/analyst.agent.ts:61-155`. v2 used Haiku — ARCHITECTURE.md upgrades to Gemini 2.5 Pro for prose quality.
+- **D-ID coverage**: D23 (Tier-1 agent #8), D5 (Gemini 3.5 Flash), D25 (analyst feeds Agent Evaluation `accuracy + grounding score`), D32 (analyst output feeds the weekly report email via Eventarc).
+- **ARCHITECTURE.md §3 row 8**: `analyst | 1 | Gemini 3.5 Flash | bigquery.query, view_metrics.aggregate | Memory Bank | accuracy + grounding score`.
+- **v2 reference**: `packages/agents/src/analyst.agent.ts:61-155`. v2 used Haiku — ARCHITECTURE.md upgrades to Gemini 3.5 Flash for prose quality.
 
 ## 2. JSON Schema (input/output)
 
@@ -225,7 +225,7 @@ sequenceDiagram
   BQ-->>AC: rows
   AC-->>WF: AnalyticsReport (deterministic)
   WF->>AG: POST /agents/analyst:invoke (brief + report + creatorHandles)
-  AG->>AN: invoke (Gemini 2.5 Pro)
+  AG->>AN: invoke (Gemini 3.5 Flash)
   AN->>MB: read workspace style memory (tone, prior reports)
   MB-->>AN: voice notes
   AN->>AN: Compose summary (lead with verified/target headline)
@@ -246,7 +246,7 @@ sequenceDiagram
 | `bigquery.query` | analytics queries | Cross-campaign comparisons (longer-window stats) |
 | `view_metrics.aggregate` | BigQuery rollup | Verified-view aggregates per shipment cohort |
 
-**USD cap**: $0.20 per invocation (Gemini 2.5 Pro long-context — up to 8000-char markdown).
+**USD cap**: $0.20 per invocation (Gemini 3.5 Flash long-context — up to 8000-char markdown).
 
 **Escalation conditions**:
 - `report.funnel.candidate == 0` (campaign was empty).

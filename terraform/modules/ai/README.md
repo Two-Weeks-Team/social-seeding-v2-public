@@ -8,7 +8,7 @@ recorded in `gcp-research/decisions/DECISIONS.md`:
 
 | D-ID | What this module provisions |
 |---|---|
-| **D5**  | Model Garden access pins (Gemini 2.5 Pro / Flash / Flash-Lite + 3.1 Pro Preview demo only). |
+| **D5**  | Model Garden access pins (Gemini 3.5 Flash / Flash / Flash-Lite + 3.1 Pro Preview demo only). |
 | **D15** | Firestore Native database backing Agent Memory Bank. |
 | **D16** | 3 × Vertex AI Vector Search indexes (`creators_v1`, `brands_v1`, `content_v1`) + 1 shared regional endpoint. |
 | **D17** | Agent Runtime deploys for 19 of 22 agents (Tier 1 + Tier 2). Watchdog Cloud Run services (Tier 3) live in the `compute` module. |

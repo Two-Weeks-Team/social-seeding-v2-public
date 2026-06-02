@@ -5,7 +5,7 @@
 The **Optimizer agent (M3)** runs nightly (and on-demand) to rewrite Tier-1 agent prompts and re-tune tool/USD budgets via Vertex AI Agent Optimizer. Reads recent traces from Agent Observability, Agent Simulation outcomes, and Agent Evaluation deltas; produces a prompt diff + budget adjustment proposal. The actual prompt commit happens via Cloud Build PR — the optimizer NEVER hot-patches in-flight production prompts.
 
 - **D-ID coverage**: D23 (Tier-2 M3), D25 (Optimizer = part of "Prompt + Agent Evaluation + Vertex SFT + Distillation + RLHF" stack), D38 (M3 PM is the highest-tier coordinator in the build-time hierarchy too).
-- **ARCHITECTURE.md §3 row 19**: `optimizer (M3) | 2 | Gemini 2.5 Pro | agent_optimizer.tune, prompt_registry.update | None | offline_eval_lift`.
+- **ARCHITECTURE.md §3 row 19**: `optimizer (M3) | 2 | Gemini 3.5 Flash | agent_optimizer.tune, prompt_registry.update | None | offline_eval_lift`.
 - **v2 reference**: No v2 predecessor (v2 prompts are hand-tuned per agent file).
 
 ## 2. JSON Schema (input/output)
@@ -166,7 +166,7 @@ sequenceDiagram
 
   CR->>WF: nightly tick
   WF->>AG: POST /agents/optimizer:invoke (agentIds, lookbackDays=7, dryRun=true)
-  AG->>OP: invoke (Gemini 2.5 Pro)
+  AG->>OP: invoke (Gemini 3.5 Flash)
   par read recent state
     OP->>AO: query traces (7d window per agent)
     AO-->>OP: trace summaries (errors, escalations, slow paths)

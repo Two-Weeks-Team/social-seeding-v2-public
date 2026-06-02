@@ -4,8 +4,8 @@
 
 The **Content-Verify agent** scores a detected TikTok post against the brief: did this creator REALLY post about our brand? Returns `{matches, mentionsBrand, performanceScore (0-100), flags[], rationale}`. Multimodal — reads post desc + hashtags AND can request `vision.brand_logo_detect` on the post thumbnail/video frame for visual brand presence.
 
-- **D-ID coverage**: D23 (Tier-1 agent #7), D5 (Gemini 2.5 Flash multimodal — image + text), D21 (post.desc is creator-controlled DATA — `prompt_injection` flag), D33 (post media stored 30d in Cloud Storage with lifecycle rule).
-- **ARCHITECTURE.md §3 row 7**: `content_verify | 1 | Gemini 2.5 Flash multimodal | rapidapi.post_detail, vision.brand_logo_detect | None | precision + recall vs holdout`.
+- **D-ID coverage**: D23 (Tier-1 agent #7), D5 (Gemini 3.1 Flash-Lite multimodal — image + text), D21 (post.desc is creator-controlled DATA — `prompt_injection` flag), D33 (post media stored 30d in Cloud Storage with lifecycle rule).
+- **ARCHITECTURE.md §3 row 7**: `content_verify | 1 | Gemini 3.1 Flash-Lite multimodal | rapidapi.post_detail, vision.brand_logo_detect | None | precision + recall vs holdout`.
 - **v2 reference**: `packages/agents/src/content-verify.agent.ts:56-139`. Carries the `ContentVerifyFlag` enum verbatim.
 
 ## 2. JSON Schema (input/output)
@@ -173,7 +173,7 @@ sequenceDiagram
   RP-->>WF: full post with media uri
   WF->>AG: POST /agents/content-verify:invoke
   AG->>AG: Model Armor input scan (PI/JB on desc D21)
-  AG->>CV: invoke (Gemini 2.5 Flash multimodal)
+  AG->>CV: invoke (Gemini 3.1 Flash-Lite multimodal)
   CV->>GS: read thumbnail bytes
   CV->>VL: brand_logo_detect(thumbnail, brand.name)
   VL-->>CV: { logoDetected: true, confidence: 0.91 }

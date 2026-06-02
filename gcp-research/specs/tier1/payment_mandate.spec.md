@@ -5,7 +5,7 @@
 The **Payment Mandate agent** composes an AP2 v0.2 **Intent Mandate** for any agent action that incurs spend (shipping cost, paid creator rate, sample fulfillment fees, ads spend). It NEVER initiates payment — D27 explicitly limits v2 to Intent Mandate, never Cart or Payment Mandates. The agent's output is a structured intent document the human approves via `approveOutreachSend` / `approveShipment` / `approveStageAdvance` (`policy.ts:40-44`). Auto-approval is gated on per-workspace `WorkspacePolicy.budgets.maxUsdPerCampaign` + autonomy level.
 
 - **D-ID coverage**: D23 (NEW Tier-1 agent #12), D27 (AP2 Intent Mandate ONLY — safety-first scope), D12 (multi-tenant + AP2), D28 ($0.01/view pricing model — Intent Mandate carries the per-view forecast).
-- **ARCHITECTURE.md §3 row 12**: `payment_mandate (NEW) | 1 | Gemini 2.5 Flash | ap2.compose_intent_mandate, gate.approveOutreachSend | Session | mandate_validity`.
+- **ARCHITECTURE.md §3 row 12**: `payment_mandate (NEW) | 1 | Gemini 3.1 Flash-Lite | ap2.compose_intent_mandate, gate.approveOutreachSend | Session | mandate_validity`.
 - **v2 reference**: New agent — no v2 predecessor. Slots into v2's `gate.approveOutreachSend` policy (`packages/contracts/src/policy.ts:40`).
 
 ## 2. JSON Schema (input/output)
@@ -198,7 +198,7 @@ sequenceDiagram
   participant MC as Mission Control inbox
 
   WF->>AG: POST /agents/payment-mandate:invoke (kind=creator_rate, amount, rationaleSeed)
-  AG->>PM: invoke (Gemini 2.5 Flash)
+  AG->>PM: invoke (Gemini 3.1 Flash-Lite)
   PM->>PM: Expand rationale (cite policy + ROI forecast)
   PM->>AP: compose(kind, amount, counterparty, rationale, forecast)
   AP->>KMS: sign(canonicalize(payload))

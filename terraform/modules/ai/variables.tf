@@ -81,7 +81,7 @@ variable "cmek_key_name" {
 # Model Garden / model defaults (D5)
 # -----------------------------------------------------------------------------
 variable "model_defaults" {
-  description = "Per-tier default model IDs (D5: 2.5 Pro / Flash / Flash-Lite as production baseline; 3.1 Pro Preview only for demo per D39 + AI-AGENTS.md §5)."
+  description = "Per-tier default model IDs (D53: gemini-3.5-flash for judgment+coordinator, gemini-3.1-flash-lite for bulk+classifier; 3.1 Pro Preview only for final demo recording per D39 + AI-AGENTS.md §5)."
   type = object({
     judgment   = string # outreach_writer, research, analyst, compliance, critic, optimizer
     bulk       = string # vetting (fan-out), logistics, intake, a11y, anomaly_watch, security_watch
@@ -89,9 +89,9 @@ variable "model_defaults" {
     demo       = string # 3.1 Pro Preview — only for final demo recording
   })
   default = {
-    judgment   = "gemini-2.5-pro"
-    bulk       = "gemini-2.5-flash"
-    classifier = "gemini-2.5-flash-lite"
+    judgment   = "gemini-3.5-flash"
+    bulk       = "gemini-3.1-flash-lite"
+    classifier = "gemini-3.1-flash-lite"
     demo       = "gemini-3.1-pro-preview-0428"
   }
 }
@@ -314,22 +314,22 @@ variable "pipelines" {
       enabled             = true
       template_gcs_path   = "gs://REPLACE_ME/pipelines/sft_v1.yaml"
       cron_schedule       = "0 4 * * 0" # weekly Sunday 04:00 UTC
-      description         = "D25: SFT — supervised fine-tuning Gemini 2.5 Flash on outreach golden set."
-      pipeline_parameters = { base_model = "gemini-2.5-flash" }
+      description         = "D25: SFT — supervised fine-tuning Gemini 3.1 Flash-Lite on outreach golden set."
+      pipeline_parameters = { base_model = "gemini-3.1-flash-lite" }
     }
     distillation = {
       enabled             = true
       template_gcs_path   = "gs://REPLACE_ME/pipelines/distill_pro_to_flash_v1.yaml"
       cron_schedule       = "0 5 * * 0"
       description         = "D25: Distillation — teach Flash from Pro tournament winners on outreach_writer."
-      pipeline_parameters = { teacher = "gemini-2.5-pro", student = "gemini-2.5-flash" }
+      pipeline_parameters = { teacher = "gemini-3.5-flash", student = "gemini-3.1-flash-lite" }
     }
     rlhf_on_simulation = {
       enabled             = true
       template_gcs_path   = "gs://REPLACE_ME/pipelines/rlhf_on_simulation_v1.yaml"
       cron_schedule       = "0 6 * * 0"
       description         = "D25: RLHF using Agent Simulation as preference-label oracle (no human labels)."
-      pipeline_parameters = { simulator = "vertex-agent-simulation", base_model = "gemini-2.5-pro" }
+      pipeline_parameters = { simulator = "vertex-agent-simulation", base_model = "gemini-3.5-flash" }
     }
   }
 }

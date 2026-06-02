@@ -4,8 +4,8 @@
 
 The **Intake agent** is a bounded conversational agent that assembles a `CampaignBrief` over ≤6 short exchanges with the operator. It replaces v1's 6-tab form. Each invocation is ONE deliberation step — the caller (`POST /api/campaigns/intake` SSE route) maintains conversation history and re-invokes after each user reply until `status === "done"`. Output is the validated `CampaignBrief` ready for the brand-campaign workflow.
 
-- **D-ID coverage**: D23 (Tier-1 agent #10), D5 (Gemini 2.5 Flash — short conversational turn), D26 (Mission Control surface; also Dialogflow CX surface), D34 (intake operates in operator's locale).
-- **ARCHITECTURE.md §3 row 10**: `intake | 1 | Gemini 2.5 Flash | forms.upsert | Session | task_completion`.
+- **D-ID coverage**: D23 (Tier-1 agent #10), D5 (Gemini 3.1 Flash-Lite — short conversational turn), D26 (Mission Control surface; also Dialogflow CX surface), D34 (intake operates in operator's locale).
+- **ARCHITECTURE.md §3 row 10**: `intake | 1 | Gemini 3.1 Flash-Lite | forms.upsert | Session | task_completion`.
 - **v2 reference**: `packages/agents/src/intake.agent.ts:23-57`. Discriminated-union output preserved.
 
 ## 2. JSON Schema (input/output)
@@ -142,7 +142,7 @@ sequenceDiagram
   Op->>MC: "Run a Korean skincare campaign with 20 creators"
   MC->>SR: POST { messages: [{user, "..."}] }
   SR->>AG: invoke (turn 1)
-  AG->>IT: invoke (Gemini 2.5 Flash)
+  AG->>IT: invoke (Gemini 3.1 Flash-Lite)
   IT-->>AG: { status: "asking", question: "What's the product name and category?" }
   AG-->>SR: stream
   SR-->>MC: SSE chunk

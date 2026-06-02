@@ -4,8 +4,8 @@
 
 The **Conversation Responder agent** drafts ONE reply on a creator thread when the classifier returned a turn that needs one (`interested` / `needs_info`). It cites the same `OutreachFacts` the original writer cited, runs `outreach.judge[deliverability]` as a self-check, and returns `{subject, body, deliverabilityScore}` — never sends. Sending is a downstream workflow step after compliance (#13) + payment_mandate (#12) + `approveReplyResponse` gate.
 
-- **D-ID coverage**: D23 (Tier-1 agent #5), D5 (Gemini 2.5 Pro for creative judgment), D10 (Gmail test path), D27 (drafted reply may carry AP2 Intent Mandate disclosure when rate proposed).
-- **ARCHITECTURE.md §3 row 5**: `conversation_responder | 1 | Gemini 2.5 Pro | templates.list, outreach.render | Memory Bank | response_match_v2`.
+- **D-ID coverage**: D23 (Tier-1 agent #5), D5 (Gemini 3.5 Flash for creative judgment), D10 (Gmail test path), D27 (drafted reply may carry AP2 Intent Mandate disclosure when rate proposed).
+- **ARCHITECTURE.md §3 row 5**: `conversation_responder | 1 | Gemini 3.5 Flash | templates.list, outreach.render | Memory Bank | response_match_v2`.
 - **v2 reference**: `packages/agents/src/conversation-responder.agent.ts:28-119`. Cap $0.25→$1.0 escalation lesson preserved.
 
 ## 2. JSON Schema (input/output)
@@ -142,7 +142,7 @@ sequenceDiagram
 
   CV-->>WF: ConversationTurn (classification="interested", extracted.shippingAddress=…)
   WF->>AG: POST /agents/conversation-responder:invoke (turn + facts + threadHistory)
-  AG->>CR: invoke (Gemini 2.5 Pro)
+  AG->>CR: invoke (Gemini 3.5 Flash)
   CR->>CR: Decide reply intent (confirm receipt + shipping ETA)
   CR->>CR: Draft subject + body (use creator nickname, cite 1 fact)
   CR->>JU: judge(deliverability, draft, facts)
@@ -169,7 +169,7 @@ sequenceDiagram
 | `outreach.render` | template engine | Variable fill |
 | `outreach.judge` | deterministic | Self-check `deliverability` score |
 
-**USD cap**: $1.00 per invocation (Gemini 2.5 Pro tool loop, 4-6 turns observed). Mirrors v2's $0.25→$1.00 raise.
+**USD cap**: $1.00 per invocation (Gemini 3.5 Flash tool loop, 4-6 turns observed). Mirrors v2's $0.25→$1.00 raise.
 
 **Escalation conditions**:
 - `deliverabilityScore < 0.5` after 2 revisions.

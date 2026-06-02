@@ -4,8 +4,8 @@
 
 The **Customer Success agent** watches per-customer onboarding + activation signals and proposes interventions (in-app prompt, email, white-glove call). Inputs: funnel metrics from BigQuery, recent campaign outcomes, support-ticket signals, billing posture. Outputs: ranked intervention candidates with rationale + auto-executable plan when within autonomy bounds. Strictly proposes — sending the intervention requires `approveStageAdvance` or human OK.
 
-- **D-ID coverage**: D23 (NEW Tier-1 agent #16), D5 (Gemini 2.5 Pro), D28 ($0.01/view pricing — agent watches usage curves), D32 (intervention-as-runbook on Cloud Workflows), D26 (Mission Control surfaces proposed interventions).
-- **ARCHITECTURE.md §3 row 16**: `customer_success (NEW) | 1 | Gemini 2.5 Pro | analytics.funnel, intervention.propose | Memory Bank (per-customer) | activation_lift`.
+- **D-ID coverage**: D23 (NEW Tier-1 agent #16), D5 (Gemini 3.5 Flash), D28 ($0.01/view pricing — agent watches usage curves), D32 (intervention-as-runbook on Cloud Workflows), D26 (Mission Control surfaces proposed interventions).
+- **ARCHITECTURE.md §3 row 16**: `customer_success (NEW) | 1 | Gemini 3.5 Flash | analytics.funnel, intervention.propose | Memory Bank (per-customer) | activation_lift`.
 - **v2 reference**: New agent — no v2 predecessor. Reads `v2_campaigns`, `v2_cost_ledger`, `v2_audit_events`.
 
 ## 2. JSON Schema (input/output)
@@ -188,7 +188,7 @@ sequenceDiagram
   BQ-->>AF: rows
   AF-->>WF: campaignSummaries[]
   WF->>AG: POST /agents/customer-success:invoke
-  AG->>CS: invoke (Gemini 2.5 Pro)
+  AG->>CS: invoke (Gemini 3.5 Flash)
   CS->>MB: read prior interventions + outcomes
   MB-->>CS: history
   CS->>CS: Detect signals (10-class enum)
@@ -217,7 +217,7 @@ sequenceDiagram
 | `billing.query` | BigQuery | Payment posture |
 | `support.list_tickets` | Zendesk / GCP CRM | Recent support volume signal |
 
-**USD cap**: $0.50 per invocation. Gemini 2.5 Pro with structured reasoning over multi-source signals.
+**USD cap**: $0.50 per invocation. Gemini 3.5 Flash with structured reasoning over multi-source signals.
 
 **Escalation conditions**:
 - `campaignSummaries` empty AND `windowDays >= 14` (new workspace; not enough signal).

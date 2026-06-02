@@ -5,7 +5,7 @@
 The **Compliance agent** is the pre-send gate that checks every outbound message against legal/regulatory requirements before it reaches `gmail.send`. Day-1 scope (D22): **PIPA Article 23/24** (Korean consent, sensitive data), **CAN-SPAM** (unsubscribe link, physical address, no deceptive subject), and **DLP inspect** (no PII leak in body to wrong recipient). It does NOT decide a message's content quality — that's the writer + critic. It decides whether the message is **legally safe to send today**.
 
 - **D-ID coverage**: D23 (NEW Tier-1 agent #13), D22 (PIPA + Marketplace minimal day-1; SOC2/GDPR deferred), D20 (DLP inspect templates), D21 (Model Armor PII block as upstream defense), D33 (90d audit retention of compliance decisions).
-- **ARCHITECTURE.md §3 row 13**: `compliance (NEW) | 1 | Gemini 2.5 Pro | pipa.check_consent, canspam.check_unsubscribe, dlp.inspect | Memory Bank | precision (no false-clear)`.
+- **ARCHITECTURE.md §3 row 13**: `compliance (NEW) | 1 | Gemini 3.5 Flash | pipa.check_consent, canspam.check_unsubscribe, dlp.inspect | Memory Bank | precision (no false-clear)`.
 - **v2 reference**: New agent — no v2 predecessor. Mounted between writer (#3/#11) and `gmail.send`.
 
 ## 2. JSON Schema (input/output)
@@ -186,7 +186,7 @@ sequenceDiagram
   participant PS as Pub/Sub
 
   WF->>AG: POST /agents/compliance:invoke (draft + recipient + region=KR)
-  AG->>CP: invoke (Gemini 2.5 Pro)
+  AG->>CP: invoke (Gemini 3.5 Flash)
   CP->>MB: read prior decisions for this recipient
   MB-->>CP: prior consent + opt-out history
   par 3 deterministic checks in parallel
@@ -214,7 +214,7 @@ sequenceDiagram
 | `dlp.inspect` | Sensitive Data Protection (SDP) | PII detection (SSN, RRN, card, email-other-than-recipient) |
 | `vault.read_consent_log` | Spanner | Prior consent / opt-out for recipient |
 
-**USD cap**: $0.15 per check. Gemini 2.5 Pro is for the reasoning step over deterministic-tool outputs — most of the work is the tool layer.
+**USD cap**: $0.15 per check. Gemini 3.5 Flash is for the reasoning step over deterministic-tool outputs — most of the work is the tool layer.
 
 **Escalation conditions**:
 - `region="EU"` (GDPR scope — D22 deferred); agent escalates `gdpr_out_of_scope`.
