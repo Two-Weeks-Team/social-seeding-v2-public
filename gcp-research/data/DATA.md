@@ -258,7 +258,7 @@ import bigframes.ml.llm as llm
 bpd.options.bigquery.project = "my-project"
 df = bpd.read_gbq("proj.rag.docs")
 
-gem = llm.GeminiTextGenerator(model_name="gemini-2.5-flash")
+gem = llm.GeminiTextGenerator(model_name="gemini-3.1-flash-lite")
 df["summary"] = gem.predict(df["body"])
 df.to_gbq("proj.rag.docs_summary", if_exists="replace")
 ```

@@ -276,9 +276,9 @@ One technical lesson, one product lesson. The product lesson is what separates a
 ### Built With
 Tag every GCP service used. Verbatim:
 
-**v2 / Track 2:** `vertex-ai`, `agent-engine`, `agent-development-kit`, `gemini-2.5-pro`, `gemini-2.5-flash`, `cloud-run`, `firebase-app-hosting`, `model-armor`, `agent-gateway`, `memorystore`, `vertex-vector-search`, `cloud-build`, `secret-manager`, `cloud-logging`, plus non-GCP: `nextjs`, `inngest`, `mongodb-atlas`, `typescript`, `zod`, `vitest`.
+**v2 / Track 2:** `vertex-ai`, `agent-engine`, `agent-development-kit`, `gemini-3.5-flash`, `gemini-3.1-flash-lite`, `cloud-run`, `firebase-app-hosting`, `model-armor`, `agent-gateway`, `memorystore`, `vertex-vector-search`, `cloud-build`, `secret-manager`, `cloud-logging`, plus non-GCP: `nextjs`, `inngest`, `mongodb-atlas`, `typescript`, `zod`, `vitest`.
 
-**mcp / Track 3:** `cloud-run`, `agent-engine`, `agent-development-kit`, `gemini-2.5-flash`, `model-armor`, `agent-gateway`, `identity-platform`, `cloud-marketplace`, `gemini-enterprise`, `cloud-armor`, `secret-manager`, plus: `model-context-protocol`, `go`, `python`, `fiber`, `fastapi`.
+**mcp / Track 3:** `cloud-run`, `agent-engine`, `agent-development-kit`, `gemini-3.1-flash-lite`, `model-armor`, `agent-gateway`, `identity-platform`, `cloud-marketplace`, `gemini-enterprise`, `cloud-armor`, `secret-manager`, plus: `model-context-protocol`, `go`, `python`, `fiber`, `fastapi`.
 
 ---
 
