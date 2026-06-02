@@ -4,8 +4,8 @@
 
 The **Outreach Writer agent** drafts ONE grounded, personalized email per creator. It uses the 5-angle × 4-judge tournament from v1's `lib/cold-mail` (pain_killer / aspirational / peer_proof / data_specific / contrarian_hook), cites ONLY closed-set facts produced by `outreach.extract_facts`, and returns the weighted winner with judge scorecards attached. The drafted message NEVER fires through `gmail.send` directly — the compliance + payment_mandate gates plus `approveOutreachSend` (policy.ts:40) sit between writer and send.
 
-- **D-ID coverage**: D23 (Tier-1 agent #3), D5 (Gemini 2.5 Pro for judgment), D10 (Gmail test-account-only in demo), D21 (Model Armor blocks PII/competitor names in draft text), D27 (writer output feeds the AP2 Intent Mandate composer).
-- **ARCHITECTURE.md §3 row 3**: `outreach_writer | 1 | Gemini 2.5 Pro tournament | templates.list, outreach.extract_facts, outreach.render, outreach.judge | Memory Bank (style adapt) | response_match_v2 + spam_score`.
+- **D-ID coverage**: D23 (Tier-1 agent #3), D5 (Gemini 3.5 Flash for judgment), D10 (Gmail test-account-only in demo), D21 (Model Armor blocks PII/competitor names in draft text), D27 (writer output feeds the AP2 Intent Mandate composer).
+- **ARCHITECTURE.md §3 row 3**: `outreach_writer | 1 | Gemini 3.5 Flash tournament | templates.list, outreach.extract_facts, outreach.render, outreach.judge | Memory Bank (style adapt) | response_match_v2 + spam_score`.
 - **v2 reference**: `packages/agents/src/outreach-writer.agent.ts:34-133`. Carries `JUDGE_WEIGHTS` from `packages/contracts/src/outreach.ts:74-79` verbatim so v1↔v2 A/B comparisons stay calibrated.
 
 ## 2. JSON Schema (input/output)
@@ -264,7 +264,7 @@ sequenceDiagram
 | `outreach.render` | template engine | Mustache-style variable fill |
 | `outreach.judge` | deterministic | 4 judges (brand / conversion / deliverability / skeptic) |
 
-**USD cap**: $1.50 per invocation (Gemini 2.5 Pro; revise pass included). v2 lesson: `outreach-writer.agent.ts:55` documents the $0.80→$1.50 raise after live demos.
+**USD cap**: $1.50 per invocation (Gemini 3.5 Flash; revise pass included). v2 lesson: `outreach-writer.agent.ts:55` documents the $0.80→$1.50 raise after live demos.
 
 **Escalation conditions**:
 - `facts.hasMinimumContext === false`.

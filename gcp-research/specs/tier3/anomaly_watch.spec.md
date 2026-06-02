@@ -5,7 +5,7 @@
 The **Anomaly Watch agent (W1)** subscribes to Agent Observability + Agent Anomaly Detection signals and triggers Cloud Workflows auto-runbooks on detection. Watches: token explosions, latency spikes, error-rate spikes, escalation storms, and cross-agent reasoning anomalies. Decides severity (info/warn/page) and which runbook to invoke (e.g., flip canary back to 100% baseline, throttle a tenant, page the on-call CSM).
 
 - **D-ID coverage**: D23 (Tier-3 W1), D32 (auto-runbook via Cloud Workflows, PagerDuty, Slack, Chronicle SIEM), D37 (Agent Anomaly Detection feeds chaos test results), D31 (99.99% availability — fast mean-time-to-detect is the lever).
-- **ARCHITECTURE.md §3 row 20**: `anomaly_watch (W1) | 3 | Gemini 2.5 Flash | metrics.query, runbook.execute | None | precision (alert vs false)`.
+- **ARCHITECTURE.md §3 row 20**: `anomaly_watch (W1) | 3 | Gemini 3.1 Flash-Lite | metrics.query, runbook.execute | None | precision (alert vs false)`.
 - **v2 reference**: No v2 predecessor; v2 only had cost-recording (`packages/observability/src/recordCost`).
 
 ## 2. JSON Schema (input/output)
@@ -119,7 +119,7 @@ sequenceDiagram
   participant PS as Pub/Sub
   participant WF as Cloud Workflows (anomaly-handler)
   participant AG as Agent Gateway
-  participant AW as anomaly-watch agent (Gemini 2.5 Flash)
+  participant AW as anomaly-watch agent (Gemini 3.1 Flash-Lite)
   participant MQ as metrics.query (Cloud Monitoring)
   participant RB as runbook.execute (Cloud Workflows)
   participant PD as PagerDuty

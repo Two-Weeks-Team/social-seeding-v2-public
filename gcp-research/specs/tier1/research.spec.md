@@ -4,8 +4,8 @@
 
 The **Research agent** turns a Lead's enrichment (Modal+Kimi output via `crm.enrich`) plus the operator's `LeadCampaignBrief` into a *pitch-specific* research summary: `{pitch, angles[], groundedFacts[], contactProfile, confidence}`. Used by lead-campaigns (B2B sister loop) to feed the `lead_outreach_writer` (agent #11). Centralizes "what's the angle" reasoning so the writer stays pure.
 
-- **D-ID coverage**: D23 (Tier-1 agent #9), D5 (Gemini 2.5 Pro), D11 (lead loop is part of v2 day-1 scope), D16 (vector_search.competitor for cross-brand RAG), D21 (web.search results scanned by Model Armor before reaching agent).
-- **ARCHITECTURE.md §3 row 9**: `research | 1 | Gemini 2.5 Pro | web.search (Google grounding), vector_search.competitor | Memory Bank | hallucinations_v1`.
+- **D-ID coverage**: D23 (Tier-1 agent #9), D5 (Gemini 3.5 Flash), D11 (lead loop is part of v2 day-1 scope), D16 (vector_search.competitor for cross-brand RAG), D21 (web.search results scanned by Model Armor before reaching agent).
+- **ARCHITECTURE.md §3 row 9**: `research | 1 | Gemini 3.5 Flash | web.search (Google grounding), vector_search.competitor | Memory Bank | hallucinations_v1`.
 - **v2 reference**: `packages/agents/src/research.agent.ts:64-146`. ARCHITECTURE.md adds Google-grounded web search vs v2's text-only path — for live web facts.
 
 ## 2. JSON Schema (input/output)
@@ -200,7 +200,7 @@ sequenceDiagram
   CE-->>WF: LeadEnrichment
   WF->>AG: POST /agents/research:invoke (brief + enrichment + lead)
   AG->>AG: Model Armor input scan (enrichment.analysis text D21)
-  AG->>RE: invoke (Gemini 2.5 Pro)
+  AG->>RE: invoke (Gemini 3.5 Flash)
   RE->>MB: read prior pitch outcomes for this workspace
   MB-->>RE: prior_winners[]
   opt allowWebSearch && enrichment thin

@@ -5,7 +5,7 @@
 The **Coordinator agent (M1)** routes a high-level task to the right Tier-1 agent OR an A2A remote agent. It is the canonical "1→100" pattern from D24: rather than hard-coding which workflow step invokes which agent, the coordinator inspects the task envelope (kind, signals, current track state) and selects. Plumbs in Agent Registry to discover remotely-listed agents (Track 3's `tiktok-mcp-server` is the first example).
 
 - **D-ID coverage**: D23 (Tier-2 M1), D24 (phased coordination: in-process for 0→1, RemoteA2AAgent for 1→100), D17 (Vertex AI Agent Runtime), D38 (PM-style hierarchy: M3 PM / leads / workers).
-- **ARCHITECTURE.md §3 row 17**: `coordinator (M1) | 2 | Gemini 2.5 Flash | agent_registry.list, a2a.invoke | Session | routing_accuracy`.
+- **ARCHITECTURE.md §3 row 17**: `coordinator (M1) | 2 | Gemini 3.1 Flash-Lite | agent_registry.list, a2a.invoke | Session | routing_accuracy`.
 - **v2 reference**: No v2 predecessor — this is the agent that earns the "1→100" point.
 
 ## 2. JSON Schema (input/output)
@@ -138,7 +138,7 @@ operations:
 sequenceDiagram
   participant WF as Cloud Workflows
   participant AG as Agent Gateway
-  participant CO as coordinator (M1, Gemini 2.5 Flash)
+  participant CO as coordinator (M1, Gemini 3.1 Flash-Lite)
   participant RG as agent_registry.list
   participant SO as sourcing agent (#1)
   participant TR as tiktok-mcp-server (Track 3, remote A2A)

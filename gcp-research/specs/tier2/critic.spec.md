@@ -5,7 +5,7 @@
 The **Critic agent (M2)** is the LLM-as-judge that scores every Tier-1 agent's output before it crosses a human-approval gate. It does NOT replace deterministic judges (`outreach.judge[brand|conversion|deliverability|skeptic]`) — those run inside the writer. The critic runs at the **task seam**: did the writer's output meet the brief, or should this be re-run / escalated? Inputs the candidate output + the original task context; emits `{accept|revise|escalate}` with rationale + the gate to use.
 
 - **D-ID coverage**: D23 (Tier-2 M2), D25 (Vertex Agent Evaluation feeds critic's golden bench), D38 (M2 is the "review" lead in M3-PM hierarchy).
-- **ARCHITECTURE.md §3 row 18**: `critic (M2) | 2 | Gemini 2.5 Pro | evaluation.score, gate.escalate | None | judge_agreement_v_human`.
+- **ARCHITECTURE.md §3 row 18**: `critic (M2) | 2 | Gemini 3.5 Flash | evaluation.score, gate.escalate | None | judge_agreement_v_human`.
 - **v2 reference**: No v2 predecessor (v2 had per-writer judges only).
 
 ## 2. JSON Schema (input/output)
@@ -123,7 +123,7 @@ sequenceDiagram
   participant WF as Cloud Workflows
   participant OW as outreach-writer (#3, Tier-1)
   participant AG as Agent Gateway
-  participant CR as critic (M2, Gemini 2.5 Pro)
+  participant CR as critic (M2, Gemini 3.5 Flash)
   participant EV as evaluation.score
   participant GA as gate.escalate
   participant PS as Pub/Sub

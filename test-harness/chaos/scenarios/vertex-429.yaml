@@ -10,14 +10,14 @@ executor: native_gcp
 tags: [per_pr, nightly, canary]
 
 description: |
-  Hit per-region Gemini 2.5 Pro quota during a vetting fan-out. Validates
+  Hit per-region Gemini 3.5 Flash quota during a vetting fan-out. Validates
   fallback to Flash with eval-score tolerance, exponential backoff, and
   circuit-breaker open on 5 consecutive 429s.
 
 trigger:
   type: synthetic_load
   config:
-    target_model: gemini-2.5-pro
+    target_model: gemini-3.5-flash
     target_region: us-central1
     request_rate_rpm: 1500    # well above prod quota (300/min default)
     duration_min: 5

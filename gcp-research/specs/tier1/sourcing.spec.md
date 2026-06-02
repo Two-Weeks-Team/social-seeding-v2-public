@@ -5,7 +5,7 @@
 The **Sourcing agent** turns a `CampaignBrief` (operator intent) into a ranked list of TikTok creator candidates with per-pick match reasons. It plans 2-4 distinct queries across the brief's hashtag space, unions results, drops the workspace's PERMANENT blacklist, and proposes — never decides — the shortlist (the `approveShortlist` gate decides; see policy.ts:38).
 
 - **D-ID coverage**: D23 (Tier-1 inherited from v2 — agent #1), D11 (influencer-campaign domain), D14 (RapidAPI sourcing path; Instagram queued), D17 (Vertex AI Agent Runtime), D24 (Tier-1 in-process for 0→1; RemoteA2AAgent for 1→100).
-- **ARCHITECTURE.md §3 row 1**: `sourcing | 1 | Gemini 2.5 Pro | rapidapi.tiktok_search, rapidapi.instagram_search, blacklist.check, vector_search.creator | Session + Memory Bank | trajectory + coverage`.
+- **ARCHITECTURE.md §3 row 1**: `sourcing | 1 | Gemini 3.5 Flash | rapidapi.tiktok_search, rapidapi.instagram_search, blacklist.check, vector_search.creator | Session + Memory Bank | trajectory + coverage`.
 - **v2 reference**: `packages/agents/src/sourcing.agent.ts:16-69` (existing 11-agent fleet — mirrored here, then re-targeted at GCP).
 
 ## 2. JSON Schema (input/output)
@@ -254,7 +254,7 @@ sequenceDiagram
 | `blacklist.check` | DB read (Spanner) | Filter PERMANENT entries |
 | `vector_search.creator` | Vertex AI Vector Search (D16) | Semantic creator-fit via brand embedding |
 
-**USD cap**: $2.50 per invocation (Gemini 2.5 Pro tournament-style loop with 2-4 search calls). Carries the live-demo lesson cited in v2 sourcing.agent.ts:25 — raised from $1.50 to $2.50 after Opus loops hit the cap.
+**USD cap**: $2.50 per invocation (Gemini 3.5 Flash tournament-style loop with 2-4 search calls). Carries the live-demo lesson cited in v2 sourcing.agent.ts:25 — raised from $1.50 to $2.50 after Opus loops hit the cap.
 
 **Escalation conditions**:
 - Zero results across ALL queries (every search returned 0 creators).

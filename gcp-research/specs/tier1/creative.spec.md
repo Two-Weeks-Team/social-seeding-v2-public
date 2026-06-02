@@ -2,10 +2,10 @@
 
 ## 1. Purpose + ARCHITECTURE.md citation
 
-The **Creative agent** turns a brand brief into a moodboard + shot list + sample video that the operator (and the seeded creator) can use as a starting point. Multi-modal: Gemini 2.5 Pro for direction + script, **Imagen 4** for moodboard stills, **Veo 3** for sample video (≤ 8 sec), **Lyria** for background audio sting. Output assets land in Cloud Storage with audit metadata.
+The **Creative agent** turns a brand brief into a moodboard + shot list + sample video that the operator (and the seeded creator) can use as a starting point. Multi-modal: Gemini 3.5 Flash for direction + script, **Imagen 4** for moodboard stills, **Veo 3** for sample video (≤ 8 sec), **Lyria** for background audio sting. Output assets land in Cloud Storage with audit metadata.
 
-- **D-ID coverage**: D23 (NEW Tier-1 agent #14), D5 (Gemini 2.5 Pro orchestration), D29 (Multimodal + AP2 + Multi-agent — primary differentiator), D33 (assets retention via Cloud Storage lifecycle), D39 ($1500 credits unlock Veo 3 + Imagen 4 for demo).
-- **ARCHITECTURE.md §3 row 14**: `creative (NEW) | 1 | Gemini 2.5 Pro + Imagen 4 + Veo 3 | imagen.generate, veo.generate, lyria.generate, assets.upload | Memory Bank (brand) | safety_v1 + brand_consistency`.
+- **D-ID coverage**: D23 (NEW Tier-1 agent #14), D5 (Gemini 3.5 Flash orchestration), D29 (Multimodal + AP2 + Multi-agent — primary differentiator), D33 (assets retention via Cloud Storage lifecycle), D39 ($1500 credits unlock Veo 3 + Imagen 4 for demo).
+- **ARCHITECTURE.md §3 row 14**: `creative (NEW) | 1 | Gemini 3.5 Flash + Imagen 4 + Veo 3 | imagen.generate, veo.generate, lyria.generate, assets.upload | Memory Bank (brand) | safety_v1 + brand_consistency`.
 - **v2 reference**: New agent — no v2 predecessor. Slots into stage 1 (overview) optionally + content_review (#7) as reference for matching.
 
 ## 2. JSON Schema (input/output)
@@ -174,7 +174,7 @@ operations:
 sequenceDiagram
   participant WF as Cloud Workflows
   participant AG as Agent Gateway + Model Armor
-  participant CR as creative agent (Gemini 2.5 Pro)
+  participant CR as creative agent (Gemini 3.5 Flash)
   participant IM as imagen.generate (Imagen 4)
   participant VE as veo.generate (Veo 3)
   participant LY as lyria.generate
@@ -184,7 +184,7 @@ sequenceDiagram
   participant PS as Pub/Sub
 
   WF->>AG: POST /agents/creative:invoke (brief + assetsRequested)
-  AG->>CR: invoke (Gemini 2.5 Pro)
+  AG->>CR: invoke (Gemini 3.5 Flash)
   CR->>CR: Write creativeDirection (mood / palette / tone)
   CR->>CR: Generate shotList[] (3-10 items, ≤30 sec total)
   par parallel asset generation (GKE Autopilot GPU per ARCHITECTURE §2)

@@ -4,8 +4,8 @@
 
 The **Conversation agent** is the cheap, JSON-strict classifier that runs on every inbound creator reply. It picks ONE of 8 categories (`interested / needs_info / negotiating / not_now / declined / out_of_office / unsubscribe / unrelated`) and extracts the 3 structured signals the workflow branches on (shipping address, proposed rate USD, the literal question asked). It NEVER drafts — drafting is the conversation_responder agent (#5).
 
-- **D-ID coverage**: D23 (Tier-1 agent #4), D5 (Gemini 2.5 Flash-Lite — the cheapest production tier), D10 (Gmail demo path), D21 (Model Armor PI/JB scan on inbound body text).
-- **ARCHITECTURE.md §3 row 4**: `conversation | 1 | Gemini 2.5 Flash-Lite | nlp.classify_intent | Session | classification_f1`.
+- **D-ID coverage**: D23 (Tier-1 agent #4), D5 (Gemini 3.1 Flash-Lite — the cheapest production tier), D10 (Gmail demo path), D21 (Model Armor PI/JB scan on inbound body text).
+- **ARCHITECTURE.md §3 row 4**: `conversation | 1 | Gemini 3.1 Flash-Lite | nlp.classify_intent | Session | classification_f1`.
 - **v2 reference**: `packages/agents/src/conversation.agent.ts:30-118`. Split rationale (`classifier cheap + JSON-strict on Flash-Lite, responder creative on Pro`) preserved verbatim.
 
 ## 2. JSON Schema (input/output)
@@ -186,7 +186,7 @@ sequenceDiagram
   WH->>WF: publish gmail.reply.received
   WF->>AG: POST /agents/conversation:invoke
   AG->>AG: Model Armor input scan (PI/JB, prompt-injection regex D21)
-  AG->>CV: invoke (Gemini 2.5 Flash-Lite)
+  AG->>CV: invoke (Gemini 3.1 Flash-Lite)
   CV->>CV: Classify (8-way) + extract address/rate/question
   CV-->>AG: ConversationTurn (classification="interested", extracted.shippingAddress="서울시...")
   AG-->>WF: 200 OK

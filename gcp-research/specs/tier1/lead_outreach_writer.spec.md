@@ -4,8 +4,8 @@
 
 The **Lead Outreach Writer agent** is the B2B sibling of the brand-side outreach writer (agent #3). It drafts ONE cold-sales email from the `LeadCampaignBrief` plus the lead's `LeadResearch` (output of the research agent #9). Same `OutreachDraft` output shape so downstream gates / `gmail.send` / conversation classifier read uniformly. Tone leans sales: "pitching SaaS to a business decision-maker" — not "inviting a creator to a free sample."
 
-- **D-ID coverage**: D23 (Tier-1 agent #11), D5 (Gemini 2.5 Pro), D10 (Gmail test-only path), D11 (lead loop in v2 day-1 scope), D27 (lead-outreach feeds payment_mandate when sales-priced tier).
-- **ARCHITECTURE.md §3 row 11**: `lead_outreach_writer | 1 | Gemini 2.5 Pro | templates.list, outreach.render, crm.enrich | Memory Bank | response_match_v2`.
+- **D-ID coverage**: D23 (Tier-1 agent #11), D5 (Gemini 3.5 Flash), D10 (Gmail test-only path), D11 (lead loop in v2 day-1 scope), D27 (lead-outreach feeds payment_mandate when sales-priced tier).
+- **ARCHITECTURE.md §3 row 11**: `lead_outreach_writer | 1 | Gemini 3.5 Flash | templates.list, outreach.render, crm.enrich | Memory Bank | response_match_v2`.
 - **v2 reference**: `packages/agents/src/lead-outreach-writer.agent.ts:35-114`. Cap $1.20 preserved.
 
 ## 2. JSON Schema (input/output)
@@ -137,7 +137,7 @@ sequenceDiagram
 
   WF->>AG: POST /agents/lead-outreach-writer:invoke (brief + research + lead)
   AG->>AG: Model Armor input scan (research.groundedFacts D21)
-  AG->>LW: invoke (Gemini 2.5 Pro)
+  AG->>LW: invoke (Gemini 3.5 Flash)
   LW->>MB: read workspace sales-voice memory
   MB-->>LW: tone exemplars + banned phrases
   LW->>LW: Pick angle (from research.angles)

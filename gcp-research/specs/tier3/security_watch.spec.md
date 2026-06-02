@@ -2,10 +2,10 @@
 
 ## 1. Purpose + ARCHITECTURE.md citation
 
-The **Security Watch agent (W3)** subscribes to Model Armor block events and Chronicle SecOps alerts, decides severity (info/warn/page/quarantine) and — at threshold — quarantines the offending tenant (Identity Platform tenant suspended for agent invocations until cleared by the on-call). Gemini 2.5 Flash for the rationale step over deterministic signals; the action layer is rule-based + KMS-signed.
+The **Security Watch agent (W3)** subscribes to Model Armor block events and Chronicle SecOps alerts, decides severity (info/warn/page/quarantine) and — at threshold — quarantines the offending tenant (Identity Platform tenant suspended for agent invocations until cleared by the on-call). Gemini 3.1 Flash-Lite for the rationale step over deterministic signals; the action layer is rule-based + KMS-signed.
 
 - **D-ID coverage**: D23 (Tier-3 W3), D21 (Model Armor max policy — input signals), D32 (Chronicle SecOps SIEM), D20 (CMEK + Secret Manager — quarantine flips tenant key access).
-- **ARCHITECTURE.md §3 row 22**: `security_watch (W3) | 3 | Gemini 2.5 Flash | model_armor.query_blocks, chronicle.query, tenant.quarantine | None | TTR (time to remediate)`.
+- **ARCHITECTURE.md §3 row 22**: `security_watch (W3) | 3 | Gemini 3.1 Flash-Lite | model_armor.query_blocks, chronicle.query, tenant.quarantine | None | TTR (time to remediate)`.
 - **v2 reference**: No v2 predecessor; v2 had no security agents.
 
 ## 2. JSON Schema (input/output)
@@ -161,7 +161,7 @@ sequenceDiagram
   participant PS as Pub/Sub
   participant WF as Cloud Workflows (security-handler)
   participant AG as Agent Gateway
-  participant SW as security-watch agent (Gemini 2.5 Flash)
+  participant SW as security-watch agent (Gemini 3.1 Flash-Lite)
   participant MQ as model_armor.query_blocks
   participant CQ as chronicle.query
   participant TQ as tenant.quarantine

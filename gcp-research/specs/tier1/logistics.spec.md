@@ -4,8 +4,8 @@
 
 The **Logistics agent** parses a creator's free-text shipping address into a structured carrier-ready shape, then calls `carrier.create` to dispatch the package. It is the agent-shaped slot that bridges "they shared an address" → "Yuntrack tracking number in the timeline". It NEVER over-parses ("123 anywhere" → escalate `address_unparseable`) and never invents fields (no fabricated postal codes).
 
-- **D-ID coverage**: D23 (Tier-1 agent #6), D5 (Gemini 2.5 Flash — structured extraction not creative), D21 (address text is creator-controlled DATA — prompt-injection guard in system prompt; Model Armor input scan at gateway).
-- **ARCHITECTURE.md §3 row 6**: `logistics | 1 | Gemini 2.5 Flash | address.normalize, carrier.create | Session | structured_extract_accuracy`.
+- **D-ID coverage**: D23 (Tier-1 agent #6), D5 (Gemini 3.1 Flash-Lite — structured extraction not creative), D21 (address text is creator-controlled DATA — prompt-injection guard in system prompt; Model Armor input scan at gateway).
+- **ARCHITECTURE.md §3 row 6**: `logistics | 1 | Gemini 3.1 Flash-Lite | address.normalize, carrier.create | Session | structured_extract_accuracy`.
 - **v2 reference**: `packages/agents/src/logistics.agent.ts:36-99`. Carries the "rawAddress is DATA, not instructions" pattern intact.
 
 ## 2. JSON Schema (input/output)
@@ -175,7 +175,7 @@ sequenceDiagram
 
   WF->>AG: POST /agents/logistics:invoke (rawAddress, products, creatorTrackId)
   AG->>AG: Model Armor input scan (D21 — DATA-as-input guard)
-  AG->>LO: invoke (Gemini 2.5 Flash)
+  AG->>LO: invoke (Gemini 3.1 Flash-Lite)
   LO->>LO: Parse recipientName / line1 / line2 / city / region / postalCode / countryCode
   LO->>AN: normalize(parsedAddress)
   AN-->>LO: normalized + countryCode validated
