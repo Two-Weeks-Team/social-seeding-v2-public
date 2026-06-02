@@ -2,64 +2,65 @@ import { type ButtonHTMLAttributes, forwardRef } from "react";
 import { cn } from "@/lib/cn";
 
 /**
- * Minimal button. 3 visual variants:
- *   primary    — slate-900 fill (the workspace's main "go" action)
- *   secondary  — white surface with slate-200 border (the everyday)
- *   ghost      — text-only, hover background (compact / inline actions)
+ * Button — C2 (Champagne & Espresso). 3 variants:
+ *   primary    — espresso fill (the workspace's main "go" action), soft brand shadow
+ *   secondary  — ivory surface + hairline border (the everyday)
+ *   ghost      — text-only, hover fill (compact / inline actions)
  *
- * Plus a `tone` for the few moments we genuinely need amber / rose / emerald
- * intent (approve / reject / kill switch). Used sparingly.
+ * `tone` adds approve/reject/warn intent (used sparingly), `size` adjusts height.
  */
 type Variant = "primary" | "secondary" | "ghost";
 type Tone = "neutral" | "approve" | "reject" | "warn";
+type Size = "sm" | "md" | "lg";
 
-const SIZE = "h-8 px-3 text-[13px]";
+const SIZE: Record<Size, string> = {
+  sm: "h-7 px-2.5 text-[12px]",
+  md: "h-9 px-3.5 text-[13px]",
+  lg: "h-10 px-5 text-[14px]",
+};
 
 const VARIANT_BASE: Record<Variant, string> = {
-  primary: "bg-slate-900 text-white hover:bg-slate-800",
-  secondary: "bg-white text-slate-900 border border-slate-200 hover:bg-slate-50",
-  ghost: "bg-transparent text-slate-700 hover:bg-slate-100",
+  primary: "bg-brand text-white hover:bg-brand-2 shadow-brand",
+  secondary: "bg-surface text-ink border border-line hover:bg-surface-2",
+  ghost: "bg-transparent text-ink-2 hover:bg-surface-2",
 };
 
 const TONE_PRIMARY: Record<Tone, string> = {
   neutral: "",
-  approve: "bg-emerald-600 hover:bg-emerald-700",
-  reject: "bg-rose-600 hover:bg-rose-700",
-  warn: "bg-amber-500 hover:bg-amber-600",
+  approve: "bg-ok hover:bg-ok/90 shadow-none",
+  reject: "bg-stop hover:bg-stop/90 shadow-none",
+  warn: "bg-warn hover:bg-warn/90 shadow-none",
 };
 
 const TONE_SECONDARY: Record<Tone, string> = {
   neutral: "",
-  approve: "text-emerald-700 border-emerald-200 hover:bg-emerald-50",
-  reject: "text-rose-700 border-rose-200 hover:bg-rose-50",
-  warn: "text-amber-700 border-amber-200 hover:bg-amber-50",
+  approve: "text-ok border-ok/30 hover:bg-ok-bg",
+  reject: "text-stop border-stop/30 hover:bg-stop-bg",
+  warn: "text-warn border-warn/30 hover:bg-warn-bg",
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   tone?: Tone;
+  size?: Size;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = "secondary", tone = "neutral", className, ...rest },
+  { variant = "secondary", tone = "neutral", size = "md", className, ...rest },
   ref,
 ) {
-  const variantClass = VARIANT_BASE[variant];
   const toneClass =
     variant === "primary" ? TONE_PRIMARY[tone] : variant === "secondary" ? TONE_SECONDARY[tone] : "";
   return (
     <button
       ref={ref}
       className={cn(
-        "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors",
+        "inline-flex items-center justify-center gap-1.5 rounded-xl font-semibold transition-colors",
         "disabled:cursor-not-allowed disabled:opacity-50",
-        // A10 (P1 Sub-1.4) — WCAG 2.4.11 focus-not-obscured: ensure every
-        // button has a visible 2px ring on keyboard focus regardless of the
-        // variant's background. focus-visible:* keeps mouse-click outlines
-        // suppressed while keyboard nav gets a high-contrast indicator.
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-1",
-        SIZE,
-        variantClass,
+        // WCAG 2.4.11 — keyboard focus always shows a visible ring regardless of variant bg.
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ink focus-visible:ring-offset-2",
+        SIZE[size],
+        VARIANT_BASE[variant],
         toneClass,
         className,
       )}

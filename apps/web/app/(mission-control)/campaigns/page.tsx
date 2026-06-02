@@ -1,124 +1,147 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StatusTag } from "@/components/ui/status-tag";
+import { EmptyState } from "@/components/ui/empty-state";
+import { campaignStatus, stageWithNumber } from "@/lib/labels";
+import { fmtAgo } from "@/lib/format";
 import { getServerSession } from "@/lib/auth";
 import { campaignRepo, approvalRepo } from "@ss/db";
-import type { CampaignStage, CampaignStatusSchema } from "@ss/contracts";
-import { type z } from "zod";
 
 /**
- * W2 — Campaigns list. Server component. Reads campaignRepo.listByWorkspace +
- * approvalRepo for pending shortlist hints. The table is dense (matches the
- * mockup) — a single row carries status, stage, track count, budget, and last
- * activity. Click row → /campaigns/[id].
+ * W2 — Campaigns list (C2 redesign). Scannable card-rows (not a raw table):
+ * distinguishable name + subtitle, status tag, current stage, creator count,
+ * last activity. Search + status filter via query params (server-side, real).
+ * No raw camp_ hashes in the UI.
  */
 
-const STAGE_VARIANT: Record<CampaignStage, "violet" | "emerald" | "slate" | "amber"> = {
-  overview: "slate",
-  sourcing: "violet",
-  outreach: "emerald",
-  shipping: "emerald",
-  content_review: "emerald",
-  performance: "emerald",
-};
-
-const STATUS_VARIANT: Record<z.infer<typeof CampaignStatusSchema>, "blue" | "amber" | "slate" | "emerald" | "rose"> = {
-  draft: "slate",
-  running: "blue",
-  paused: "amber",
-  completed: "emerald",
-  cancelled: "rose",
-};
-
-function fmtAgo(when: Date): string {
-  const sec = Math.max(0, Math.floor((Date.now() - when.getTime()) / 1000));
-  if (sec < 60) return "방금 전";
-  if (sec < 3600) return `${Math.floor(sec / 60)}분 전`;
-  if (sec < 86400) return `${Math.floor(sec / 3600)}시간 전`;
-  return `${Math.floor(sec / 86400)}일 전`;
+function fmtDate(d: Date | string | number | undefined): string {
+  if (!d) return "";
+  const dt = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(dt.getTime())) return "";
+  return `${dt.getMonth() + 1}월 ${dt.getDate()}일 시작`;
 }
 
-export default async function CampaignsPage() {
+const FILTERS: { key: string; label: string }[] = [
+  { key: "all", label: "전체" },
+  { key: "running", label: "진행 중" },
+  { key: "completed", label: "완료" },
+  { key: "attention", label: "주의" },
+];
+
+export default async function CampaignsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ q?: string; status?: string }>;
+}) {
   const session = await getServerSession();
   if (!session) redirect("/sign-in");
 
-  const campaigns = await campaignRepo.listByWorkspace(session.workspaceId);
+  const sp = (await searchParams) ?? {};
+  const q = (sp.q ?? "").trim();
+  const filter = sp.status ?? "all";
 
-  // batch pending-approvals: one query per campaign would be expensive; just
-  // group the workspace-wide pending list locally
+  const all = await campaignRepo.listByWorkspace(session.workspaceId);
+
   const allPending = await approvalRepo.listPendingByWorkspace(session.workspaceId).catch(() => []);
   const pendingByCampaign = new Map<string, number>();
-  for (const a of allPending) {
-    pendingByCampaign.set(a.campaignId, (pendingByCampaign.get(a.campaignId) ?? 0) + 1);
-  }
+  for (const a of allPending) pendingByCampaign.set(a.campaignId, (pendingByCampaign.get(a.campaignId) ?? 0) + 1);
+
+  const campaigns = all.filter((c) => {
+    if (q && !c.brief.brandProduct.name.toLowerCase().includes(q.toLowerCase())) return false;
+    if (filter === "running") return c.status === "running";
+    if (filter === "completed") return c.status === "completed";
+    if (filter === "attention") return (pendingByCampaign.get(c.id) ?? 0) > 0 || c.status === "paused";
+    return true;
+  });
 
   return (
     <div className="max-w-6xl mx-auto px-8 py-8">
-      <header className="mb-6 flex items-end justify-between">
+      <header className="mb-5 flex items-start justify-between gap-5">
         <div>
-          <h1 className="text-[22px] font-semibold">캠페인</h1>
-          <p className="mt-1 text-[13px] text-slate-500">에이전트가 운영 중인 캠페인. 행을 클릭하면 활동 타임라인이 열립니다.</p>
+          <h1 className="text-[24px] font-bold tracking-[-0.01em]">캠페인</h1>
+          <p className="mt-1 text-[13.5px] text-ink-2">에이전트가 운영 중인 캠페인입니다. 행을 누르면 무엇을 했는지 타임라인이 열립니다.</p>
         </div>
-        <Link href="/campaigns/new">
-          <Button variant="primary">+ 새 캠페인</Button>
-        </Link>
+        <Link href="/campaigns/new"><Button variant="primary">＋ 새 캠페인</Button></Link>
       </header>
 
-      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-        <table className="w-full text-[13px]">
-          <thead className="text-[11px] uppercase tracking-wider text-slate-500 bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="text-left px-4 py-2.5 font-medium">캠페인</th>
-              <th className="text-left px-4 py-2.5 font-medium">상태</th>
-              <th className="text-left px-4 py-2.5 font-medium">현재 단계</th>
-              <th className="text-right px-4 py-2.5 font-medium">트랙</th>
-              <th className="text-right px-4 py-2.5 font-medium">마지막 활동</th>
-            </tr>
-          </thead>
-          <tbody>
-            {campaigns.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-slate-500 text-[13px]">
-                  아직 캠페인이 없습니다.{" "}
-                  <Link href="/campaigns/new" className="text-blue-700 hover:underline">새 캠페인 시작 →</Link>
-                </td>
-              </tr>
-            )}
-            {campaigns.map((c) => {
-              const pending = pendingByCampaign.get(c.id) ?? 0;
-              return (
-                <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50/60">
-                  <td className="px-4 py-3">
-                    <Link href={`/campaigns/${c.id}`} className="block">
-                      <div className="font-medium text-slate-900">{c.brief.brandProduct.name}</div>
-                      <div className="text-[11px] mono text-slate-500 mt-0.5">camp_{c.id.slice(0, 12)} · {c.brief.brandProduct.category}</div>
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={STATUS_VARIANT[c.status]}>{c.status}</Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={STAGE_VARIANT[c.stage]}>{ORDER_LABEL[c.stage]}</Badge>
-                    {pending > 0 && <Badge variant="amber" className="ml-2">⚠ {pending} 대기</Badge>}
-                  </td>
-                  <td className="px-4 py-3 text-right mono">{c.tracks.length}</td>
-                  <td className="px-4 py-3 text-right text-[12px] text-slate-500">{fmtAgo(c.updatedAt)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      {/* search + filters */}
+      <form className="mb-4 flex items-center gap-2.5" action="/campaigns" method="get">
+        <div className="flex-1 max-w-[340px] flex items-center gap-2 border border-line rounded-xl px-3.5 py-2 bg-surface">
+          <span className="text-ink-3" aria-hidden>⌕</span>
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="캠페인 검색…"
+            className="flex-1 bg-transparent text-[13px] text-ink placeholder:text-ink-3 outline-none"
+          />
+          {filter !== "all" && <input type="hidden" name="status" value={filter} />}
+        </div>
+        {FILTERS.map((f) => {
+          const isActive = filter === f.key || (f.key === "all" && filter === "all");
+          const href = f.key === "all" ? `/campaigns${q ? `?q=${encodeURIComponent(q)}` : ""}` : `/campaigns?status=${f.key}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
+          return (
+            <Link
+              key={f.key}
+              href={href}
+              className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-medium border transition-colors ${
+                isActive ? "bg-ink text-white border-ink" : "bg-surface text-ink-2 border-line hover:bg-surface-2"
+              }`}
+            >
+              {f.label}
+            </Link>
+          );
+        })}
+      </form>
+
+      {campaigns.length === 0 ? (
+        <EmptyState
+          icon="◎"
+          title={q || filter !== "all" ? "조건에 맞는 캠페인이 없습니다." : "아직 캠페인이 없습니다."}
+          hint={q || filter !== "all" ? "검색어나 필터를 바꿔보세요." : "브리프를 채우면 에이전트가 소싱부터 시작합니다."}
+          action={<Link href="/campaigns/new"><Button variant="primary">＋ 새 캠페인</Button></Link>}
+        />
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {campaigns.map((c) => {
+            const st = campaignStatus(c.status);
+            const pending = pendingByCampaign.get(c.id) ?? 0;
+            const createdAt = (c as { createdAt?: Date }).createdAt;
+            return (
+              <Link
+                key={c.id}
+                href={`/campaigns/${c.id}`}
+                className="grid grid-cols-[1.7fr_130px_1fr_92px_96px] gap-4 items-center bg-surface border border-line rounded-2xl shadow-soft px-5 py-4 transition-transform hover:-translate-y-0.5"
+              >
+                <div className="min-w-0">
+                  <div className="text-[15px] font-bold text-ink truncate">{c.brief.brandProduct.name}</div>
+                  <div className="text-[12px] text-ink-3 mt-0.5 truncate">
+                    {c.brief.brandProduct.category}{createdAt ? ` · ${fmtDate(createdAt)}` : ""}
+                  </div>
+                </div>
+                <div>
+                  <StatusTag tone={st.tone}>{st.label}</StatusTag>
+                </div>
+                <div>
+                  <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">현재 단계</div>
+                  <div className="text-[13px] text-ink-2 mt-0.5">
+                    <span className="font-bold text-ink">{stageWithNumber(c.stage)}</span>
+                    {pending > 0 && <span className="ml-1.5 text-warn font-semibold">· {pending}건 대기</span>}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">크리에이터</div>
+                  <div className="text-[13px] text-ink-2 mt-0.5 mono">{c.tracks.length > 0 ? `${c.tracks.length}명` : "선정 전"}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">활동</div>
+                  <div className="text-[13px] text-ink-2 mt-0.5 mono">{fmtAgo(c.updatedAt)}</div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
-
-const ORDER_LABEL: Record<CampaignStage, string> = {
-  overview: "1 · overview",
-  sourcing: "2 · sourcing",
-  outreach: "3 · outreach",
-  shipping: "4 · shipping",
-  content_review: "5 · content_review",
-  performance: "6 · performance",
-};

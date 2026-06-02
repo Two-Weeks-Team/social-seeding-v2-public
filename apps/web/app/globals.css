@@ -1,21 +1,52 @@
 @import "tailwindcss";
 
 /**
- * Design tokens — minimalist editorial (Linear / Vercel tone). Locked for
- * Phase 1; the docs/previews/mission-control-timeline.html mockup is the
- * visual contract. See memory/design-quality-canvas.md for the no-AI-slop
- * principles.
+ * Design tokens — "C2 · Champagne & Espresso" (quiet-luxury beauty).
+ * Locked redesign palette; visual contract = .context/design-lab/C2-champagne-espresso.html.
  *
- *   palette        slate-50 (bg) · white (surface) · slate-900 (text)
- *                  blue-600 (accent / primary action)
- *                  emerald / amber / rose / cyan / violet for status only
- *   typography     Inter (display + body) · JetBrains Mono (IDs / numbers)
- *                  Korean fallback: Pretendard / Apple SD Gothic Neo / system-ui
- *   borders        single-pixel slate-200 · rounded 6px on cards · 4px inputs
- *   shadows        absent or 0 1px 2px rgba(0,0,0,0.05) at most (cards on hover)
- *   gradients      banned
- *   motion         120-200ms ease · hover transitions only · no spring / bounce
+ *   canvas      champagne greige (#f5f1e8) · surface warm ivory (#fffdf8)
+ *   ink         espresso black (#1b1813) → ink-2 / ink-3
+ *   brand       deep espresso (#2a241c) = primary fill / logo / headline numerals
+ *   brand-soft  champagne (#f1e8d2) + brand-ink bronze-gold (#8a6c2e) = chips / accents
+ *   status      ok(달성) run(진행) warn(주의) stop(미달·응답없음) — color + text + dot, never color alone
+ *   shadows     soft, warm · gradients banned · motion 120-200ms ease
+ *
+ * Registered via Tailwind v4 @theme so semantic utilities exist:
+ *   bg-canvas bg-surface bg-surface-2 · text-ink text-ink-2 text-ink-3
+ *   border-line border-line-2 · bg-brand text-brand bg-brand-soft text-brand-ink
+ *   text-ok bg-ok-bg · text-run bg-run-bg · text-warn bg-warn-bg · text-stop bg-stop-bg
+ *   shadow-soft shadow-brand
+ * Tailwind's default palette stays available, so unconverted screens keep working
+ * during the migration.
  */
+
+@theme {
+  --color-canvas: #f5f1e8;
+  --color-surface: #fffdf8;
+  --color-surface-2: #ede7da;
+
+  --color-ink: #1b1813;
+  --color-ink-2: #544c40;
+  --color-ink-3: #938b7c;
+
+  --color-line: #e6dfce;
+  --color-line-2: #efe8da;
+
+  --color-brand: #2a241c;
+  --color-brand-2: #403728;
+  --color-brand-soft: #f1e8d2;
+  --color-brand-ink: #8a6c2e;
+
+  --color-ok: #3f6b4a;   --color-ok-bg: #e9f0e7;
+  --color-run: #5c6a84;  --color-run-bg: #ebeef4;
+  --color-warn: #94731a; --color-warn-bg: #f4ecd5;
+  --color-stop: #9a4a3a; --color-stop-bg: #f2e7e1;
+
+  --shadow-soft: 0 1px 2px rgba(40, 33, 20, 0.05), 0 12px 34px rgba(40, 33, 20, 0.07);
+  --shadow-brand: 0 8px 22px rgba(42, 36, 28, 0.28);
+
+  --radius-card: 1rem;
+}
 
 :root {
   color-scheme: light;
@@ -27,40 +58,44 @@
 
 html, body {
   font-family: var(--font-sans);
-  background: rgb(248 250 252); /* slate-50 */
-  color: rgb(15 23 42); /* slate-900 */
+  background: var(--color-canvas);
+  color: var(--color-ink);
   font-feature-settings: "cv11", "ss01", "ss03";
 }
 
-/* Mono utility — applied where IDs / numbers / timestamps appear. */
+/* Mono utility — applied where genuine numbers / IDs / timestamps appear. */
 .mono {
   font-family: var(--font-mono);
   font-feature-settings: "tnum", "zero" 1;
 }
 
-/* Disable iOS tap highlight; we use our own focus rings (slate-300 ring). */
+/* Tabular numerals helper for KPI/stat figures. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
 * {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Focus rings: thin, neutral — never the bright Tailwind blue default. */
+/* Focus rings: refined, warm — never the bright Tailwind blue default. */
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 2px solid rgb(148 163 184); /* slate-400 */
-  outline-offset: 1px;
-  border-radius: 4px;
+  outline: 2px solid var(--color-brand-ink);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
-/* Custom selection — keep it muted, not browser-default blue. */
+/* Warm muted selection. */
 ::selection {
-  background: rgb(226 232 240); /* slate-200 */
-  color: rgb(15 23 42);
+  background: var(--color-brand-soft);
+  color: var(--color-ink);
 }
 
 /* Hairline below sticky headers / between sections. */
 .hairline {
-  border-bottom: 1px solid rgb(226 232 240); /* slate-200 */
+  border-bottom: 1px solid var(--color-line);
 }
