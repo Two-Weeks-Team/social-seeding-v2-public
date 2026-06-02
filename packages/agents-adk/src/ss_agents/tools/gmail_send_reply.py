@@ -94,8 +94,11 @@ class GmailSendReplyInput(BaseModel):
         reply_subject:   The reply's `Subject:` header. Should NOT include
                          a `Re:` prefix — the conversation_responder spec §6
                          explicitly forbids that.
-        reply_body:      Plain-text body. HTML formatting is handled by the
-                         live impl (rich text inferred from line breaks).
+        reply_body:      HTML body (the outreach/reply drafter emits <br>/<p>).
+                         The live impl sends multipart/alternative — a
+                         tags-stripped text/plain fallback plus the text/html
+                         part Gmail renders — so <br> shows as a line break,
+                         not literal text.
         recipient_email: RFC-5322 `To:` address. Enforced against the D10
                          allow-list in LIVE mode.
         sender_alias:    Optional friendly display name for the `From:`
@@ -363,7 +366,17 @@ def _live(payload: GmailSendReplyInput) -> GmailSendReplyOutput:
     message["Date"] = formatdate(localtime=False)
     msg_id = make_msgid(domain="socialseed.ing")
     message["Message-ID"] = msg_id
-    message.set_content(payload.reply_body)
+    # The drafted body is HTML (outreach_writer emits <br>/<p>). Send a
+    # multipart/alternative — a text/plain fallback (tags stripped, <br>/</p>
+    # turned back into newlines) plus the text/html part Gmail actually renders.
+    # Without the html alternative, set_content() would create a lone text/plain
+    # part and recipients would see literal "<br>" tags.
+    plain_text = re.sub(r"<br\s*/?>", "\n", payload.reply_body, flags=re.IGNORECASE)
+    plain_text = re.sub(r"</p\s*>", "\n\n", plain_text, flags=re.IGNORECASE)
+    plain_text = re.sub(r"<[^>]+>", "", plain_text)
+    plain_text = re.sub(r"\n\s*\n\s*\n+", "\n\n", plain_text).strip()
+    message.set_content(plain_text)
+    message.add_alternative(payload.reply_body, subtype="html")
 
     raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
     # Gmail threads via the API `threadId`, not RFC In-Reply-To/References (we
