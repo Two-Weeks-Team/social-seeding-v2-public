@@ -81,8 +81,10 @@ verify → report — as a fleet of typed agents that call each other and extern
   **inside the live brand-campaign Cloud Workflow** — the load-bearing edge proving the halves are
   one ecosystem (D45).
 
-Billing is metered per delivered view at $0.01 (D28). Real Gmail sends go only to operator-owned test
-accounts (D10).
+Billing is outcome-metered: **each campaign's first 10,000 delivered views are free, then $0.01 per
+delivered view** (D28) — adoption-friction-free per campaign, revenue only on breakout campaigns, and
+every campaign compounds a proprietary creator-performance + communication dataset (switching-cost +
+agent flywheel). Real Gmail sends go only to operator-owned test accounts (D10).
 
 ## What we hardened (the Optimize stage — Technical-30% evidence)
 
@@ -367,10 +369,16 @@ campaign**. The defensible delta is the **agency management layer**, not the cre
 pass-through in both columns). Full formula-shown model + sources in
 [`BUSINESS-CASE.md §2`](./BUSINESS-CASE.md).
 
-**Pricing model (D28)**: $0.01 per delivered view (a $10 effective CPM, inside the cited $4.8–$13.26
-TikTok CPM band), ROI-linked — customers pay only for measured views. The refactored A2A connector's
-marginal cost is ≈ $0.001/call because the scraper fleet is already production traffic. Metered
-through Apigee X: view events → Pub/Sub → BigQuery → Apigee meter increments.
+**Pricing model (D28)**: **per campaign, the first 10,000 delivered views are free; beyond that,
+$0.01 per delivered view** (a $10 effective CPM beyond the free tier, inside the cited $4.8–$13.26
+TikTok CPM band), ROI-linked — customers pay only for measured views, and only when a campaign breaks
+out past 10k. The free-per-campaign tier removes per-campaign adoption friction; revenue lands on the
+winners. **Compounding moat:** every campaign deepens a proprietary dataset — verified
+creator-performance (which creators convert for which brands) + the brand's outreach/communication
+history — which both raises switching cost and feeds back into sourcing/vetting/outreach (a flywheel,
+not yet retention-validated — see BUSINESS-CASE §6). The refactored A2A connector's marginal cost is
+≈ $0.001/call because the scraper fleet is already production traffic. Metered through Apigee X: view
+events → Pub/Sub → BigQuery → Apigee meter increments.
 
 **Target customer**: brand marketing leads at DTC consumer brands spending $5k–$50k/month on creator
 marketing; agency campaign managers running 5–20 brand campaigns in parallel; and platform engineers

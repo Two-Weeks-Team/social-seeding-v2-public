@@ -35,6 +35,18 @@
 
 ---
 
+## Narrative spine — "the agent is the operator" (hook & value order)
+
+The story is **the agent, not the price**. Value lead → economics close. Per **D30** the recording is
+silent 8×-speed real-mouse footage, so the "hook" is an **on-screen opening title card + callouts**,
+not voiceover.
+
+- **Opening card (≤3 s, on-screen):** *"Influencer marketing is six hours of grunt work a day. So we gave it an operator."* → cut straight into Mission Control filling itself in (U1).
+- **Sub-caption at U1:** *"The agent is the operator — you keep only the gates you want."* (positions us vs dashboards + one-step tools: judgment at **every** step source→vet→outreach→reply→ship→verify→report.)
+- **Value order:** ACT I the agent *runs the loop* (it works) → ACT II we *hardened* it (it's real) → ACT III it *plugs into the enterprise over A2A* (it scales). **Price appears only at U9**, as the proof the agent's value is a business — never as the hook.
+- **U9 close logic:** the agent's `content_verify` IS the billable event AND deposits the data moat → **first 10,000 views/campaign free, then $0.01/view** + the compounding creator-performance + communication dataset (lock-in by design). See U9.
+- **Honesty rails (RULES.md):** "no Marketplace listing claim" (Gemini Enterprise *registered*, not listed); 99.7% is cost-of-goods vs agency fee, **not** net margin; zero validated signups (pre-launch); moat is structural, retention to be validated.
+
 ## 0. The single arc in one diagram
 
 ```
@@ -348,7 +360,7 @@ test-account-only). Each draft carries an attached image — the multimodal chan
 
 > Detailed mouse sequence: `STORYBOARD-track2.md` Scene 4 (unchanged).
 
-### U9 — Verify + $0.01/view + ROI/TAM `[= Track 2 · Scene 7 + wow-business#roi/#tam]`
+### U9 — Verify → billable event + the data moat + ROI/TAM `[= Track 2 · Scene 7 + wow-business#roi/#tam]`
 
 | Field | Value |
 |---|---|
@@ -357,15 +369,30 @@ test-account-only). Each draft carries an attached image — the multimodal chan
 | **Surface** | `web-demo` Track 2 · Scene 7 (`/campaigns/<id>/verify`) → `wow-business.html#roi` + `#tam` |
 | **Build Example #2 link** | `content_verify` is the agent the Guide's "on-brand and compliant" verdict maps to (see Coda U11) |
 
-The `content_verify` agent confirms delivery and live view counts; the per-view cost ticker
-($0.01 × views, D28) updates live. The demo then jumps to `wow-business.html#roi`: the ROI-vs-agency
-headline — same 20-creator KR skincare campaign costs an agency **≈ $2,400 mgmt fee + ~45 ops hours**
-vs **≈ $7.40 GCP cost-of-goods + ~2 hours** → a **99.7% reduction in the management-fee line** and
-**~43 human-hours saved** — the "no view, no charge" framing, and the **TAM/SAM/SOM** model
-(**TAM ≈ $1.15B** software/platform segment / **SAM ≈ $144M** / **SOM ≈ $540k ARR**; every figure
-sourced [CITED], formula-shown [DERIVED], or labelled an explicit [ASSUMPTION], per `BUSINESS-CASE.md`).
-The design-partner program is **OPEN with zero validated signups (pre-launch)** — stated honestly.
-**This is the Business-30% surface** the demo previously lacked (D49(c)).
+The `content_verify` agent confirms the brand-tagged TikTok post is live and counts real views —
+**the agent's verification *is* the billable event** (you can't bill a view that didn't happen). The
+pricing ticker reflects D28: **each campaign's first 10,000 views are free, then $0.01/view** — on the
+우리리우 run that's **59,498 verified − 10,000 free = 49,498 billable = $494.98**, for a campaign the
+agent ran on **~$0.05 of compute**. On-screen line: *"First 10,000 views free, every campaign. We
+only charge when your campaign breaks out."*
+
+The demo then jumps to `wow-business.html#roi`. Two stacked points:
+1. **Outcome economics** — the same 20-creator KR skincare campaign costs an agency
+   **≈ $2,400 mgmt fee + ~45 ops hours** vs **≈ $7.40 GCP cost-of-goods + ~2 hours** → a **99.7%
+   reduction in the management-fee line** (cost-of-goods margin, *not* net — honest caveat per
+   BUSINESS-CASE §4.1) and **~43 human-hours saved**.
+2. **The compounding moat (the agent is the operator → the data is the lock-in)** — every campaign
+   (free ones included) deposits two proprietary assets: a **verified creator-performance graph**
+   (which creators convert for which brand/vertical) layered on the 174k-creator cluster, and the
+   **outreach/communication history** with each creator. More campaigns → more data → sharper
+   sourcing/vetting/outreach → better outcomes → more campaigns (flywheel). Leaving means abandoning
+   that graph + relationships — a **structural switching cost** (moat-by-design; retention to be
+   *validated* in pilots, not yet proven).
+
+Plus the **TAM/SAM/SOM** model (**TAM ≈ $1.15B** software/platform segment / **SAM ≈ $144M** /
+**SOM ≈ $540k ARR**; every figure sourced [CITED], formula-shown [DERIVED], or labelled [ASSUMPTION],
+per `BUSINESS-CASE.md`). The design-partner program is **OPEN with zero validated signups
+(pre-launch)** — stated honestly. **This is the Business-30% surface** (D49(c)).
 
 > Detailed mouse sequence: `STORYBOARD-track2.md` Scene 7 (unchanged); ROI/TAM panel: `wow-business.html`.
 

@@ -134,11 +134,20 @@ as the weakest links. The real validation is design-partner pilots (§6), not th
 
 ---
 
-## 4. Pricing model & unit economics ($0.01/view, D28)
+## 4. Pricing model & unit economics (per-campaign first 10k free → $0.01/view, D28)
 
-**Price (revenue):** **$0.01 per delivered view** = a **$10 effective CPM**, ROI-linked — the
-customer pays only for measured views (D28). Metered via Apigee X: view events → Pub/Sub →
-BigQuery → meter (devpost-track3).
+**Price (revenue):** **per campaign, the first 10,000 delivered views are free; beyond that, $0.01
+per delivered view** = a **$10 effective CPM** above the free tier, ROI-linked — the customer pays
+only for measured views, and only once a campaign breaks out past 10k (D28). Metered via Apigee X:
+view events → Pub/Sub → BigQuery → meter (devpost-track3).
+
+**Why per-campaign-free, not a one-time trial:** every campaign starts free, so there is zero
+adoption friction to launching *another* campaign; small/test campaigns (<10k views) are entirely
+free; and revenue is **outcome-aligned** — we only earn when we make a campaign succeed past 10k.
+The free allowance is cheap to offer because billing is per-view-delivered and our marginal cost is
+machine compute (~$0.05–$7.40/campaign, §2.3/§4.1), not a per-view payout. The honest counter — "many
+campaigns may stay under 10k and bill $0" — is the intended shape: the model monetizes breakout
+campaigns and the *compounding data asset* below (§4.3), with retention to be validated in pilots (§6).
 
 **Is $10 CPM defensible?** Yes — it sits inside cited norms:
 
@@ -149,13 +158,16 @@ BigQuery → meter (devpost-track3).
 
 ### 4.1 Gross margin on a delivered campaign
 
-Take the §2 scenario delivering, say, **1,000,000 views** (20 creators × 50k avg views — [ASSUMPTION], conservative for micro tier):
+Take the §2 scenario delivering, say, **1,000,000 views** (20 creators × 50k avg views — [ASSUMPTION], conservative for micro tier). The first 10,000 views are free (D28), so **990,000 views are billable**:
 
 | Line | Value | Formula |
 |---|---|---|
-| Revenue | **$10,000** | [DERIVED] 1,000,000 views × $0.01 (D28) |
+| Billable views | **990,000** | [DERIVED] 1,000,000 − 10,000 free/campaign (D28) |
+| Revenue | **$9,900** | [DERIVED] 990,000 × $0.01 (D28) |
 | Cost of goods (our compute) | **$7.40** | [DERIVED] §2.3 |
-| **Gross margin** | **≈ 99.9%** | [DERIVED] ($10,000 − $7.40) / $10,000 |
+| **Gross margin** | **≈ 99.9%** | [DERIVED] ($9,900 − $7.40) / $9,900 |
+
+> Worked example on real demo data (우리리우 2nd): 59,498 verified views − 10,000 free = **49,498 billable × $0.01 = $494.98** for a campaign that ran on ~$0.05 of agent compute. (The free tier costs us ~10,000 × $0 payout + the same ~$0.05 compute — it is a customer-acquisition lever, not a margin sink.)
 
 The gross margin is extreme because **the cost basis is machine compute, not human labor** — the
 same structural fact that produces the §2 cost delta. Caveats kept honest: this excludes
@@ -168,6 +180,30 @@ creator pay (which is the brand's spend, not ours). It is **cost-of-goods margin
 spend runs **~$1–5/mo** (D46). The $1,500 GCP credit (D39) covers the worst case many times over.
 `cost_watch` (Tier-3 agent, `pubsub_alert` $0.00005/call) emits per-tenant USD-ceiling alerts at
 50/75/90/95% (D23/D41).
+
+### 4.3 The compounding moat — data + relationships (why free-to-enter still retains)
+
+The per-campaign free-10k lowers the *entry* barrier; what raises the *exit* barrier is the data the
+platform accumulates as the agent runs campaigns. Two proprietary, compounding assets:
+
+1. **Creator-performance graph** — per campaign, `content_verify` records *which* creators actually
+   delivered for *which* brand/vertical, at what verified engagement (the 우리리우 run alone:
+   16 verified posts, 59,498 views, 7.93% ER). Over many campaigns this becomes a brand-specific
+   "who-converts" graph layered on the 174k shared-cluster creators — something a competitor starting
+   cold cannot reproduce, and that makes the next campaign's sourcing/vetting measurably better.
+2. **Outreach / communication history** — the agent owns the relationship thread with each creator
+   (who replied, what subject/offer worked, prior collaborations). The brand's creator relationships
+   and the agent's *learned* outreach both live in Social Seeding.
+
+**The flywheel:** more campaigns → more verified-performance + communication data → sharper
+sourcing/vetting/outreach → better campaign outcomes → more campaigns. The free tier *feeds* the
+flywheel (every free campaign still deposits data).
+
+**Switching cost (lock-in):** leaving means abandoning the brand-specific creator graph + the
+relationship/communication history + the agent's tuned outreach. That is a structural retention
+mechanism — **not yet a proven retention number**. Per §6 (Professional Honesty), we have zero
+validated signups today; the design-partner pilots are what convert "structural switching cost" into
+a **measured** retention/expansion curve. Framed as moat-by-design, validated next.
 
 ---
 
