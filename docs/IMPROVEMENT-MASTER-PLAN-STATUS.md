@@ -204,7 +204,7 @@ evaluator should read this as a strict improvement over "17 rows".
 | # | 항목 | 차단 해제 조건 |
 |---|---|---|
 | B1 | Agent Engine 배포(`adk deploy agent_engine`) | ✅ **LIVE 2026-06-03** — `reasoningEngines/8794890706243026944`(ss-v2-prod·us-central1, "ss-agent-engine"). `stream_query` 라이브 응답 검증(author root_agent·627 tok·gemini-3.5-flash global). 대표 에이전트(소싱) 단위; 22-fleet 번들링 후속. **수정 이력**: ADC=sejun 403→owner가 aiplatform.admin 부여 / 전용 staging 버킷 / requirements 정확버전 핀(adk 1.19.0)으로 기동 / `app` export 제거(app-name 불일치 해소). |
-| B2 | Sessions + Memory Bank 라이브(`agentengine://`) | B1 선행 |
+| B2 | Sessions + Memory Bank 라이브(`agentengine://`) | ✅ **LIVE 2026-06-03** — Sessions는 Agent Engine 배포에 자동 포함. **Memory Bank**: 엔진 `8794890706243026944`에 CreateMemory(`memories/4472557253022449664`) → RetrieveMemories(user=judge-demo) 정확 fact 반환, end-to-end 검증. 연결 URI `agentengine://8794890706243026944`. **잔여**: 에이전트 런타임 auto-recall(메모리서비스로 재배포)은 후속. |
 | B3 | Vertex AI RAG Engine corpus + Agent Search | ADC + GCS + 코퍼스 |
 | B4 | VAPO 데이터드리븐 1회(GA 모델) | ADC + GCS 버킷 |
 | B5 | Cloud Trace export 상시 + 대시보드 | ADC + Trace API |
@@ -224,5 +224,6 @@ evaluator should read this as a strict improvement over "17 rows".
 ## 진행 로그
 - 2026-06-02 — 네이티브 로드맵 추적 섹션 생성. Phase A 자율 트랙 착수(A1 AP2 체인). 브랜치 `feat/native-roadmap-impl`.
 - 2026-06-02 — **A1 ✅**: `lib/ap2/chain.ts`(CartMandate·PaymentMandate canonical 스키마 + canonical-JSON SHA-256 바인딩 `bindCart`/`bindPayment` + `verifyMandateChain`) + 11 테스트(유효·변조·오참조·한도초과·합계·만료·통화). 검증: vitest 11/11, web type-check, eslint, ap2 78 tests 전부 green. 다음: A2(eval).
+- 2026-06-03 — **B2 ✅ (Memory Bank LIVE)**: 엔진 `8794890706243026944`의 Vertex Memory Bank에 CreateMemory→RetrieveMemories end-to-end 검증(user-scoped). Sessions는 배포 자동 포함. 연결 URI `agentengine://8794890706243026944`. REST + gcloud CLI 토큰(owner, ADC 만료 우회). 런타임 auto-recall 재배포는 후속.
 - 2026-06-03 — **B1 ✅ LIVE**: 첫 네이티브 제품 전환 실배포 — Vertex AI **Agent Engine** `reasoningEngines/8794890706243026944`(ss-v2-prod). 라이브 `stream_query` 검증. 자율 진단·해소: IAM 403(sejun→aiplatform.admin) · 버전핀(adk 1.19.0 기동성공) · app-name 불일치(app export 제거). 5회 반복 디버깅. 코드 `agents-cli-app/ae_deploy/`. "라이브 6→7".
 - 2026-06-03 — **A2 ✅**: `evals/__main__.py`에 `--all` 에이전트별 평가 surface 추가 — fleet 22 커버리지 표 + 정확도게이트 2종(coordinator·conversation) 라이브 실행. 실측: 22 에이전트 테스트 1493 pass, 정확도 둘 다 PASS(holdout 75%/71.4%), 전체 pytest 2933 green. 정직 디스클로저: 22/22 *정확도* 게이트는 per-agent predictor(P3 도메인작업) — golden replay 과적합이라 미실시. 다음: A3(Memory Bank fleet).
