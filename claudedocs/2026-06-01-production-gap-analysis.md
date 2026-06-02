@@ -52,7 +52,7 @@
 - **증거(해소 전)**: `/campaigns` 500, digest `2347156499` = `Error: MONGODB_URI is not set`. ss-v2-web env에 `MONGODB_URI` 없음. v2 Mission Control ~20페이지가 `@ss/db`로 직접 read(`packages/db/src/client.ts`).
 - **근본 원인 (2단계)**:
   1. `MONGODB_URI` 미배선 → "not set" 500.
-  2. 배선 후에도 `MongoServerError: not authorized on social_seeding ... codeName: Unauthorized` (digest `3601104561`). **연결·인증은 성공**(Cloud Run이 자체호스팅 replica set `rs0`에 도달, clusterTime 수신) — 실패는 **DB명**. v1 백엔드의 실제 prod DB는 **`instarsearch`**(`authSource=instarsearch`, `replicaSet=rs0`)이고 Mongo 유저도 거기 스코프. v2 코드 기본값 `MONGODB_DB=social_seeding`는 **이 클러스터에서 틀림**(문서 `.env.example`·CLAUDE.md의 "social_seeding"과 실제가 불일치 — ⚠️ 별도 문서수정 필요).
+  2. 배선 후에도 `MongoServerError: not authorized on social_seeding ... codeName: Unauthorized` (digest `3601104561`). **연결·인증은 성공**(Cloud Run이 자체호스팅 replica set `rs0`에 도달, clusterTime 수신) — 실패는 **DB명**. v1 백엔드의 실제 prod DB는 **`instarsearch`**(`authSource=instarsearch`, `replicaSet=rs0`)이고 Mongo 유저도 거기 스코프. v2 코드 기본값이 당시 `MONGODB_DB=social_seeding`라 **이 클러스터에서 틀렸음**(문서 `.env.example`·CLAUDE.md도 불일치) — **✅ 2026-06-02 PR #57로 코드/문서 기본값 전부 `instarsearch`로 통일해 해소**(§7 참조).
 - **해소**: v1 백엔드 `MONGO_URI`(자체호스팅 공유 클러스터)를 secret `mongodb-uri`로 재사용 + 런타임 SA accessor + **`MONGODB_DB=instarsearch`** 배선.
   ```bash
   # MONGO_URI는 v1 백엔드 .env.production에서 읽기전용 추출 → secret(값 미노출)
@@ -62,7 +62,7 @@
   ```
 - **완료 기준 (충족)**: 인증 후 `/campaigns·/usage·/approvals·/policies·/leads·/settings` **전부 200**, `/api/campaigns`→`{"campaigns":[]}`(임시 test-login으로 실증 후 즉시 비활성). 랜딩 200·로그인 302 유지.
 - **참고**: 검증 위해 test-login을 일시 활성화→비활성(rev 00006→00008, POST→404 확인). MONGODB_URI/DB는 영구 배선.
-- **⚠️ 후속 문서수정**: `.env.example`·CLAUDE.md의 `MONGODB_DB="social_seeding"`를 실제(`instarsearch`)와 정합화하거나, 두 환경(dev=social_seeding / prod=instarsearch) 구분 명시.
+- **✅ 후속 문서수정 완료 (2026-06-02, PR #57)**: 코드/문서 기본값을 전부 `instarsearch`로 통일(`packages/db/src/client.ts`·`.env.example`·CLAUDE.md·dev/init/import/wooriliu 스크립트). 추가로 `run-demo.ts` 안전가드가 `social_seeding`만 막아 실 prod(`instarsearch`) 라이브 실행을 안 막던 잠재 구멍을 수정(두 이름 fail-closed).
 
 ### G2 — 오케스트레이션 루프 상시 미가동 🔴 P0
 - **증거**: 7/7은 `full_loop_live.py` 일회 스크립트. Cloud Workflow는 수동 `gcloud workflows run`. Inngest는 로컬 전용(`INNGEST_DEV=1`)·미배포. 배포된 건 trimmed `brand-campaign-demo` 워크플로 1개(수동 트리거). Gmail Pub/Sub 웹훅(`/api/webhooks/gmail`) 상시 경로 미가동.
@@ -142,4 +142,17 @@
 | 정직성 진실원 | `scripts/demo/submission/HONEST-SCOPE.md` |
 | 배포 토폴로지 | `gcp-research/decisions/SERVICE-INVENTORY.md` (설계) vs 실 라이브 4개 |
 | 배포 절차 | `deploy/{web,agents}/`, `2026-06-01-onboarding-zero-to-reproduce.html` |
-| 현재 배포 rev | ss-v2-web `00004-jw7` · ss-agents `00013-sav` · ss-mcp `00014-xw8` |
+| 현재 배포 rev | ss-v2-web `00016-m5l` · ss-agents `00013-smn` · ss-mcp `00015-6v9` (2026-06-02 갱신) |
+
+---
+
+## 7. 2026-06-02 추가 하드닝 (감사 후속, 전부 라이브 실증)
+
+이 갭분석 작성 이후 발견·수정한 항목 (각 PR no-squash merge):
+
+| # | 항목 | 근본원인 → 수정 | 실증 |
+|---|---|---|---|
+| PR #57 | DB명 정합 + run-demo 가드 | 코드/문서 기본값 `social_seeding`→`instarsearch` 통일. `run-demo.ts` 가드가 `social_seeding`만 막아 실 prod 라이브 실행을 안 막던 잠재 구멍 → 두 이름 fail-closed | verify-build 7/7 · test 113 green |
+| PR #58 | A2A 카드 `jku` 죽은 도메인 | 서명 카드 `jku`가 `mcp.socialseed.ing/.well-known/jwks.json`(404, DNS 미컷오버) → 스펙대로 jku 따라가는 검증자가 서명검증 실패. `AGENT_CARD_JWKS_URL`을 실 도달 run.app JWKS로 배선(env+yaml 영속화) | jku 404→200 · `verify_card_with_jwks(card, jwks_from_jku)=True` (rev 00015-6v9) |
+| PR #59 | 아웃바운드 메일 HTML 깨짐 | ADK `gmail_send_reply._live()`가 `set_content()`로 HTML을 **text/plain** 단일 파트 발송 → `<br>` 리터럴. `multipart/alternative`(text/plain 폴백+text/html)로 수정 | 회귀 테스트(디코드한 Gmail raw) · ADK 2933 green · 실발송 후 메일 MIME 되읽기 검증 (rev 00013-smn) |
+| env | 수신거부 링크 origin | `PUBLIC_APP_URL` 미설정 → 수신거부 링크가 `app.example.com` 폴백으로 깨짐 → `https://agents.socialseed.ing` 배선 | ss-v2-web env 확인 (rev 00016-m5l) |

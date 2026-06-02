@@ -46,7 +46,7 @@ campaign submit (apps/web /api/campaigns, Cloud Run ss-v2-web)
 | ss-v2-web VPC | `--network=default --subnet=default --vpc-egress=private-ranges-only` |
 | Pub/Sub | topic `gmail-push` (gmail-api-push@system publisher) + push 구독 `gmail-push-sub` → `/api/webhooks/gmail?token=` |
 | 런타임 SA 권한 | `roles/aiplatform.user`(Vertex) + secretAccessor(각 시크릿) |
-| 최종 web rev | `ss-v2-web-00015-nz8` |
+| 최종 web rev | `ss-v2-web-00016-m5l` (PUBLIC_APP_URL 배선, 2026-06-02) |
 
 ---
 
@@ -119,3 +119,16 @@ curl -X PUT https://agents.socialseed.ing/api/inngest   # 재sync
 | 5. 운영자 runbook | ✅ 본 문서 |
 
 하드법칙 준수: Gemini 3.5/3.1 Vertex global · v1 :8080 무접속(.env는 소유자 승인 하 읽기전용 재사용) · deploy ss-v2-prod만 · 모든 코드변경 PR-merge(no-squash, #46–#50).
+
+---
+
+## 7. 2026-06-02 추가 하드닝 (감사 후속, PR #57–#59, 전부 라이브 실증)
+
+| # | 항목 | 수정 | 실증 |
+|---|---|---|---|
+| #57 | DB명 정합 + run-demo 가드 구멍 | 기본값 `social_seeding`→`instarsearch` 통일; 가드 두 이름 fail-closed | verify-build 7/7·test 113 |
+| #58 | A2A 카드 `jku` 죽은 도메인(404) | `AGENT_CARD_JWKS_URL`을 실 도달 run.app JWKS로 배선(env+yaml) | jku 404→200·`verify_card_with_jwks=True`, ss-mcp rev 00015-6v9 |
+| #59 | 아웃바운드 메일 `<br>` 리터럴 | ADK `gmail_send_reply`를 `multipart/alternative`로 (R2 실발송 경로 품질) | 회귀 테스트+실발송 MIME 되읽기, ss-agents rev 00013-smn |
+| env | 수신거부 링크 origin | `PUBLIC_APP_URL=https://agents.socialseed.ing` (ss-v2-web rev 00016-m5l) | env 확인 |
+
+> R2(아웃리치 실발송) 관련: 발송 **경로 품질**(HTML 렌더)은 #59로 해소. 발송 **대상**(creator no_email vs B2B 리드)·gmail.send 검증은 R2 원래 범위대로 유지.
