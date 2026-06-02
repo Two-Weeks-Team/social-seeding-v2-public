@@ -102,6 +102,14 @@ spec:
                 projects/__PROJECT__/locations/us-central1/keyRings/socialseed-mcp/cryptoKeys/agent-card-signing
             - name: AGENT_CARD_SIGNING_KID
               value: "ss-agent-card-prod"
+            # The JWS `jku` advertised in the signed card. MUST point at a
+            # REACHABLE JWKS or spec-pure verifiers can't fetch the key and
+            # signature verification fails. The code default is the vanity
+            # domain (mcp.socialseed.ing — DNS cutover still pending, 404), so
+            # we pin the canonical, verified-callable Cloud Run host here.
+            - name: AGENT_CARD_JWKS_URL
+              value: >-
+                https://ss-mcp-server-1049119860518.us-central1.run.app/.well-known/jwks.json
             # Model Armor templates are PINNED to us-central1 (where they were
             # provisioned), independent of GOOGLE_CLOUD_LOCATION — see
             # MODEL_ARMOR_LOCATION below + the decouple note on the ADK block.
