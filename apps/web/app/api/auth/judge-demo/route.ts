@@ -103,7 +103,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const sessionToken = await signSession({ userId, workspaceId, email, demo: true }, SESSION_TTL_SECONDS);
 
-  const res = NextResponse.redirect(new URL("/campaigns", req.url));
+  // Redirect to the PUBLIC origin, not `req.url` — inside Cloud Run `req.url` is
+  // the internal bind address (0.0.0.0:8080), which a real browser can't follow.
+  const base = process.env.PUBLIC_APP_URL?.trim() || req.url;
+  const res = NextResponse.redirect(new URL("/campaigns", base));
   res.cookies.set(SESSION_COOKIE, sessionToken, {
     httpOnly: true,
     sameSite: "lax",
