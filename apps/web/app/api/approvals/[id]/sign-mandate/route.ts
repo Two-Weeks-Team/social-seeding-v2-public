@@ -30,7 +30,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { Events } from "@ss/contracts";
 import { approvalRepo } from "@ss/db";
 import { inngest } from "@ss/workflows";
-import { getSessionOr401 } from "@/lib/auth";
+import { denyIfDemo, getSessionOr401 } from "@/lib/auth";
 import { SignMandateRequestSchema } from "@/lib/ap2/mandate";
 
 /**
@@ -61,6 +61,8 @@ export async function POST(
   const auth = await getSessionOr401(req);
   if (!auth.ok) return auth.response;
   const { session } = auth;
+  const denied = denyIfDemo(session);
+  if (denied) return denied;
   const { id } = await params;
 
   const raw = await req.json().catch(() => null);

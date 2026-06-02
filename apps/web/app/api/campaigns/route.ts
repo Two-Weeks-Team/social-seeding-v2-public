@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { CampaignBriefSchema, Events } from "@ss/contracts";
 import { campaignRepo } from "@ss/db";
 import { inngest } from "@ss/workflows";
-import { getSessionOr401 } from "@/lib/auth";
+import { denyIfDemo, getSessionOr401 } from "@/lib/auth";
 import { promptGuard, PromptGuardError } from "@/lib/prompt-guard";
 
 /**
@@ -16,6 +16,8 @@ export async function POST(req: NextRequest) {
   const auth = await getSessionOr401(req);
   if (!auth.ok) return auth.response;
   const { session } = auth;
+  const denied = denyIfDemo(session);
+  if (denied) return denied;
 
   const raw = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   if (!raw) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
