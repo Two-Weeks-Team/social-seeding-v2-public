@@ -107,7 +107,7 @@ async function main(): Promise<void> {
         "Fill it in .env.local (the shared v1 Atlas, or a dev cluster) first.",
     );
   }
-  const dbName = process.env.MONGODB_DB ?? "social_seeding";
+  const dbName = process.env.MONGODB_DB ?? "instarsearch";
   const db = await getDb();
   console.log(`Ensuring ${PLANS.length} index(es) on "${dbName}" …`);
   for (const plan of PLANS) {

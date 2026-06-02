@@ -4,7 +4,7 @@
  * Boots a single ephemeral in-memory MongoDB and runs every workspace package
  * that defines a `test` script, each against its OWN database name
  * (`MONGODB_DB`). The Mongo-backed packages (capabilities/workflows/agents)
- * default to the `social_seeding` db, so running them against one shared mongod
+ * default to the `instarsearch` db, so running them against one shared mongod
  * cross-contaminates collections (a package's leftover docs break another's
  * setup/teardown). Giving each package a distinct db isolates them while each
  * `vitest run` still shares one db within itself, as those suites expect.

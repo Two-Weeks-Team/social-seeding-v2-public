@@ -156,7 +156,7 @@ export function verifyUnsubscribeToken(token: string): UnsubscribeVerifyResult {
 
 /**
  * Compose the unsubscribe URL the email footer points at. `baseUrl` is the
- * workspace's public MC origin (e.g. `https://app.socialseed.ing`) — Phase 2
+ * workspace's public MC origin (e.g. `https://agents.socialseed.ing`) — Phase 2
  * resolves this from the policy / workspace config; for now the caller passes
  * it in so this stays pure.
  */

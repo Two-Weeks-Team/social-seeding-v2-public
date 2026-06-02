@@ -41,7 +41,7 @@ async function main(): Promise<void> {
         "Set it in .env.local — same Atlas cluster v1 uses (FREEZE.md §3).",
     );
   }
-  const dbName = process.env.MONGODB_DB ?? "social_seeding";
+  const dbName = process.env.MONGODB_DB ?? "instarsearch";
   console.log(
     `v1 → v2 workspace importer — db="${dbName}" ${opts.dryRun ? "[DRY-RUN]" : "[LIVE]"}` +
     `${opts.includeCanceled ? " [+canceled]" : ""}`,

@@ -18,7 +18,7 @@
 │                                                            │
 │   github.com/_owner_/social-seeding-v2                    │
 │                                                            │
-│   v2.socialseed.ing                                        │
+│   agents.socialseed.ing                                        │
 │                                                            │
 │   Apache 2.0 + BUSL-1.1   (D9)                             │
 │                                                            │
@@ -32,7 +32,7 @@
 │                                                            │
 │   github.com/_owner_/tiktok-mcp-server                    │
 │                                                            │
-│   mcp.socialseed.ing                                       │
+│   ss-mcp-server-1049119860518.us-central1.run.app                                       │
 │                                                            │
 │   BUSL-1.1   (D9)                                          │
 │                                                            │

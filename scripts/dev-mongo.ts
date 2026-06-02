@@ -7,7 +7,7 @@
  * any single package.
  *
  *   pnpm run dev-mongo          # long-running; Ctrl-C to stop
- *   → mongodb://127.0.0.1:27027/social_seeding
+ *   → mongodb://127.0.0.1:27027/instarsearch
  */
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -15,7 +15,7 @@ import process from "node:process";
 import { MongoMemoryServer } from "mongodb-memory-server";
 
 const PORT = Number(process.env.DEV_MONGO_PORT ?? 27027);
-const DB_NAME = process.env.MONGODB_DB ?? "social_seeding";
+const DB_NAME = process.env.MONGODB_DB ?? "instarsearch";
 const DB_PATH = resolve(".mongo-dev/data");
 
 mkdirSync(DB_PATH, { recursive: true });

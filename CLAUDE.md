@@ -103,7 +103,7 @@ Key decisions: orchestration = **Inngest** (durable timers/signals/`waitForEvent
 - **`codex review --base main`** before pushing `src/`/`packages/` changes (shrinks review-bot rounds). Don't loop forever on findings.
 - **No unrelated changes** in a task's diff (no drive-by lint cleanup, no reformatting).
 - **No squash merges** — `gh pr merge --merge` (preserve individual commit history); `--rebase` only for conflict resolution.
-- **Shared v1 Atlas collections** (`accounts_tiktok`, `blacklist`, `workspaces`, `user_tokens`, `crm_accounts`, `templates`, `unified_emails`, …): read freely; write **additive fields only**; never remove/retype. v2 owns `v2_*`. Don't connect to production Atlas casually — for dev prefer a dev cluster or `mongodb-memory-server`; `run-demo.ts` refuses live runs against the shared prod `social_seeding` Atlas.
+- **Shared v1 Atlas collections** (`accounts_tiktok`, `blacklist`, `workspaces`, `user_tokens`, `crm_accounts`, `templates`, `unified_emails`, …): read freely; write **additive fields only**; never remove/retype. v2 owns `v2_*`. Don't connect to production Atlas casually — for dev prefer a dev cluster or `mongodb-memory-server`; `run-demo.ts` refuses live runs against the shared prod DB `instarsearch` (the real prod DB name — the code default and `.env.example` use `instarsearch`).
 - Agents = functions the workflow invokes (curated tools, Zod output, USD cap, escalation), never free loops. Each agent needs a golden-set eval before the phase that depends on it is "done".
 - `prompt-guard` runs on user text before it reaches any agent prompt; `external_send`-scoped capabilities (`gmail.send`) never fire without a cleared policy gate.
 
