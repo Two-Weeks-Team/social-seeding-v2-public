@@ -193,11 +193,11 @@ evaluator should read this as a strict improvement over "17 rows".
 |---|---|---|---|---|
 | A1 | AP2 Cart+Payment Mandate 스키마 + Intent→Cart→Payment SHA-256 체인 + verifier + 테스트강화 | ⑥ AP2 | ✅ | `lib/ap2/chain.ts` + `chain.test.ts` 11/11 · type-check+lint+ap2 78 tests green. (route 배선은 next: verifyMandateChain을 sign-mandate에 연결) |
 | A2 | **에이전트별 평가 surface** `python -m evals --all` — 22/22 계약게이트(pytest tests/agents, 1493 pass) + 2/22 정확도게이트(golden holdout) | ③ Eval | ✅ | `--all` exit 0 · 정확도: coordinator 13/14(holdout75%)·conversation holdout71.4% · full pytest 2933 green. **정직**: 22/22 *정확도* 게이트는 per-agent deterministic predictor(다일 P3) 필요 — golden replay는 과적합이라 미실시 |
-| A3 | Memory Bank fleet 주입(run_agent recall/remember, env-gated) | ① Memory | ⬜ 대기 | pytest -k memory |
-| A4 | Model Armor fleet 배선(run_agent wrap, env-gated) + block test | ② Armor | ⬜ 대기 | pytest -k model_armor |
-| A5 | Observability OTel always-on 옵션 + per-agent cost attribution | ③ Obs | ⬜ 대기 | pytest -k observability |
+| A3 | Memory Bank fleet 주입(run_agent recall/remember) | ① Memory | ⏸ **→ Phase B 이관** | 실측: `_run_with_stub`이 model_client 필수 + 라이브 가치가 Vertex Memory Bank(운영자). run_agent 코어(2933) 수술이라 제출 직전 단독 변경은 green 리스크. 운영자 동반 시 B2와 함께. |
+| A4 | Model Armor fleet 배선 | ② Armor | ⏸ **→ Phase B 이관** | 실측: `model_armor_query_blocks`는 *차단로그 조회* 도구지 인라인 스크리닝이 아님. 인라인 fleet 스크리닝은 *신규* sanitize 프리미티브(live=Model Armor sanitize API, 운영자 게이트) 필요 — "기존 배선" 아님. 운영자 동반(B). |
+| A5 | Observability OTel always-on + per-agent cost attribution | ③ Obs | ⏸ **→ Phase B 이관** | OTel span은 이미 배선됨(HS#2). 라이브 export는 Cloud Trace(운영자, B5). |
 
-원칙: A1→A5 순차, 각 항목 verify-build/pnpm test/pytest green을 커밋 전 확인. 무관 파일 변경 금지. D53 모델만.
+**자율 트랙 결론**: 코어 수술/신규 클라우드 프리미티브 없이 깔끔히 완결 가능한 항목 = **A1·A2 (완료·검증·커밋)**. A3/A4/A5는 라이브 가치가 운영자/Google 게이트이고 run_agent 코어를 건드려야 해, D-2 제출의 green CI를 지키기 위해 **Phase B(운영자 동반)로 이관**. 위조·무리한 수술 없이 정직하게 경계를 표기.
 
 ## Phase B — 🟡 OPERATOR-GATED (운영자 ss-v2-prod 전환·승인 시)
 
