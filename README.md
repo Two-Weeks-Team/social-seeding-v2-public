@@ -27,6 +27,12 @@ Beyond the challenge-stack A2A path above, the v2 **product** loop now runs end-
 
 This shipped with five **measured** root-cause fixes (PRs #46–#50): TS Vertex mode (ADC, no key), env-flag case-fold, a forced-final agent turn, accepting `language: null` on the creator schema (it was silently dropping every creator → sourcing returned zero), and disabling Gemini-3.x thinking so agents emit their JSON instead of burning the output budget.
 
+A further hardening pass (PRs #57–#59), each verified against the live deploy:
+
+- **DB-name default unified to the real prod `instarsearch`**, and a `run-demo` safety guard that only checked the never-existed `social_seeding` — so a live run against the real prod DB was **not actually blocked** — now fails closed on both names.
+- **The signed A2A card's `jku` now points at the verified-reachable Cloud Run JWKS.** It had defaulted to a not-yet-cut-over vanity domain (`mcp.socialseed.ing`, 404), so a spec-pure verifier following the card's own `jku` couldn't fetch the key — `verify_card_with_jwks(card, jwks_from_jku)` now passes end-to-end (rev `ss-mcp-server-00015`).
+- **Outbound email goes out as `multipart/alternative`** so HTML bodies render — the ADK send path was emitting a lone `text/plain` part, so `<br>` showed literally; fixed + a regression test that decodes the actual Gmail `raw`, then proven on a real send (the received message reads back as `multipart/alternative` with the HTML part intact).
+
 ## Documentation (rendered)
 
 Polished, shareable renders — self-contained, open in any browser ([index](https://storage.googleapis.com/ss-social-seeding-v2-docs/index.html)):
