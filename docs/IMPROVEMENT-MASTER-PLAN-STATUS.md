@@ -177,3 +177,50 @@ The synthesis-derived "17" assumed the only change was harmonising the
 existing 16↔17 inconsistency in `devpost-track3.md:425`; rows 18-28 add
 the P1 sprint disclosures the synthesis explicitly asked for. Goal
 evaluator should read this as a strict improvement over "17 rows".
+
+---
+
+# Native-Adoption Roadmap — 실행 추적 (2026-06-02~)
+
+> 로드맵: `combba.github.io/ss-reports/native-roadmap.html` · 감사: `…/platform-audit.html`.
+> "가능한 모든 것을 Gemini Enterprise Agent Platform 네이티브로." 트랙 분리로 자율-가능과 게이트를 구분.
+
+**트랙 범례** — 🟢 AUTONOMOUS(코드+오프라인 테스트로 이번 세션 완결) · 🟡 OPERATOR-GATED(ss-v2-prod·ADC·billing) · 🔴 GOOGLE-GATED(Private-Preview/allowlist)
+
+## Phase A — 🟢 AUTONOMOUS (코드 + 테스트 강화)
+
+| # | 항목 | 로드맵 | 상태 | 검증 근거 |
+|---|---|---|---|---|
+| A1 | AP2 Cart+Payment Mandate 스키마 + Intent→Cart→Payment SHA-256 체인 + verifier + 테스트강화 | ⑥ AP2 | ✅ | `lib/ap2/chain.ts` + `chain.test.ts` 11/11 · type-check+lint+ap2 78 tests green. (route 배선은 next: verifyMandateChain을 sign-mandate에 연결) |
+| A2 | Eval 게이트 추가(sourcing) + 케이스 강화 (2/22→3/22) | ③ Eval | ⬜ 대기 | `python -m evals --agent sourcing` |
+| A3 | Memory Bank fleet 주입(run_agent recall/remember, env-gated) | ① Memory | ⬜ 대기 | pytest -k memory |
+| A4 | Model Armor fleet 배선(run_agent wrap, env-gated) + block test | ② Armor | ⬜ 대기 | pytest -k model_armor |
+| A5 | Observability OTel always-on 옵션 + per-agent cost attribution | ③ Obs | ⬜ 대기 | pytest -k observability |
+
+원칙: A1→A5 순차, 각 항목 verify-build/pnpm test/pytest green을 커밋 전 확인. 무관 파일 변경 금지. D53 모델만.
+
+## Phase B — 🟡 OPERATOR-GATED (운영자 ss-v2-prod 전환·승인 시)
+
+| # | 항목 | 차단 해제 조건 |
+|---|---|---|
+| B1 | Agent Engine 배포(`adk deploy agent_engine`) | gcloud project→`ss-v2-prod`, Vertex+CRM API, ADC, billing |
+| B2 | Sessions + Memory Bank 라이브(`agentengine://`) | B1 선행 |
+| B3 | Vertex AI RAG Engine corpus + Agent Search | ADC + GCS + 코퍼스 |
+| B4 | VAPO 데이터드리븐 1회(GA 모델) | ADC + GCS 버킷 |
+| B5 | Cloud Trace export 상시 + 대시보드 | ADC + Trace API |
+| B6 | Agent Identity IAM principal + Registry 네이티브 등록 | IAM 권한 |
+| B7 | Cloud Marketplace 등재 + Apigee 미터링 | 해외 sub-entity(KR 결제권역 D2) |
+| B8 | capability-layer live 배선(gmail/imagen/carrier/…) | 외부 SDK creds |
+
+## Phase C — 🔴 GOOGLE-GATED (allowlist/Private-Preview 대기)
+
+| # | 항목 | 비고 |
+|---|---|---|
+| C1 | Agent Runtime allowlist (D17) | Google 통보 대기 |
+| C2 | Agent Gateway mTLS enforcement | Private Preview |
+| C3 | Agent Policy/Security/Compliance/Anomaly 관리형 | 제품 가용성 |
+| C4 | Agent Simulation 관리형 | 제품 가용성 |
+
+## 진행 로그
+- 2026-06-02 — 네이티브 로드맵 추적 섹션 생성. Phase A 자율 트랙 착수(A1 AP2 체인). 브랜치 `feat/native-roadmap-impl`.
+- 2026-06-02 — **A1 ✅**: `lib/ap2/chain.ts`(CartMandate·PaymentMandate canonical 스키마 + canonical-JSON SHA-256 바인딩 `bindCart`/`bindPayment` + `verifyMandateChain`) + 11 테스트(유효·변조·오참조·한도초과·합계·만료·통화). 검증: vitest 11/11, web type-check, eslint, ap2 78 tests 전부 green. 다음: A2(eval).
