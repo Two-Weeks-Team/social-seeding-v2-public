@@ -15,7 +15,7 @@
 **Project**: Multi-tenant, multi-region AI agent operating platform for influencer marketing, submitted to the Google for Startups AI Agents Challenge as two distinct entries.
 
 **Submissions**:
-- **Track 2 (Optimize)**: `social-seeding-v2` rebuilt on the GCP Agent Platform — ADK on Vertex AI Agent Runtime, hybrid Spanner + AlloyDB AI + Firestore, GCP-native orchestration (Workflows + Pub/Sub + Cloud Tasks + Eventarc), Enterprise-grade SLO + Model Armor + Chronicle SIEM, multi-region active-active across US + EU + APAC.
+- **Track 2 (Optimize)**: `social-seeding-v2` rebuilt on the GCP Agent Platform — ADK on Agent Runtime, hybrid Spanner + AlloyDB AI + Firestore, GCP-native orchestration (Workflows + Pub/Sub + Cloud Tasks + Eventarc), Enterprise-grade SLO + Model Armor + Chronicle SIEM, multi-region active-active across US + EU + APAC.
 - **Track 3 (Refactor)**: `tiktok-mcp-server` wrapped as an A2A-compliant ADK agent registered with Gemini Enterprise. Korean-region-listing-gap reframed as the contribution.
 
 **Deadline**: 2026-06-05 23:59 PT (= 2026-06-06 15:59 KST). Time pressure deprioritized per D7.
@@ -63,7 +63,7 @@ Status legend: ✅ active · 🔁 superseded · ⏸ deferred · ❓ outstanding
 |---|---|---|---|---|
 | **D15** | **OLTP hybrid**: **Spanner** (core/tenant/billing) + **AlloyDB AI** (analytics/feature store) + **Firestore Native** (Agent Memory Bank backing) | user 2026-05-19 R2 | ✅ | Mongo Atlas retired from new build; capability layer rewrites repository per data plane |
 | **D16** | **Vector search**: **Vertex AI Vector Search** dedicated service | user 2026-05-19 R2 | ✅ | Independent of any single OLTP store; 10M+ vectors, p99 < 50ms |
-| **D17** | **Agent runtime**: **Vertex AI Agent Runtime** (managed) | user 2026-05-19 R2 | ✅ | Track 3 reference path; sub-second cold start; 7-day long-running |
+| **D17** | **Agent runtime**: **Agent Runtime** (managed) | user 2026-05-19 R2 | ✅ | Track 3 reference path; sub-second cold start; 7-day long-running. **Naming (2026-06):** the managed runtime is now **"Agent Runtime / Agent Platform Runtime"** (formerly "Vertex AI Agent Engine"); the platform is **"Gemini Enterprise Agent Platform" (formerly Vertex AI)**. "Vertex AI" stays correct for the model-serving endpoint / `aiplatform.googleapis.com` / Prompt Optimizer (VAPO). |
 | **D18** | **Orchestration**: **Cloud Workflows** (durable) + **Pub/Sub** (fan-out) + **Cloud Tasks** (retry) + **Eventarc Advanced** (system events) — Inngest **retired** | user 2026-05-19 R2 | ✅ | Supersedes D4; v2's `step.sleep(14d)` + `if`-correlation pattern rewritten on Workflows |
 
 ### Round 3 — Security & compliance (D19-D22)
@@ -275,7 +275,7 @@ To be detailed in `SERVICE-INVENTORY.md` (Task #28). Headline shape:
 - **Govern**: Agent Gateway (Private Preview disclosure) + Agent Identity (SPIFFE) + Agent Registry + **Model Armor** + Agent Security + Agent Compliance + Agent Policy
 - **Optimize**: Agent Evaluation + Agent Observability + Agent Optimizer + Agent Simulation + Agent Anomaly Detection
 - **Data**: Spanner Multi-region + AlloyDB AI + Firestore Native + Vertex AI Vector Search + BigQuery (analytics) + BigQuery ML (CPM forecasting) + Cloud Storage (assets) + Memorystore Valkey (hot cache) + Pub/Sub + Pub/Sub Schema Registry
-- **Compute**: Vertex AI Agent Runtime (managed) + Cloud Run (worker pools for non-agent services) + GKE Autopilot (Agent Sandbox + GPU/TPU when Veo/Imagen needs)
+- **Compute**: Agent Runtime (managed) + Cloud Run (worker pools for non-agent services) + GKE Autopilot (Agent Sandbox + GPU/TPU when Veo/Imagen needs)
 - **Networking**: Global Load Balancing + Cloud CDN + Cloud Armor + VPC + VPC Service Controls + Cloud NAT + Cloud DNS + IAP + Private Service Connect + Cloud Service Mesh
 - **Security**: Identity Platform + Workforce IF + Secret Manager + Cloud KMS (CMEK + HSM optional) + Certificate Manager + Confidential Computing (PII workloads) + Binary Authorization + Security Command Center (AI Protection) + Sensitive Data Protection + Chronicle SecOps
 - **Observability**: Cloud Logging + Log Analytics + Cloud Monitoring + Managed Prometheus + Managed Grafana + Cloud Trace + Cloud Profiler + Error Reporting + Cloud Audit Logs + OpenTelemetry

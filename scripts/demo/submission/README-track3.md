@@ -7,14 +7,16 @@
 [![track](https://img.shields.io/badge/Google%20for%20Startups-AI%20Agents%20Track%203-4285F4?logo=googlecloud)](https://cloud.google.com/blog/topics/startups/startups-are-building-the-agentic-future-with-google-cloud)
 [![marketplace](https://img.shields.io/badge/Cloud%20Marketplace-PENDING%20%E2%80%94%20KR%20payment%20region-EA4335)](docs/marketplace-submission.png)
 
-> 30-second elevator: a public Model Context Protocol server with four TikTok tools (`search_users`, `user_info`, `user_posts`, `post_detail`) wrapped by an ADK orchestration agent on Vertex AI Agent Runtime, billed per-call through Apigee X. **Korean payment-region excluded from Cloud Marketplace (D2)** — we re-framed the gap as an A2A-only distribution pattern that any non-Marketplace-region startup can copy (D3). The pattern is the contribution.
+> 30-second elevator: a public Model Context Protocol server with four TikTok tools (`search_users`, `user_info`, `user_posts`, `post_detail`) wrapped by an ADK orchestration agent on Agent Runtime, billed per-call through Apigee X. **Korean payment-region excluded from Cloud Marketplace (D2)** — we re-framed the gap as an A2A-only distribution pattern that any non-Marketplace-region startup can copy (D3). The pattern is the contribution.
+
+> Naming: "Agent Runtime" is Google's current name (formerly "Vertex AI Agent Engine") on the **Gemini Enterprise Agent Platform** (formerly Vertex AI); model serving stays on the Vertex AI `global` endpoint.
 
 ## What is it
 
 `tiktok-mcp-server` is a dual-surface connector:
 
 - **MCP path** — four TikTok tools (`search_users`, `user_info`, `user_posts`, `post_detail`) declared in the agent card's `mcp_tools[]` and shipped as the MCP-spec HTTP surface in the OSS `tiktok-mcp-server` distribution for self-hosting (standard MCP clients — Claude Desktop, Cursor — work unmodified). The deployed Cloud Run node fronts them over the A2A surface below.
-- **A2A path** — the same backend, fronted by an **ADK orchestration agent** on Vertex AI Agent Runtime that emits an A2A v0.3 surface via `.well-known/agent.json`. Other agents inside Gemini Enterprise discover and call us via Agent Registry; the v2 `sourcing` agent already does this in our integration tests.
+- **A2A path** — the same backend, fronted by an **ADK orchestration agent** on Agent Runtime that emits an A2A v0.3 surface via `.well-known/agent.json`. Other agents inside Gemini Enterprise discover and call us via Agent Registry; the v2 `sourcing` agent already does this in our integration tests.
 
 Authentication is multi-tenant **Identity Platform** OAuth (D19). Per-call billing flows through **Apigee X** (D28) at three published tiers. The underlying scrapers (5 services: 4 Go + 1 Python) are existing production traffic, registered to our v1 backend with a shared `INTERNAL_API_KEY` and Cloud Service Mesh mTLS between the MCP frontend and the scraper backend.
 
@@ -35,7 +37,7 @@ Pricing:
 ## What did we build (for this Challenge)
 
 - **MCP server on Cloud Run + Cloud Armor** — Global LB-fronted, mTLS to the scraper backend via Cloud Service Mesh, IAP for the admin endpoints.
-- **ADK orchestration agent on Vertex AI Agent Runtime (D17)** — Gemini 3.1 Flash-Lite for tool selection and for malformed-intent classification, no Agent Memory Bank dependency (stateless connector agent per D33).
+- **ADK orchestration agent on Agent Runtime (D17)** — Gemini 3.1 Flash-Lite for tool selection and for malformed-intent classification, no Agent Memory Bank dependency (stateless connector agent per D33).
 - **Model Armor max policy (D21) on every model call** — PI / JB block, PII block, RAI default, custom regex (brand / competitor / influencer-handle), Agent Anomaly Detection feeding the W3 security_watch agent.
 - **Identity Platform multi-tenant OAuth (D19)** replaces the v1 better-sqlite OAuth store entirely. Per-tenant API keys minted into Secret Manager with CMEK encryption.
 - **Apigee X per-call meter (D28)** with usage events into Pub/Sub → Dataflow → BigQuery for $0.01 / view rate-card aggregation; **Dataform** SQL transforms; **API Hub** (Apigee) holds the OpenAPI 3.1 + MCP spec catalog (D36).

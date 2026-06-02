@@ -46,6 +46,8 @@ Polished, shareable renders — self-contained, open in any browser ([index](htt
 
 ## Architecture
 
+> **Naming (current).** Google's platform is now **Gemini Enterprise Agent Platform** (formerly Vertex AI). We keep "Vertex AI" where it's still the official surface — the model-serving **`global`** endpoint (`aiplatform.googleapis.com`), the Gemini API in Vertex AI, and the Prompt Optimizer — and use **"Agent Runtime"** (formerly "Vertex AI Agent Engine") for the managed agent runtime.
+
 Four Cloud Run / Cloud Workflow components are deployed live (project `ss-v2-prod` / `ss-mcp-prod` / `ss-shared-infra`, Cloud Run ≈ $1–5/mo — `ss-mcp-server` kept warm at `minScale=1`, the rest `min=0`). The diagram below shows the request path: a brand brief enters the `brand-campaign-demo` Cloud Workflow, the **coordinator** (`gemini-3.5-flash`, served on the Vertex **`global`** endpoint, routed through the Model Garden publisher plane) decides who runs, the 22-agent fleet executes, and the creator-sourcing and brand-asset legs cross to the OSS `tiktok-mcp-server` node over **A2A v0.3 `message:send`**.
 
 ```mermaid
