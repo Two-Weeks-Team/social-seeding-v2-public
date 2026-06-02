@@ -276,6 +276,66 @@ class TestLiveSend:
         send_call = next(p for p in posted if "messages/send" in str(p["url"]))
         assert send_call["headers"]["Authorization"] == "Bearer at-fresh"
 
+    def test_live_send_html_body_is_multipart_alternative(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Regression: an HTML body (with <br>) must go out as
+        multipart/alternative — a text/html part Gmail renders + a text/plain
+        fallback. A lone text/plain part makes recipients see literal "<br>"
+        (the bug this guards against)."""
+        import base64
+        from email import message_from_bytes
+        from email.policy import default as default_policy
+
+        monkeypatch.setenv("CAPABILITY_LAYER_MODE", "live")
+        monkeypatch.setenv("GOOGLE_CLIENT_ID", "cid.apps.googleusercontent.com")
+        monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "secret")
+        monkeypatch.setattr(
+            "ss_agents.tools.backend_client.fetch_gmail_token",
+            lambda _e: {"refreshToken": "rt-123", "scope": "gmail.send"},
+        )
+
+        posted: list[dict[str, object]] = []
+
+        class _Resp:
+            status_code = 200
+
+            def __init__(self, payload: dict[str, object]) -> None:
+                self._payload = payload
+                self.text = str(payload)
+
+            def json(self) -> dict[str, object]:
+                return self._payload
+
+        def _fake_post(url: str, **kwargs: object) -> _Resp:
+            posted.append({"url": url, **kwargs})
+            if url.endswith("/token"):
+                return _Resp({"access_token": "at-fresh"})
+            return _Resp({"id": "gmail-msg-id-2", "threadId": "t2"})
+
+        import httpx
+
+        monkeypatch.setattr(httpx, "post", _fake_post)
+        gmail_send_reply(
+            _input(
+                recipient_email="sejun@2weeks.co",
+                reply_body="Hi there,<br><br>Line two here.<br>Best,<br>The Team",
+            )
+        )
+
+        send_call = next(p for p in posted if "messages/send" in str(p["url"]))
+        raw_b64 = send_call["json"]["raw"]  # type: ignore[index]
+        mime = message_from_bytes(base64.urlsafe_b64decode(raw_b64), policy=default_policy)
+        assert mime.get_content_type() == "multipart/alternative"
+
+        parts = {p.get_content_type(): p.get_content() for p in mime.walk() if p.get_content_type().startswith("text/")}
+        assert "text/html" in parts and "text/plain" in parts
+        # The HTML part keeps <br> (Gmail renders it as a line break)…
+        assert "<br>" in parts["text/html"]
+        # …and the plain-text fallback has NO literal <br> (turned into newlines).
+        assert "<br>" not in parts["text/plain"]
+        assert "Line two here." in parts["text/plain"]
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TestCostAttribute.
