@@ -15,7 +15,7 @@
     "agent_id": "outreach-writer",
     "spec": "gcp-research/specs/tier1/outreach_writer.spec.md",
     "decisions": ["D5", "D10", "D21", "D23", "D27", "D34"],
-    "model": "gemini-3.1-pro",
+    "model": "gemini-3.5-flash",
     "tournament_max_usd": 0.10,
     "drafter_max_usd_per_call": 0.02,
     "judge_max_usd_per_call": 0.005,

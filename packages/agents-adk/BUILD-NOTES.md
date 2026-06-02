@@ -251,14 +251,14 @@ Per `EXECUTION-CALENDAR.md` and the ARCHITECTURE.md fleet table:
    8-category classifier. Exercises the cheapest model in the fleet and
    confirms the pricing table covers Flash-Lite. **Phase 3.2**.
 
-3. **`research`** (`gemini-3.1-pro`, 1 tool: `google_search`) — first agent
+3. **`research`** (`gemini-3.5-flash`, 1 tool: `google_search`) — first agent
    with a real ADK first-party tool. Unblocks `vetting`. **Phase 3.3**.
 
-4. **`vetting`** (`gemini-3.1-pro`, parallel fan-out across creators) — first
+4. **`vetting`** (`gemini-3.5-flash`, parallel fan-out across creators) — first
    agent that needs `ParallelAgent` orchestration in the workflow layer.
    Coordination with Phase 5 (D24 1→100 coordinator) required. **Phase 3.4**.
 
-5. **`outreach_writer`** (`gemini-3.1-pro`, 0 tools, output_schema-heavy) —
+5. **`outreach_writer`** (`gemini-3.5-flash`, 0 tools, output_schema-heavy) —
    per PORTING-V2.md §5 the 130-line template lands almost verbatim. Add
    the 4-judge deterministic eval as workflow steps (NOT inside the agent),
    matching the v2 split. **Phase 3.5**.
@@ -267,7 +267,7 @@ Per `EXECUTION-CALENDAR.md` and the ARCHITECTURE.md fleet table:
    first multimodal agent. Establishes the pattern for `creative` (Imagen 4
    + Veo 3). **Phase 3.6**.
 
-7. **`analyst`** (`gemini-3.1-pro`, BigQueryToolset) — first agent that
+7. **`analyst`** (`gemini-3.5-flash`, BigQueryToolset) — first agent that
    hooks into ADK's `BigQueryToolset`. Unblocks the per-campaign report
    surface. **Phase 3.7**.
 
