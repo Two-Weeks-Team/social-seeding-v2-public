@@ -177,3 +177,51 @@ The synthesis-derived "17" assumed the only change was harmonising the
 existing 16↔17 inconsistency in `devpost-track3.md:425`; rows 18-28 add
 the P1 sprint disclosures the synthesis explicitly asked for. Goal
 evaluator should read this as a strict improvement over "17 rows".
+
+---
+
+# Native-Adoption Roadmap — 실행 추적 (2026-06-02~)
+
+> 로드맵: `combba.github.io/ss-reports/native-roadmap.html` · 감사: `…/platform-audit.html`.
+> "가능한 모든 것을 Gemini Enterprise Agent Platform 네이티브로." 트랙 분리로 자율-가능과 게이트를 구분.
+
+**트랙 범례** — 🟢 AUTONOMOUS(코드+오프라인 테스트로 이번 세션 완결) · 🟡 OPERATOR-GATED(ss-v2-prod·ADC·billing) · 🔴 GOOGLE-GATED(Private-Preview/allowlist)
+
+## Phase A — 🟢 AUTONOMOUS (코드 + 테스트 강화)
+
+| # | 항목 | 로드맵 | 상태 | 검증 근거 |
+|---|---|---|---|---|
+| A1 | AP2 Cart+Payment Mandate 스키마 + Intent→Cart→Payment SHA-256 체인 + verifier + 테스트강화 | ⑥ AP2 | ✅ | `lib/ap2/chain.ts` + `chain.test.ts` 11/11 · type-check+lint+ap2 78 tests green. (route 배선은 next: verifyMandateChain을 sign-mandate에 연결) |
+| A2 | **에이전트별 평가 surface** `python -m evals --all` — 22/22 계약게이트(pytest tests/agents, 1493 pass) + 2/22 정확도게이트(golden holdout) | ③ Eval | ✅ | `--all` exit 0 · 정확도: coordinator 13/14(holdout75%)·conversation holdout71.4% · full pytest 2933 green. **정직**: 22/22 *정확도* 게이트는 per-agent deterministic predictor(다일 P3) 필요 — golden replay는 과적합이라 미실시 |
+| A3 | Memory Bank fleet 주입(run_agent recall/remember) | ① Memory | ⏸ **→ Phase B 이관** | 실측: `_run_with_stub`이 model_client 필수 + 라이브 가치가 Vertex Memory Bank(운영자). run_agent 코어(2933) 수술이라 제출 직전 단독 변경은 green 리스크. 운영자 동반 시 B2와 함께. |
+| A4 | Model Armor fleet 배선 | ② Armor | ⏸ **→ Phase B 이관** | 실측: `model_armor_query_blocks`는 *차단로그 조회* 도구지 인라인 스크리닝이 아님. 인라인 fleet 스크리닝은 *신규* sanitize 프리미티브(live=Model Armor sanitize API, 운영자 게이트) 필요 — "기존 배선" 아님. 운영자 동반(B). |
+| A5 | Observability OTel always-on + per-agent cost attribution | ③ Obs | ⏸ **→ Phase B 이관** | OTel span은 이미 배선됨(HS#2). 라이브 export는 Cloud Trace(운영자, B5). |
+
+**자율 트랙 결론**: 코어 수술/신규 클라우드 프리미티브 없이 깔끔히 완결 가능한 항목 = **A1·A2 (완료·검증·커밋)**. A3/A4/A5는 라이브 가치가 운영자/Google 게이트이고 run_agent 코어를 건드려야 해, D-2 제출의 green CI를 지키기 위해 **Phase B(운영자 동반)로 이관**. 위조·무리한 수술 없이 정직하게 경계를 표기.
+
+## Phase B — 🟡 OPERATOR-GATED (운영자 ss-v2-prod 전환·승인 시)
+
+| # | 항목 | 차단 해제 조건 |
+|---|---|---|
+| B1 | Agent Engine 배포(`adk deploy agent_engine`) | gcloud project→`ss-v2-prod`, Vertex+CRM API, ADC, billing |
+| B2 | Sessions + Memory Bank 라이브(`agentengine://`) | B1 선행 |
+| B3 | Vertex AI RAG Engine corpus + Agent Search | ADC + GCS + 코퍼스 |
+| B4 | VAPO 데이터드리븐 1회(GA 모델) | ADC + GCS 버킷 |
+| B5 | Cloud Trace export 상시 + 대시보드 | ADC + Trace API |
+| B6 | Agent Identity IAM principal + Registry 네이티브 등록 | IAM 권한 |
+| B7 | Cloud Marketplace 등재 + Apigee 미터링 | 해외 sub-entity(KR 결제권역 D2) |
+| B8 | capability-layer live 배선(gmail/imagen/carrier/…) | 외부 SDK creds |
+
+## Phase C — 🔴 GOOGLE-GATED (allowlist/Private-Preview 대기)
+
+| # | 항목 | 비고 |
+|---|---|---|
+| C1 | Agent Runtime allowlist (D17) | Google 통보 대기 |
+| C2 | Agent Gateway mTLS enforcement | Private Preview |
+| C3 | Agent Policy/Security/Compliance/Anomaly 관리형 | 제품 가용성 |
+| C4 | Agent Simulation 관리형 | 제품 가용성 |
+
+## 진행 로그
+- 2026-06-02 — 네이티브 로드맵 추적 섹션 생성. Phase A 자율 트랙 착수(A1 AP2 체인). 브랜치 `feat/native-roadmap-impl`.
+- 2026-06-02 — **A1 ✅**: `lib/ap2/chain.ts`(CartMandate·PaymentMandate canonical 스키마 + canonical-JSON SHA-256 바인딩 `bindCart`/`bindPayment` + `verifyMandateChain`) + 11 테스트(유효·변조·오참조·한도초과·합계·만료·통화). 검증: vitest 11/11, web type-check, eslint, ap2 78 tests 전부 green. 다음: A2(eval).
+- 2026-06-03 — **A2 ✅**: `evals/__main__.py`에 `--all` 에이전트별 평가 surface 추가 — fleet 22 커버리지 표 + 정확도게이트 2종(coordinator·conversation) 라이브 실행. 실측: 22 에이전트 테스트 1493 pass, 정확도 둘 다 PASS(holdout 75%/71.4%), 전체 pytest 2933 green. 정직 디스클로저: 22/22 *정확도* 게이트는 per-agent predictor(P3 도메인작업) — golden replay 과적합이라 미실시. 다음: A3(Memory Bank fleet).

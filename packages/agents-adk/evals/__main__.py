@@ -61,6 +61,53 @@ _REGISTRY: dict[str, Any] = {
     "coordinator": _coordinator_spec,
 }
 
+# The full fleet, for the per-agent coverage surface (`--all`). Each agent has a
+# per-agent CONTRACT suite under `tests/agents/test_<agent>.py` (input schema,
+# prompt-guard, output schema, escalation, integration). A subset additionally
+# has an ACCURACY gate (a deterministic golden predictor + holdout floor).
+#
+# Honesty (matches HONEST-SCOPE §4 "eval coverage"): full 22/22 *accuracy*
+# gating needs a hand-built deterministic baseline per agent (a multi-day P3
+# effort) — replaying each evalset's golden `final_response` would score 100% by
+# construction, the exact overfit `runner.py` is designed to prevent. So `--all`
+# reports both layers truthfully rather than faking accuracy for all 22.
+_FLEET_AGENTS: tuple[str, ...] = (
+    "coordinator", "sourcing", "vetting", "outreach_writer", "conversation",
+    "conversation_responder", "logistics", "content_verify", "analyst",
+    "research", "intake", "lead_outreach_writer", "payment_mandate",
+    "compliance", "creative", "a11y", "customer_success",
+    "critic", "optimizer", "anomaly_watch", "cost_watch", "security_watch",
+)
+# Agents with a wired ACCURACY gate (deterministic predictor + holdout floor).
+_ACCURACY_GATED: frozenset[str] = frozenset({"coordinator", "conversation_responder"})
+
+
+async def _run_all(holdout_floor: float) -> int:
+    """Per-agent evaluation surface. Prints a coverage table for the whole fleet,
+    runs every wired ACCURACY gate live, and returns non-zero if any fails.
+    """
+    print("=" * 68)
+    print("  PER-AGENT EVALUATION — fleet coverage surface")
+    print("=" * 68)
+    print(f"  {'agent':<24} {'gate':<10} where")
+    print("  " + "-" * 64)
+    for name in _FLEET_AGENTS:
+        if name in _ACCURACY_GATED:
+            gate, where = "accuracy", f"python -m evals --agent {name}"
+        else:
+            gate, where = "contract", f"pytest tests/agents/test_{name}.py"
+        print(f"  {name:<24} {gate:<10} {where}")
+    print("  " + "-" * 64)
+    print(f"  fleet={len(_FLEET_AGENTS)}  accuracy-gated={len(_ACCURACY_GATED)}  "
+          f"contract-gated={len(_FLEET_AGENTS) - len(_ACCURACY_GATED)}")
+    print("=" * 68)
+
+    rc = 0
+    for name in sorted(_ACCURACY_GATED):
+        print(f"\n>>> ACCURACY gate: {name}")
+        rc |= await _run(name, holdout_floor)
+    return rc
+
 
 async def _run(agent: str, holdout_floor: float) -> int:
     # A8 (P1 Sub-1.3) — conversation_responder uses the triage_sim simulator
@@ -105,12 +152,20 @@ def main(argv: list[str] | None = None) -> int:
         default=0.7,
         help="Minimum holdout accuracy to PASS (default: 0.70).",
     )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Per-agent evaluation surface: fleet coverage table + run every "
+        "wired accuracy gate.",
+    )
     args = parser.parse_args(argv)
 
     # Belt-and-braces: force offline so no creds/Vertex/billing can be reached.
     os.environ.setdefault("SS_OFFLINE", "1")
     os.environ["SS_LIVE"] = "0"
 
+    if args.all:
+        return asyncio.run(_run_all(args.holdout_floor))
     return asyncio.run(_run(args.agent, args.holdout_floor))
 
 
