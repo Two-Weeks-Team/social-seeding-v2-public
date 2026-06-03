@@ -94,7 +94,17 @@ export default async function CampaignDetailPage({
   const traces = await traceRepo.listByCampaign(id).catch(() => []);
 
   const shortlistApproval = pending.find((a) => a.kind === "shortlist");
-  const vetCount = traces.reduce((sum, t) => sum + t.spans.filter((s) => s.name === "agent:vetting").length, 0);
+  // A vetting span may represent a batch — prefer its attrs.evaluated count,
+  // else count one per span. (Keeps the timeline readable while the canvas still
+  // shows the true number of candidates evaluated.)
+  const vetCount = traces.reduce(
+    (sum, t) =>
+      sum +
+      t.spans
+        .filter((s) => s.name === "agent:vetting")
+        .reduce((a, s) => a + (typeof s.attrs.evaluated === "number" ? (s.attrs.evaluated as number) : 1), 0),
+    0,
+  );
   const shortlistCount =
     shortlistApproval && Array.isArray(shortlistApproval.recommendation)
       ? (shortlistApproval.recommendation as unknown[]).length

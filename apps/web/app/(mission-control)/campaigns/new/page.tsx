@@ -32,6 +32,10 @@ async function createCampaignAction(formData: FormData): Promise<void> {
     "logistics.shipsSamples": z.string().optional(),
     "goals.targetLivePosts": z.coerce.number().int().positive(),
     "goals.deadline": z.string().min(1),
+    "goals.budgetUsd": z.preprocess(
+      (v) => (v === "" || v == null ? undefined : v),
+      z.coerce.number().nonnegative().optional(),
+    ),
   });
   const raw = Object.fromEntries(formData.entries());
   const parsed = Form.safeParse(raw);
@@ -64,7 +68,7 @@ async function createCampaignAction(formData: FormData): Promise<void> {
       excludeBlacklist: true,
     },
     logistics: { shipsSamples: f["logistics.shipsSamples"] === "on" },
-    goals: { targetLivePosts: f["goals.targetLivePosts"], deadline: f["goals.deadline"] },
+    goals: { targetLivePosts: f["goals.targetLivePosts"], deadline: f["goals.deadline"], budgetUsd: f["goals.budgetUsd"] },
   };
   const briefParsed = CampaignBriefSchema.safeParse(briefInput);
   if (!briefParsed.success) return;
@@ -177,6 +181,14 @@ export default async function NewCampaignPage() {
                 hint="이 날짜까지 게시 완료를 목표로 합니다."
               />
             </div>
+            <Field
+              name="goals.budgetUsd"
+              label="캠페인 예산 한도 (USD)"
+              type="number"
+              min={1}
+              placeholder="예: 25"
+              hint="이 캠페인에 쓸 최대 비용입니다. 비우면 기본 한도 $25가 적용됩니다."
+            />
           </CardBody>
         </Card>
       </form>
