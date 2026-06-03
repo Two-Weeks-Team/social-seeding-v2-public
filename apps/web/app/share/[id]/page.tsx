@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { timingSafeEqual } from "node:crypto";
-import { Badge } from "@/components/ui/badge";
+import { StatusTag } from "@/components/ui/status-tag";
 import { Card, CardBody, SectionLabel } from "@/components/ui/card";
 import { reportRepo } from "@ss/db";
 import type { Report } from "@ss/contracts";
@@ -49,13 +49,13 @@ function renderMarkdown(md: string): React.ReactElement {
   while (i < lines.length) {
     const line = lines[i] ?? "";
     if (line.startsWith("# ")) {
-      out.push(<h1 key={key++} className="text-[28px] font-semibold mt-8 mb-3">{line.slice(2)}</h1>);
+      out.push(<h1 key={key++} className="text-[28px] font-bold tracking-[-0.01em] text-ink mt-8 mb-3">{line.slice(2)}</h1>);
       i++;
     } else if (line.startsWith("## ")) {
-      out.push(<h2 key={key++} className="text-[18px] font-semibold mt-6 mb-2 text-slate-700">{line.slice(3)}</h2>);
+      out.push(<h2 key={key++} className="text-[18px] font-bold text-ink mt-6 mb-2">{line.slice(3)}</h2>);
       i++;
     } else if (line.startsWith("### ")) {
-      out.push(<h3 key={key++} className="text-[14px] font-semibold mt-4 mb-1.5 text-slate-700">{line.slice(4)}</h3>);
+      out.push(<h3 key={key++} className="text-[14px] font-semibold text-ink-2 mt-4 mb-1.5">{line.slice(4)}</h3>);
       i++;
     } else if (line.startsWith("- ") || line.startsWith("* ")) {
       const items: string[] = [];
@@ -64,7 +64,7 @@ function renderMarkdown(md: string): React.ReactElement {
         i++;
       }
       out.push(
-        <ul key={key++} className="list-disc pl-6 my-2 text-[15px] text-slate-700 space-y-1">
+        <ul key={key++} className="list-disc pl-6 my-2 text-[15px] text-ink-2 space-y-1">
           {items.map((it, j) => <li key={j}>{it}</li>)}
         </ul>,
       );
@@ -80,26 +80,28 @@ function renderMarkdown(md: string): React.ReactElement {
       const [header, ...body] = rows;
       if (header) {
         out.push(
-          <table key={key++} className="mt-3 mb-4 w-full text-[14px] border-collapse">
-            <thead className="bg-slate-50 text-[12px] uppercase tracking-wider text-slate-600">
-              <tr>
-                {header.map((h, idx) => <th key={idx} className="text-left px-3 py-2 font-medium">{h}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {body.map((r, ri) => (
-                <tr key={ri} className="border-t border-slate-100">
-                  {r.map((c, ci) => <td key={ci} className="px-3 py-2 mono text-slate-700">{c}</td>)}
+          <div key={key++} className="mt-3 mb-4 overflow-hidden rounded-2xl border border-line">
+            <table className="w-full text-[14px] border-collapse">
+              <thead className="bg-surface-2 text-[11px] uppercase tracking-[0.06em] text-ink-3 font-semibold">
+                <tr>
+                  {header.map((h, idx) => <th key={idx} className="text-left px-3 py-2.5">{h}</th>)}
                 </tr>
-              ))}
-            </tbody>
-          </table>,
+              </thead>
+              <tbody>
+                {body.map((r, ri) => (
+                  <tr key={ri} className="border-t border-line-2">
+                    {r.map((c, ci) => <td key={ci} className="px-3 py-2 mono text-ink-2">{c}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>,
         );
       }
     } else if (line.trim() === "") {
       i++;
     } else {
-      out.push(<p key={key++} className="text-[15px] text-slate-700 leading-relaxed my-2">{line}</p>);
+      out.push(<p key={key++} className="text-[15px] text-ink-2 leading-relaxed my-2">{line}</p>);
       i++;
     }
   }
@@ -135,48 +137,48 @@ export default async function SharePage({ params, searchParams }: SharePageProps
     : "—";
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-canvas">
       <div className="max-w-3xl mx-auto px-6 py-12">
         {/* minimal header — branded but operator-free */}
-        <div className="mb-8 pb-6 border-b border-slate-200">
-          <div className="text-[11px] uppercase tracking-wider text-slate-500">Campaign Report</div>
-          <h1 className="mt-1 text-[28px] font-semibold text-slate-900">
+        <div className="mb-8 pb-6 border-b border-line">
+          <SectionLabel>캠페인 성과 리포트</SectionLabel>
+          <h1 className="mt-1.5 text-[28px] font-bold tracking-[-0.01em] text-ink">
             {a.brief.name}
           </h1>
-          <div className="mt-1 text-[13px] text-slate-500 mono">
-            {a.brief.category} · 생성됨 {report.generatedAt.toISOString().slice(0, 10)}
+          <div className="mt-1.5 text-[13px] text-ink-3">
+            {a.brief.category} · 생성일 <span className="mono">{report.generatedAt.toISOString().slice(0, 10)}</span>
           </div>
         </div>
 
         {/* compact stat strip */}
         <div className="grid grid-cols-3 gap-4 mb-8">
           <Card><CardBody>
-            <SectionLabel>VERIFIED</SectionLabel>
-            <div className="mt-1 text-[22px] font-semibold mono">{verifiedFraction}</div>
+            <SectionLabel>검증 게시물</SectionLabel>
+            <div className="mt-1.5 text-[22px] font-bold text-ink tnum mono">{verifiedFraction}</div>
             {a.goals.goalMet && (
-              <Badge variant="emerald" className="mt-1.5">goal met</Badge>
+              <StatusTag tone="ok" size="sm" className="mt-2">목표 달성</StatusTag>
             )}
           </CardBody></Card>
           <Card><CardBody>
-            <SectionLabel>REACH</SectionLabel>
-            <div className="mt-1 text-[22px] font-semibold mono">{reach}</div>
-            <div className="mt-0.5 text-[11px] text-slate-500">verified views · ER {er}</div>
+            <SectionLabel>총 도달</SectionLabel>
+            <div className="mt-1.5 text-[22px] font-bold text-ink tnum mono">{reach}</div>
+            <div className="mt-1 text-[11px] text-ink-3">검증 조회수 · 참여율 {er}</div>
           </CardBody></Card>
           <Card><CardBody>
-            <SectionLabel>DEADLINE</SectionLabel>
-            <div className={`mt-1 text-[22px] font-semibold mono ${a.goals.daysToDeadline < 0 ? "text-rose-700" : ""}`}>
+            <SectionLabel>마감일</SectionLabel>
+            <div className={`mt-1.5 text-[22px] font-bold tnum mono ${a.goals.daysToDeadline < 0 ? "text-stop" : "text-ink"}`}>
               {a.brief.deadline.toISOString().slice(0, 10)}
             </div>
-            <div className="mt-0.5 text-[11px] text-slate-500">
-              {a.goals.daysToDeadline >= 0 ? `${a.goals.daysToDeadline}d remaining` : `${-a.goals.daysToDeadline}d past`}
+            <div className="mt-1 text-[11px] text-ink-3">
+              {a.goals.daysToDeadline >= 0 ? `${a.goals.daysToDeadline}일 남음` : `${-a.goals.daysToDeadline}일 지남`}
             </div>
           </CardBody></Card>
         </div>
 
         {/* summary callout */}
         <Card className="mb-6"><CardBody>
-          <SectionLabel className="mb-2">SUMMARY</SectionLabel>
-          <p className="text-[16px] text-slate-800 leading-relaxed">{report.narrative.summary}</p>
+          <SectionLabel className="mb-2">요약</SectionLabel>
+          <p className="text-[16px] text-ink leading-relaxed">{report.narrative.summary}</p>
         </CardBody></Card>
 
         {/* the markdown narrative */}
@@ -185,8 +187,8 @@ export default async function SharePage({ params, searchParams }: SharePageProps
         </article>
 
         {/* footer: branding only — no auth-only navigation */}
-        <footer className="mt-12 pt-6 border-t border-slate-200 text-[11px] text-slate-400">
-          Generated by Social Seeding · 공개 미리보기 · 토큰 폐기는 캠페인 운영자에게 문의하세요.
+        <footer className="mt-12 pt-6 border-t border-line text-[11px] text-ink-3">
+          Social Seeding · 공개 미리보기 · 링크 폐기는 캠페인 운영자에게 문의해주세요.
         </footer>
       </div>
     </main>

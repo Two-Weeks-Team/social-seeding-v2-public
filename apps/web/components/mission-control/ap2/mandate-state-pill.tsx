@@ -35,7 +35,7 @@ export function MandateStatePill({ state, locale, detail }: MandateStatePillProp
   const label = t(`state_${state}`);
   return (
     <span className="inline-flex items-center gap-2">
-      <Badge variant={AP2_STATE_TONE[state]} aria-label={`AP2 state: ${label}`}>
+      <Badge variant={AP2_STATE_TONE[state]} aria-label={`결제 상태: ${label}`}>
         <span aria-hidden="true">
           {state === "PAID" || state === "SETTLED" ? "✓ " : null}
           {state === "REJECTED" || state === "REFUNDED" ? "✕ " : null}
@@ -43,7 +43,7 @@ export function MandateStatePill({ state, locale, detail }: MandateStatePillProp
         </span>
         {label}
       </Badge>
-      {detail && <span className="text-[11px] text-slate-500">{detail}</span>}
+      {detail && <span className="text-[11px] text-ink-3">{detail}</span>}
     </span>
   );
 }

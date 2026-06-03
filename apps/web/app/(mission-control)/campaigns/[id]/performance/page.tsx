@@ -82,7 +82,9 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
       {zeroResult ? (
         <DiagnosticBanner
           tone="stop"
-          title={`크리에이터 ${campaign.tracks.length || a.goals.targetLivePosts}명 중 0명이 게시까지 도달하지 못해 목표를 달성하지 못했습니다.`}
+          title={campaign.tracks.length > 0
+            ? `크리에이터 ${campaign.tracks.length}명 중 0명이 게시까지 도달하지 못해 목표를 달성하지 못했습니다.`
+            : "아직 게시된 콘텐츠가 없어 목표를 달성하지 못했습니다."}
           actions={
             <>
               <Link href="/campaigns/new"><Button variant="primary" size="sm">더 넓은 조건으로 새 캠페인</Button></Link>

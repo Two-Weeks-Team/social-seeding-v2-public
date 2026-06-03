@@ -151,13 +151,13 @@ export function WebAuthnStepUp({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-brand/40 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="webauthn-modal-title"
     >
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
-        <h2 id="webauthn-modal-title" className="text-[16px] font-semibold">
+      <div className="bg-surface border border-line rounded-2xl shadow-soft w-full max-w-md p-6">
+        <h2 id="webauthn-modal-title" className="text-[16px] font-semibold text-ink">
           {isHighValue
             ? t("webauthn_step_up_required")
             : t("webauthn_prompt")}
@@ -174,7 +174,7 @@ export function WebAuthnStepUp({
         <Card className="mt-3">
           <CardBody>
             <SectionLabel className="mb-1">transport</SectionLabel>
-            <p className="text-[12px] text-slate-700">
+            <p className="text-[12px] text-ink-2">
               {transport === "platform"
                 ? "Touch ID / Windows Hello / Android biometric"
                 : "Roaming authenticator (YubiKey / Titan)"}
@@ -184,7 +184,7 @@ export function WebAuthnStepUp({
 
         {!supported && (
           <p
-            className="mt-3 text-[12px] text-rose-700"
+            className="mt-3 text-[12px] text-stop"
             role="alert"
           >
             {t("webauthn_unsupported")}
@@ -192,7 +192,7 @@ export function WebAuthnStepUp({
         )}
         {errorCode && (
           <p
-            className="mt-3 text-[12px] text-rose-700"
+            className="mt-3 text-[12px] text-stop"
             role="alert"
             aria-live="assertive"
           >
@@ -201,7 +201,7 @@ export function WebAuthnStepUp({
         )}
         {locked && (
           <p
-            className="mt-3 text-[12px] text-rose-700"
+            className="mt-3 text-[12px] text-stop"
             role="alert"
             aria-live="assertive"
           >

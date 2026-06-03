@@ -162,7 +162,7 @@ export default async function CampaignDetailPage({
       </header>
 
       <div className="mb-6">
-        <StageBar current={campaign.stage} complete={isComplete} stopped={isStopped} notes={shortlistApproval ? { sourcing: "● 승인 대기" } : undefined} />
+        <StageBar current={campaign.stage} complete={isComplete} stopped={isStopped} notes={shortlistApproval ? { sourcing: "승인 대기" } : undefined} />
       </div>
 
       <div className={cn(view === "canvas" ? "space-y-5" : "grid grid-cols-3 gap-6")}>

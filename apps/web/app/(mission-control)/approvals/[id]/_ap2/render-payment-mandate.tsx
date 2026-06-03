@@ -21,6 +21,9 @@ import type React from "react";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { type Approval } from "@ss/contracts";
+import { DiagnosticBanner } from "@/components/ui/diagnostic";
+import { SectionLabel } from "@/components/ui/card";
+import { approvalKindKo } from "@/lib/labels";
 import { MandateDetail } from "./mandate-detail";
 import { isPaymentMandateDraft, type AP2Locale, type PaymentMandateDraft } from "@/lib/ap2/mandate";
 import { negotiateLocale } from "@/lib/ap2/i18n";
@@ -36,15 +39,20 @@ export async function renderPaymentMandateApproval(
       <div className="max-w-3xl mx-auto px-8 py-8">
         <Link
           href="/approvals"
-          className="text-[11px] text-slate-500 hover:text-slate-900"
+          className="text-[12px] text-ink-3 hover:text-ink-2"
         >
           ← 승인 인박스
         </Link>
-        <h1 className="mt-2 text-[18px] font-semibold">payment_mandate</h1>
-        <p className="mt-1 text-[13px] text-rose-600">
-          승인에 첨부된 draft가 PaymentMandateDraft 형식이 아닙니다 (ID:{" "}
-          {approval.id}). 워크플로 로그를 확인해주세요.
-        </p>
+        <div className="mt-2 mb-5">
+          <SectionLabel>{approvalKindKo("payment_mandate")}</SectionLabel>
+          <h1 className="mt-1 text-[24px] font-bold tracking-[-0.01em]">
+            {approvalKindKo("payment_mandate")}
+          </h1>
+        </div>
+        <DiagnosticBanner tone="stop" title="이 항목은 지금 검토할 수 없습니다">
+          첨부된 결제 위임 데이터가 형식과 맞지 않습니다. 워크플로 기록을
+          확인한 뒤 다시 시도해주세요.
+        </DiagnosticBanner>
       </div>
     );
   }

@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Card, CardBody } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { StatusTag } from "@/components/ui/status-tag";
 import { suppressionAdd, verifyUnsubscribeToken } from "@ss/capabilities";
 import { campaignRepo } from "@ss/db";
 
@@ -105,22 +105,22 @@ export default async function UnsubscribePage({
   const campaign = await campaignRepo.get(res.cid).catch(() => null);
 
   return (
-    <main className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-12">
+    <main className="min-h-screen bg-canvas flex items-center justify-center px-4 py-12">
       <Card className="max-w-md w-full">
         <CardBody>
-          <h1 className="text-[20px] font-semibold text-slate-900 mb-2">수신 거부</h1>
-          <p className="text-[13px] text-slate-700 leading-relaxed">
+          <h1 className="text-[20px] font-bold tracking-[-0.01em] text-ink mb-2">수신 거부</h1>
+          <p className="text-[13px] text-ink-2 leading-relaxed">
             {campaign?.brief.brandProduct.name ? (
               <>
-                <strong>{campaign.brief.brandProduct.name}</strong> 캠페인의 콜라보 제안 이메일을 더 이상 받지 않으시려면
+                <strong className="text-ink">{campaign.brief.brandProduct.name}</strong> 캠페인의 콜라보 제안 이메일을 더 이상 받지 않으시려면
                 아래를 눌러 확인해주세요.
               </>
             ) : (
               "이 발송인에게 더 이상 이메일을 받지 않으시려면 아래를 눌러 확인해주세요."
             )}
           </p>
-          <div className="mt-4 text-[11px] mono text-slate-400">
-            campaign_{res.cid.slice(0, 12)} · token expires {new Date(res.exp * 1000).toISOString().slice(0, 10)}
+          <div className="mt-4 text-[11px] text-ink-3">
+            링크 유효기간 <span className="mono">{new Date(res.exp * 1000).toISOString().slice(0, 10)}</span>까지
           </div>
           <form action={confirmAction} className="mt-5 flex justify-end">
             <input type="hidden" name="token" value={parsed.data.token} />
@@ -143,13 +143,13 @@ function Result({
 }): React.ReactElement {
   if (kind === "ok") {
     return (
-      <main className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-12">
+      <main className="min-h-screen bg-canvas flex items-center justify-center px-4 py-12">
         <Card className="max-w-md w-full">
           <CardBody>
-            <Badge variant="emerald">완료</Badge>
-            <h1 className="mt-2 text-[20px] font-semibold text-slate-900">수신 거부됨</h1>
-            <p className="mt-2 text-[13px] text-slate-700 leading-relaxed">
-              이 이메일 주소는 위 캠페인의 워크스페이스 발송 목록에서 제거되었습니다. 향후 같은 워크스페이스의 자동 outreach는 보내지 않습니다.
+            <StatusTag tone="ok" size="sm">완료</StatusTag>
+            <h1 className="mt-2.5 text-[20px] font-bold tracking-[-0.01em] text-ink">수신 거부됨</h1>
+            <p className="mt-2 text-[13px] text-ink-2 leading-relaxed">
+              이 이메일 주소는 해당 캠페인 발송 목록에서 제거되었습니다. 앞으로 같은 발송인의 자동 제안 메일은 보내지 않습니다.
             </p>
           </CardBody>
         </Card>
@@ -158,13 +158,13 @@ function Result({
   }
   if (kind === "ok_no_email") {
     return (
-      <main className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-12">
+      <main className="min-h-screen bg-canvas flex items-center justify-center px-4 py-12">
         <Card className="max-w-md w-full">
           <CardBody>
-            <Badge variant="amber">기록됨</Badge>
-            <h1 className="mt-2 text-[20px] font-semibold text-slate-900">수신 거부 요청 받음</h1>
-            <p className="mt-2 text-[13px] text-slate-700 leading-relaxed">
-              요청을 기록했습니다. 시스템이 이 토큰에 연결된 이메일을 자동으로 찾지 못해 운영자가 수동으로 처리합니다 (보통 24시간 이내).
+            <StatusTag tone="warn" size="sm">접수됨</StatusTag>
+            <h1 className="mt-2.5 text-[20px] font-bold tracking-[-0.01em] text-ink">수신 거부 요청 접수됨</h1>
+            <p className="mt-2 text-[13px] text-ink-2 leading-relaxed">
+              요청을 접수했습니다. 연결된 이메일 주소를 자동으로 확인하지 못해 운영자가 직접 처리합니다 (보통 24시간 이내).
             </p>
           </CardBody>
         </Card>
@@ -184,12 +184,12 @@ function Result({
               ? "관련 캠페인을 찾을 수 없습니다."
               : "수신 거부 요청을 처리할 수 없습니다.";
   return (
-    <main className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-12">
+    <main className="min-h-screen bg-canvas flex items-center justify-center px-4 py-12">
       <Card className="max-w-md w-full">
         <CardBody>
-          <Badge variant="rose">오류</Badge>
-          <h1 className="mt-2 text-[20px] font-semibold text-slate-900">처리할 수 없음</h1>
-          <p className="mt-2 text-[13px] text-slate-700 leading-relaxed">{message}</p>
+          <StatusTag tone="stop" size="sm">오류</StatusTag>
+          <h1 className="mt-2.5 text-[20px] font-bold tracking-[-0.01em] text-ink">처리할 수 없음</h1>
+          <p className="mt-2 text-[13px] text-ink-2 leading-relaxed">{message}</p>
         </CardBody>
       </Card>
     </main>

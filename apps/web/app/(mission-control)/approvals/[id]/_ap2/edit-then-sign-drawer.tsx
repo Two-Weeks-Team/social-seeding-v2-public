@@ -28,6 +28,7 @@ import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, SectionLabel } from "@/components/ui/card";
+import { DiagnosticBanner } from "@/components/ui/diagnostic";
 import {
   formatMoney,
   formatMoneyAriaLabel,
@@ -188,14 +189,14 @@ export function EditThenSignDrawer({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-slate-900/40"
+      className="fixed inset-0 z-50 flex justify-end bg-brand/40"
       role="dialog"
       aria-modal="true"
       aria-labelledby="edit-drawer-title"
     >
-      <div className="bg-white w-full max-w-2xl h-full overflow-y-auto shadow-xl flex flex-col">
-        <header className="px-6 py-4 border-b border-slate-200">
-          <h2 id="edit-drawer-title" className="text-[18px] font-semibold">
+      <div className="bg-surface border-l border-line w-full max-w-2xl h-full overflow-y-auto shadow-soft flex flex-col">
+        <header className="px-6 py-4 border-b border-line">
+          <h2 id="edit-drawer-title" className="text-[18px] font-semibold text-ink">
             {t("drawer_edit_title")}
           </h2>
         </header>
@@ -205,7 +206,7 @@ export function EditThenSignDrawer({
             <CardBody>
               <SectionLabel className="mb-2">{t("drawer_field_amount")}</SectionLabel>
               <table className="w-full text-[13px]">
-                <thead className="text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                <thead className="text-[11px] uppercase tracking-wider text-ink-3 border-b border-line">
                   <tr>
                     <th className="text-left py-2 w-8 font-medium">
                       <span className="sr-only">{t("drawer_field_inclusion")}</span>
@@ -220,7 +221,7 @@ export function EditThenSignDrawer({
                     const proposed = proposedByCreator.get(row.creatorId);
                     if (!proposed) return null;
                     return (
-                      <tr key={row.creatorId} className="border-b border-slate-100">
+                      <tr key={row.creatorId} className="border-b border-line-2">
                         <td className="py-2">
                           <input
                             type="checkbox"
@@ -231,8 +232,8 @@ export function EditThenSignDrawer({
                             aria-label={`include ${row.uniqueId}`}
                           />
                         </td>
-                        <td className="py-2 mono">@{row.uniqueId}</td>
-                        <td className="py-2 mono text-slate-500 text-[12px]">
+                        <td className="py-2 mono text-ink">@{row.uniqueId}</td>
+                        <td className="py-2 mono text-ink-3 text-[12px]">
                           {formatMoney(proposed.proposedAmount, locale)}
                         </td>
                         <td className="py-2">
@@ -245,7 +246,7 @@ export function EditThenSignDrawer({
                                 amount: e.target.value.replace(/[^0-9.]/g, ""),
                               })
                             }
-                            className="w-32 border border-slate-200 rounded px-2 py-1 mono text-[12px] disabled:bg-slate-50 disabled:text-slate-400"
+                            className="w-32 bg-surface border border-line rounded-xl px-2 py-1 mono text-[12px] text-ink disabled:bg-surface-2 disabled:text-ink-3"
                             aria-label={`amount for ${row.uniqueId}`}
                           />
                         </td>
@@ -255,9 +256,7 @@ export function EditThenSignDrawer({
                 </tbody>
               </table>
               {!anyIncluded && (
-                <p className="mt-2 text-[12px] text-rose-600">
-                  At least one recipient must remain selected.
-                </p>
+                <DiagnosticBanner tone="stop" title="수신자를 한 명 이상 선택해야 합니다" className="mt-3" />
               )}
             </CardBody>
           </Card>
@@ -275,10 +274,10 @@ export function EditThenSignDrawer({
                   const v = Number(e.target.value);
                   setReducedExp(v < maxExp ? v : undefined);
                 }}
-                className="w-full border border-slate-200 rounded px-2 py-1.5 mono text-[12px]"
+                className="w-full bg-surface border border-line rounded-xl px-2 py-1.5 mono text-[12px] text-ink"
                 aria-label="reduced expiry (unix seconds)"
               />
-              <p className="mt-1 text-[11px] text-slate-500">
+              <p className="mt-1 text-[11px] text-ink-3">
                 Original exp: {new Date(maxExp * 1000).toISOString()} — operator
                 may only reduce.
               </p>
@@ -293,10 +292,10 @@ export function EditThenSignDrawer({
                 onChange={(e) => setNote(e.target.value.slice(0, 500))}
                 rows={3}
                 maxLength={500}
-                className="w-full border border-slate-200 rounded px-2 py-1.5 text-[13px]"
+                className="w-full bg-surface border border-line rounded-xl px-2 py-1.5 text-[13px] text-ink"
                 aria-label="operator note"
               />
-              <p className="mt-1 text-[11px] text-slate-500">{note.length}/500</p>
+              <p className="mt-1 text-[11px] text-ink-3">{note.length}/500</p>
             </CardBody>
           </Card>
 
@@ -304,7 +303,7 @@ export function EditThenSignDrawer({
             <CardBody>
               <SectionLabel className="mb-2">{t("drawer_delta_label")}</SectionLabel>
               {diff.length === 0 ? (
-                <p className="text-[12px] text-slate-500">No changes yet.</p>
+                <p className="text-[12px] text-ink-3">No changes yet.</p>
               ) : (
                 <ul className="space-y-1.5">
                   {diff.map((d) => (
@@ -321,12 +320,12 @@ export function EditThenSignDrawer({
                           {formatMoney(d.after, locale)}
                         </span>
                       ) : (
-                        <span className="text-rose-700">dropped</span>
+                        <span className="text-stop">dropped</span>
                       )}
                       {d.deltaPercent !== null && (
                         <span
                           className={`ml-1 mono ${
-                            d.deltaPercent < 0 ? "text-emerald-700" : "text-amber-700"
+                            d.deltaPercent < 0 ? "text-ok" : "text-warn"
                           }`}
                         >
                           ({d.deltaPercent > 0 ? "+" : ""}
@@ -349,11 +348,11 @@ export function EditThenSignDrawer({
               )}
 
               {upliftViolatorCount > 0 && (
-                <div className="mt-3 p-3 rounded-md border border-amber-200 bg-amber-50/60">
-                  <p className="text-[12px] text-amber-800">
+                <div className="mt-3 p-3 rounded-xl border border-warn/25 bg-warn-bg">
+                  <p className="text-[12px] text-warn">
                     {t("drawer_warning_uplift")}
                   </p>
-                  <label className="mt-2 flex items-center gap-2 text-[12px] text-amber-900">
+                  <label className="mt-2 flex items-center gap-2 text-[12px] text-warn">
                     <input
                       type="checkbox"
                       checked={upliftAcknowledged}
@@ -367,7 +366,7 @@ export function EditThenSignDrawer({
           </Card>
         </div>
 
-        <footer className="px-6 py-4 border-t border-slate-200 flex justify-end gap-2">
+        <footer className="px-6 py-4 border-t border-line flex justify-end gap-2">
           <Button variant="ghost" onClick={onCancel}>
             {t("drawer_button_discard")}
           </Button>
