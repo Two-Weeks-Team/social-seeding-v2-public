@@ -1,39 +1,49 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Card, CardBody, SectionLabel } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
+import { Stat } from "@/components/ui/stat";
+import { StatusTag, type StatusTone } from "@/components/ui/status-tag";
+import { Avatar } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/ui/empty-state";
+import { agentKo } from "@/lib/labels";
+import { fmtNum } from "@/lib/format";
 import { getServerSession } from "@/lib/auth";
 import { Collections, getDb, campaignRepo, workspaceRepo } from "@ss/db";
 
 /**
- * /usage — Phase 4 P4-C6 cost dashboard. Port of v1 /admin/usage-dashboard
- * + token monitor reframed as a per-workspace operator view.
+ * /usage — C2 cost dashboard. Per-workspace operator view of agent spend.
  *
  * Three blocks:
- *   1. Top stat strip — month-to-date spend, budget %, last-30-days
- *      trend (count + total), pending threshold alerts.
- *   2. Per-agent breakdown — which agent (sourcing / writer / conversation
- *      / analyst …) is consuming the budget. Helps the operator decide
- *      whether to swap to Haiku for one of them.
- *   3. Per-campaign breakdown — every campaign + verified-count +
- *      cost-per-verified-post. The cost-per-verified-post column makes
- *      the "is this efficient?" decision concrete.
+ *   1. KPI strip — month-to-date spend vs budget, last-30-days trend,
+ *      active campaigns, and the model carrying most of the budget.
+ *   2. Per-agent breakdown — which role (소싱 / 작성 / 검증 …) is consuming
+ *      the budget, with its model tier, so the operator can decide where to
+ *      economize.
+ *   3. Per-campaign breakdown — every campaign + verified count +
+ *      cost-per-verified-post, the concrete "is this efficient?" column.
  *
- * Reads: v2_cost_ledger (workspace-filtered) + v2_campaigns
- * (for the verified-count denominator). All scope=read, all server-side.
+ * Presentation only; all data reads are workspace-filtered + server-side.
  */
 
 interface AgentRow {
   agent: string;
+  model: string;
   callCount: number;
   inputTokens: number;
   outputTokens: number;
   spentUsd: number;
 }
 
+interface ModelRow {
+  model: string;
+  spentUsd: number;
+  callCount: number;
+}
+
 interface CampaignRow {
   campaignId: string;
   name: string;
+  category: string;
   spentUsd: number;
   verifiedCount: number;
   costPerVerifiedPost: number | null;
@@ -45,6 +55,7 @@ interface CostEntry {
   campaignId: string;
   workspaceId: string;
   agent: string;
+  model: string;
   inputTokens: number;
   outputTokens: number;
   usd: number;
@@ -56,6 +67,7 @@ async function loadCostRollup(workspaceId: string): Promise<{
   spent30d: number;
   callCount30d: number;
   byAgent: AgentRow[];
+  byModel: ModelRow[];
   byCampaign: CampaignRow[];
   monthlyBudgetUsd: number;
 }> {
@@ -79,6 +91,7 @@ async function loadCostRollup(workspaceId: string): Promise<{
   let spent30d = 0;
   let callCount30d = 0;
   const agentMap = new Map<string, AgentRow>();
+  const modelMap = new Map<string, ModelRow>();
   const campaignSpent = new Map<string, number>();
 
   for (const e of docs) {
@@ -97,17 +110,23 @@ async function loadCostRollup(workspaceId: string): Promise<{
     // recently?"), and matches the "최근 30일" label on those tables.
     if (!inThirtyDays) continue;
     const a = agentMap.get(e.agent) ?? {
-      agent: e.agent, callCount: 0, inputTokens: 0, outputTokens: 0, spentUsd: 0,
+      agent: e.agent, model: e.model, callCount: 0, inputTokens: 0, outputTokens: 0, spentUsd: 0,
     };
     a.callCount++;
     a.inputTokens += e.inputTokens;
     a.outputTokens += e.outputTokens;
     a.spentUsd += e.usd;
+    a.model = e.model; // last-seen model for this agent (agents are pinned to one)
     agentMap.set(e.agent, a);
+    const m = modelMap.get(e.model) ?? { model: e.model, spentUsd: 0, callCount: 0 };
+    m.spentUsd += e.usd;
+    m.callCount++;
+    modelMap.set(e.model, m);
     campaignSpent.set(e.campaignId, (campaignSpent.get(e.campaignId) ?? 0) + e.usd);
   }
 
   const byAgent = [...agentMap.values()].sort((a, b) => b.spentUsd - a.spentUsd);
+  const byModel = [...modelMap.values()].sort((a, b) => b.spentUsd - a.spentUsd);
 
   // Resolve campaign names + verified counts. Pull all campaigns this
   // workspace owns once; the ledger has the spend.
@@ -119,6 +138,7 @@ async function loadCostRollup(workspaceId: string): Promise<{
       return {
         campaignId: c.id,
         name: c.brief.brandProduct.name,
+        category: c.brief.brandProduct.category,
         spentUsd: spent,
         verifiedCount: verified,
         costPerVerifiedPost: verified > 0 ? spent / verified : null,
@@ -136,15 +156,32 @@ async function loadCostRollup(workspaceId: string): Promise<{
     spent30d,
     callCount30d,
     byAgent,
+    byModel,
     byCampaign,
     monthlyBudgetUsd: policy.budgets.maxUsdPerWorkspaceMonthly,
   };
 }
 
-function moneyVariant(pct: number): "emerald" | "amber" | "rose" {
-  if (pct < 0.5) return "emerald";
-  if (pct < 0.85) return "amber";
-  return "rose";
+/** Spend-against-budget ratio → status tone (color + text, never color alone). */
+function budgetTone(pct: number): StatusTone {
+  if (pct < 0.5) return "ok";
+  if (pct < 0.85) return "warn";
+  return "stop";
+}
+
+/** "gemini-3.5-flash" → "Gemini 3.5 Flash" — operator-readable model name. */
+function modelLabel(model: string): string {
+  const m = model.replace(/^gemini-/i, "");
+  return m
+    .split("-")
+    .map((p) => (/^\d/.test(p) ? p : p.charAt(0).toUpperCase() + p.slice(1)))
+    .join(" ")
+    .replace(/^/, "Gemini ");
+}
+
+/** Model tier → status tone for the per-agent table chip. */
+function modelTone(model: string): StatusTone {
+  return /lite/i.test(model) ? "neutral" : "run";
 }
 
 export default async function UsagePage() {
@@ -152,143 +189,187 @@ export default async function UsagePage() {
   if (!session) redirect("/sign-in");
   const data = await loadCostRollup(session.workspaceId);
   const budgetPct = data.monthlyBudgetUsd > 0 ? data.spentMtd / data.monthlyBudgetUsd : 0;
+  const topModel = data.byModel[0] ?? null;
+  const topAgent = data.byAgent[0] ?? null;
+  const activeCampaigns = data.byCampaign.filter((c) => c.spentUsd > 0).length;
 
   return (
     <div className="max-w-6xl mx-auto px-8 py-8">
       <header className="mb-6">
-        <SectionLabel>USAGE</SectionLabel>
-        <h1 className="mt-1 text-[22px] font-semibold">사용량 + 비용</h1>
-        <div className="mt-1 text-[12px] text-slate-500">
-          v2_cost_ledger 기반 · 워크스페이스 <span className="mono">{session.workspaceId}</span>
-        </div>
+        <h1 className="text-[24px] font-bold tracking-[-0.01em]">사용량 · 비용</h1>
+        <p className="mt-1 text-[13.5px] text-ink-2">
+          에이전트가 이번 달 쓴 예산을 역할별·캠페인별로 보여줍니다. 어디서 비용이 나가는지 한눈에 확인하세요.
+        </p>
       </header>
 
-      {/* ── top stat strip ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
-        <Card><CardBody>
-          <SectionLabel>이번 달 사용</SectionLabel>
-          <div className="mt-1 text-[22px] font-semibold mono">${data.spentMtd.toFixed(2)}</div>
-          <div className="mt-0.5 text-[11px] text-slate-500">
-            예산 <span className="mono">${data.monthlyBudgetUsd}</span> 대비{" "}
-            <Badge variant={moneyVariant(budgetPct)}>{Math.round(budgetPct * 100)}%</Badge>
-          </div>
-        </CardBody></Card>
-        <Card><CardBody>
-          <SectionLabel>최근 30일</SectionLabel>
-          <div className="mt-1 text-[22px] font-semibold mono">${data.spent30d.toFixed(2)}</div>
-          <div className="mt-0.5 text-[11px] text-slate-500">{data.callCount30d.toLocaleString()} agent calls</div>
-        </CardBody></Card>
-        <Card><CardBody>
-          <SectionLabel>활성 캠페인</SectionLabel>
-          <div className="mt-1 text-[22px] font-semibold mono">
-            {data.byCampaign.filter((c) => c.spentUsd > 0).length}
-          </div>
-          <div className="mt-0.5 text-[11px] text-slate-500">최근 30일 동안 비용 발생</div>
-        </CardBody></Card>
-        <Card><CardBody>
-          <SectionLabel>주력 모델</SectionLabel>
-          <div className="mt-1 text-[16px] font-semibold mono truncate">
-            {data.byAgent[0]?.agent ?? "—"}
-          </div>
-          <div className="mt-0.5 text-[11px] text-slate-500">
-            {data.byAgent[0] ? `$${data.byAgent[0].spentUsd.toFixed(2)} · ${data.byAgent[0].callCount} calls` : "no usage yet"}
-          </div>
-        </CardBody></Card>
+      {/* ── KPI strip ──────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">
+        <Stat
+          label="이번 달 사용"
+          value={`$${data.spentMtd.toFixed(2)}`}
+          hint={
+            data.monthlyBudgetUsd > 0 ? (
+              <span className="inline-flex items-center gap-1.5">
+                예산 ${fmtNum(data.monthlyBudgetUsd)} 대비
+                <StatusTag tone={budgetTone(budgetPct)} size="sm">{Math.round(budgetPct * 100)}%</StatusTag>
+              </span>
+            ) : (
+              "예산 미설정"
+            )
+          }
+          tone={data.spentMtd > 0 ? (budgetPct >= 0.85 ? "stop" : "brand") : "muted"}
+        />
+        <Stat
+          label="최근 30일"
+          value={`$${data.spent30d.toFixed(2)}`}
+          hint={`에이전트 호출 ${fmtNum(data.callCount30d)}회`}
+          tone={data.spent30d > 0 ? "default" : "muted"}
+        />
+        <Stat
+          label="활성 캠페인"
+          value={activeCampaigns}
+          hint="최근 30일 비용 발생"
+          tone={activeCampaigns > 0 ? "default" : "muted"}
+        />
+        <Stat
+          label="주력 모델"
+          value={<span className="text-[18px]">{topModel ? modelLabel(topModel.model) : "—"}</span>}
+          hint={
+            topModel
+              ? `$${topModel.spentUsd.toFixed(2)} · 호출 ${fmtNum(topModel.callCount)}회`
+              : "아직 사용 기록 없음"
+          }
+          tone={topModel ? "brand" : "muted"}
+        />
       </div>
 
       {/* ── per-agent breakdown ───────────────────────────────────────── */}
-      <Card className="mb-6"><CardBody>
-        <SectionLabel className="mb-2">에이전트별 비용 (최근 30일)</SectionLabel>
-        {data.byAgent.length === 0 ? (
-          <div className="text-[13px] text-slate-500 py-6 text-center">
-            아직 LLM 호출 기록이 없습니다.
-          </div>
-        ) : (
-          <table className="w-full text-[13px]">
-            <thead className="text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
-              <tr>
-                <th className="text-left px-2 py-2 font-medium">agent</th>
-                <th className="text-right px-2 py-2 font-medium">calls</th>
-                <th className="text-right px-2 py-2 font-medium">input tokens</th>
-                <th className="text-right px-2 py-2 font-medium">output tokens</th>
-                <th className="text-right px-2 py-2 font-medium">spend</th>
-                <th className="text-right px-2 py-2 font-medium">$/call</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.byAgent.map((a) => (
-                <tr key={a.agent} className="border-b border-slate-100">
-                  <td className="px-2 py-2 mono">{a.agent}</td>
-                  <td className="px-2 py-2 mono text-right">{a.callCount.toLocaleString()}</td>
-                  <td className="px-2 py-2 mono text-right text-slate-500">{a.inputTokens.toLocaleString()}</td>
-                  <td className="px-2 py-2 mono text-right text-slate-500">{a.outputTokens.toLocaleString()}</td>
-                  <td className="px-2 py-2 mono text-right font-medium">${a.spentUsd.toFixed(2)}</td>
-                  <td className="px-2 py-2 mono text-right text-slate-500">
-                    ${(a.spentUsd / Math.max(1, a.callCount)).toFixed(4)}
-                  </td>
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>역할별 비용</CardTitle>
+          <span className="text-[11px] text-ink-3">
+            최근 30일{topAgent ? ` · 1위 ${agentKo(topAgent.agent)}` : ""}
+          </span>
+        </CardHeader>
+        <CardBody className="pt-1">
+          {data.byAgent.length === 0 ? (
+            <EmptyState
+              icon="◷"
+              title="아직 에이전트 비용 기록이 없습니다."
+              hint="캠페인이 돌기 시작하면 역할별 사용량이 여기 쌓입니다."
+            />
+          ) : (
+            <table className="w-full text-[13px]">
+              <thead className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3 border-b border-line">
+                <tr>
+                  <th className="text-left px-2 py-2.5 font-semibold">에이전트</th>
+                  <th className="text-left px-2 py-2.5 font-semibold">모델</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">호출</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">입력 토큰</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">출력 토큰</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">집행</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">호출당</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </CardBody></Card>
-
-      {/* ── per-campaign breakdown ────────────────────────────────────── */}
-      <Card><CardBody>
-        <SectionLabel className="mb-2">캠페인별 효율</SectionLabel>
-        {data.byCampaign.length === 0 ? (
-          <div className="text-[13px] text-slate-500 py-6 text-center">
-            아직 캠페인이 없습니다.
-          </div>
-        ) : (
-          <table className="w-full text-[13px]">
-            <thead className="text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
-              <tr>
-                <th className="text-left px-2 py-2 font-medium">campaign</th>
-                <th className="text-right px-2 py-2 font-medium">tracks</th>
-                <th className="text-right px-2 py-2 font-medium">verified</th>
-                <th className="text-right px-2 py-2 font-medium">spend</th>
-                <th className="text-right px-2 py-2 font-medium">$/verified</th>
-                <th className="text-right px-2 py-2 font-medium">budget %</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.byCampaign.map((c) => {
-                const budgetPctC = c.budgetUsd && c.budgetUsd > 0 ? c.spentUsd / c.budgetUsd : null;
-                return (
-                  <tr key={c.campaignId} className="border-b border-slate-100">
-                    <td className="px-2 py-2">
-                      <Link
-                        href={`/campaigns/${c.campaignId}`}
-                        className="text-slate-900 hover:underline underline-offset-2"
-                      >
-                        {c.name}
-                      </Link>
+              </thead>
+              <tbody>
+                {data.byAgent.map((a) => (
+                  <tr key={a.agent} className="border-b border-line-2 last:border-0">
+                    <td className="px-2 py-2.5 font-medium text-ink">{agentKo(a.agent)}</td>
+                    <td className="px-2 py-2.5">
+                      <StatusTag tone={modelTone(a.model)} size="sm">{modelLabel(a.model)}</StatusTag>
                     </td>
-                    <td className="px-2 py-2 mono text-right text-slate-500">{c.trackCount}</td>
-                    <td className="px-2 py-2 mono text-right">
-                      <span className={c.verifiedCount > 0 ? "text-emerald-700 font-medium" : "text-slate-400"}>
-                        {c.verifiedCount}
-                      </span>
-                    </td>
-                    <td className="px-2 py-2 mono text-right font-medium">${c.spentUsd.toFixed(2)}</td>
-                    <td className="px-2 py-2 mono text-right">
-                      {c.costPerVerifiedPost !== null
-                        ? `$${c.costPerVerifiedPost.toFixed(2)}`
-                        : <span className="text-slate-400">—</span>}
-                    </td>
-                    <td className="px-2 py-2 mono text-right">
-                      {budgetPctC !== null
-                        ? <Badge variant={moneyVariant(budgetPctC)}>{Math.round(budgetPctC * 100)}%</Badge>
-                        : <span className="text-slate-400">no budget</span>}
+                    <td className="px-2 py-2.5 mono text-right text-ink-2">{fmtNum(a.callCount)}</td>
+                    <td className="px-2 py-2.5 mono text-right text-ink-3">{fmtNum(a.inputTokens)}</td>
+                    <td className="px-2 py-2.5 mono text-right text-ink-3">{fmtNum(a.outputTokens)}</td>
+                    <td className="px-2 py-2.5 mono text-right font-bold text-ink">${a.spentUsd.toFixed(2)}</td>
+                    <td className="px-2 py-2.5 mono text-right text-ink-3">
+                      ${(a.spentUsd / Math.max(1, a.callCount)).toFixed(4)}
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </CardBody></Card>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </CardBody>
+      </Card>
+
+      {/* ── per-campaign breakdown ────────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>캠페인별 효율</CardTitle>
+          <span className="text-[11px] text-ink-3">검증 게시물당 비용</span>
+        </CardHeader>
+        <CardBody className="pt-1">
+          {data.byCampaign.length === 0 ? (
+            <EmptyState
+              icon="◎"
+              title="아직 캠페인이 없습니다."
+              hint="브리프를 채우면 에이전트가 소싱부터 시작하고, 비용이 캠페인별로 집계됩니다."
+            />
+          ) : (
+            <table className="w-full text-[13px]">
+              <thead className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3 border-b border-line">
+                <tr>
+                  <th className="text-left px-2 py-2.5 font-semibold">캠페인</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">크리에이터</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">검증</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">집행</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">검증당</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">예산 대비</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.byCampaign.map((c) => {
+                  const budgetPctC = c.budgetUsd && c.budgetUsd > 0 ? c.spentUsd / c.budgetUsd : null;
+                  return (
+                    <tr key={c.campaignId} className="border-b border-line-2 last:border-0">
+                      <td className="px-2 py-2.5">
+                        <Link
+                          href={`/campaigns/${c.campaignId}`}
+                          className="flex items-center gap-2.5 min-w-0 group"
+                        >
+                          <Avatar name={c.name} size="sm" />
+                          <span className="min-w-0">
+                            <span className="block text-[13px] font-medium text-ink truncate group-hover:underline underline-offset-2">
+                              {c.name}
+                            </span>
+                            <span className="block text-[11px] text-ink-3 truncate">
+                              {c.category} · 크리에이터 {c.trackCount}명
+                            </span>
+                          </span>
+                        </Link>
+                      </td>
+                      <td className="px-2 py-2.5 mono text-right text-ink-3">{c.trackCount}</td>
+                      <td className="px-2 py-2.5 mono text-right">
+                        <span className={c.verifiedCount > 0 ? "text-ok font-semibold" : "text-ink-3"}>
+                          {c.verifiedCount}
+                        </span>
+                      </td>
+                      <td className="px-2 py-2.5 mono text-right font-bold text-ink">${c.spentUsd.toFixed(2)}</td>
+                      <td className="px-2 py-2.5 mono text-right">
+                        {c.costPerVerifiedPost !== null ? (
+                          `$${c.costPerVerifiedPost.toFixed(2)}`
+                        ) : (
+                          <span className="text-ink-3">—</span>
+                        )}
+                      </td>
+                      <td className="px-2 py-2.5 text-right">
+                        {budgetPctC !== null ? (
+                          <StatusTag tone={budgetTone(budgetPctC)} size="sm">
+                            {Math.round(budgetPctC * 100)}%
+                          </StatusTag>
+                        ) : (
+                          <span className="text-[12px] text-ink-3">예산 미설정</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </CardBody>
+      </Card>
     </div>
   );
 }

@@ -3,9 +3,12 @@ import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, SectionLabel } from "@/components/ui/card";
+import { StatusTag } from "@/components/ui/status-tag";
+import { Avatar } from "@/components/ui/avatar";
+import { Stat } from "@/components/ui/stat";
+import { DiagnosticBanner } from "@/components/ui/diagnostic";
 import { getServerSession } from "@/lib/auth";
 import { approvalRepo, campaignRepo } from "@ss/db";
 import { inngest } from "@ss/workflows";
@@ -18,23 +21,20 @@ import {
   type ConversationTurn,
   type OutreachDraft,
 } from "@ss/contracts";
+import { approvalKindKo } from "@/lib/labels";
+import { fmtAgo, fmtNum, creatorHandle } from "@/lib/format";
 import { renderPaymentMandateApproval } from "./_ap2/render-payment-mandate";
 
 /**
- * Approval drill-in. Server component (form) + server action for resolve.
- * Branches by `approval.kind`:
- *   · shortlist        — candidate table with per-row keep/drop (Phase 1, W4).
- *   · outreach_send    — OutreachDraft preview + judge meters + editable
- *                        subject/body. (P2-C6a)
- *   · reply_response   — split shape: ConversationTurn (negotiating, no edit)
- *                        OR responder draft {subject, body, deliverabilityScore}
- *                        with editable subject/body. (P2-C6b)
- *   · shipment / stage_advance — placeholder until Phases 3-4.
+ * 승인 드릴인 (C2). 서버 컴포넌트(폼) + resolve 서버 액션.
+ * `approval.kind` 별로 분기:
+ *   · 후보 리스트   — 행별 유지/제외 체크가 있는 후보 테이블.
+ *   · 아웃리치 발송 — 초안 미리보기 + 평가 점수 + 편집 가능한 제목/본문.
+ *   · 회신 응답     — 협의 에스컬레이션(편집 없음) 또는 자동 회신 초안(편집 가능).
+ *   · 배송 확인     — 주소 + 품목 확인.
+ *   · 결제 승인     — AP2 결제 위임 드릴인(_ap2).
  *
- * Decisions submitted to one of: approveAll · approveSelected (shortlist
- * subset) · approveEdited (outreach/reply with subject/body diff) · reject.
- * All paths call approvalRepo.resolve + inngest.send("approval/resolved")
- * which unblocks the workflow's gate.
+ * 모든 경로는 approvalRepo.resolve + 워크플로 게이트를 푸는 이벤트로 끝납니다.
  */
 
 async function resolveAction(formData: FormData): Promise<void> {
@@ -121,24 +121,23 @@ async function resolveAction(formData: FormData): Promise<void> {
   redirect(`/campaigns/${approval.campaignId}`);
 }
 
+/** 적합도 바 — 0~1 점수. 낮음(주의색)→높음(달성색) 그라데이션 없이 단색 바. */
 function FitScoreMeter({ score }: { score: number }) {
   const pct = Math.round(Math.max(0, Math.min(1, score)) * 100);
+  const tone = score >= 0.7 ? "bg-ok" : score >= 0.4 ? "bg-warn" : "bg-stop";
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="inline-block w-14 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-        <span
-          className="block h-full"
-          style={{ width: `${pct}%`, background: `linear-gradient(90deg, #f59e0b, #10b981)` }}
-        />
+    <span className="inline-flex items-center gap-2">
+      <span className="inline-block w-16 h-1.5 bg-surface-2 rounded-full overflow-hidden">
+        <span className={`block h-full ${tone}`} style={{ width: `${pct}%` }} />
       </span>
-      <span className="mono text-[12px] text-slate-700">{score.toFixed(2)}</span>
+      <span className="mono text-[12px] text-ink-2 tnum">{score.toFixed(2)}</span>
     </span>
   );
 }
 
 /**
- * Bar meter for 0-1 judge scores (or 0-10 spam scores normalized). Color
- * gradient flips: green=good (high) for judges, green=good (low) for spam.
+ * 0~1(또는 0~max) 점수 바. invert=true(스팸)는 낮을수록 좋음(주의→미달),
+ * invert=false(평가)는 높을수록 좋음.
  */
 function ScoreBar({
   value,
@@ -151,57 +150,164 @@ function ScoreBar({
   invert?: boolean;
   label: string;
 }) {
-  const pct = Math.round(Math.max(0, Math.min(max, value)) / max * 100);
-  // invert=true (spam): low is good (left = green), high is bad (right = rose).
-  // invert=false (judge): high is good (right = green), low is bad (left = amber).
-  const gradient = invert
-    ? "linear-gradient(90deg, #10b981, #f59e0b 50%, #f43f5e)"
-    : "linear-gradient(90deg, #f59e0b, #10b981)";
+  const ratio = Math.max(0, Math.min(max, value)) / max;
+  const pct = Math.round(ratio * 100);
+  // invert (스팸): 낮음=양호. 그 외(평가): 높음=양호.
+  const good = invert ? ratio <= 0.25 : ratio >= 0.7;
+  const mid = invert ? ratio <= 0.5 : ratio >= 0.4;
+  const tone = good ? "bg-ok" : mid ? "bg-warn" : "bg-stop";
   return (
-    <div className="flex items-center gap-2 text-[12px]">
-      <span className="w-28 text-slate-600">{label}</span>
-      <span className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-        <span className="block h-full" style={{ width: `${pct}%`, background: gradient }} />
+    <div className="flex items-center gap-2.5 text-[12px]">
+      <span className="w-28 text-ink-2">{label}</span>
+      <span className="flex-1 h-1.5 bg-surface-2 rounded-full overflow-hidden">
+        <span className={`block h-full ${tone}`} style={{ width: `${pct}%` }} />
       </span>
-      <span className="mono text-slate-700 w-12 text-right">
+      <span className="mono text-ink-2 w-12 text-right tnum">
         {value.toFixed(max === 1 ? 2 : 1)}
-        {max !== 1 && <span className="text-slate-400">/{max}</span>}
+        {max !== 1 && <span className="text-ink-3">/{max}</span>}
       </span>
     </div>
   );
 }
 
 /**
- * HTML body preview — renders inside a sandboxed iframe so the parent DOM is
- * isolated from anything in the agent-generated body (style leaks, embedded
- * <script>, etc.). srcdoc is the right tool here; we don't need a same-origin
- * frame for read-only preview. Sandbox = no scripts, no navigation, no forms.
+ * HTML 본문 미리보기 — 샌드박스 iframe 안에서 렌더해 부모 DOM을 에이전트 생성
+ * HTML(스타일 누수, 임베드 <script> 등)로부터 격리합니다. srcdoc + sandbox(""):
+ * 스크립트/네비게이션/폼 모두 차단된 읽기 전용 미리보기.
  */
 function HtmlPreview({ html, height = 260 }: { html: string; height?: number }) {
   const doc = `<!doctype html><html><head><meta charset="utf-8"><style>
-    body { font: 13px/1.5 ui-sans-serif, system-ui; color: #1e293b; padding: 12px; margin: 0; }
+    body { font: 13px/1.5 ui-sans-serif, system-ui; color: #1b1813; padding: 12px; margin: 0; }
     p { margin: 0 0 8px; }
-    a { color: #2563eb; }
+    a { color: #8a6c2e; }
   </style></head><body>${html}</body></html>`;
   return (
     <iframe
       title="email-preview"
       sandbox=""
       srcDoc={doc}
-      className="w-full bg-white border border-slate-200 rounded-md"
+      className="w-full bg-surface border border-line rounded-xl"
       style={{ height }}
     />
   );
 }
 
-const ANGLE_LABEL: Record<string, string> = {
-  free_tier_announcement: "free-tier",
-  pain_killer: "pain killer",
-  peer_proof: "peer proof",
-  data_specific: "data-specific",
-  contrarian_hook: "contrarian hook",
-  aspirational: "aspirational",
+/** 평가 항목 한글 라벨. */
+const JUDGE_LABEL: Record<string, string> = {
+  brand: "브랜드 적합",
+  conversion: "전환력",
+  deliverability: "도달성",
+  skeptic: "신뢰도",
 };
+
+/** 아웃리치 각도(angle) 한글 라벨. */
+const ANGLE_LABEL: Record<string, string> = {
+  free_tier_announcement: "무료 제공 안내",
+  pain_killer: "문제 해결 제안",
+  peer_proof: "동료 사례",
+  data_specific: "데이터 기반",
+  contrarian_hook: "역발상 훅",
+  aspirational: "비전 제안",
+};
+
+/** 후보 플래그 한글 라벨 + 색 톤. */
+const FLAG_LABEL: Record<string, { label: string; tone: "warn" | "stop" }> = {
+  below_engagement_floor: { label: "참여율 미달", tone: "warn" },
+  blacklisted: { label: "블랙리스트", tone: "stop" },
+  wrong_language: { label: "언어 불일치", tone: "warn" },
+  brand_unsafe: { label: "브랜드 부적합", tone: "stop" },
+  prior_flake: { label: "과거 이탈 이력", tone: "warn" },
+  data_stale: { label: "데이터 오래됨", tone: "warn" },
+};
+
+/** 회신 분류 한글 라벨 + StatusTag 톤. */
+const CLASSIFICATION_LABEL: Record<ConversationTurn["classification"], string> = {
+  interested: "관심 있음",
+  needs_info: "정보 요청",
+  negotiating: "협의 중",
+  not_now: "지금은 아님",
+  declined: "거절",
+  out_of_office: "부재중",
+  unsubscribe: "수신 거부",
+  unrelated: "무관",
+};
+
+const CLASSIFICATION_TONE: Record<ConversationTurn["classification"], "ok" | "run" | "warn" | "stop" | "neutral"> = {
+  interested: "ok",
+  needs_info: "run",
+  negotiating: "warn",
+  not_now: "neutral",
+  declined: "stop",
+  out_of_office: "neutral",
+  unsubscribe: "stop",
+  unrelated: "neutral",
+};
+
+/** 드릴인 공통 헤더 — 뒤로가기 + 종류 라벨 + 제목 + 대기 시간 + 캠페인 링크. */
+function DrillHeader({
+  kind,
+  title,
+  approval,
+  right,
+}: {
+  kind: Approval["kind"];
+  title: string;
+  approval: Approval;
+  right?: React.ReactNode;
+}) {
+  return (
+    <header className="mb-5">
+      <Link href="/approvals" className="text-[12px] text-ink-3 hover:text-ink-2">← 승인 인박스</Link>
+      <div className="mt-2 flex items-end justify-between flex-wrap gap-3">
+        <div>
+          <SectionLabel>{approvalKindKo(kind)}</SectionLabel>
+          <h1 className="mt-1 text-[24px] font-bold tracking-[-0.01em]">{title}</h1>
+          <div className="mt-1 text-[12.5px] text-ink-3">
+            {fmtAgo(approval.createdAt)} 대기 시작 ·{" "}
+            <Link className="text-ink-2 hover:text-ink underline underline-offset-2" href={`/campaigns/${approval.campaignId}`}>
+              캠페인으로 이동
+            </Link>
+          </div>
+        </div>
+        {right}
+      </div>
+    </header>
+  );
+}
+
+/** 추천 사유 카드 — 모든 드릴인에서 재사용. */
+function RationaleCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <Card className="mb-5">
+      <CardBody>
+        <SectionLabel className="mb-2">{title}</SectionLabel>
+        <p className="text-[13.5px] text-ink-2 leading-relaxed">{children}</p>
+      </CardBody>
+    </Card>
+  );
+}
+
+/** 형식 불일치 등 검토 불가 상황 — 초록 위장 없이 정직한 진단 배너. */
+function DrillError({
+  kind,
+  title,
+  detail,
+  approval,
+}: {
+  kind: Approval["kind"];
+  title: string;
+  detail: string;
+  approval: Approval;
+}) {
+  return (
+    <div className="max-w-3xl mx-auto px-8 py-8">
+      <DrillHeader kind={kind} title={title} approval={approval} />
+      <DiagnosticBanner tone="stop" title="이 항목은 지금 검토할 수 없습니다">
+        {detail} 워크플로 기록을 확인한 뒤 다시 시도해주세요.
+      </DiagnosticBanner>
+    </div>
+  );
+}
 
 export default async function ApprovalDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
@@ -210,32 +316,31 @@ export default async function ApprovalDetailPage({ params }: { params: Promise<{
   const approval = await approvalRepo.get(id);
   if (!approval || approval.workspaceId !== session.workspaceId) notFound();
   const campaign = await campaignRepo.get(approval.campaignId);
+  const brandName = campaign?.brief.brandProduct.name;
 
   if (approval.kind === "outreach_send") {
-    return renderOutreachSendApproval(approval, campaign?.brief.brandProduct.name);
+    return renderOutreachSendApproval(approval, brandName);
   }
   if (approval.kind === "reply_response") {
-    return renderReplyResponseApproval(approval, campaign?.brief.brandProduct.name);
+    return renderReplyResponseApproval(approval, brandName);
   }
   if (approval.kind === "shipment") {
-    return renderShipmentApproval(approval, campaign?.brief.brandProduct.name);
+    return renderShipmentApproval(approval, brandName);
   }
-  // Phase-6 — AP2 Intent Mandate is the 5th approval kind. The `kind` enum in
-  // `@ss/contracts` includes "payment_mandate" (see packages/contracts/src/
-  // policy.ts ApprovalSchema). The row's `recommendation` is then Zod-parsed
-  // at render time by `isPaymentMandateDraft`. Cites D26 (Mission Control),
-  // D27 (Intent-only), D33 (lifecycle), D34 (i18n).
-  // Codex PR-fix: https://github.com/Two-Weeks-Team/social-seeding-v2/pull/1#discussion_r3266224720
+  // AP2 결제 위임 — 5번째 종류. recommendation은 render 시점에 Zod로 검증됩니다.
   if (approval.kind === "payment_mandate") {
-    return renderPaymentMandateApproval(approval, campaign?.brief.brandProduct.name);
+    return renderPaymentMandateApproval(approval, brandName);
   }
 
   if (approval.kind !== "shortlist") {
     return (
       <div className="max-w-3xl mx-auto px-8 py-8">
-        <Link href="/approvals" className="text-[11px] text-slate-500 hover:text-slate-900">← 승인 인박스</Link>
-        <h1 className="mt-2 text-[18px] font-semibold">{approval.kind}</h1>
-        <p className="mt-1 text-[13px] text-slate-500">이 종류의 승인 검토 화면은 Phase 2/3에서 추가됩니다.</p>
+        <DrillHeader kind={approval.kind} title={brandName ?? "이름 미상 캠페인"} approval={approval} />
+        <Card flat>
+          <CardBody>
+            <p className="text-[13.5px] text-ink-2">이 종류의 검토 화면은 곧 추가됩니다.</p>
+          </CardBody>
+        </Card>
       </div>
     );
   }
@@ -244,86 +349,75 @@ export default async function ApprovalDetailPage({ params }: { params: Promise<{
 
   return (
     <div className="max-w-6xl mx-auto px-8 py-8">
-      <header className="mb-4">
-        <Link href="/approvals" className="text-[11px] text-slate-500 hover:text-slate-900">← 승인 인박스</Link>
-        <div className="mt-2 flex items-end justify-between flex-wrap gap-3">
-          <div>
-            <SectionLabel>SHORTLIST · approveShortlist</SectionLabel>
-            <h1 className="mt-1 text-[22px] font-semibold">
-              {campaign?.brief.brandProduct.name ?? "(unknown campaign)"} · {candidates.length}명 후보 검토
-            </h1>
-            <div className="mt-1 text-[12px] text-slate-500">
-              대기 시작 {Math.floor((Date.now() - approval.createdAt.getTime()) / 60000)}분 전 · 캠페인{" "}
-              <Link className="underline hover:text-slate-900 mono" href={`/campaigns/${approval.campaignId}`}>
-                camp_{approval.campaignId.slice(0, 12)}
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+      <DrillHeader
+        kind="shortlist"
+        title={`${brandName ?? "이름 미상 캠페인"} · 후보 ${candidates.length}명 검토`}
+        approval={approval}
+      />
 
-      <Card className="mb-5">
-        <CardBody>
-          <SectionLabel className="mb-2">에이전트가 추천한 이유</SectionLabel>
-          <p className="text-[13px] text-slate-700 leading-relaxed">{approval.rationale}</p>
-        </CardBody>
-      </Card>
+      <RationaleCard title="에이전트가 추천한 이유">{approval.rationale}</RationaleCard>
 
       <form action={resolveAction}>
         <input type="hidden" name="approvalId" value={approval.id} />
 
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <Card className="overflow-hidden">
           <table className="w-full text-[13px]">
-            <thead className="text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200 bg-slate-50">
+            <thead className="text-[10px] uppercase tracking-[0.06em] text-ink-3 border-b border-line bg-surface-2">
               <tr>
-                <th className="w-10 px-3 py-2"></th>
-                <th className="text-left px-3 py-2 font-medium">크리에이터</th>
-                <th className="text-right px-3 py-2 font-medium">팔로워</th>
-                <th className="text-left px-3 py-2 font-medium">fitScore</th>
-                <th className="text-left px-3 py-2 font-medium">flags</th>
-                <th className="text-left px-3 py-2 font-medium">매칭 사유</th>
+                <th className="w-10 px-4 py-3"></th>
+                <th className="text-left px-4 py-3 font-semibold">크리에이터</th>
+                <th className="text-right px-4 py-3 font-semibold">팔로워</th>
+                <th className="text-left px-4 py-3 font-semibold">적합도</th>
+                <th className="text-left px-4 py-3 font-semibold">주의 사항</th>
+                <th className="text-left px-4 py-3 font-semibold">매칭 사유</th>
               </tr>
             </thead>
             <tbody>
               {candidates.length === 0 && (
-                <tr><td colSpan={6} className="px-3 py-6 text-center text-slate-500">후보가 없습니다.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-ink-3">후보가 없습니다.</td></tr>
               )}
-              {candidates.map((c) => (
-                <tr key={c.creator.id} className="border-b border-slate-100 hover:bg-slate-50/60">
-                  <td className="px-3 py-2.5">
-                    <input type="checkbox" name="creatorId" value={c.creator.id} defaultChecked className="cursor-pointer" />
-                  </td>
-                  <td className="px-3 py-2.5 mono">{c.creator.uniqueId}</td>
-                  <td className="px-3 py-2.5 text-right mono">{c.creator.followerCount.toLocaleString()}</td>
-                  <td className="px-3 py-2.5">
-                    <FitScoreMeter score={c.fitScore} />
-                  </td>
-                  <td className="px-3 py-2.5">
-                    {c.flags.length === 0 ? (
-                      <Badge variant="emerald">clean</Badge>
-                    ) : (
-                      <div className="flex flex-wrap gap-1">
-                        {c.flags.map((f) => (
-                          <Badge
-                            key={f}
-                            variant={f === "blacklisted" || f === "brand_unsafe" ? "rose" : "amber"}
-                          >
-                            {f}
-                          </Badge>
-                        ))}
+              {candidates.map((c) => {
+                const handle = creatorHandle({ uniqueId: c.creator.uniqueId });
+                return (
+                  <tr key={c.creator.id} className="border-b border-line-2 last:border-0 hover:bg-surface-2/60">
+                    <td className="px-4 py-3">
+                      <input type="checkbox" name="creatorId" value={c.creator.id} defaultChecked className="cursor-pointer accent-brand" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar name={handle} size="sm" />
+                        <span className="text-ink font-medium truncate">{handle}</span>
                       </div>
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5 text-slate-600 text-[12px]">{c.matchReasons[0] ?? "-"}</td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-3 text-right mono tnum text-ink-2">{fmtNum(c.creator.followerCount)}</td>
+                    <td className="px-4 py-3">
+                      <FitScoreMeter score={c.fitScore} />
+                    </td>
+                    <td className="px-4 py-3">
+                      {c.flags.length === 0 ? (
+                        <StatusTag tone="ok" size="sm">문제 없음</StatusTag>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {c.flags.map((f) => {
+                            const meta = FLAG_LABEL[f] ?? { label: f, tone: "warn" as const };
+                            return (
+                              <StatusTag key={f} tone={meta.tone} size="sm">{meta.label}</StatusTag>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-ink-2 text-[12.5px]">{c.matchReasons[0] ?? "—"}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
-        </div>
+        </Card>
 
-        <div className="mt-4 flex justify-end gap-2">
-          <Button type="submit" name="decision" value="reject" tone="reject">거부</Button>
-          <Button type="submit" name="decision" value="approveSelected" variant="primary">선택한 행으로 승인</Button>
+        <div className="mt-5 flex justify-end gap-2.5">
+          <Button type="submit" name="decision" value="reject" variant="secondary" tone="reject">거부</Button>
+          <Button type="submit" name="decision" value="approveSelected" variant="secondary">선택한 후보만 승인</Button>
           <Button type="submit" name="decision" value="approveAll" variant="primary" tone="approve">전체 승인</Button>
         </div>
       </form>
@@ -332,80 +426,61 @@ export default async function ApprovalDetailPage({ params }: { params: Promise<{
 }
 
 /**
- * outreach_send drill-in. Shows the OutreachDraft the writer agent's
- * tournament produced: angle + spam meter + 4 judge bars + grounded facts +
- * editable subject/body. The body renders inside a sandboxed iframe so we
- * can show the styled email exactly as the creator will see it without
- * trusting the agent's HTML to be safe in the parent DOM.
+ * 아웃리치 발송 드릴인. 작성 에이전트 토너먼트가 만든 초안을 보여줍니다:
+ * 각도 + 스팸 점수 + 평가 4종 바 + 인용 가능한 근거 + 편집 가능한 제목/본문.
+ * 본문은 샌드박스 iframe으로 안전하게 미리보기합니다.
  */
 function renderOutreachSendApproval(approval: Approval, brandName: string | undefined): React.ReactElement {
   const parsed = OutreachDraftSchema.safeParse(approval.recommendation);
   if (!parsed.success) {
     return (
-      <div className="max-w-3xl mx-auto px-8 py-8">
-        <Link href="/approvals" className="text-[11px] text-slate-500 hover:text-slate-900">← 승인 인박스</Link>
-        <h1 className="mt-2 text-[18px] font-semibold">outreach_send</h1>
-        <p className="mt-1 text-[13px] text-rose-600">
-          승인에 첨부된 draft가 OutreachDraft 형식이 아닙니다 (ID: {approval.id}). 워크플로 로그를 확인해주세요.
-        </p>
-      </div>
+      <DrillError
+        kind="outreach_send"
+        title={brandName ?? "이름 미상 캠페인"}
+        detail="첨부된 초안이 아웃리치 형식과 맞지 않습니다."
+        approval={approval}
+      />
     );
   }
   const draft: OutreachDraft = parsed.data;
   const judge = draft.judgeScores ?? {};
+  const spamTone = draft.spamScore <= 2 ? "ok" : draft.spamScore <= 5 ? "warn" : "stop";
 
   return (
     <div className="max-w-4xl mx-auto px-8 py-8">
-      <header className="mb-4">
-        <Link href="/approvals" className="text-[11px] text-slate-500 hover:text-slate-900">← 승인 인박스</Link>
-        <div className="mt-2 flex items-end justify-between flex-wrap gap-3">
-          <div>
-            <SectionLabel>OUTREACH_SEND · approveOutreachSend</SectionLabel>
-            <h1 className="mt-1 text-[22px] font-semibold">
-              {brandName ?? "(unknown campaign)"} · 첫 outreach 검토
-            </h1>
-            <div className="mt-1 text-[12px] text-slate-500">
-              대기 시작 {Math.floor((Date.now() - approval.createdAt.getTime()) / 60000)}분 전 · 캠페인{" "}
-              <Link className="underline hover:text-slate-900 mono" href={`/campaigns/${approval.campaignId}`}>
-                camp_{approval.campaignId.slice(0, 12)}
-              </Link>
-            </div>
-          </div>
-          <Badge variant={draft.spamScore <= 2 ? "emerald" : draft.spamScore <= 5 ? "amber" : "rose"}>
-            angle: {ANGLE_LABEL[draft.angle] ?? draft.angle}
-          </Badge>
-        </div>
-      </header>
+      <DrillHeader
+        kind="outreach_send"
+        title={`${brandName ?? "이름 미상 캠페인"} · 첫 아웃리치 검토`}
+        approval={approval}
+        right={
+          <StatusTag tone={spamTone}>접근 각도 · {ANGLE_LABEL[draft.angle] ?? draft.angle}</StatusTag>
+        }
+      />
 
-      <Card className="mb-4">
-        <CardBody>
-          <SectionLabel className="mb-2">에이전트가 이 안을 고른 이유</SectionLabel>
-          <p className="text-[13px] text-slate-700 leading-relaxed">{approval.rationale}</p>
-        </CardBody>
-      </Card>
+      <RationaleCard title="에이전트가 이 안을 고른 이유">{approval.rationale}</RationaleCard>
 
-      <div className="grid grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-3 gap-5 mb-5">
         <Card className="col-span-2">
           <CardBody>
-            <SectionLabel className="mb-2">judge 점수</SectionLabel>
-            <div className="space-y-2">
-              <ScoreBar label="brand" value={judge.brand ?? 0} />
-              <ScoreBar label="conversion" value={judge.conversion ?? 0} />
-              <ScoreBar label="deliverability" value={judge.deliverability ?? 0} />
-              <ScoreBar label="skeptic" value={judge.skeptic ?? 0} />
-              <div className="border-t border-slate-100 mt-2 pt-2">
-                <ScoreBar label="spam score" value={draft.spamScore} max={10} invert />
+            <SectionLabel className="mb-3">평가 점수</SectionLabel>
+            <div className="space-y-2.5">
+              <ScoreBar label={JUDGE_LABEL.brand!} value={judge.brand ?? 0} />
+              <ScoreBar label={JUDGE_LABEL.conversion!} value={judge.conversion ?? 0} />
+              <ScoreBar label={JUDGE_LABEL.deliverability!} value={judge.deliverability ?? 0} />
+              <ScoreBar label={JUDGE_LABEL.skeptic!} value={judge.skeptic ?? 0} />
+              <div className="border-t border-line-2 mt-3 pt-3">
+                <ScoreBar label="스팸 위험도" value={draft.spamScore} max={10} invert />
               </div>
             </div>
           </CardBody>
         </Card>
         <Card>
           <CardBody>
-            <SectionLabel className="mb-2">grounded facts ({draft.groundedFacts.length})</SectionLabel>
+            <SectionLabel className="mb-2">인용 근거 ({draft.groundedFacts.length})</SectionLabel>
             {draft.groundedFacts.length === 0 ? (
-              <div className="text-[12px] text-slate-500">(none)</div>
+              <div className="text-[12.5px] text-ink-3">근거 없음</div>
             ) : (
-              <ul className="text-[12px] mono text-slate-700 space-y-1">
+              <ul className="text-[12px] text-ink-2 space-y-1.5">
                 {draft.groundedFacts.map((f) => (
                   <li key={f} className="truncate">· {f}</li>
                 ))}
@@ -418,38 +493,38 @@ function renderOutreachSendApproval(approval: Approval, brandName: string | unde
       <form action={resolveAction}>
         <input type="hidden" name="approvalId" value={approval.id} />
 
-        <Card className="mb-4">
+        <Card className="mb-5">
           <CardBody>
-            <SectionLabel className="mb-2">subject</SectionLabel>
+            <SectionLabel className="mb-2">제목</SectionLabel>
             <input
               type="text"
               name="editedSubject"
               defaultValue={draft.subject}
               maxLength={120}
-              className="w-full border border-slate-200 rounded px-3 py-2 text-[14px]"
+              className="w-full bg-surface border border-line rounded-xl px-3.5 py-2.5 text-[14px] text-ink outline-none"
             />
-            <SectionLabel className="mt-4 mb-2">body (HTML)</SectionLabel>
+            <SectionLabel className="mt-4 mb-2">본문 (HTML)</SectionLabel>
             <textarea
               name="editedBody"
               defaultValue={draft.body}
               rows={10}
-              className="w-full border border-slate-200 rounded p-3 text-[12px] mono"
+              className="w-full bg-surface border border-line rounded-xl p-3.5 text-[12px] mono text-ink outline-none"
             />
           </CardBody>
         </Card>
 
-        <Card className="mb-4">
+        <Card className="mb-5">
           <CardBody>
-            <SectionLabel className="mb-2">preview (sandboxed)</SectionLabel>
+            <SectionLabel className="mb-2">미리보기 (격리 렌더)</SectionLabel>
             <HtmlPreview html={draft.body} />
-            <p className="mt-2 text-[11px] text-slate-500">
-              실제 발송 시 gmail.send 가 tracking pixel + unsubscribe footer 를 자동 추가합니다 — preview에는 빠져 있습니다.
+            <p className="mt-2.5 text-[11.5px] text-ink-3">
+              실제 발송 시 추적 픽셀과 수신거부 안내가 자동으로 덧붙습니다 — 미리보기에는 빠져 있습니다.
             </p>
           </CardBody>
         </Card>
 
-        <div className="flex justify-end gap-2">
-          <Button type="submit" name="decision" value="reject" tone="reject">거부</Button>
+        <div className="flex justify-end gap-2.5">
+          <Button type="submit" name="decision" value="reject" variant="secondary" tone="reject">거부</Button>
           <Button type="submit" name="decision" value="approveEdited" variant="primary" tone="approve">
             승인 (편집 반영)
           </Button>
@@ -459,44 +534,11 @@ function renderOutreachSendApproval(approval: Approval, brandName: string | unde
   );
 }
 
-const CLASSIFICATION_LABEL: Record<ConversationTurn["classification"], string> = {
-  interested: "interested",
-  needs_info: "needs_info",
-  negotiating: "negotiating",
-  not_now: "not_now",
-  declined: "declined",
-  out_of_office: "out_of_office",
-  unsubscribe: "unsubscribe",
-  unrelated: "unrelated",
-};
-
-const CLASSIFICATION_TONE: Record<ConversationTurn["classification"], "emerald" | "blue" | "amber" | "rose" | "slate"> = {
-  interested: "emerald",
-  needs_info: "blue",
-  negotiating: "amber",
-  not_now: "slate",
-  declined: "rose",
-  out_of_office: "slate",
-  unsubscribe: "rose",
-  unrelated: "slate",
-};
-
 /**
- * reply_response drill-in. The approval's `recommendation` can be either
- * shape depending on which workflow branch surfaced it:
- *   · ConversationTurn  — fired by creator-track's escalate-negotiating step
- *                         when the classifier returned 'negotiating'. No reply
- *                         was drafted; the human writes one in MC (or rejects
- *                         to close the track).
- *   · responder draft   — fired by the approveReplyResponse gate when the
- *                         responder agent produced { subject, body,
- *                         deliverabilityScore? }. Editable + sendable.
- *
- * We detect the shape via Zod safeParse; whichever parses successfully wins.
- * The "incoming" message body isn't on the approval directly — but the
- * workflow records it on the trace, and the rationale carries the gist. We
- * surface the extracted signals (question / proposedRateUsd / shippingAddress)
- * verbatim instead.
+ * 회신 응답 드릴인. recommendation 형태가 둘 중 하나:
+ *   · ConversationTurn — 협의 분류로 에스컬레이션됨. 자동 회신 없음, 사람이 검토만.
+ *   · 회신 초안 { subject, body, deliverabilityScore? } — 편집 후 발송 가능.
+ * Zod safeParse로 형태를 판별합니다.
  */
 function renderReplyResponseApproval(approval: Approval, brandName: string | undefined): React.ReactElement {
   const asTurn = ConversationTurnSchema.safeParse(approval.recommendation);
@@ -512,13 +554,12 @@ function renderReplyResponseApproval(approval: Approval, brandName: string | und
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-8 py-8">
-      <Link href="/approvals" className="text-[11px] text-slate-500 hover:text-slate-900">← 승인 인박스</Link>
-      <h1 className="mt-2 text-[18px] font-semibold">reply_response</h1>
-      <p className="mt-1 text-[13px] text-rose-600">
-        승인에 첨부된 데이터가 ConversationTurn 도 responder draft 도 아닙니다 (ID: {approval.id}). 워크플로 로그를 확인해주세요.
-      </p>
-    </div>
+    <DrillError
+      kind="reply_response"
+      title={brandName ?? "이름 미상 캠페인"}
+      detail="첨부된 데이터가 회신 형식과 맞지 않습니다."
+      approval={approval}
+    />
   );
 }
 
@@ -527,86 +568,63 @@ function renderReplyResponseEscalation(
   brandName: string | undefined,
   turn: ConversationTurn,
 ): React.ReactElement {
+  const noSignals = Object.values(turn.extracted).every((v) => v === undefined);
   return (
     <div className="max-w-4xl mx-auto px-8 py-8">
-      <header className="mb-4">
-        <Link href="/approvals" className="text-[11px] text-slate-500 hover:text-slate-900">← 승인 인박스</Link>
-        <div className="mt-2 flex items-end justify-between flex-wrap gap-3">
-          <div>
-            <SectionLabel>REPLY_RESPONSE · escalated</SectionLabel>
-            <h1 className="mt-1 text-[22px] font-semibold">
-              {brandName ?? "(unknown campaign)"} · 사람 검토 필요
-            </h1>
-            <div className="mt-1 text-[12px] text-slate-500">
-              대기 시작 {Math.floor((Date.now() - approval.createdAt.getTime()) / 60000)}분 전 · 캠페인{" "}
-              <Link className="underline hover:text-slate-900 mono" href={`/campaigns/${approval.campaignId}`}>
-                camp_{approval.campaignId.slice(0, 12)}
-              </Link>
-            </div>
-          </div>
-          <Badge variant={CLASSIFICATION_TONE[turn.classification]}>
-            classification: {CLASSIFICATION_LABEL[turn.classification]}
-          </Badge>
-        </div>
-      </header>
+      <DrillHeader
+        kind="reply_response"
+        title={`${brandName ?? "이름 미상 캠페인"} · 사람 검토 필요`}
+        approval={approval}
+        right={
+          <StatusTag tone={CLASSIFICATION_TONE[turn.classification]}>
+            {CLASSIFICATION_LABEL[turn.classification]}
+          </StatusTag>
+        }
+      />
 
-      <Card className="mb-4">
+      <RationaleCard title="에이전트가 사람에게 넘긴 이유">
+        {turn.needsHumanReason ?? approval.rationale}
+      </RationaleCard>
+
+      <Card className="mb-5">
         <CardBody>
-          <SectionLabel className="mb-2">분류기가 escalate 한 이유</SectionLabel>
-          <p className="text-[13px] text-slate-700 leading-relaxed">
-            {turn.needsHumanReason ?? approval.rationale}
+          <SectionLabel className="mb-3">추출된 신호</SectionLabel>
+          {noSignals ? (
+            <div className="text-[12.5px] text-ink-3">추출된 신호가 없습니다 — 전체 내용은 캠페인 타임라인에서 확인해주세요.</div>
+          ) : (
+            <dl className="text-[13.5px] space-y-3">
+              {turn.extracted.proposedRateUsd !== undefined && (
+                <div>
+                  <dt className="text-[11px] text-ink-3">제안된 단가</dt>
+                  <dd className="mono tnum text-ink">USD {fmtNum(turn.extracted.proposedRateUsd)}</dd>
+                </div>
+              )}
+              {turn.extracted.question && (
+                <div>
+                  <dt className="text-[11px] text-ink-3">질문 (원문)</dt>
+                  <dd className="mt-1 bg-surface-2 border border-line rounded-xl px-3.5 py-2.5 text-ink-2">
+                    {turn.extracted.question}
+                  </dd>
+                </div>
+              )}
+              {turn.extracted.shippingAddress && (
+                <div>
+                  <dt className="text-[11px] text-ink-3">공유된 배송지</dt>
+                  <dd className="mono text-ink-2">{turn.extracted.shippingAddress}</dd>
+                </div>
+              )}
+            </dl>
+          )}
+          <p className="mt-4 text-[12px] text-ink-3 leading-relaxed">
+            이 단계는 자동 회신이 없습니다. <strong className="text-ink-2">거부</strong>는 이 크리에이터와의 진행을 종료하고,
+            {" "}<strong className="text-ink-2">확인 완료</strong>는 사람 검토를 마쳤다는 표시입니다 — 실제 회신은 따로 보내주세요.
           </p>
         </CardBody>
       </Card>
 
-      <Card className="mb-4">
-        <CardBody>
-          <SectionLabel className="mb-2">추출된 신호</SectionLabel>
-          <dl className="text-[13px] space-y-2">
-            {turn.extracted.proposedRateUsd !== undefined && (
-              <div>
-                <dt className="text-[11px] text-slate-500">제안된 단가</dt>
-                <dd className="mono">USD {turn.extracted.proposedRateUsd.toLocaleString()}</dd>
-              </div>
-            )}
-            {turn.extracted.question && (
-              <div>
-                <dt className="text-[11px] text-slate-500">질문 (verbatim)</dt>
-                <dd className="bg-slate-50 border border-slate-200 rounded px-3 py-2">
-                  {turn.extracted.question}
-                </dd>
-              </div>
-            )}
-            {turn.extracted.shippingAddress && (
-              <div>
-                <dt className="text-[11px] text-slate-500">공유된 배송지</dt>
-                <dd className="mono">{turn.extracted.shippingAddress}</dd>
-              </div>
-            )}
-            {Object.values(turn.extracted).every((v) => v === undefined) && (
-              <div className="text-[12px] text-slate-500">(추출된 신호 없음 — body 전체를 트레이스에서 확인해주세요)</div>
-            )}
-          </dl>
-        </CardBody>
-      </Card>
-
-      <Card className="mb-4">
-        <CardBody>
-          <SectionLabel className="mb-2">thread 정보</SectionLabel>
-          <dl className="text-[12px] mono text-slate-600 space-y-1">
-            <div>thread_id: {turn.threadId}</div>
-            <div>creator_id: {turn.creatorId}</div>
-            <div>incoming_message_id: {turn.incomingMessageId}</div>
-          </dl>
-          <p className="mt-3 text-[12px] text-slate-500">
-            이 단계는 자동 응답이 없습니다. <strong>거부</strong>는 트랙을 종료하고, <strong>승인</strong>은 단순히 사람 검토 완료 표시입니다 — 실제 회신은 별도로 처리해주세요 (P2.5 follow-up: thread view 에서 수동 reply).
-          </p>
-        </CardBody>
-      </Card>
-
-      <form action={resolveAction} className="flex justify-end gap-2">
+      <form action={resolveAction} className="flex justify-end gap-2.5">
         <input type="hidden" name="approvalId" value={approval.id} />
-        <Button type="submit" name="decision" value="reject" tone="reject">거부 (트랙 종료)</Button>
+        <Button type="submit" name="decision" value="reject" variant="secondary" tone="reject">거부 (진행 종료)</Button>
         <Button type="submit" name="decision" value="approveAll" variant="primary" tone="approve">
           확인 완료
         </Button>
@@ -620,43 +638,28 @@ function renderReplyResponseDraft(
   brandName: string | undefined,
   draft: { subject: string; body: string; deliverabilityScore?: number },
 ): React.ReactElement {
+  const ds = draft.deliverabilityScore;
+  const dsTone = ds === undefined ? "neutral" : ds >= 0.8 ? "ok" : ds >= 0.5 ? "warn" : "stop";
   return (
     <div className="max-w-4xl mx-auto px-8 py-8">
-      <header className="mb-4">
-        <Link href="/approvals" className="text-[11px] text-slate-500 hover:text-slate-900">← 승인 인박스</Link>
-        <div className="mt-2 flex items-end justify-between flex-wrap gap-3">
-          <div>
-            <SectionLabel>REPLY_RESPONSE · drafted reply</SectionLabel>
-            <h1 className="mt-1 text-[22px] font-semibold">
-              {brandName ?? "(unknown campaign)"} · 자동 회신 검토
-            </h1>
-            <div className="mt-1 text-[12px] text-slate-500">
-              대기 시작 {Math.floor((Date.now() - approval.createdAt.getTime()) / 60000)}분 전 · 캠페인{" "}
-              <Link className="underline hover:text-slate-900 mono" href={`/campaigns/${approval.campaignId}`}>
-                camp_{approval.campaignId.slice(0, 12)}
-              </Link>
-            </div>
-          </div>
-          {draft.deliverabilityScore !== undefined && (
-            <Badge variant={draft.deliverabilityScore >= 0.8 ? "emerald" : draft.deliverabilityScore >= 0.5 ? "amber" : "rose"}>
-              deliverability {draft.deliverabilityScore.toFixed(2)}
-            </Badge>
-          )}
-        </div>
-      </header>
+      <DrillHeader
+        kind="reply_response"
+        title={`${brandName ?? "이름 미상 캠페인"} · 자동 회신 검토`}
+        approval={approval}
+        right={
+          ds !== undefined ? (
+            <StatusTag tone={dsTone}>도달성 {ds.toFixed(2)}</StatusTag>
+          ) : undefined
+        }
+      />
 
-      <Card className="mb-4">
-        <CardBody>
-          <SectionLabel className="mb-2">에이전트가 이 안을 고른 이유</SectionLabel>
-          <p className="text-[13px] text-slate-700 leading-relaxed">{approval.rationale}</p>
-        </CardBody>
-      </Card>
+      <RationaleCard title="에이전트가 이 안을 고른 이유">{approval.rationale}</RationaleCard>
 
-      {draft.deliverabilityScore !== undefined && (
-        <Card className="mb-4">
+      {ds !== undefined && (
+        <Card className="mb-5">
           <CardBody>
-            <SectionLabel className="mb-2">deliverability self-check</SectionLabel>
-            <ScoreBar label="deliverability" value={draft.deliverabilityScore} />
+            <SectionLabel className="mb-3">도달성 자가 점검</SectionLabel>
+            <ScoreBar label="도달성" value={ds} />
           </CardBody>
         </Card>
       )}
@@ -664,38 +667,38 @@ function renderReplyResponseDraft(
       <form action={resolveAction}>
         <input type="hidden" name="approvalId" value={approval.id} />
 
-        <Card className="mb-4">
+        <Card className="mb-5">
           <CardBody>
-            <SectionLabel className="mb-2">subject</SectionLabel>
+            <SectionLabel className="mb-2">제목</SectionLabel>
             <input
               type="text"
               name="editedSubject"
               defaultValue={draft.subject}
               maxLength={120}
-              className="w-full border border-slate-200 rounded px-3 py-2 text-[14px]"
+              className="w-full bg-surface border border-line rounded-xl px-3.5 py-2.5 text-[14px] text-ink outline-none"
             />
-            <SectionLabel className="mt-4 mb-2">body (HTML)</SectionLabel>
+            <SectionLabel className="mt-4 mb-2">본문 (HTML)</SectionLabel>
             <textarea
               name="editedBody"
               defaultValue={draft.body}
               rows={8}
-              className="w-full border border-slate-200 rounded p-3 text-[12px] mono"
+              className="w-full bg-surface border border-line rounded-xl p-3.5 text-[12px] mono text-ink outline-none"
             />
           </CardBody>
         </Card>
 
-        <Card className="mb-4">
+        <Card className="mb-5">
           <CardBody>
-            <SectionLabel className="mb-2">preview (sandboxed)</SectionLabel>
+            <SectionLabel className="mb-2">미리보기 (격리 렌더)</SectionLabel>
             <HtmlPreview html={draft.body} height={200} />
-            <p className="mt-2 text-[11px] text-slate-500">
-              tracking pixel + unsubscribe footer 는 발송 시 gmail.send 가 추가합니다.
+            <p className="mt-2.5 text-[11.5px] text-ink-3">
+              추적 픽셀과 수신거부 안내는 발송 시 자동으로 덧붙습니다.
             </p>
           </CardBody>
         </Card>
 
-        <div className="flex justify-end gap-2">
-          <Button type="submit" name="decision" value="reject" tone="reject">거부</Button>
+        <div className="flex justify-end gap-2.5">
+          <Button type="submit" name="decision" value="reject" variant="secondary" tone="reject">거부</Button>
           <Button type="submit" name="decision" value="approveEdited" variant="primary" tone="approve">
             승인 (편집 반영 후 발송)
           </Button>
@@ -706,24 +709,15 @@ function renderReplyResponseDraft(
 }
 
 /**
- * P3-C7a — shipment drill-in. The approveShipment gate's recommendation is
- * `{ rawAddress, brand, products[] }` (set by creator-track's shipping leg).
- * The human reviews the raw address text + the product manifest before the
- * workflow hands the package to the carrier (gate is PRE-shipment.create,
- * so a rejection here means no package physically ships).
- *
- * The drill-in deliberately doesn't allow editing the address — that's the
- * logistics agent's job (the agent parses raw text into structured fields,
- * which is hard to do correctly through a form). The reviewer's choice is
- * binary: approve (let the logistics agent run + the carrier get the
- * package) or reject (kill the track without shipping).
+ * 배송 확인 드릴인. recommendation = { rawAddress, brand, products[] }.
+ * 사람이 원문 주소 + 품목 명세를 확인한 뒤 패키지가 배송됩니다(게이트는 배송 직전).
+ * 거부하면 패키지는 실제로 발송되지 않습니다. 주소 편집은 불가(물류 에이전트 담당).
  */
 function renderShipmentApproval(approval: Approval, brandName: string | undefined): React.ReactElement {
   const rec = approval.recommendation as
     | { rawAddress?: unknown; brand?: unknown; products?: unknown }
     | undefined;
   const rawAddress = typeof rec?.rawAddress === "string" ? rec.rawAddress : "";
-  const brand = typeof rec?.brand === "string" ? rec.brand : brandName ?? "";
   const products = Array.isArray(rec?.products)
     ? (rec!.products as Array<{ sku?: unknown; name?: unknown; valueUsdCents?: unknown; weightGrams?: unknown }>).map((p) => ({
         sku: typeof p.sku === "string" ? p.sku : "?",
@@ -732,98 +726,80 @@ function renderShipmentApproval(approval: Approval, brandName: string | undefine
         weightGrams: typeof p.weightGrams === "number" ? p.weightGrams : 0,
       }))
     : [];
+  const totalValueUsd = products.reduce((s, p) => s + p.valueUsdCents, 0) / 100;
+  const totalWeight = products.reduce((s, p) => s + p.weightGrams, 0);
 
   return (
     <div className="max-w-3xl mx-auto px-8 py-8">
-      <header className="mb-4">
-        <Link href="/approvals" className="text-[11px] text-slate-500 hover:text-slate-900">← 승인 인박스</Link>
-        <div className="mt-2 flex items-end justify-between flex-wrap gap-3">
-          <div>
-            <SectionLabel>SHIPMENT · approveShipment</SectionLabel>
-            <h1 className="mt-1 text-[22px] font-semibold">
-              {brandName ?? "(unknown campaign)"} · 샘플 발송 직전 검토
-            </h1>
-            <div className="mt-1 text-[12px] text-slate-500">
-              대기 시작 {Math.floor((Date.now() - approval.createdAt.getTime()) / 60000)}분 전 · 캠페인{" "}
-              <Link className="underline hover:text-slate-900 mono" href={`/campaigns/${approval.campaignId}`}>
-                camp_{approval.campaignId.slice(0, 12)}
-              </Link>
-            </div>
-          </div>
-          <Badge variant="amber">PRE-SHIPMENT</Badge>
-        </div>
-      </header>
+      <DrillHeader
+        kind="shipment"
+        title={`${brandName ?? "이름 미상 캠페인"} · 샘플 발송 직전 확인`}
+        approval={approval}
+        right={<StatusTag tone="warn">발송 대기</StatusTag>}
+      />
 
-      <Card className="mb-4">
-        <CardBody>
-          <SectionLabel className="mb-2">에이전트가 보낸 사유</SectionLabel>
-          <p className="text-[13px] text-slate-700 leading-relaxed">{approval.rationale}</p>
-        </CardBody>
-      </Card>
+      <RationaleCard title="에이전트가 보낸 사유">{approval.rationale}</RationaleCard>
 
-      <Card className="mb-4">
+      <Card className="mb-5">
         <CardBody>
-          <SectionLabel className="mb-2">크리에이터가 공유한 주소 (verbatim)</SectionLabel>
+          <SectionLabel className="mb-2">크리에이터가 공유한 주소 (원문)</SectionLabel>
           {rawAddress ? (
-            <pre className="bg-slate-50 border border-slate-200 rounded p-3 text-[13px] whitespace-pre-wrap break-words">
+            <pre className="bg-surface-2 border border-line rounded-xl p-3.5 text-[13px] text-ink-2 whitespace-pre-wrap break-words font-sans">
               {rawAddress}
             </pre>
           ) : (
-            <div className="text-[12px] text-rose-600">주소 데이터가 없습니다 (워크플로 로그 확인 필요).</div>
+            <DiagnosticBanner tone="stop" title="주소 데이터가 없습니다">
+              캠페인 타임라인에서 배송지 수집 단계를 확인해주세요.
+            </DiagnosticBanner>
           )}
-          <p className="mt-2 text-[11px] text-slate-500">
-            승인하시면 logistics 에이전트가 위 텍스트를 구조화된 주소로 파싱한 다음 carrier API 에 핸드오프합니다. 거부하시면 트랙은 종료되고 패키지는 발송되지 않습니다.
+          <p className="mt-2.5 text-[11.5px] text-ink-3 leading-relaxed">
+            승인하시면 물류 에이전트가 위 텍스트를 정형화된 주소로 변환해 배송사에 전달합니다. 거부하시면 진행이 종료되고 패키지는 발송되지 않습니다.
           </p>
         </CardBody>
       </Card>
 
-      <Card className="mb-4">
+      <Card className="mb-5">
         <CardBody>
-          <SectionLabel className="mb-2">발송 품목 ({products.length})</SectionLabel>
+          <SectionLabel className="mb-3">발송 품목 ({products.length})</SectionLabel>
           {products.length === 0 ? (
-            <div className="text-[12px] text-slate-500">(품목 없음)</div>
+            <div className="text-[12.5px] text-ink-3">품목이 없습니다.</div>
           ) : (
-            <table className="w-full text-[13px]">
-              <thead className="text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
-                <tr>
-                  <th className="text-left py-2 font-medium">SKU</th>
-                  <th className="text-left py-2 font-medium">이름</th>
-                  <th className="text-right py-2 font-medium">신고가 (USD)</th>
-                  <th className="text-right py-2 font-medium">중량 (g)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((p, i) => (
-                  <tr key={i} className="border-b border-slate-100">
-                    <td className="py-2 mono text-slate-700">{p.sku}</td>
-                    <td className="py-2">{p.name}</td>
-                    <td className="py-2 text-right mono">${(p.valueUsdCents / 100).toFixed(2)}</td>
-                    <td className="py-2 text-right mono">{p.weightGrams.toLocaleString()} g</td>
+            <>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <Stat label="신고가 합계" value={`$${totalValueUsd.toFixed(2)}`} tone="brand" />
+                <Stat label="중량 합계" value={fmtNum(totalWeight)} unit="g" />
+              </div>
+              <table className="w-full text-[13px]">
+                <thead className="text-[10px] uppercase tracking-[0.06em] text-ink-3 border-b border-line">
+                  <tr>
+                    <th className="text-left py-2.5 font-semibold">품목</th>
+                    <th className="text-left py-2.5 font-semibold">코드</th>
+                    <th className="text-right py-2.5 font-semibold">신고가</th>
+                    <th className="text-right py-2.5 font-semibold">중량</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {products.map((p, i) => (
+                    <tr key={i} className="border-b border-line-2 last:border-0">
+                      <td className="py-2.5 text-ink">{p.name}</td>
+                      <td className="py-2.5 mono text-ink-3">{p.sku}</td>
+                      <td className="py-2.5 text-right mono tnum text-ink-2">${(p.valueUsdCents / 100).toFixed(2)}</td>
+                      <td className="py-2.5 text-right mono tnum text-ink-2">{fmtNum(p.weightGrams)} g</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
           )}
-          <p className="mt-2 text-[11px] text-slate-500">
-            품목 / 가격 / 중량은 캠페인 설정과 워크플로의 product manifest 에서 옵니다 — 이 화면에서 편집할 수 없습니다 (현장에서 다르게 보내야 하면 트랙 거부 → 캠페인 정책 수정).
+          <p className="mt-3 text-[11.5px] text-ink-3 leading-relaxed">
+            품목 · 신고가 · 중량은 캠페인 설정에서 옵니다 — 이 화면에서는 편집할 수 없습니다. 다르게 보내야 한다면 거부 후 캠페인 정책을 수정해주세요.
           </p>
         </CardBody>
       </Card>
 
-      <Card className="mb-4">
-        <CardBody>
-          <SectionLabel className="mb-2">브랜드 / 캠페인 식별</SectionLabel>
-          <dl className="text-[12px] mono text-slate-600 space-y-1">
-            <div>brand: {brand}</div>
-            <div>approval_id: {approval.id}</div>
-            <div>campaign_id: {approval.campaignId}</div>
-          </dl>
-        </CardBody>
-      </Card>
-
-      <form action={resolveAction} className="flex justify-end gap-2">
+      <form action={resolveAction} className="flex justify-end gap-2.5">
         <input type="hidden" name="approvalId" value={approval.id} />
-        <Button type="submit" name="decision" value="reject" tone="reject">거부 (발송 안 함)</Button>
+        <Button type="submit" name="decision" value="reject" variant="secondary" tone="reject">거부 (발송 안 함)</Button>
         <Button type="submit" name="decision" value="approveAll" variant="primary" tone="approve">
           발송 승인
         </Button>

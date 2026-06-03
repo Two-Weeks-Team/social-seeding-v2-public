@@ -1,13 +1,14 @@
 import { redirect } from "next/navigation";
 
-import { Badge } from "@/components/ui/badge";
 import { Card, CardBody, SectionLabel } from "@/components/ui/card";
+import { StatusTag } from "@/components/ui/status-tag";
+import { DiagnosticBanner } from "@/components/ui/diagnostic";
 import { cn } from "@/lib/cn";
 import { getServerSession } from "@/lib/auth";
 import { gmailConnectionStatus } from "@/lib/gmail-oauth";
 
 /**
- * Integrations / settings — the user-facing Gmail connect page.
+ * Integrations / settings — the user-facing Gmail connect page (C2 redesign).
  *
  * After login, the operator lands here and clicks "Gmail 연결" to run the
  * OAuth consent flow (/api/auth/gmail/start → Google consent → callback stores
@@ -15,7 +16,15 @@ import { gmailConnectionStatus } from "@/lib/gmail-oauth";
  * uses to (re)connect their sending mailbox. No client JS — the button is a
  * plain link to the start endpoint; the callback redirects back here with
  * `?gmail_connected=<email>`.
+ *
+ * Re-auth gates the core send capability, so when the token needs reconnecting
+ * we surface it with a DiagnosticBanner (consequence + recovery action), not a
+ * quiet pill.
  */
+
+const LINK_BASE =
+  "inline-flex items-center justify-center gap-1.5 rounded-xl font-semibold transition-colors h-9 px-3.5 text-[13px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ink focus-visible:ring-offset-2";
+
 export default async function SettingsPage({
   searchParams,
 }: {
@@ -29,50 +38,65 @@ export default async function SettingsPage({
   const status = await gmailConnectionStatus(email);
 
   const startHref = `/api/auth/gmail/start?email=${encodeURIComponent(email)}&returnUrl=/settings`;
-  // Primary (slate-900) is reserved for the action we want them to take —
-  // connect / reauth. A healthy connected state demotes reconnect to secondary.
+  // Espresso fill is reserved for the action we want them to take — connect /
+  // reconnect. A healthy connected state demotes reconnect to the ivory surface.
   const actionPrimary = !status.connected || status.needsReauth;
   const buttonLabel = status.connected ? "Gmail 재연결" : status.needsReauth ? "Gmail 다시 연결" : "Gmail 연결";
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
-      <h1 className="text-2xl font-bold text-slate-900">연동 설정</h1>
-      <p className="mt-1 text-sm text-slate-600">
-        에이전트가 아웃리치/답장 메일을 보내려면 Gmail 계정을 연결해야 합니다. 연결은 Google 동의 화면을
-        거치며, 발급된 토큰은 공유 백엔드에 안전하게 저장됩니다.
-      </p>
+    <div className="max-w-3xl mx-auto px-8 py-8">
+      <header className="mb-5">
+        <h1 className="text-[24px] font-bold tracking-[-0.01em]">연동 설정</h1>
+        <p className="mt-1 text-[13.5px] text-ink-2 max-w-[640px]">
+          에이전트가 아웃리치·답장 메일을 보내려면 Gmail 계정을 연결해야 합니다. 연결은 Google 동의 화면을
+          거치며, 발급된 토큰은 공유 백엔드에 안전하게 저장됩니다.
+        </p>
+      </header>
+
+      {/* Re-auth blocks sending — lead with it, not a quiet pill. */}
+      {status.needsReauth ? (
+        <DiagnosticBanner
+          tone="stop"
+          title="Gmail 재인증이 필요합니다"
+          actions={
+            <a href={startHref} aria-label="Gmail 다시 연결" className={cn(LINK_BASE, "bg-brand text-white hover:bg-brand-2 shadow-brand")}>
+              Gmail 다시 연결
+            </a>
+          }
+          className="mb-5"
+        >
+          연결이 만료되었거나 권한이 해지되어 지금은 이 계정으로 메일을 보낼 수 없습니다. 다시 연결하기 전까지
+          에이전트의 아웃리치·답장 발송이 모두 멈춥니다.
+        </DiagnosticBanner>
+      ) : null}
 
       {gmail_connected ? (
-        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" aria-hidden />
+        <div className="mb-5 rounded-2xl border border-ok/25 bg-ok-bg px-5 py-3.5 text-[13.5px] text-ink-2 flex items-center gap-2.5 shadow-soft">
+          <span className="w-[7px] h-[7px] rounded-full bg-ok shrink-0" aria-hidden />
           <span>
-            <b className="mono">{gmail_connected}</b> 연결 완료 — 이제 이 계정으로 메일을 보낼 수 있습니다.
+            <b className="mono text-ink">{gmail_connected}</b> 연결 완료 — 이제 이 계정으로 메일을 보낼 수 있습니다.
           </span>
         </div>
       ) : null}
 
-      <Card className="mt-6">
+      <Card>
         <CardBody>
-          <SectionLabel>Gmail</SectionLabel>
-          <div className="mt-2 flex items-center justify-between gap-4">
-            <div>
-              <div className="text-sm font-medium text-slate-900">{email}</div>
-              <div className="mt-1">
+          <SectionLabel>Gmail 발신 계정</SectionLabel>
+          <div className="mt-3 flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-[15px] font-bold text-ink truncate">{email}</div>
+              <div className="mt-1.5">
                 {status.connected ? (
-                  <Badge variant="emerald">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" aria-hidden /> 연결됨
+                  <StatusTag tone="ok" size="sm">
+                    연결됨
                     {status.expiresAt ? (
-                      <span className="mono ml-1">만료 {new Date(status.expiresAt).toLocaleString("ko-KR")}</span>
+                      <span className="mono font-normal ml-1">만료 {new Date(status.expiresAt).toLocaleString("ko-KR")}</span>
                     ) : null}
-                  </Badge>
+                  </StatusTag>
                 ) : status.needsReauth ? (
-                  <Badge variant="amber">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" aria-hidden /> 재인증 필요
-                  </Badge>
+                  <StatusTag tone="stop" size="sm">재인증 필요</StatusTag>
                 ) : (
-                  <Badge variant="slate">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" aria-hidden /> 미연결
-                  </Badge>
+                  <StatusTag tone="neutral" size="sm">미연결</StatusTag>
                 )}
               </div>
             </div>
@@ -80,19 +104,18 @@ export default async function SettingsPage({
               href={startHref}
               aria-label={buttonLabel}
               className={cn(
-                "inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors",
-                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-400 focus-visible:outline-offset-1",
+                LINK_BASE,
+                "shrink-0",
                 actionPrimary
-                  ? "bg-slate-900 text-white hover:bg-slate-700"
-                  : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
+                  ? "bg-brand text-white hover:bg-brand-2 shadow-brand"
+                  : "bg-surface text-ink border border-line hover:bg-surface-2",
               )}
             >
               {buttonLabel}
             </a>
           </div>
-          <p className="mt-3 text-xs text-slate-500">
-            권한: <code>gmail.send</code> + <code>gmail.readonly</code>. 발송은 운영자 허용 목록(D10) 내
-            계정으로만 제한됩니다.
+          <p className="mt-4 pt-3.5 border-t border-line-2 text-[12px] text-ink-3 leading-relaxed">
+            메일 보내기·읽기 권한을 사용하며, 발송은 운영자 허용 목록 내 계정으로만 제한됩니다.
           </p>
         </CardBody>
       </Card>

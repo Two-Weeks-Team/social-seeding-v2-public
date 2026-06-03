@@ -4,19 +4,17 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, SectionLabel } from "@/components/ui/card";
+import { DiagnosticBanner } from "@/components/ui/diagnostic";
 import { getServerSession } from "@/lib/auth";
 import { leadCampaignRepo } from "@ss/db";
 import { Events, LeadCampaignBriefSchema } from "@ss/contracts";
 import { inngest } from "@ss/workflows";
 
 /**
- * /leads/new — Phase 5 P5-C4. Operator's brief form for a new lead
- * campaign. Imports a paste-list of companies via the textarea (one
- * row per line: "Company Name | https://homepage.url") + the brief.
- *
- * On submit: leadCampaignRepo.create + emit lead-campaign/submitted.
- * The lead-campaign workflow takes over (P5-C3): import → enrich →
- * research → fan-out lead-track.
+ * /leads/new — 새 리드 캠페인 브리프 폼 (C2 redesign). Operator pastes a list of
+ * companies + the offer brief. On submit: leadCampaignRepo.create + emit the
+ * lead-campaign event; the workflow takes over (회사 등록 → 조사 → 제안 준비 →
+ * 콜드메일). Presentation only — the action + field names are unchanged.
  */
 
 async function createLeadCampaignAction(formData: FormData): Promise<void> {
@@ -69,9 +67,8 @@ async function createLeadCampaignAction(formData: FormData): Promise<void> {
   });
 
   // Parse the lead list — one row per line. Two accepted formats:
-  //   "Company Name | https://homepage.url"
-  //   "Company Name" (homepage URL omitted; the workflow will flake it
-  //                   at the no_homepage_url check)
+  //   "회사명 | https://homepage.url"
+  //   "회사명" (홈페이지 주소 생략 — 주소가 없으면 워크플로우가 자동으로 제외합니다)
   const leadInputs = f.leadList
     .split("\n")
     .map((line) => line.trim())
@@ -79,7 +76,7 @@ async function createLeadCampaignAction(formData: FormData): Promise<void> {
     .map((line) => {
       const [name, url] = line.split("|").map((s) => s.trim());
       return {
-        companyName: name ?? "(unnamed)",
+        companyName: name ?? "(이름 없음)",
         ...(url && /^https?:\/\//i.test(url) ? { homepageUrl: url } : {}),
       };
     })
@@ -102,6 +99,10 @@ async function createLeadCampaignAction(formData: FormData): Promise<void> {
   redirect(`/leads/${lc.id}`);
 }
 
+const FIELD =
+  "w-full text-[13px] text-ink bg-surface border border-line rounded-xl px-3.5 py-2.5 outline-none placeholder:text-ink-3 focus:border-brand-ink transition-colors";
+const LABEL = "block text-[12px] font-medium text-ink-2 mb-1.5";
+
 export default async function NewLeadCampaignPage({
   searchParams,
 }: {
@@ -113,89 +114,149 @@ export default async function NewLeadCampaignPage({
 
   return (
     <div className="max-w-3xl mx-auto px-8 py-8">
-      <header className="mb-6">
-        <Link href="/leads" className="text-[11px] text-slate-500 hover:text-slate-900">← 리드</Link>
-        <h1 className="mt-2 text-[22px] font-semibold">새 리드 캠페인</h1>
-        <p className="mt-1 text-[13px] text-slate-500">
-          회사 리스트를 붙여넣으면 crm.enrich(Modal+Kimi) → research 에이전트 → outreach가 자동 실행됩니다.
+      <header className="mb-5">
+        <Link href="/leads" className="text-[12px] text-ink-3 hover:text-ink-2">← 리드 목록</Link>
+        <h1 className="mt-2 text-[24px] font-bold tracking-[-0.01em]">새 리드 캠페인</h1>
+        <p className="mt-1 text-[13.5px] text-ink-2 max-w-[560px]">
+          제안하고 싶은 회사 목록과 우리 제품을 알려주면, 에이전트가 각 회사를 조사해 제안 포인트를 정리하고 콜드메일을 보냅니다.
         </p>
-        {error && (
-          <div className="mt-3 text-[12px] text-rose-700">
-            {error === "invalid" ? "입력값을 확인해주세요." : "리드 리스트가 비어있습니다."}
-          </div>
-        )}
       </header>
 
-      <form action={createLeadCampaignAction} className="space-y-5">
+      {error && (
+        <DiagnosticBanner
+          tone="warn"
+          title={error === "invalid" ? "입력값을 확인해주세요." : "회사 목록이 비어 있습니다."}
+          className="mb-5"
+        >
+          {error === "invalid"
+            ? "필수 항목이 비었거나 형식이 맞지 않습니다. 캠페인 이름·제안 요약·목표 답신 수·마감일을 다시 확인해주세요."
+            : "최소 한 곳 이상의 회사를 한 줄에 하나씩 입력해주세요."}
+        </DiagnosticBanner>
+      )}
+
+      <form action={createLeadCampaignAction} className="space-y-4">
         {/* ── brief ─────────────────────────────────────────── */}
         <Card><CardBody>
           <SectionLabel className="mb-3">캠페인 요약</SectionLabel>
-          <label className="block text-[11px] text-slate-600 mb-1">캠페인 이름</label>
-          <input name="name" required minLength={2} maxLength={120}
-            placeholder="Pitch to K-beauty brands"
-            className="w-full text-[13px] border border-slate-200 rounded-md px-3 py-2 mono" />
+          <label htmlFor="name" className={LABEL}>캠페인 이름</label>
+          <input
+            id="name"
+            name="name"
+            required
+            minLength={2}
+            maxLength={120}
+            placeholder="K-뷰티 브랜드에 제안"
+            className={FIELD}
+          />
         </CardBody></Card>
 
         <Card><CardBody>
-          <SectionLabel className="mb-3">우리가 파는 것</SectionLabel>
-          <label className="block text-[11px] text-slate-600 mb-1">제품 이름</label>
-          <input name="ourProduct.name" required defaultValue="Social Seeding"
-            className="w-full text-[13px] border border-slate-200 rounded-md px-3 py-2 mb-3 mono" />
-          <label className="block text-[11px] text-slate-600 mb-1">한 줄 요약 (≥10자)</label>
-          <input name="ourProduct.pitchSummary" required minLength={10}
-            defaultValue="TikTok influencer marketing platform"
-            className="w-full text-[13px] border border-slate-200 rounded-md px-3 py-2 mb-3" />
-          <label className="block text-[11px] text-slate-600 mb-1">핵심 클레임 (쉼표로 구분)</label>
-          <input name="ourProduct.keyClaims"
-            placeholder="finds creators by hashtag fit, auto-handles replies"
-            className="w-full text-[13px] border border-slate-200 rounded-md px-3 py-2" />
+          <SectionLabel className="mb-3">우리가 제안하는 것</SectionLabel>
+          <label htmlFor="ourProduct.name" className={LABEL}>제품 이름</label>
+          <input
+            id="ourProduct.name"
+            name="ourProduct.name"
+            required
+            defaultValue="Social Seeding"
+            className={`${FIELD} mb-4`}
+          />
+          <label htmlFor="ourProduct.pitchSummary" className={LABEL}>한 줄 소개 (10자 이상)</label>
+          <input
+            id="ourProduct.pitchSummary"
+            name="ourProduct.pitchSummary"
+            required
+            minLength={10}
+            defaultValue="TikTok 인플루언서 마케팅 플랫폼"
+            className={`${FIELD} mb-4`}
+          />
+          <label htmlFor="ourProduct.keyClaims" className={LABEL}>핵심 강점 (쉼표로 구분)</label>
+          <input
+            id="ourProduct.keyClaims"
+            name="ourProduct.keyClaims"
+            placeholder="해시태그 적합도로 크리에이터 발굴, 회신 자동 처리"
+            className={FIELD}
+          />
         </CardBody></Card>
 
         <Card><CardBody>
-          <SectionLabel className="mb-3">타겟팅 + outreach</SectionLabel>
-          <label className="block text-[11px] text-slate-600 mb-1">국가 (ISO-3166, 쉼표로 구분)</label>
-          <input name="targeting.countries" required defaultValue="KR"
-            className="w-full text-[13px] border border-slate-200 rounded-md px-3 py-2 mb-3 mono" />
-          <label className="block text-[11px] text-slate-600 mb-1">tone notes (선택)</label>
-          <input name="outreach.toneNotes" placeholder="directness, no hype"
-            className="w-full text-[13px] border border-slate-200 rounded-md px-3 py-2 mb-3" />
-          <label className="block text-[11px] text-slate-600 mb-1">배치당 최대 발송</label>
-          <input name="outreach.maxSendsPerBatch" type="number" min="1" max="200" defaultValue="20"
-            className="w-32 text-[13px] border border-slate-200 rounded-md px-3 py-2 mono" />
+          <SectionLabel className="mb-3">대상 + 콜드메일</SectionLabel>
+          <label htmlFor="targeting.countries" className={LABEL}>대상 국가 (국가 코드, 쉼표로 구분)</label>
+          <input
+            id="targeting.countries"
+            name="targeting.countries"
+            required
+            defaultValue="KR"
+            className={`${FIELD} mono mb-4`}
+          />
+          <label htmlFor="outreach.toneNotes" className={LABEL}>메일 톤 메모 (선택)</label>
+          <input
+            id="outreach.toneNotes"
+            name="outreach.toneNotes"
+            placeholder="간결하게, 과장 없이"
+            className={`${FIELD} mb-4`}
+          />
+          <label htmlFor="outreach.maxSendsPerBatch" className={LABEL}>한 번에 보낼 최대 메일 수</label>
+          <input
+            id="outreach.maxSendsPerBatch"
+            name="outreach.maxSendsPerBatch"
+            type="number"
+            min="1"
+            max="200"
+            defaultValue="20"
+            className={`${FIELD} mono w-32`}
+          />
         </CardBody></Card>
 
         <Card><CardBody>
           <SectionLabel className="mb-3">목표</SectionLabel>
-          <label className="block text-[11px] text-slate-600 mb-1">목표 답신 수</label>
-          <input name="goals.targetReplies" type="number" min="1" required defaultValue="5"
-            className="w-32 text-[13px] border border-slate-200 rounded-md px-3 py-2 mb-3 mono" />
-          <label className="block text-[11px] text-slate-600 mb-1">마감일 (YYYY-MM-DD)</label>
-          <input name="goals.deadline" type="date" required
-            className="w-48 text-[13px] border border-slate-200 rounded-md px-3 py-2 mb-3 mono" />
-          <label className="block text-[11px] text-slate-600 mb-1">예산 USD (선택)</label>
-          <input name="goals.budgetUsd" type="number" min="0" step="0.01" placeholder="100"
-            className="w-32 text-[13px] border border-slate-200 rounded-md px-3 py-2 mono" />
+          <label htmlFor="goals.targetReplies" className={LABEL}>목표 답신 수</label>
+          <input
+            id="goals.targetReplies"
+            name="goals.targetReplies"
+            type="number"
+            min="1"
+            required
+            defaultValue="5"
+            className={`${FIELD} mono w-32 mb-4`}
+          />
+          <label htmlFor="goals.deadline" className={LABEL}>마감일</label>
+          <input
+            id="goals.deadline"
+            name="goals.deadline"
+            type="date"
+            required
+            className={`${FIELD} mono w-52 mb-4`}
+          />
+          <label htmlFor="goals.budgetUsd" className={LABEL}>예산 (USD, 선택)</label>
+          <input
+            id="goals.budgetUsd"
+            name="goals.budgetUsd"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="100"
+            className={`${FIELD} mono w-32`}
+          />
         </CardBody></Card>
 
         <Card><CardBody>
-          <SectionLabel className="mb-3">리드 리스트 (최대 200개)</SectionLabel>
-          <p className="text-[11px] text-slate-500 mb-2">
-            한 줄에 한 회사. 형식: <span className="mono">회사명 | https://homepage.url</span> (URL 없으면 자동 flake).
+          <SectionLabel className="mb-3">회사 목록 (최대 200곳)</SectionLabel>
+          <p className="text-[12.5px] text-ink-2 mb-2.5">
+            한 줄에 한 회사씩 입력하세요. 형식: <span className="mono text-ink">회사명 | https://homepage.url</span>
+            <span className="text-ink-3"> · 홈페이지 주소가 없으면 조사가 어려워 자동으로 제외됩니다.</span>
           </p>
           <textarea
             name="leadList"
             required
             rows={10}
-            placeholder={"Glow Tonic | https://glow-tonic.kr\nHydra Co | https://hydra.kr\nFresh Beauty | https://fresh.kr"}
-            className="w-full text-[12px] border border-slate-200 rounded-md px-3 py-2 mono"
+            placeholder={"글로우 토닉 | https://glow-tonic.kr\n하이드라 코 | https://hydra.kr\n프레시 뷰티 | https://fresh.kr"}
+            className={`${FIELD} mono text-[12px] leading-relaxed`}
           />
         </CardBody></Card>
 
-        <div className="flex items-center justify-end gap-3">
-          <Link href="/leads">
-            <Button variant="secondary">취소</Button>
-          </Link>
-          <Button variant="primary" tone="approve">📤 캠페인 시작</Button>
+        <div className="flex items-center justify-end gap-3 pt-1">
+          <Link href="/leads"><Button variant="secondary">취소</Button></Link>
+          <Button variant="primary" type="submit">캠페인 시작 →</Button>
         </div>
       </form>
     </div>

@@ -1,31 +1,27 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardBody, SectionLabel } from "@/components/ui/card";
+import { Card, CardBody, CardHeader, CardTitle, SectionLabel } from "@/components/ui/card";
+import { StatusTag, type StatusTone } from "@/components/ui/status-tag";
+import { Stat } from "@/components/ui/stat";
+import { EmptyState } from "@/components/ui/empty-state";
 import { getServerSession } from "@/lib/auth";
 import { campaignRepo, reportRepo } from "@ss/db";
 import { Events, type AnalyticsReport, type Report } from "@ss/contracts";
 import { inngest } from "@ss/workflows";
+import { fmtNum } from "@/lib/format";
 
 /**
- * /campaigns/[id]/report — Phase 4 P4-C5a. Renders the most recent
- * delivered Report for a campaign:
+ * /campaigns/[id]/report — renders the most recent delivered report for a
+ * campaign: summary + analytics tiles, the analyst's structured slots
+ * (highlights / concerns / recommendations), the markdown narrative, and a
+ * history list of past deliveries.
  *
- *   · summary + analytics tile-strip (verified vs target, reach, cost)
- *   · highlights / concerns / recommendations (the analyst agent's
- *     structured slots)
- *   · markdown narrative (rendered minimally — H1/H2/H3 + lists +
- *     tables; no rich markdown dep)
- *   · history drawer with up to 20 past deliveries
+ * "재생성" emits a report-deliver request; the page revalidates as the report
+ * completes. The share link copies a public, token-gated URL.
  *
- * Form action "재생성" emits `report/deliver.request(trigger='manual')`.
- * The MC tile then updates within seconds as the report-deliver workflow
- * completes (revalidatePath bounces the user back to this page).
- *
- * "Share link" copies a public URL `/share/[reportId]?t=<shareToken>`
- * (P4-C5b renders it). Token check is constant-time on the share route.
+ * Presentation only — the server action + data fetching are preserved verbatim.
  */
 
 // ── server action: manual "Generate report" trigger ─────────────────────────
@@ -55,13 +51,13 @@ function renderMarkdown(md: string): React.ReactElement {
   while (i < lines.length) {
     const line = lines[i] ?? "";
     if (line.startsWith("# ")) {
-      out.push(<h1 key={key++} className="text-[22px] font-semibold mt-6 mb-2">{line.slice(2)}</h1>);
+      out.push(<h1 key={key++} className="text-[20px] font-bold text-ink mt-6 mb-2">{line.slice(2)}</h1>);
       i++;
     } else if (line.startsWith("## ")) {
-      out.push(<h2 key={key++} className="text-[15px] font-semibold mt-4 mb-1.5 text-slate-700">{line.slice(3)}</h2>);
+      out.push(<h2 key={key++} className="text-[15px] font-bold text-ink mt-4 mb-1.5">{line.slice(3)}</h2>);
       i++;
     } else if (line.startsWith("### ")) {
-      out.push(<h3 key={key++} className="text-[13px] font-semibold mt-3 mb-1 text-slate-700">{line.slice(4)}</h3>);
+      out.push(<h3 key={key++} className="text-[13px] font-semibold text-ink-2 mt-3 mb-1">{line.slice(4)}</h3>);
       i++;
     } else if (line.startsWith("- ") || line.startsWith("* ")) {
       // collect contiguous list lines
@@ -71,7 +67,7 @@ function renderMarkdown(md: string): React.ReactElement {
         i++;
       }
       out.push(
-        <ul key={key++} className="list-disc pl-5 my-1.5 text-[13px] text-slate-700 space-y-0.5">
+        <ul key={key++} className="list-disc pl-5 my-1.5 text-[13px] text-ink-2 space-y-0.5">
           {items.map((it, j) => <li key={j}>{it}</li>)}
         </ul>,
       );
@@ -89,15 +85,15 @@ function renderMarkdown(md: string): React.ReactElement {
       if (header) {
         out.push(
           <table key={key++} className="mt-2 mb-3 w-full text-[12px] border-collapse">
-            <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-600">
-              <tr>
-                {header.map((h, idx) => <th key={idx} className="text-left px-2.5 py-1.5 font-medium">{h}</th>)}
+            <thead>
+              <tr className="text-[10px] uppercase tracking-[0.06em] text-ink-3 font-semibold bg-surface-2">
+                {header.map((h, idx) => <th key={idx} className="text-left px-3 py-1.5 font-semibold">{h}</th>)}
               </tr>
             </thead>
             <tbody>
               {body.map((r, ri) => (
-                <tr key={ri} className="border-t border-slate-100">
-                  {r.map((c, ci) => <td key={ci} className="px-2.5 py-1.5 mono text-slate-700">{c}</td>)}
+                <tr key={ri} className="border-t border-line-2">
+                  {r.map((c, ci) => <td key={ci} className="px-3 py-1.5 mono tnum text-ink-2">{c}</td>)}
                 </tr>
               ))}
             </tbody>
@@ -107,7 +103,7 @@ function renderMarkdown(md: string): React.ReactElement {
     } else if (line.trim() === "") {
       i++;
     } else {
-      out.push(<p key={key++} className="text-[13px] text-slate-700 leading-relaxed my-1.5">{line}</p>);
+      out.push(<p key={key++} className="text-[13px] text-ink-2 leading-relaxed my-1.5">{line}</p>);
       i++;
     }
   }
@@ -116,62 +112,72 @@ function renderMarkdown(md: string): React.ReactElement {
 
 // ── analytics tile strip ────────────────────────────────────────────────────
 function AnalyticsTiles({ a }: { a: AnalyticsReport }) {
-  const pct = a.goals.percentOfGoal !== null ? `${Math.round(a.goals.percentOfGoal * 100)}%` : "n/a";
-  const reach = a.reach.verifiedViews.toLocaleString();
+  const pct = a.goals.percentOfGoal !== null ? `목표 대비 ${Math.round(a.goals.percentOfGoal * 100)}%` : "목표 미설정";
+  const hasReach = a.reach.verifiedViews > 0;
   const er = a.reach.weightedEngagementRate !== null
     ? `${(a.reach.weightedEngagementRate * 100).toFixed(1)}%`
     : "—";
-  const cost = `$${a.cost.spentUsd.toFixed(2)}`;
-  const budgetPct = a.cost.percentOfBudget !== null
-    ? `${Math.round(a.cost.percentOfBudget * 100)}%`
-    : "no budget";
+  const budget = a.cost.percentOfBudget !== null
+    ? `예산 대비 ${Math.round(a.cost.percentOfBudget * 100)}%`
+    : "예산 미설정";
   const cppvp = a.cost.costPerVerifiedPost !== null
-    ? `$${a.cost.costPerVerifiedPost.toFixed(2)}/post`
+    ? `게시물당 $${a.cost.costPerVerifiedPost.toFixed(2)}`
     : "—";
+  const deadlinePast = a.goals.daysToDeadline < 0;
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-      <Card><CardBody>
-        <SectionLabel>VERIFIED · TARGET</SectionLabel>
-        <div className="mt-1 text-[20px] font-semibold mono">
-          {a.goals.verifiedCount}<span className="text-slate-400"> / {a.goals.targetLivePosts}</span>
-        </div>
-        <div className="mt-0.5 text-[11px] text-slate-500">{pct} of goal</div>
-      </CardBody></Card>
-      <Card><CardBody>
-        <SectionLabel>REACH</SectionLabel>
-        <div className="mt-1 text-[20px] font-semibold mono">{reach}</div>
-        <div className="mt-0.5 text-[11px] text-slate-500">verified views · ER {er}</div>
-      </CardBody></Card>
-      <Card><CardBody>
-        <SectionLabel>COST</SectionLabel>
-        <div className="mt-1 text-[20px] font-semibold mono">{cost}</div>
-        <div className="mt-0.5 text-[11px] text-slate-500">{budgetPct} of budget · {cppvp}</div>
-      </CardBody></Card>
-      <Card><CardBody>
-        <SectionLabel>DEADLINE</SectionLabel>
-        <div className={`mt-1 text-[20px] font-semibold mono ${a.goals.daysToDeadline < 0 ? "text-rose-700" : ""}`}>
-          {a.goals.daysToDeadline >= 0 ? `+${a.goals.daysToDeadline}d` : `${a.goals.daysToDeadline}d`}
-        </div>
-        <div className="mt-0.5 text-[11px] text-slate-500">
-          {a.goals.daysToDeadline >= 0 ? "remaining" : "past"} · {a.brief.deadline.toISOString().slice(0, 10)}
-        </div>
-      </CardBody></Card>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">
+      <Stat
+        label="목표 / 검증"
+        value={a.goals.verifiedCount}
+        unit={`/ ${a.goals.targetLivePosts}`}
+        hint={pct}
+        tone={a.goals.goalMet ? "ok" : "default"}
+      />
+      <Stat
+        label="총 도달"
+        value={hasReach ? fmtNum(a.reach.verifiedViews) : 0}
+        hint={hasReach ? `참여율 ${er}` : "게시물 없음"}
+        tone={hasReach ? "default" : "muted"}
+      />
+      <Stat
+        label="집행 비용"
+        value={`$${a.cost.spentUsd.toFixed(2)}`}
+        hint={`${budget} · ${cppvp}`}
+        tone="brand"
+      />
+      <Stat
+        label="마감"
+        value={a.goals.daysToDeadline >= 0 ? `+${a.goals.daysToDeadline}일` : `${a.goals.daysToDeadline}일`}
+        hint={`${a.goals.daysToDeadline >= 0 ? "남음" : "경과"} · ${a.brief.deadline.toISOString().slice(0, 10)}`}
+        tone={deadlinePast ? "stop" : "default"}
+      />
     </div>
   );
 }
 
-function flagBadgeVariant(flag: string): "amber" | "rose" | "emerald" {
-  if (flag === "goal_met") return "emerald";
-  if (flag === "budget_exceeded" || flag === "deadline_missed") return "rose";
-  return "amber";
+/** ReportFlag → operator Korean label + status tone. */
+const FLAG_KO: Record<string, { label: string; tone: StatusTone }> = {
+  goal_met: { label: "목표 달성", tone: "ok" },
+  budget_exceeded: { label: "예산 초과", tone: "stop" },
+  deadline_missed: { label: "마감 미달", tone: "stop" },
+  low_response_rate: { label: "낮은 응답률", tone: "warn" },
+  high_flake_rate: { label: "높은 이탈률", tone: "warn" },
+  no_verified_yet: { label: "검증 게시물 없음", tone: "warn" },
+};
+function flagKo(flag: string): { label: string; tone: StatusTone } {
+  return FLAG_KO[flag] ?? { label: flag.replace(/_/g, " "), tone: "warn" };
 }
 
 function triggerLabel(t: Report["trigger"]): string {
   switch (t) {
-    case "cron": return "weekly cron";
-    case "stage_transition": return "campaign closeout";
-    case "manual": return "manual export";
+    case "cron": return "자동 주간 집계";
+    case "stage_transition": return "캠페인 종료 집계";
+    case "manual": return "직접 생성";
   }
+}
+
+function fmtStamp(d: Date): string {
+  return d.toISOString().slice(0, 16).replace("T", " ");
 }
 
 export default async function CampaignReportPage({
@@ -192,118 +198,126 @@ export default async function CampaignReportPage({
   return (
     <div className="max-w-6xl mx-auto px-8 py-8">
       <header className="mb-6">
-        <Link href={`/campaigns/${id}`} className="text-[11px] text-slate-500 hover:text-slate-900">
+        <Link href={`/campaigns/${id}`} className="text-[12px] text-ink-3 hover:text-ink-2">
           ← {campaign.brief.brandProduct.name}
         </Link>
-        <div className="mt-2 flex items-end justify-between gap-3">
+        <div className="mt-2 flex items-start justify-between gap-4">
           <div>
-            <SectionLabel>REPORT</SectionLabel>
-            <h1 className="mt-1 text-[22px] font-semibold">
-              {campaign.brief.brandProduct.name} 결과 리포트
-            </h1>
+            <h1 className="text-[24px] font-bold tracking-[-0.01em]">결과 리포트</h1>
             {latest ? (
-              <div className="mt-1 text-[12px] text-slate-500">
-                생성됨 {latest.generatedAt.toISOString().slice(0, 16).replace("T", " ")} · trigger{" "}
-                <span className="mono">{triggerLabel(latest.trigger)}</span>
-                {reports.length > 1 ? ` · ${reports.length}회 전송됨` : ""}
+              <div className="mt-1 text-[12.5px] text-ink-3">
+                {campaign.brief.brandProduct.name} · 생성 {fmtStamp(latest.generatedAt)} · {triggerLabel(latest.trigger)}
+                {reports.length > 1 ? ` · ${reports.length}회 집계됨` : ""}
               </div>
             ) : (
-              <div className="mt-1 text-[12px] text-slate-500">아직 리포트가 없습니다.</div>
+              <div className="mt-1 text-[12.5px] text-ink-3">{campaign.brief.brandProduct.name}</div>
             )}
           </div>
           <form action={generateReportAction}>
             <input type="hidden" name="campaignId" value={id} />
-            <Button variant="primary" tone="approve">{latest ? "🔄 새 리포트 생성" : "📝 리포트 생성"}</Button>
+            <Button variant="primary" tone="approve">{latest ? "새 리포트 생성" : "리포트 생성"}</Button>
           </form>
         </div>
       </header>
 
       {!latest ? (
-        <Card>
-          <CardBody className="text-[13px] text-slate-500 text-center py-12">
-            아직 검증된 게시물이 없거나 캠페인이 진행 중입니다. 직접 리포트를 생성하면 현 시점의 스냅샷을 만들 수 있습니다.
-          </CardBody>
-        </Card>
+        <EmptyState
+          title="아직 리포트가 없습니다"
+          hint="검증된 게시물이 모이면 자동으로 리포트가 만들어집니다. 지금 바로 생성하면 현 시점의 스냅샷을 받아볼 수 있어요."
+          action={
+            <form action={generateReportAction}>
+              <input type="hidden" name="campaignId" value={id} />
+              <Button variant="primary" tone="approve">리포트 생성</Button>
+            </form>
+          }
+        />
       ) : (
         <>
           <AnalyticsTiles a={latest.analytics} />
 
-          <Card><CardBody>
-            <SectionLabel className="mb-1.5">SUMMARY</SectionLabel>
-            <p className="text-[14px] text-slate-800 leading-relaxed">{latest.narrative.summary}</p>
-            {latest.analytics.flags.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {latest.analytics.flags.map((f) => (
-                  <Badge key={f} variant={flagBadgeVariant(f)}>{f}</Badge>
-                ))}
-              </div>
-            )}
-          </CardBody></Card>
+          <Card>
+            <CardBody>
+              <SectionLabel className="mb-2">요약</SectionLabel>
+              <p className="text-[14px] text-ink leading-relaxed">{latest.narrative.summary}</p>
+              {latest.analytics.flags.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {latest.analytics.flags.map((f) => {
+                    const fl = flagKo(f);
+                    return <StatusTag key={f} tone={fl.tone} size="sm">{fl.label}</StatusTag>;
+                  })}
+                </div>
+              )}
+            </CardBody>
+          </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 mt-4">
             {latest.narrative.highlights.length > 0 && (
-              <Card><CardBody>
-                <SectionLabel className="mb-1.5 text-emerald-700">WHAT WORKED</SectionLabel>
-                <ul className="list-disc pl-4 text-[13px] text-slate-700 space-y-1.5">
-                  {latest.narrative.highlights.map((h, i) => <li key={i}>{h}</li>)}
-                </ul>
-              </CardBody></Card>
+              <Card>
+                <CardBody>
+                  <SectionLabel className="mb-2 text-ok">잘된 점</SectionLabel>
+                  <ul className="list-disc pl-4 text-[13px] text-ink-2 space-y-1.5">
+                    {latest.narrative.highlights.map((h, i) => <li key={i}>{h}</li>)}
+                  </ul>
+                </CardBody>
+              </Card>
             )}
             {latest.narrative.concerns.length > 0 && (
-              <Card><CardBody>
-                <SectionLabel className="mb-1.5 text-amber-700">WHAT TO WATCH</SectionLabel>
-                <ul className="list-disc pl-4 text-[13px] text-slate-700 space-y-1.5">
-                  {latest.narrative.concerns.map((c, i) => <li key={i}>{c}</li>)}
-                </ul>
-              </CardBody></Card>
+              <Card>
+                <CardBody>
+                  <SectionLabel className="mb-2 text-warn">살펴볼 점</SectionLabel>
+                  <ul className="list-disc pl-4 text-[13px] text-ink-2 space-y-1.5">
+                    {latest.narrative.concerns.map((c, i) => <li key={i}>{c}</li>)}
+                  </ul>
+                </CardBody>
+              </Card>
             )}
-            <Card><CardBody>
-              <SectionLabel className="mb-1.5">NEXT CAMPAIGN</SectionLabel>
-              <ul className="list-disc pl-4 text-[13px] text-slate-700 space-y-1.5">
-                {latest.narrative.recommendations.map((r, i) => <li key={i}>{r}</li>)}
-              </ul>
-            </CardBody></Card>
+            <Card>
+              <CardBody>
+                <SectionLabel className="mb-2">다음 캠페인 제안</SectionLabel>
+                <ul className="list-disc pl-4 text-[13px] text-ink-2 space-y-1.5">
+                  {latest.narrative.recommendations.map((r, i) => <li key={i}>{r}</li>)}
+                </ul>
+              </CardBody>
+            </Card>
           </div>
 
-          <Card className="mt-6"><CardBody>
-            <div className="flex items-center justify-between mb-3">
-              <SectionLabel>MARKDOWN</SectionLabel>
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>리포트 본문</CardTitle>
               {latest.shareToken && (
                 <Link
                   href={`/share/${latest.id}?t=${encodeURIComponent(latest.shareToken)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[11px] text-slate-500 hover:text-slate-900 underline-offset-2 hover:underline"
+                  className="text-[11px] text-ink-3 hover:text-ink-2 underline-offset-2 hover:underline"
                 >
                   공개 미리보기 열기 ↗
                 </Link>
               )}
-            </div>
-            <div className="prose prose-sm max-w-none">{renderMarkdown(latest.narrative.markdown)}</div>
-          </CardBody></Card>
+            </CardHeader>
+            <CardBody>{renderMarkdown(latest.narrative.markdown)}</CardBody>
+          </Card>
 
           {history.length > 0 && (
-            <Card className="mt-6"><CardBody>
-              <SectionLabel className="mb-2">이전 리포트 · {history.length}개</SectionLabel>
-              <ul className="text-[13px] divide-y divide-slate-100">
-                {history.map((r) => (
-                  <li key={r.id} className="py-2 flex items-center justify-between">
-                    <div>
-                      <span className="mono text-slate-700">
-                        {r.generatedAt.toISOString().slice(0, 16).replace("T", " ")}
-                      </span>
-                      <span className="ml-2 text-[11px] text-slate-500 mono">
-                        ({triggerLabel(r.trigger)})
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-slate-500">
-                      verified {r.analytics.goals.verifiedCount} / {r.analytics.goals.targetLivePosts}
-                      {" · "}flags {r.analytics.flags.length}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </CardBody></Card>
+            <Card className="mt-6">
+              <CardHeader><CardTitle>이전 리포트 · {history.length}개</CardTitle></CardHeader>
+              <CardBody className="pt-1.5">
+                <ul className="divide-y divide-line-2">
+                  {history.map((r) => (
+                    <li key={r.id} className="py-2.5 flex items-center justify-between gap-3 text-[13px]">
+                      <div>
+                        <span className="mono tnum text-ink">{fmtStamp(r.generatedAt)}</span>
+                        <span className="ml-2 text-[11px] text-ink-3">{triggerLabel(r.trigger)}</span>
+                      </div>
+                      <div className="text-[11px] text-ink-3">
+                        검증 {r.analytics.goals.verifiedCount} / {r.analytics.goals.targetLivePosts}
+                        {r.analytics.flags.length > 0 ? ` · 플래그 ${r.analytics.flags.length}건` : ""}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </CardBody>
+            </Card>
           )}
         </>
       )}
