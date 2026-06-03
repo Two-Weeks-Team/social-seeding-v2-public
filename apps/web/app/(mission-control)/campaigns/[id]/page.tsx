@@ -108,7 +108,7 @@ export default async function CampaignDetailPage({
   const isLive = campaign.status === "running" || campaign.status === "paused";
 
   return (
-    <div className={cn(view === "canvas" ? "max-w-[1600px]" : "max-w-6xl", "mx-auto px-8 py-8")}>
+    <div className="max-w-6xl mx-auto px-8 py-8">
       <header className="mb-5">
         <Link href="/campaigns" className="text-[12px] text-ink-3 hover:text-ink-2">← 캠페인 목록</Link>
         <div className="mt-2 flex items-start justify-between gap-4">

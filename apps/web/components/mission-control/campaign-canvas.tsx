@@ -98,7 +98,7 @@ function SsNode({ data, selected }: NodeProps<Node<SsNodeData>>) {
         isFuture && "opacity-45",
         selected && "ring-2 ring-brand-ink ring-offset-2",
       )}
-      style={{ width: 184, padding: "11px 13px" }}
+      style={{ width: "100%", height: "100%", padding: "11px 13px" }}
     >
       <Handle type="target" position={Position.Left} style={{ background: "transparent", border: 0 }} />
       <div className="absolute top-2.5 right-2.5">
@@ -220,7 +220,19 @@ function buildGraph(a: BuildArgs): { nodes: Node<SsNodeData>[]; edges: Edge[] } 
     edge("shipping", "content", buckets ? buckets.delivered + buckets.verified + buckets.flaked > 0 : false),
   ];
 
-  return { nodes, edges };
+  // Provide explicit dimensions so React Flow treats nodes as already-measured.
+  // Without this, RF v12 can leave nodes `visibility:hidden` (measurement never
+  // registers under dev StrictMode / flex mount timing) and fitView never runs —
+  // the canvas renders blank. Fixed dims also give the pipeline uniform cards.
+  const sized = nodes.map((n) => ({
+    ...n,
+    width: 184,
+    height: 88,
+    // `measured` is what fitView / getNodesBounds read; set it so the viewport
+    // fits even when RF's ResizeObserver hasn't run (dev StrictMode / mount race).
+    measured: { width: 184, height: 88 },
+  }));
+  return { nodes: sized, edges };
 }
 
 function edge(source: string, target: string, active: boolean): Edge {
@@ -257,8 +269,8 @@ export function CampaignCanvas(props: CampaignCanvasProps) {
           edges={edges}
           nodeTypes={nodeTypes}
           fitView
-          fitViewOptions={{ padding: 0.12, minZoom: 0.55, maxZoom: 1.1 }}
-          minZoom={0.4}
+          fitViewOptions={{ padding: 0.15, minZoom: 0.4, maxZoom: 1.1 }}
+          minZoom={0.35}
           maxZoom={1.6}
           proOptions={{ hideAttribution: true }}
           nodesDraggable={false}
