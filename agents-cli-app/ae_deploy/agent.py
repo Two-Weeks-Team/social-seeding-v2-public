@@ -37,6 +37,8 @@ _logger = logging.getLogger("ss.recall")
 from google.adk.agents import Agent  # noqa: E402
 from google.adk.agents.callback_context import CallbackContext  # noqa: E402
 from google.adk.models import Gemini, LlmRequest  # noqa: E402
+from google.adk.planners import BuiltInPlanner  # noqa: E402
+from google.genai.types import ThinkingConfig  # noqa: E402
 
 MODEL_ID = "gemini-3.5-flash"
 
@@ -147,6 +149,11 @@ root_agent = Agent(
         "returns. Models in use are Gemini 3.5/3.1 only."
     ),
     tools=[source_creators],
+    # Gemini 3.x explicit thinking budget (Optimize/Models "better method"): the
+    # coordinator's vetting/ceiling judgments (e.g. "is 12.9% ER below the 13%
+    # floor?") get real reasoning tokens before answering. Validated live:
+    # thinking_level=high → thoughts_token_count=186 on the global endpoint.
+    planner=BuiltInPlanner(thinking_config=ThinkingConfig(thinking_level="high")),
     before_agent_callback=_recall_brand_pref,
     before_model_callback=_inject_brand_pref,
 )
