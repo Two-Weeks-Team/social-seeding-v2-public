@@ -1,0 +1,10 @@
+{"input": "Hi! Yes I'd love to collaborate on the wooriliu drop — what's the timeline and deliverables?", "target": "INTERESTED"}
+{"input": "Thanks for reaching out but I'm fully booked this quarter, can't take new brand deals.", "target": "DECLINE"}
+{"input": "What's the rate per video, and do you cover shipping for the product samples?", "target": "QUESTION"}
+{"input": "I'm interested but my usual rate is $800/video, not $500. Can we meet in the middle?", "target": "NEGOTIATE"}
+{"input": "Sounds great, count me in! Send over the brief whenever you're ready.", "target": "INTERESTED"}
+{"input": "Sorry, this isn't a fit for my audience. Good luck with the campaign!", "target": "DECLINE"}
+{"input": "Do you need exclusivity? And how long does the content need to stay up?", "target": "QUESTION"}
+{"input": "Love the brand. I can do it but only if you bump the budget to $1000 and add usage rights.", "target": "NEGOTIATE"}
+{"input": "Absolutely down to work together — TikTok is my main platform and beauty is my niche.", "target": "INTERESTED"}
+{"input": "I'll pass for now, focusing on my own product line this season.", "target": "DECLINE"}
