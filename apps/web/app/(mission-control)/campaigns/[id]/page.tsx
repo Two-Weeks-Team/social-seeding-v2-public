@@ -16,6 +16,7 @@ import { inngest } from "@ss/workflows";
 import { cn } from "@/lib/cn";
 import { campaignStatus, approvalKindKo, trackState } from "@/lib/labels";
 import { creatorLabel } from "@/lib/format";
+import { resolveCreators } from "@/lib/creators";
 
 /** Lifecycle controls — cancel + pause/resume (see prior history for the durable-workflow semantics). */
 async function cancelCampaignAction(formData: FormData): Promise<void> {
@@ -99,6 +100,7 @@ export default async function CampaignDetailPage({
       ? (shortlistApproval.recommendation as unknown[]).length
       : undefined;
   const trackBuckets = bucketTracksByState(campaign.tracks);
+  const trackProfiles = await resolveCreators(campaign.tracks.slice(0, 6).map((t) => t.creatorId));
 
   const st = campaignStatus(campaign.status);
   const isComplete = campaign.status === "completed";
@@ -252,12 +254,18 @@ export default async function CampaignDetailPage({
                 <div className="space-y-0.5">
                   {campaign.tracks.slice(0, 6).map((t) => {
                     const ts = trackState(t.state);
-                    const label = creatorLabel(t.creatorId);
+                    const p = trackProfiles.get(t.creatorId);
+                    const display = p?.nickname ?? p?.handle ?? creatorLabel(t.creatorId);
                     return (
                       <div key={t.creatorId} className="flex items-center gap-2.5 py-1.5">
-                        <Avatar name={label} size="sm" />
-                        <span className="text-[12.5px] text-ink truncate">{label}</span>
-                        <StatusTag tone={ts.tone} size="sm" className="ml-auto">{ts.label}</StatusTag>
+                        <Avatar name={display} src={p?.avatar} size="sm" />
+                        <div className="min-w-0">
+                          <div className="text-[12.5px] text-ink truncate leading-tight">{display}</div>
+                          {p?.handle && p.handle !== display && (
+                            <div className="text-[11px] text-ink-3 mono truncate">{p.handle}</div>
+                          )}
+                        </div>
+                        <StatusTag tone={ts.tone} size="sm" className="ml-auto shrink-0">{ts.label}</StatusTag>
                       </div>
                     );
                   })}

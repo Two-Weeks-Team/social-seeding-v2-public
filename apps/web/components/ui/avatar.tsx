@@ -31,14 +31,30 @@ const SIZE = { sm: 24, md: 32, lg: 40 } as const;
 
 export function Avatar({
   name,
+  src,
   size = "md",
   className,
 }: {
   name: string;
+  /** Optional profile image URL (e.g. TikTok avatarThumb). Falls back to initials. */
+  src?: string | null;
   size?: keyof typeof SIZE;
   className?: string;
 }) {
   const px = SIZE[size];
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt=""
+        width={px}
+        height={px}
+        className={cn("rounded-full object-cover shrink-0 bg-surface-2", className)}
+        style={{ width: px, height: px }}
+        aria-hidden
+      />
+    );
+  }
   return (
     <span
       className={cn("inline-grid place-items-center rounded-full text-white font-bold shrink-0", className)}

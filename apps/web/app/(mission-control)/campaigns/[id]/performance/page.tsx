@@ -12,6 +12,7 @@ import { campaignRepo } from "@ss/db";
 import { invokeCapability } from "@ss/capabilities";
 import { AnalyticsReportSchema, type AnalyticsReport } from "@ss/contracts";
 import { fmtNum, fmtCompactKo, creatorLabel } from "@/lib/format";
+import { resolveCreators } from "@/lib/creators";
 
 /**
  * /campaigns/[id]/performance — C2 redesign. The audit's headline data-honesty
@@ -64,6 +65,7 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
     .filter((t) => t.performanceScore !== null)
     .sort((x, y) => (y.performanceScore ?? 0) - (x.performanceScore ?? 0))
     .slice(0, 12);
+  const profiles = await resolveCreators(leaderboard.map((t) => t.creatorId));
 
   return (
     <div className="max-w-5xl mx-auto px-8 py-8">
@@ -148,13 +150,21 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
             ) : (
               <div className="space-y-0.5">
                 {leaderboard.map((t, i) => {
-                  const label = creatorLabel(t.creatorId);
+                  const p = profiles.get(t.creatorId);
+                  const display = p?.nickname ?? p?.handle ?? creatorLabel(t.creatorId);
                   return (
                     <div key={t.creatorId} className="flex items-center gap-3 py-2 border-b border-line-2 last:border-0">
                       <span className="w-5 text-[12px] text-ink-3 mono shrink-0">{i + 1}</span>
-                      <Avatar name={label} size="sm" />
-                      <span className="text-[13px] text-ink truncate">{label}</span>
-                      <span className="ml-auto text-[13px] mono font-bold text-ink">{fmtNum(t.views ?? 0)}</span>
+                      <Avatar name={display} src={p?.avatar} size="sm" />
+                      <div className="min-w-0">
+                        <div className="text-[13px] text-ink truncate leading-tight">{display}</div>
+                        {p?.handle && p.handle !== display && (
+                          <div className="text-[11px] text-ink-3 mono truncate">{p.handle}</div>
+                        )}
+                      </div>
+                      <span className="ml-auto text-[13px] mono font-bold text-ink shrink-0">
+                        {fmtNum(t.views ?? 0)} <span className="text-ink-3 font-normal">뷰</span>
+                      </span>
                     </div>
                   );
                 })}

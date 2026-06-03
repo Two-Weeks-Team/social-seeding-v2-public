@@ -10,6 +10,7 @@ import { campaignRepo } from "@ss/db";
 import type { CreatorTrack, CreatorTrackContent } from "@ss/contracts";
 import { trackState } from "@/lib/labels";
 import { fmtNum, creatorLabel } from "@/lib/format";
+import { resolveCreators } from "@/lib/creators";
 
 /**
  * /campaigns/[id]/posts — content-review list. One row per track where
@@ -77,6 +78,10 @@ export default async function CampaignPostsPage({
   const flakedNoPost = campaign.tracks.filter((t) => t.state === "flaked" && !t.content);
   const verifiedCount = withContent.filter((r) => r.state === "verified").length;
   const flakedWithPostCount = withContent.filter((r) => r.state === "flaked").length;
+  const profiles = await resolveCreators([
+    ...withContent.map((r) => r.creatorId),
+    ...flakedNoPost.map((t) => t.creatorId),
+  ]);
 
   return (
     <div className="max-w-6xl mx-auto px-8 py-8">
@@ -132,7 +137,8 @@ export default async function CampaignPostsPage({
                     {withContent.map((row) => {
                       const er = engagementRate(row.content);
                       const ts = trackState(row.state);
-                      const label = creatorLabel(row.creatorId);
+                      const p = profiles.get(row.creatorId);
+                      const display = p?.nickname ?? p?.handle ?? creatorLabel(row.creatorId);
                       const score = row.content.performanceScore;
                       return (
                         <tr
@@ -141,8 +147,13 @@ export default async function CampaignPostsPage({
                         >
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2.5">
-                              <Avatar name={label} size="sm" />
-                              <span className="text-ink truncate">{label}</span>
+                              <Avatar name={display} src={p?.avatar} size="sm" />
+                              <div className="min-w-0">
+                                <div className="text-ink truncate leading-tight">{display}</div>
+                                {p?.handle && p.handle !== display && (
+                                  <div className="text-[11px] text-ink-3 mono truncate">{p.handle}</div>
+                                )}
+                              </div>
                             </div>
                           </td>
                           <td className="px-4 py-3">
@@ -190,11 +201,12 @@ export default async function CampaignPostsPage({
                 </p>
                 <ul className="space-y-1.5">
                   {flakedNoPost.slice(0, 10).map((t) => {
-                    const label = creatorLabel(t.creatorId);
+                    const p = profiles.get(t.creatorId);
+                    const display = p?.nickname ?? p?.handle ?? creatorLabel(t.creatorId);
                     return (
                       <li key={t.creatorId} className="flex items-center gap-2.5 py-1">
-                        <Avatar name={label} size="sm" />
-                        <span className="text-[12.5px] text-ink truncate">{label}</span>
+                        <Avatar name={display} src={p?.avatar} size="sm" />
+                        <span className="text-[12.5px] text-ink truncate">{display}</span>
                         <span className="ml-auto text-[11px] text-ink-3 mono tnum">
                           마지막 활동 {t.lastActivityAt.toISOString().slice(0, 10)}
                         </span>
