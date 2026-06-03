@@ -2,7 +2,7 @@
 
 ## 1. Purpose + ARCHITECTURE.md citation
 
-The **Research agent** turns a Lead's enrichment (Modal+Kimi output via `crm.enrich`) plus the operator's `LeadCampaignBrief` into a *pitch-specific* research summary: `{pitch, angles[], groundedFacts[], contactProfile, confidence}`. Used by lead-campaigns (B2B sister loop) to feed the `lead_outreach_writer` (agent #11). Centralizes "what's the angle" reasoning so the writer stays pure.
+The **Research agent** turns a Lead's enrichment (Modal + Gemini output via `crm.enrich` — D53; Kimi/Moonshot removed) plus the operator's `LeadCampaignBrief` into a *pitch-specific* research summary: `{pitch, angles[], groundedFacts[], contactProfile, confidence}`. Used by lead-campaigns (B2B sister loop) to feed the `lead_outreach_writer` (agent #11). Centralizes "what's the angle" reasoning so the writer stays pure.
 
 - **D-ID coverage**: D23 (Tier-1 agent #9), D5 (Gemini 3.5 Flash), D11 (lead loop is part of v2 day-1 scope), D16 (vector_search.competitor for cross-brand RAG), D21 (web.search results scanned by Model Armor before reaching agent).
 - **ARCHITECTURE.md §3 row 9**: `research | 1 | Gemini 3.5 Flash | web.search (Google grounding), vector_search.competitor | Memory Bank | hallucinations_v1`.
@@ -211,7 +211,7 @@ sequenceDiagram
   VC-->>RE: competitor signals
   RE->>RE: Distill pitch + 1-5 angles + grounded facts
   RE->>RE: contactProfile (Marketing Director / Founder / CMO)
-  RE->>RE: confidence = baseline (kimi) ± adjustments
+  RE->>RE: confidence = baseline (Gemini) ± adjustments
   RE-->>AG: { pitch, angles, groundedFacts, contactProfile, confidence, citations }
   AG-->>WF: 200 OK
   AG->>PS: publish agent.t1.research.completed

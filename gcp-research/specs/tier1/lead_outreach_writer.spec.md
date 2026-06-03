@@ -173,7 +173,7 @@ sequenceDiagram
 | `templates.list` | DB read | Workspace sales templates |
 | `outreach.render` | template engine | Variable fill |
 | `outreach.judge` | deterministic | 4 judges with same weights as brand path |
-| `crm.enrich` | Modal + Kimi | Re-enrich if research stale (≥ 30d) |
+| `crm.enrich` | Modal + Gemini (D53; Kimi/Moonshot removed) | Re-enrich if research stale (≥ 30d) |
 
 **USD cap**: $1.20 per lead. Slightly higher than brand writer (B2B emails are longer + go through more revision passes per v2 `lead-outreach-writer.agent.ts:33`).
 

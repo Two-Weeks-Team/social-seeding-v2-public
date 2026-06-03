@@ -73,11 +73,12 @@ AGENT_FILTER="${AGENT_FILTER:-}"
 #   <agent_name> <tier> <model_class> <module_path>
 # Tiers:
 #   T1 = domain (16); T2 = meta (3); T3 = watchdog (3).
-# Model classes (for Agent Runtime billing tag — informational only):
-#   pro       = gemini-2.5-pro
-#   flash     = gemini-2.5-flash
-#   flash-lt  = gemini-2.5-flash-lite
-#   pro+veo   = gemini-2.5-pro + Veo 3 / Imagen 4 (creative agent)
+# Model classes (for Agent Runtime billing tag — informational only).
+# D53: Gemini 3.5/3.1 ONLY (no 2.5, no *-pro). The legacy tier labels below map to:
+#   pro       = gemini-3.5-flash        (judgment tier)
+#   flash     = gemini-3.5-flash
+#   flash-lt  = gemini-3.1-flash-lite   (bulk tier)
+#   pro+veo   = gemini-3.5-flash + Veo 3 / Imagen 4 (creative agent)
 # -----------------------------------------------------------------------------
 AGENTS=(
   # Tier 1 — domain (16)
