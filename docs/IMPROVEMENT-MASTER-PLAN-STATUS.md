@@ -51,53 +51,59 @@ Verify #10 redefined → "rate-limit middleware in main.py + unit test + scale c
 
 ## Sub-Sprint Tracker
 
+> **Reconciled 2026-06-03**: these rows were left `⬜` after the 2026-05-28 P1 sprint actually shipped.
+> All map to commits in the **Final Status (2026-05-28)** table that are ancestors of `main`
+> (artifacts spot-verified: A3 `editedPayload` in `apps/web`, A2 `RateLimitMiddleware` in
+> `tiktok_orchestrator/main.py`, A8 `evals/conversation_responder_eval.py`). Flipped `⬜→✅`.
+> The **Final Status** section is authoritative; gates re-ran green there (2026-05-28 22:30).
+
 ### Sub-1.2 Security
 | ID | Item | Effort | Status |
 |---|---|---|---|
-| A2 | Rate-limit middleware (re-planned) | 1-2hr | ⬜ |
-| A3 | promptGuard editedPayload | 30min | ⬜ |
-| X4 | REQUIRE_AUTH 4-place truth | 1hr | ⬜ |
+| A2 | Rate-limit middleware (re-planned) | 1-2hr | ✅ |
+| A3 | promptGuard editedPayload | 30min | ✅ |
+| X4 | REQUIRE_AUTH 4-place truth | 1hr | ✅ |
 
 ### Sub-1.1 정직성·문서 일관성
 | ID | Item | Effort | Status |
 |---|---|---|---|
-| A1 | 마스터 동기화 (HONEST-SCOPE 17행, 테스트 카운트, Hero 명세) | 1.5hr | ⬜ |
-| B1 | Agent Sandbox 클레임 disclose | 1hr | ⬜ |
-| B2 | Knowledge Catalog/Dataplex 분리 | 30min | ⬜ |
-| B3 | ss-mcp-server 실 비용 검증 | 1hr | ⬜ |
-| B4 | Model Armor 적용 범위 명확화 (X3) | 30min | ⬜ |
-| B5 | Memory Bank Phase-4 disclose | 15min | ⬜ |
-| B6 | Agent Studio / Agent Evaluation 태그 정합 (depends on A4) | 30min | ⬜ |
-| B7 | serve.py 3-route 설명 HONEST-SCOPE | 15min | ⬜ |
-| B8 | agents-cli deploy disclose | 15min | ⬜ |
-| B9 | A2A workflow execution ID 단일화 | 30min | ⬜ |
-| B10 | eval coverage 1/22 명시 (X1) | 15min | ⬜ |
-| B11 | Cloud Run cold-start vs SLO 정직화 (X5) | 15min | ⬜ |
-| X2 | 단일 source-of-truth 정책 (SUBMISSION-NUMBERS.md) | 30min | ⬜ |
-| X6 | built-with 태그 정합성 | depends on A4 | ⬜ |
+| A1 | 마스터 동기화 (HONEST-SCOPE 17행, 테스트 카운트, Hero 명세) | 1.5hr | ✅ |
+| B1 | Agent Sandbox 클레임 disclose | 1hr | ✅ |
+| B2 | Knowledge Catalog/Dataplex 분리 | 30min | ✅ |
+| B3 | ss-mcp-server 실 비용 검증 | 1hr | ✅ |
+| B4 | Model Armor 적용 범위 명확화 (X3) | 30min | ✅ |
+| B5 | Memory Bank Phase-4 disclose | 15min | ✅ |
+| B6 | Agent Studio / Agent Evaluation 태그 정합 (depends on A4) | 30min | ✅ |
+| B7 | serve.py 3-route 설명 HONEST-SCOPE | 15min | ✅ |
+| B8 | agents-cli deploy disclose | 15min | ✅ |
+| B9 | A2A workflow execution ID 단일화 | 30min | ✅ |
+| B10 | eval coverage 1/22 명시 (X1) | 15min | ✅ |
+| B11 | Cloud Run cold-start vs SLO 정직화 (X5) | 15min | ✅ |
+| X2 | 단일 source-of-truth 정책 (SUBMISSION-NUMBERS.md) | 30min | ✅ |
+| X6 | built-with 태그 정합성 | depends on A4 | ✅ |
 
 ### Sub-1.3 22-agent fleet 실증
 | ID | Item | Effort | Status |
 |---|---|---|---|
-| A4 | agents-cli eval 결과 캡처 | 2hr | ⬜ |
-| A6 | serve.py + main.py healthz/readyz 22-3 명시 | 30min + redeploy | ⬜ |
-| A7 | research grounding=true 라이브 캡처 | 30min | ⬜ |
-| A8 | conversation_responder mini-eval | 1-2hr | ⬜ |
-| A9 | _heuristic_rank 로깅 | 30min + redeploy | ⬜ |
-| X1 | 22-agent fleet 통합 정합 (A6+A8+B5+B7+B10 묶음) | — | ⬜ |
+| A4 | agents-cli eval 결과 캡처 | 2hr | ✅ |
+| A6 | serve.py + main.py healthz/readyz 22-3 명시 | 30min + redeploy | ✅ |
+| A7 | research grounding=true 라이브 캡처 | 30min | ✅ |
+| A8 | conversation_responder mini-eval | 1-2hr | ✅ |
+| A9 | _heuristic_rank 로깅 | 30min + redeploy | ✅ |
+| X1 | 22-agent fleet 통합 정합 (A6+A8+B5+B7+B10 묶음) | — | ✅ |
 
 ### Sub-1.5 Observability
 | ID | Item | Effort | Status |
 |---|---|---|---|
-| A5 | OTel agent.latency_ms span | 1hr | ⬜ |
+| A5 | OTel agent.latency_ms span | 1hr | ✅ |
 | X3 | Model Armor 적용 범위 명세 (B4와 중복) | — | merge w/ B4 |
 | X5 | 측정 sprint 통합 | — | concurrent w/ A5+A11+B3+B11 |
 
 ### Sub-1.4 UX
 | ID | Item | Effort | Status |
 |---|---|---|---|
-| A10 | StageBar 한국어 + focus-visible + aria-live | 20-30min | ⬜ |
-| A11 | MC 본체 Lighthouse a11y 측정 | 30min | ⬜ |
+| A10 | StageBar 한국어 + focus-visible + aria-live | 20-30min | ✅ |
+| A11 | MC 본체 Lighthouse a11y 측정 | 30min | ✅ |
 
 ## Verify Gates (P1 exit)
 
@@ -204,10 +210,10 @@ evaluator should read this as a strict improvement over "17 rows".
 | # | 항목 | 차단 해제 조건 |
 |---|---|---|
 | B1 | Agent Engine 배포(`adk deploy agent_engine`) | ✅ **LIVE 2026-06-03** — `reasoningEngines/8794890706243026944`(ss-v2-prod·us-central1, "ss-agent-engine"). `stream_query` 라이브 응답 검증(author root_agent·627 tok·gemini-3.5-flash global). 대표 에이전트(소싱) 단위; 22-fleet 번들링 후속. **수정 이력**: ADC=sejun 403→owner가 aiplatform.admin 부여 / 전용 staging 버킷 / requirements 정확버전 핀(adk 1.19.0)으로 기동 / `app` export 제거(app-name 불일치 해소). |
-| B2 | Sessions + Memory Bank 라이브(`agentengine://`) | ✅ **LIVE 2026-06-03** — Sessions는 Agent Engine 배포에 자동 포함. **Memory Bank**: 엔진 `8794890706243026944`에 CreateMemory(`memories/4472557253022449664`) → RetrieveMemories(user=judge-demo) 정확 fact 반환, end-to-end 검증. 연결 URI `agentengine://8794890706243026944`. **잔여**: 에이전트 런타임 auto-recall(메모리서비스로 재배포)은 후속. |
-| B3 | Vertex AI RAG Engine corpus + Agent Search | ADC + GCS + 코퍼스 |
-| B4 | VAPO 데이터드리븐 1회(GA 모델) | ADC + GCS 버킷 |
-| B5 | Cloud Trace export 상시 + 대시보드 | ADC + Trace API |
+| B2 | Sessions + Memory Bank 라이브(`agentengine://`) | ✅ **LIVE 2026-06-03** — Sessions는 Agent Engine 배포에 자동 포함. **Memory Bank**: 엔진 `8794890706243026944`에 CreateMemory(`memories/4472557253022449664`) → RetrieveMemories(user=judge-demo) 정확 fact 반환, end-to-end 검증. 연결 URI `agentengine://8794890706243026944`. **auto-recall ✅ LIVE 2026-06-03 (PR #70 / GT2)** — 엔진 `2498295477225652224`(env-pinned scope·memory 서비스 `location=us-central1`)에서 `before_agent_callback` recall→`before_model_callback` inject 검증: ER 미지정 쿼리가 `source_creators(min_engagement_rate=13)` 호출 → @_alejandrauve. |
+| B3 | Vertex AI RAG Engine corpus + Agent Search | ✅ **LIVE 2026-06-03 (PR #70 / GT4)** — corpus `…/us-west1/ragCorpora/6917529027641081856`(brand-brief ingest) + `retrieval_query`(score 0.234) → gemini-3.5-flash 그라운딩 답변(출처 `wooriliu-brand-brief.txt` 인용) + ADK `VertexAiRagRetrieval` 부착. us-west1 = 신규프로젝트 Spanner allowlist 회피. |
+| B4 | VAPO 데이터드리븐 1회(GA 모델) | ✅ **LIVE 2026-06-03 (PR #70 / GT5)** — GenAI Client 데이터드리븐 `prompts.optimize`(`examples_dataframe`) on 10-row triage, target gemini-3.5-flash → 측정 정확도 **50%→90%**. |
+| B5 | Cloud Trace export 상시 + 대시보드 | ✅ **LIVE 2026-06-03 (PR #70 / GT1)** — 엔진 `2498295477225652224` `enable_tracing=True` + SA `roles/cloudtrace.agent` → traceId `dc063a2af962770ff776b0c43ff8ac28`(7 spans: invocation→invoke_agent→call_llm→generate_content gemini-3.5-flash→execute_tool). |
 | B6 | Agent Identity IAM principal + Registry 네이티브 등록 | ✅ **부분 LIVE 2026-06-03** — **Identity**: 전용 런타임 SA `ss-agent-runtime@ss-v2-prod`(least-privilege aiplatform.user) 생성 = 에이전트 고유 IAM principal. **Registry**: Agent Engine 레지스트리에 엔진 2개 등록·discoverable(reasoningEngines 목록). Gemini Enterprise registry(discoveryengine)는 ss-v2-prod 403(API 미활성; 동작경로는 ss-mcp-prod, HS#14) → 별도 GE 앱 필요. |
 | B9 | **22-fleet 번들링** (실 ss_agents를 Agent Engine에) | ⚠️ **빌드 성공·기동 실패** — wheel/소스(extra_packages)+11 deps로 **Cloud Build 통과**, 그러나 컨테이너가 **기동 중 SIGTERM**(무거운 ss_agents import → readiness 타임아웃 추정). 전용 SA(Identity)·stub 모드로 배포 시도. 표준 `ae_deploy` 대표 에이전트가 라이브 proof로 유지. 잔여: lazy-init/health 튜닝(다회 반복 필요). |
 | B7 | Cloud Marketplace 등재 + Apigee 미터링 | 해외 sub-entity(KR 결제권역 D2) |
