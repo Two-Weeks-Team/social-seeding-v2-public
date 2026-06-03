@@ -149,11 +149,11 @@ new engineering. Full production-vs-shipped detail in [`HONEST-SCOPE.md`](./HONE
    span tree; live Cloud Trace export is the production path.
 2. **Model Armor GA sanitize on the A2A path.** The inbound A2A query is sanitized through a real
    `model_armor_query_blocks` tool, with block/allow behavior asserted offline.
-3. **Vertex AI Prompt Optimizer (data-driven / VAPO).** This corrects an earlier misnomer: there is no
+3. **Prompt Optimizer (data-driven / VAPO).** This corrects an earlier misnomer: there is no
    GA "Agent Optimizer" — the GA product is the **Prompt Optimizer**. The local deterministic pass
    demonstrates the hardening before/after offline (the 40.5% → 100% / 71.4% bar); the GA Prompt
    Optimizer is the production path, wired and operator-gated.
-4. **Managed Vertex AI Memory Bank backend.** A managed Memory Bank backend is implemented and
+4. **Managed Memory Bank backend.** A managed Memory Bank backend is implemented and
    env-gated, with **Firestore as the zero-config default**; both paths are tested offline.
 5. **A2A v0.3 signed agent card (JWS ES256) + JWKS.** `sign_agent_card.py` emits an A2A v0.3
    `signatures[]` JWS (RFC 7515) over a JCS-canonicalized (RFC 8785) card using **ES256
@@ -317,7 +317,7 @@ clean-text safety check are pinned in `tests/tools/test_prompt_guard.py`.
 ## What's next (Devpost field)
 
 - **Now → judging window** — Gemini Enterprise registration approval (O7 allowlist, Google 1-2 wk);
-  promote the live Vertex AI Prompt Optimizer (data-driven) from stub to production; close the
+  promote the live Prompt Optimizer (data-driven) from stub to production; close the
   holdout misses with extraction/thread-history robustness (not by tuning the rule to the holdout);
   enforce mTLS on the A2A transport (currently declared, O7).
 - **2026-Q3** — Foreign sub-entity to resolve the Marketplace payment-region exclusion (O10),
@@ -333,7 +333,7 @@ See [`built-with-tags.txt`](built-with-tags.txt). Headline GCP stack:
 - **Build**: ADK 2.0 Python · Gemini 3.5 Flash/Flash-Lite · Model Context Protocol · A2A v0.3 ·
   AP2 v0.2 · Model Garden · Cloud Marketplace
 - **Scale/Govern/Optimize**: Agent Runtime · Agent Gateway · Agent Identity (SPIFFE) ·
-  Agent Registry · Vertex AI Prompt Optimizer (data-driven) · Agent Evaluation · Agent Observability
+  Agent Registry · Prompt Optimizer (data-driven) · Agent Evaluation · Agent Observability
 - **Data**: Spanner · AlloyDB AI · Firestore · Vertex AI Vector Search · BigQuery · Memorystore · Pub/Sub
 - **Compute/Integration**: Cloud Run · Cloud Workflows · Cloud Tasks · Eventarc Advanced · Apigee X ·
   Cloud Build · Artifact Registry
@@ -437,7 +437,7 @@ disclosures are consolidated, not scattered. The load-bearing headlines, with th
 
 - **The hardening before/after is a local deterministic pass; the honest number is the holdout
   71.4%.** The 40.5% → 100.0% (train) / 71.4% (holdout) bar comes from a deterministic optimization
-  pass over the 56-case synthetic set — **not** the live **Vertex AI Prompt Optimizer (data-driven /
+  pass over the 56-case synthetic set — **not** the live **Prompt Optimizer (data-driven /
   VAPO)**, which is the production path (wired, operator-gated). The train 100% is on the cases the
   rules were authored against; the **holdout 71.4%** (28.6pp gap, 4 misses kept, not tuned away) is
   the honest generalization number. Synthetic cases are hand-authored, not real creator data (D10).

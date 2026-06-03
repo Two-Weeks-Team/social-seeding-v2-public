@@ -7,9 +7,9 @@
 ## 0. 이미 LIVE (완료 — 컨텍스트)
 - [x] **A1** AP2 Intent→Cart→Payment 체인 + verifier + 11 테스트 (PR #69 merged)
 - [x] **A2** per-agent 평가 surface `python -m evals --all` (22 계약 + 2 정확도) (merged)
-- [x] **B1** Agent Engine LIVE — `reasoningEngines/8794890706243026944` (라이브 쿼리 검증)
+- [x] **B1** Agent Runtime LIVE — `reasoningEngines/8794890706243026944` (라이브 쿼리 검증)
 - [x] **B2** Memory Bank LIVE — CreateMemory→RetrieveMemories 검증 (engine `1587442452589969408`)
-- [x] **B6** Agent Identity SA(`ss-agent-runtime`) + Agent Registry(Agent Engine 등록·discoverable)
+- [x] **B6** Agent Identity SA(`ss-agent-runtime`) + Agent Registry(Agent Runtime 등록·discoverable)
 
 ---
 
@@ -31,7 +31,7 @@
   - 문서: docs.cloud.google.com/agent-builder/agent-engine/evaluate
   - **Proof**: `final_response_quality` summary — `num_cases_total=3, num_cases_valid=3, num_cases_error=0, mean_score=2.33, stdev=2.31`. (낮은 평균 = 도구 없는 bare 모델이 핸들을 지어내자 심사관이 정직하게 감점 → 실측.)
 
-- [x] **GT4 — Vertex AI RAG Engine** (Step 5) ✅ 2026-06-03
+- [x] **GT4 — RAG Engine** (Step 5) ✅ 2026-06-03
   - 작업: `rag.create_corpus`(RagManagedDb) + `upload_file`(wooriliu 브랜드 브리프) + `rag.retrieval_query` + ADK `VertexAiRagRetrieval` 도구 부착. 핵심 수정: 신규 프로젝트는 us-central1/us-east1/us-east4 Spanner 모드 allowlist 제한 → **us-west1**에서 생성.
   - 문서: google.github.io/adk-docs/integrations/vertex-ai-rag-engine/
   - **Proof**: corpus `projects/722660901814/locations/us-west1/ragCorpora/6917529027641081856` · retrieval(score 0.234, source=`wooriliu-brand-brief.txt`) → gemini-3.5-flash 그라운딩 답변: "minimum engagement rate is 13 percent ... payout method is Stripe Connect. Source: wooriliu-brand-brief.txt"(전부 코퍼스 출처). ADK tool `brand_brief_search`→corpus 부착.
