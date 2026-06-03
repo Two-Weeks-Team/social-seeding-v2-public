@@ -16,15 +16,15 @@
 ## A. GOAL-TRACKED — `/goal`로 완주 (자율, 차단 없음)
 > 목표: 아래 모든 항목 `[x]` + 각 proof를 그 턴에 출력.
 
-- [ ] **GT1 — Cloud Trace 활성** (Step 4 Observability)
-  - 작업: Agent Engine을 `enable_tracing=True`(또는 `adk deploy … --trace_to_cloud`)로 (재)배포.
+- [x] **GT1 — Cloud Trace 활성** (Step 4 Observability) ✅ 2026-06-03
+  - 작업: `AdkApp(enable_tracing=True)`로 엔진 `2498295477225652224`(ss-agent-engine-trace-mem) 배포 + 런타임 SA `ss-agent-runtime`에 `roles/cloudtrace.agent` 부여(없으면 span export 403).
   - 문서: cloud.google.com/vertex-ai/generative-ai/docs/agent-engine/overview
-  - **Proof**: 라이브 쿼리 1회 후 해당 엔진의 Cloud Trace span / `logName=~"reasoning"` trace 로그 1건을 출력.
+  - **Proof**: 라이브 쿼리 후 Cloud Trace v1 `traces/{id}` — 7-span 트리: `invocation → invoke_agent root_agent → call_llm → generate_content gemini-3.5-flash → execute_tool source_creators → call_llm → generate_content`. traceId `dc063a2af962770ff776b0c43ff8ac28` (00:53:49Z).
 
-- [ ] **GT2 — Memory auto-recall** (Step 2 잔여)
-  - 작업: `before_agent_callback`(단순 RetrieveMemories→컨텍스트 주입) 또는 app_name-유도 `memory_service_builder`로 재배포.
+- [x] **GT2 — Memory auto-recall** (Step 2 잔여) ✅ 2026-06-03
+  - 작업: `before_agent_callback`(`_recall_brand_pref`)가 env-pinned 스코프(`MEMORY_BANK_ENGINE_ID`/`MEMORY_APP_NAME`/`MEMORY_BANK_LOCATION=us-central1`)로 Memory Bank retrieve → state → `before_model_callback`(`append_instructions`) 주입. 핵심 수정: 런타임 env가 `global`이라 memory 서비스에 `location=us-central1` 명시 안하면 404("ReasoningEngine does not exist").
   - 문서: google.github.io/adk-docs/sessions/memory/
-  - **Proof**: 판별 메모리("min ER 13%") 저장 후 ER 미지정 쿼리 → 응답이 `min_engagement_rate=13` 적용(크리에이터 1명: @_alejandrauve)임을 출력.
+  - **Proof**: REST CreateMemory로 "min ER 13%"(scope app_name=ss-recall,user_id=wooriliu-op) 저장 → ER **미지정** 쿼리 → 로그 `RECALL got 1 memories` + `INJECT recalled_memory present=True` → agent가 `source_creators(min_engagement_rate=13)` 호출 → **@_alejandrauve 1명**, "applied a minimum engagement rate requirement of at least 13%" 명시.
 
 - [ ] **GT3 — GenAI Evaluation (관리형)** (Step 4)
   - 작업: 배포된 엔진에 Vertex Gen AI Evaluation(GenAI Client) 실행 — 루브릭(`FINAL_RESPONSE_QUALITY`/`TOOL_USE_QUALITY`/`SAFETY`) 또는 궤적 메트릭.

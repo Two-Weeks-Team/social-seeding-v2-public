@@ -1,36 +1,49 @@
-"""Social Seeding — Agent Engine deploy unit (keystone Step 1).
+"""Social Seeding — Agent Engine deploy unit (keystone Step 1 + auto-recall).
 
-Self-contained ADK `root_agent` for the FIRST live deployment to **Vertex AI
-Agent Engine** (`reasoningEngines`) on `ss-v2-prod`, replacing the Cloud Run
-path (roadmap Step 1). It is deliberately dependency-light — it does NOT import
-the local `ss_agents` editable package, because Agent Engine's managed build
-installs only `requirements.txt` (a `file://` path dep won't resolve in the
-cloud). The full 22-agent fleet bundling (vendor `ss_agents` as an installable)
-is the immediate follow-up; this proves the managed runtime + Sessions + Cloud
-Trace path is live.
+Self-contained ADK `root_agent` deployed to **Vertex AI Agent Engine**
+(`reasoningEngines`) on `ss-v2-prod`. Two native capabilities are wired here:
+
+  • GT1 — Cloud Trace: enabled at the `AdkApp(enable_tracing=True)` layer by the
+    deploy driver, so every `stream_query` emits reasoning spans to Cloud Trace.
+
+  • GT2 — Memory auto-recall: `before_agent_callback` pulls this user's
+    remembered brand preferences from a **Vertex AI Memory Bank** and stashes the
+    text in session state; `before_model_callback` injects it into the model's
+    instructions. The agent then applies the recalled minimum engagement rate
+    WITHOUT the operator restating it.
+
+    The earlier `PreloadMemoryTool` + `memory_service_builder` path silently
+    no-op'd because the builder could not resolve the engine id at runtime. This
+    version removes that ambiguity: the Memory Bank engine id and the memory
+    SCOPE (`app_name`) are pinned via env vars (`MEMORY_BANK_ENGINE_ID`,
+    `MEMORY_APP_NAME`), so the (app_name, user_id) tuple matches on both write
+    (the seeding script) and read (this callback). No reliance on the deployed
+    app_name or an auto-set engine-id env.
 
 Model policy (D53, hard): Gemini 3.x ONLY (`gemini-3.5-flash`), served on the
-Vertex **`global`** endpoint. We force `GOOGLE_CLOUD_LOCATION=global` at import
-so the reasoningEngine (regional, us-central1) still routes model calls to
-`global`. No 2.5 / Claude / *-pro.
+Vertex **`global`** endpoint. No 2.5 / Claude / *-pro.
 """
 from __future__ import annotations
 
+import logging
 import os
 
-# Gemini 3.x lives on the `global` endpoint — force it before the model is built,
-# so the Agent Engine regional runtime (us-central1) does not pin the model call
-# to a region that 404s for 3.x.
+# Gemini 3.x lives on the `global` endpoint — force it before the model is built.
 os.environ["GOOGLE_CLOUD_LOCATION"] = "global"
 os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "True"
 
+_logger = logging.getLogger("ss.recall")
+
 from google.adk.agents import Agent  # noqa: E402
-from google.adk.models import Gemini  # noqa: E402
+from google.adk.agents.callback_context import CallbackContext  # noqa: E402
+from google.adk.models import Gemini, LlmRequest  # noqa: E402
 
 MODEL_ID = "gemini-3.5-flash"
 
-# Deterministic public-creator fixture (non-PII; the real path is the live ss-mcp
-# A2A `plan_creator_search`). Mirrors the wooriliu shortlist surface.
+# What we look for in the user's Memory Bank before each turn.
+_MEMORY_QUERY = "brand campaign preferences and the required minimum engagement rate (ER)"
+
+# Deterministic public-creator fixture (non-PII). Mirrors the wooriliu shortlist.
 _CREATORS = [
     {"handle": "lizethhv2", "views": 38200, "er_pct": 10.3},
     {"handle": "guiomarmakeup", "views": 12400, "er_pct": 1.4},
@@ -53,11 +66,68 @@ def source_creators(niche: str, min_engagement_rate: float = 2.0) -> str:
     picks = [c for c in _CREATORS if c["er_pct"] >= float(min_engagement_rate)]
     picks.sort(key=lambda c: c["er_pct"], reverse=True)
     if not picks:
-        return f"No creators for '{niche}' at ER ≥ {min_engagement_rate}%."
-    lines = [f"Shortlist for {niche} (ER ≥ {min_engagement_rate}%):"]
+        return f"No creators for '{niche}' at ER >= {min_engagement_rate}%."
+    lines = [f"Shortlist for {niche} (ER >= {min_engagement_rate}%):"]
     for i, c in enumerate(picks, 1):
-        lines.append(f"  {i}. @{c['handle']} — {c['views']:,} views · {c['er_pct']}% ER")
+        lines.append(f"  {i}. @{c['handle']} - {c['views']:,} views - {c['er_pct']}% ER")
     return "\n".join(lines)
+
+
+async def _recall_brand_pref(callback_context: CallbackContext):
+    """GT2 auto-recall: read the user's remembered prefs from the Memory Bank
+    and stash them in state for `_inject_brand_pref` to surface to the model.
+
+    Engine id + memory scope are env-pinned so the read scope tuple
+    (app_name, user_id) matches what the seeding script wrote. Never blocks the
+    turn — a recall failure is recorded in state and the agent proceeds."""
+    eid = os.environ.get("MEMORY_BANK_ENGINE_ID")
+    app_name = os.environ.get("MEMORY_APP_NAME", "ss-recall")
+    uid = callback_context.user_id
+    _logger.info("RECALL start: eid=%s app_name=%s user_id=%s", eid, app_name, uid)
+    if not eid:
+        return None
+    try:
+        from google.adk.memory import VertexAiMemoryBankService
+
+        # The Memory Bank reasoningEngine lives in a REGION (us-central1); the
+        # runtime env forces GOOGLE_CLOUD_LOCATION=global for Gemini 3.x model
+        # calls, so we MUST pin project+location here or the retrieve routes to
+        # `global` and 404s ("ReasoningEngine does not exist").
+        svc = VertexAiMemoryBankService(
+            project=os.environ.get("GOOGLE_CLOUD_PROJECT", "ss-v2-prod"),
+            location=os.environ.get("MEMORY_BANK_LOCATION", "us-central1"),
+            agent_engine_id=eid,
+        )
+        resp = await svc.search_memory(app_name=app_name, user_id=uid, query=_MEMORY_QUERY)
+        texts: list[str] = []
+        for entry in resp.memories:
+            content = getattr(entry, "content", None)
+            for part in (getattr(content, "parts", None) or []):
+                text = getattr(part, "text", None)
+                if text:
+                    texts.append(text.strip())
+        _logger.info("RECALL got %d memories: %s", len(texts), texts)
+        if texts:
+            callback_context.state["recalled_memory"] = " ".join(texts)
+    except Exception as exc:  # noqa: BLE001 — recall is best-effort, never fatal
+        _logger.exception("RECALL failed")
+        callback_context.state["recall_error"] = repr(exc)
+    return None
+
+
+def _inject_brand_pref(callback_context: CallbackContext, llm_request: LlmRequest):
+    """GT2: inject the recalled preference into the model instructions so the
+    agent applies it without the operator restating it."""
+    mem = callback_context.state.get("recalled_memory")
+    _logger.info("INJECT recalled_memory present=%s", bool(mem))
+    if mem:
+        llm_request.append_instructions([
+            f"[RECALLED BRAND PREFERENCE — you MUST apply this]: {mem} "
+            "When this implies a minimum engagement rate, pass that exact number "
+            "as `min_engagement_rate` to `source_creators`, and state which "
+            "remembered preference you applied. Never invent metrics."
+        ])
+    return None
 
 
 root_agent = Agent(
@@ -71,6 +141,8 @@ root_agent = Agent(
         "returns. Models in use are Gemini 3.5/3.1 only."
     ),
     tools=[source_creators],
+    before_agent_callback=_recall_brand_pref,
+    before_model_callback=_inject_brand_pref,
 )
 
 __all__ = ["root_agent", "source_creators"]
