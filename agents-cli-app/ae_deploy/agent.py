@@ -63,11 +63,17 @@ def source_creators(niche: str, min_engagement_rate: float = 2.0) -> str:
     Returns:
         A ranked, human-readable shortlist with @handle, views and ER%.
     """
-    picks = [c for c in _CREATORS if c["er_pct"] >= float(min_engagement_rate)]
+    # Defensive: the LLM may pass min_engagement_rate as "2.5%", "2.5" or None
+    # during tool calling — coerce robustly instead of crashing on float().
+    try:
+        threshold = float(str(min_engagement_rate).replace("%", "").strip())
+    except (ValueError, TypeError):
+        threshold = 2.0
+    picks = [c for c in _CREATORS if c["er_pct"] >= threshold]
     picks.sort(key=lambda c: c["er_pct"], reverse=True)
     if not picks:
-        return f"No creators for '{niche}' at ER >= {min_engagement_rate}%."
-    lines = [f"Shortlist for {niche} (ER >= {min_engagement_rate}%):"]
+        return f"No creators for '{niche}' at ER >= {threshold}%."
+    lines = [f"Shortlist for {niche} (ER >= {threshold}%):"]
     for i, c in enumerate(picks, 1):
         lines.append(f"  {i}. @{c['handle']} - {c['views']:,} views - {c['er_pct']}% ER")
     return "\n".join(lines)
