@@ -8,8 +8,9 @@ import { Stat } from "@/components/ui/stat";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getServerSession } from "@/lib/auth";
 import { campaignRepo, reportRepo } from "@ss/db";
-import { Events, type AnalyticsReport, type Report } from "@ss/contracts";
+import { Events, AnalyticsReportSchema, type AnalyticsReport, type Report, type ReportNarrative } from "@ss/contracts";
 import { inngest } from "@ss/workflows";
+import { invokeCapability } from "@ss/capabilities";
 import { fmtNum } from "@/lib/format";
 
 /**
@@ -35,11 +36,102 @@ async function generateReportAction(formData: FormData): Promise<void> {
   if (!campaign || campaign.brief.workspaceId !== session.workspaceId) {
     throw new Error("forbidden");
   }
+  // Production: emit the request; the report-deliver workflow (analyst agent on
+  // Vertex) writes the report. Locally there is no Inngest engine + no LLM, so the
+  // request never completes. When REPORT_LOCAL_FALLBACK is set we build the report
+  // synchronously from real analytics.compile + a deterministic, numbers-based
+  // narrative (no LLM; analystCostUsd=0 + note marks it) so the operator still
+  // gets a report. The Vertex analyst enriches the narrative on the live stack.
+  if (process.env.REPORT_LOCAL_FALLBACK === "true") {
+    const raw = await invokeCapability(
+      "analytics.compile",
+      { campaignId },
+      { workspaceId: session.workspaceId, userId: session.userId, rateLimitClass: "default" },
+    );
+    const analytics = AnalyticsReportSchema.parse(raw);
+    await reportRepo.create({
+      campaignId,
+      workspaceId: session.workspaceId,
+      trigger: "manual",
+      analytics,
+      narrative: buildDeterministicNarrative(analytics),
+      shareToken: "",
+      analystCostUsd: 0,
+      notes: "자동 집계 요약 (LLM 미사용)",
+      generatedAt: new Date(),
+    });
+    revalidatePath(`/campaigns/${campaignId}/report`);
+    return;
+  }
+
   await inngest.send({
     name: Events.ReportDeliverRequest,
     data: { campaignId, trigger: "manual", notes: "" },
   });
   revalidatePath(`/campaigns/${campaignId}/report`);
+}
+
+/**
+ * Deterministic report narrative — built from the analytics rollup, no LLM. Used
+ * for the local fallback (and a sane structure mirroring the analyst agent's
+ * ReportNarrative slots: summary / highlights / concerns / recommendations / md).
+ */
+function buildDeterministicNarrative(a: AnalyticsReport): ReportNarrative {
+  const pct = a.goals.percentOfGoal !== null ? Math.round(a.goals.percentOfGoal * 100) : null;
+  const er = a.reach.weightedEngagementRate !== null ? (a.reach.weightedEngagementRate * 100).toFixed(1) : null;
+  const views = a.reach.verifiedViews;
+  const engagement = a.reach.verifiedLikes + a.reach.verifiedComments + a.reach.verifiedShares;
+  const top = [...(a.tracks ?? [])]
+    .filter((t) => t.performanceScore !== null)
+    .sort((x, y) => (y.views ?? 0) - (x.views ?? 0))[0];
+
+  const summary =
+    a.goals.verifiedCount > 0
+      ? `${a.brief.name} 캠페인은 검증 게시물 ${a.goals.verifiedCount}건${pct !== null ? ` (목표 대비 ${pct}%)` : ""}, 총 도달 ${fmtNum(views)}회${er ? ` · 평균 참여율 ${er}%` : ""}를 기록했습니다.`
+      : `${a.brief.name} 캠페인은 검증된 게시물이 없어 목표를 달성하지 못했습니다. 아웃리치 단계에서 응답이 부족했던 것이 주요 원인입니다.`;
+
+  const highlights: string[] = [];
+  if (a.goals.goalMet) highlights.push(`목표 ${a.goals.targetLivePosts}건 달성 (검증 ${a.goals.verifiedCount}건).`);
+  if (views > 0) highlights.push(`총 도달 ${fmtNum(views)}회, 참여 합계 ${fmtNum(engagement)}건.`);
+  if (er) highlights.push(`평균 참여율 ${er}%.`);
+  if (top) highlights.push(`최고 성과 게시물 조회수 ${fmtNum(top.views ?? 0)}회.`);
+
+  const concerns: string[] = [];
+  if (a.goals.verifiedCount === 0) concerns.push("검증된 게시물이 없습니다.");
+  if (a.flags.includes("low_response_rate")) concerns.push("응답률이 낮습니다.");
+  if (a.flags.includes("high_flake_rate")) concerns.push("게시 이탈률이 높습니다.");
+  if (a.flags.includes("budget_exceeded")) concerns.push("예산을 초과했습니다.");
+  if (a.flags.includes("deadline_missed")) concerns.push("마감일을 넘겼습니다.");
+
+  const recommendations: string[] = [];
+  if (a.goals.verifiedCount === 0) recommendations.push("타겟 참여율 기준을 낮춰 더 넓은 후보 풀로 재소싱하세요.");
+  else if (a.goals.goalMet) recommendations.push("성과가 높은 크리에이터와 후속 협업을 검토하세요.");
+  else recommendations.push("응답 대기 기간을 늘리거나 추가 아웃리치를 보내세요.");
+  if (recommendations.length === 0) recommendations.push("현 추세를 유지하며 다음 집계에서 재평가하세요.");
+
+  const markdown = [
+    `# ${a.brief.name} 성과 리포트`,
+    "",
+    "## 요약",
+    summary,
+    "",
+    "## 핵심 지표",
+    `- 검증 게시물: ${a.goals.verifiedCount} / ${a.goals.targetLivePosts}${pct !== null ? ` (${pct}%)` : ""}`,
+    `- 총 도달: ${fmtNum(views)}회`,
+    `- 평균 참여율: ${er ?? "—"}${er ? "%" : ""}`,
+    `- 집행 비용: $${a.cost.spentUsd.toFixed(2)}`,
+    "",
+    "## 추천",
+    ...recommendations.map((r) => `- ${r}`),
+  ].join("\n");
+
+  return {
+    summary: summary.slice(0, 590),
+    highlights: highlights.slice(0, 4),
+    concerns: concerns.slice(0, 4),
+    recommendations: recommendations.slice(0, 3),
+    markdown: markdown.slice(0, 7900),
+  };
 }
 
 // ── minimal markdown renderer (no external dep) ─────────────────────────────
