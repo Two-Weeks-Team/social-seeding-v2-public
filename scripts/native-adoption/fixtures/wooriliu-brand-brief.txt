@@ -1,0 +1,12 @@
+WOORILIU CAMPAIGN BRAND BRIEF (source of truth)
+
+Brand: wooriliu (Korean skincare / beauty).
+Campaign objective: seed authentic TikTok creator reviews for the 2nd product drop.
+Target creators: beauty and skincare micro-influencers.
+Minimum engagement rate (ER): 13 percent. Creators below 13% ER must be rejected.
+Preferred markets: United States and Mexico.
+Budget ceiling: 1000 USD total for this campaign.
+Per-creator payout method: Stripe Connect (no PayPal, no gift cards).
+Hard exclusions: accounts with purchased/bot followers are banned.
+Brand voice: warm, ingredient-led, no exaggerated medical claims.
+Approval gate: every outreach email requires human approval before send.
