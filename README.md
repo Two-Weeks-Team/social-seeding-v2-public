@@ -85,7 +85,7 @@ flowchart LR
   t1 -. capability layer .-> cap[Capabilities · typed I/O boundary<br/>web.search → Google Search grounding · D53<br/>gmail.send · ranking · tiktok · imagen]
   coord -. inline guardrail .-> armor[Model Armor sanitize · D21<br/>PI / JB / PII block]
 
-  t1 -. eval + tune .-> learn[Vertex AI Prompt Optimizer · data-driven · D51<br/>Agent Observability → Cloud Trace<br/>Vertex Memory Bank · Firestore default]
+  t1 -. eval + tune .-> learn[Prompt Optimizer · data-driven · D51<br/>Agent Observability → Cloud Trace<br/>Vertex Memory Bank · Firestore default]
 
   armor -. audit .-> sec[Cloud Trace · Cloud Logging<br/>Audit Logs · Chronicle SecOps]
 
@@ -140,7 +140,7 @@ flowchart LR
   class r1,r2,r3,r4 ref;
 ```
 
-The Optimize chapter is folded into the single Track 3 entry as the "we hardened it" evidence (D50): Agent Observability surfaces a stall, the data-driven pass repairs the triage agent, and the before/after is a committed, re-runnable offline measurement (`scripts/smoke-test/run-hardening-measure.sh`). The live **Vertex AI Prompt Optimizer (data-driven / VAPO)** is the production path and is wired operator-gated (see [`HONEST-SCOPE.md`](scripts/demo/submission/HONEST-SCOPE.md) row 1).
+The Optimize chapter is folded into the single Track 3 entry as the "we hardened it" evidence (D50): Agent Observability surfaces a stall, the data-driven pass repairs the triage agent, and the before/after is a committed, re-runnable offline measurement (`scripts/smoke-test/run-hardening-measure.sh`). The live **Prompt Optimizer (data-driven / VAPO)** is the production path and is wired operator-gated (see [`HONEST-SCOPE.md`](scripts/demo/submission/HONEST-SCOPE.md) row 1).
 
 ---
 

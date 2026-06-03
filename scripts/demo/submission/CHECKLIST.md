@@ -50,7 +50,7 @@ Confirm each is still true at submission time — these are the rubric-load-bear
 The arc is what aims this at the Grand Prize. Confirm all three stages are evidenced:
 
 - [ ] **BUILD** — 22-agent fleet runs the loop end-to-end (Mission Control demo + smoke).
-- [ ] **OPTIMIZE (the hardening climax)** — the stall→repair Observability trace + the **40.5% → 100.0% (train, +59.5pp)** before/after bar are present in the demo AND the submission; reproducible via G-1b. The **holdout split (train 100% / holdout 71.4%, 28.6pp gap)** is shown, leading with the holdout number as the honest headline; the 4 holdout misses are visible (not tuned away). Honest-scope caption present (local deterministic pass; live Vertex AI Prompt Optimizer (data-driven) wired + operator-gated, not run in CI).
+- [ ] **OPTIMIZE (the hardening climax)** — the stall→repair Observability trace + the **40.5% → 100.0% (train, +59.5pp)** before/after bar are present in the demo AND the submission; reproducible via G-1b. The **holdout split (train 100% / holdout 71.4%, 28.6pp gap)** is shown, leading with the holdout number as the honest headline; the 4 holdout misses are visible (not tuned away). Honest-scope caption present (local deterministic pass; live Prompt Optimizer (data-driven) wired + operator-gated, not run in CI).
 - [ ] **REFACTOR** — A2A hop wired into the live brand-campaign Cloud Workflow (~3.7s, 5 creators, G-2); Model Garden (req ③); Agent Identity (req +); real Imagen 4 (1024×1024, 950 KB, D49).
 
 ---
@@ -138,7 +138,7 @@ Paste in this order:
 - [ ] Read the entire Devpost form preview end-to-end one more time.
 - [ ] Verify no `<YOUTUBE_URL>` placeholder remains.
 - [ ] Verify the **Build → Optimize → Refactor arc** reads as one story (the lead paragraph + the "What we hardened" section + the gate table) — this is what aims it at the Grand Prize (D50).
-- [ ] Verify the hardening before/after **40.5% → 100.0% train (+59.5pp)** appears, leading with the honest **holdout 71.4% (28.6pp gap)** + the honest-scope caption (local deterministic pass; Vertex AI Prompt Optimizer wired + operator-gated). Confirm the 4 holdout misses are shown, not hidden.
+- [ ] Verify the hardening before/after **40.5% → 100.0% train (+59.5pp)** appears, leading with the honest **holdout 71.4% (28.6pp gap)** + the honest-scope caption (local deterministic pass; Prompt Optimizer wired + operator-gated). Confirm the 4 holdout misses are shown, not hidden.
 - [ ] Verify the A2A cross-call number reads **~3.7s, 5 creators**, described as **in the brand-campaign Cloud Workflow** (not just documented).
 - [ ] Verify all three live URLs are exact and resolve (G-3, G-4, G-5).
 - [ ] Verify the Tagline character count is ≤ 200.
