@@ -7,7 +7,7 @@
     { "name": "agentId",      "type": "string" },
     { "name": "tenantId",     "type": "string" },
     { "name": "campaignId",   "type": ["null", "string"], "default": null },
-    { "name": "model",        "type": "string", "doc": "Examples: gemini-3.5-flash, gemini-3.1-flash-lite, gemini-3.1-flash-lite, gemini-3.1-pro-preview." },
+    { "name": "model",        "type": "string", "doc": "Examples: gemini-3.5-flash, gemini-3.1-flash-lite (D53: Gemini 3.5/3.1 only)." },
     { "name": "inputTokens",  "type": "int" },
     { "name": "outputTokens", "type": "int" },
     { "name": "usd",          "type": "double" },
