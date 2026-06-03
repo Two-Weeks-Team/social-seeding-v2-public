@@ -175,7 +175,7 @@ export default async function CampaignDetailPage({
               brandName={campaign.brief.brandProduct.name}
               targetCreatorCount={campaign.brief.targeting.creatorCount}
               vetCount={vetCount}
-              budgetCapUsd={25}
+              budgetCapUsd={campaign.brief.budgetUsd ?? 25}
               shortlistCount={shortlistCount}
               shortlistGateApprovalId={shortlistApproval?.id}
               trackCount={campaign.tracks.length}
