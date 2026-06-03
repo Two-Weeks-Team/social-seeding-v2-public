@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { StatusTag } from "@/components/ui/status-tag";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Avatar } from "@/components/ui/avatar";
 import { campaignStatus, stageWithNumber } from "@/lib/labels";
 import { fmtAgo } from "@/lib/format";
+import { resolveCreators } from "@/lib/creators";
 import { getServerSession } from "@/lib/auth";
 import { campaignRepo, approvalRepo } from "@ss/db";
 
@@ -54,6 +56,10 @@ export default async function CampaignsPage({
     if (filter === "attention") return (pendingByCampaign.get(c.id) ?? 0) > 0 || c.status === "paused";
     return true;
   });
+
+  const listProfiles = await resolveCreators(
+    campaigns.flatMap((c) => c.tracks.slice(0, 3).map((t) => t.creatorId)),
+  );
 
   return (
     <div className="max-w-6xl mx-auto px-8 py-8">
@@ -111,7 +117,7 @@ export default async function CampaignsPage({
               <Link
                 key={c.id}
                 href={`/campaigns/${c.id}`}
-                className="grid grid-cols-[1.7fr_130px_1fr_92px_96px] gap-4 items-center bg-surface border border-line rounded-2xl shadow-soft px-5 py-4 transition-transform hover:-translate-y-0.5"
+                className="grid grid-cols-[1.7fr_130px_1fr_100px_90px] gap-4 items-center bg-surface border border-line rounded-2xl shadow-soft px-5 py-4 transition-transform hover:-translate-y-0.5"
               >
                 <div className="min-w-0">
                   <div className="text-[15px] font-bold text-ink truncate">{c.brief.brandProduct.name}</div>
@@ -131,7 +137,29 @@ export default async function CampaignsPage({
                 </div>
                 <div>
                   <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">크리에이터</div>
-                  <div className="text-[13px] text-ink-2 mt-0.5 mono">{c.tracks.length > 0 ? `${c.tracks.length}명` : "선정 전"}</div>
+                  {c.tracks.length > 0 ? (
+                    <div className="mt-1 flex items-center">
+                      <div className="flex">
+                        {c.tracks.slice(0, 3).map((t) => {
+                          const p = listProfiles.get(t.creatorId);
+                          return (
+                            <Avatar
+                              key={t.creatorId}
+                              name={p?.nickname ?? p?.handle ?? t.creatorId}
+                              src={p?.avatar}
+                              size="sm"
+                              className="-ml-2 first:ml-0 ring-2 ring-surface"
+                            />
+                          );
+                        })}
+                      </div>
+                      {c.tracks.length > 3 && (
+                        <span className="ml-1.5 text-[12px] text-ink-3 mono">+{c.tracks.length - 3}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-[13px] text-ink-3 mt-0.5">선정 전</div>
+                  )}
                 </div>
                 <div className="text-right">
                   <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">활동</div>

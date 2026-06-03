@@ -15,7 +15,7 @@ import { Events } from "@ss/contracts";
 import { inngest } from "@ss/workflows";
 import { cn } from "@/lib/cn";
 import { campaignStatus, approvalKindKo, trackState } from "@/lib/labels";
-import { creatorLabel } from "@/lib/format";
+import { creatorLabel, fmtFollowers } from "@/lib/format";
 import { resolveCreators } from "@/lib/creators";
 
 /** Lifecycle controls — cancel + pause/resume (see prior history for the durable-workflow semantics). */
@@ -262,7 +262,9 @@ export default async function CampaignDetailPage({
                         <div className="min-w-0">
                           <div className="text-[12.5px] text-ink truncate leading-tight">{display}</div>
                           {p?.handle && p.handle !== display && (
-                            <div className="text-[11px] text-ink-3 mono truncate">{p.handle}</div>
+                            <div className="text-[11px] text-ink-3 mono truncate">
+                              {p.handle}{p.followers ? ` · 팔로워 ${fmtFollowers(p.followers)}` : ""}
+                            </div>
                           )}
                         </div>
                         <StatusTag tone={ts.tone} size="sm" className="ml-auto shrink-0">{ts.label}</StatusTag>

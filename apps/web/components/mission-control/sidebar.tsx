@@ -52,7 +52,7 @@ export function Sidebar({
       {/* Brand */}
       <div className="px-4 py-4">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-[10px] bg-brand text-white grid place-items-center text-[12px] font-extrabold shadow-brand">SS</div>
+          <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-brand to-brand-2 text-white grid place-items-center text-[12px] font-extrabold shadow-brand">SS</div>
           <div className="leading-tight">
             <div className="text-[14px] font-bold text-ink">Social Seeding</div>
             <div className="text-[10.5px] text-ink-3">Mission Control</div>
