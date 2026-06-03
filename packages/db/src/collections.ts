@@ -27,6 +27,7 @@ export const Collections = {
   V2_AGENT_TRACES: "v2_agent_traces", // per-run observability
   V2_COST_LEDGER: "v2_cost_ledger",
   V2_OUTBOX: "v2_outbox", // gmail.send idempotency + scheduled-send queue (drained by creator-track)
+  V2_MESSAGES: "v2_messages", // persisted creator email thread (outbound outreach/reply + inbound reply) — powers the 이메일 스레드 surface
   V2_GMAIL_WATCHES: "v2_gmail_watches", // per-user Gmail Pub/Sub watch state (lastHistoryId)
   V2_SUPPRESSION_LIST: "v2_suppression_list", // unsubscribed / bounced recipients — gmail.send checks pre-send
   V2_SHIPMENTS: "v2_shipments", // Phase 3 — one row per creator-track shipment + carrier event timeline

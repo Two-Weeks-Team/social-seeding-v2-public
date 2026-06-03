@@ -223,6 +223,22 @@ export function agentKo(agent: string): string {
   return AGENT_KO[agent] ?? "에이전트 작업";
 }
 
+// ── Reply classification (email thread / responder) ─────────────────────────
+const REPLY_CLASS_KO: Record<string, { label: string; tone: StatusTone }> = {
+  interested: { label: "관심 있음", tone: "ok" },
+  needs_info: { label: "정보 요청", tone: "run" },
+  negotiating: { label: "협의 중", tone: "warn" },
+  not_now: { label: "지금은 아님", tone: "neutral" },
+  declined: { label: "거절", tone: "stop" },
+  out_of_office: { label: "부재중", tone: "neutral" },
+  unsubscribe: { label: "수신 거부", tone: "stop" },
+  unrelated: { label: "무관", tone: "neutral" },
+};
+
+export function replyClass(c: string): { label: string; tone: StatusTone } {
+  return REPLY_CLASS_KO[c] ?? { label: c, tone: "neutral" };
+}
+
 // ── Autonomy gate labels (policies page) ────────────────────────────────────
 const GATE_KO: Record<string, string> = {
   approveShortlist: "후보 리스트 확정",

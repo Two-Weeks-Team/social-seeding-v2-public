@@ -20,6 +20,7 @@ const PRIMARY: NavItem[] = [
   { href: "/campaigns", label: "캠페인" },
   { href: "/leads", label: "리드 (B2B)" },
   { href: "/approvals", label: "승인 대기" },
+  { href: "/threads", label: "이메일 스레드" },
   { href: "/policies", label: "자율성 정책" },
   { href: "/usage", label: "사용량 · 비용" },
   { href: "/settings", label: "Gmail 연동" },
@@ -27,7 +28,6 @@ const PRIMARY: NavItem[] = [
 
 const SECONDARY: NavItem[] = [
   { href: "#", label: "크리에이터 라이브러리", soon: true },
-  { href: "#", label: "이메일 스레드", soon: true },
 ];
 
 export function Sidebar({

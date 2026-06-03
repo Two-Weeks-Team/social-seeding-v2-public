@@ -10,7 +10,7 @@ import { ActivityTimeline } from "@/components/mission-control/activity-timeline
 import { CampaignCanvas } from "@/components/mission-control/campaign-canvas";
 import { bucketTracksByState } from "@/components/mission-control/campaign-track-buckets";
 import { getServerSession } from "@/lib/auth";
-import { approvalRepo, campaignRepo, traceRepo } from "@ss/db";
+import { approvalRepo, campaignRepo, traceRepo, messageRepo } from "@ss/db";
 import { Events } from "@ss/contracts";
 import { inngest } from "@ss/workflows";
 import { cn } from "@/lib/cn";
@@ -111,6 +111,8 @@ export default async function CampaignDetailPage({
       : undefined;
   const trackBuckets = bucketTracksByState(campaign.tracks);
   const trackProfiles = await resolveCreators(campaign.tracks.slice(0, 6).map((t) => t.creatorId));
+  const campaignThreads = await messageRepo.threadsByCampaign(id, session.workspaceId).catch(() => []);
+  const threadByCreator = new Map(campaignThreads.map((t) => [t.creatorId, t.threadId]));
 
   const st = campaignStatus(campaign.status);
   const isComplete = campaign.status === "completed";
@@ -266,8 +268,9 @@ export default async function CampaignDetailPage({
                     const ts = trackState(t.state);
                     const p = trackProfiles.get(t.creatorId);
                     const display = p?.nickname ?? p?.handle ?? creatorLabel(t.creatorId);
-                    return (
-                      <div key={t.creatorId} className="flex items-center gap-2.5 py-1.5">
+                    const threadId = threadByCreator.get(t.creatorId);
+                    const inner = (
+                      <>
                         <Avatar name={display} src={p?.avatar} size="sm" />
                         <div className="min-w-0">
                           <div className="text-[12.5px] text-ink truncate leading-tight">{display}</div>
@@ -277,8 +280,20 @@ export default async function CampaignDetailPage({
                             </div>
                           )}
                         </div>
-                        <StatusTag tone={ts.tone} size="sm" className="ml-auto shrink-0">{ts.label}</StatusTag>
-                      </div>
+                        {threadId && <span className="ml-auto text-ink-3 text-[12px] shrink-0" aria-hidden>✉</span>}
+                        <StatusTag tone={ts.tone} size="sm" className={cn("shrink-0", !threadId && "ml-auto")}>{ts.label}</StatusTag>
+                      </>
+                    );
+                    return threadId ? (
+                      <Link
+                        key={t.creatorId}
+                        href={`/threads/${encodeURIComponent(threadId)}`}
+                        className="flex items-center gap-2.5 py-1.5 -mx-2 px-2 rounded-lg hover:bg-surface-2 transition-colors"
+                      >
+                        {inner}
+                      </Link>
+                    ) : (
+                      <div key={t.creatorId} className="flex items-center gap-2.5 py-1.5">{inner}</div>
                     );
                   })}
                   {campaign.tracks.length > 6 && (
