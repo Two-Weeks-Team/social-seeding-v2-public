@@ -41,10 +41,10 @@
   - 문서: docs.cloud.google.com/vertex-ai/generative-ai/docs/learn/prompts/data-driven-optimizer
   - **Proof**: 최적화된 system instruction 또는 before/after 점수 출력.
 
-- [ ] **GT6 — AP2 체인 라우트 배선** (Step 6 진척)
-  - 작업: `verifyMandateChain`(A1)을 `sign-mandate` 경로/테스트에 실제 연결(Cart/Payment 데이터 구성).
+- [x] **GT6 — AP2 체인 라우트 배선** (Step 6 진척) ✅ 2026-06-03
+  - 작업: `verifyRecommendationChain`(`apps/web/lib/ap2/chain-guard.ts`)를 `sign-mandate` route에 배선 — approval `recommendation.ap2Chain`이 실리면 resolve 전 `verifyMandateChain` 실행, 깨지면 HTTP 422 `mandate_chain_invalid`. Intent-only(D27)는 skip. + `chain-guard.test.ts`(5).
   - 문서: github.com/google-agentic-commerce/AP2 (Intent/Cart/Payment)
-  - **Proof**: `pnpm --filter @ss/web test`(ap2) green + verify-build green 출력.
+  - **Proof**: `vitest run __tests__/ap2/` → **83 passed (6 files, +5 guard)**; `pnpm run verify-build` → **7/7 successful**.
 
 **완주 정의**: §A 6개 전부 `[x]` + 각 Proof를 대화에 출력. 게이트(`pnpm run verify-build`·`pytest`)는 항상 green 유지.
 

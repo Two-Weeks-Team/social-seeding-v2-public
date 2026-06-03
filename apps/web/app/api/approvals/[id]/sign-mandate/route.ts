@@ -32,6 +32,7 @@ import { approvalRepo } from "@ss/db";
 import { inngest } from "@ss/workflows";
 import { denyIfDemo, getSessionOr401 } from "@/lib/auth";
 import { SignMandateRequestSchema } from "@/lib/ap2/mandate";
+import { verifyRecommendationChain } from "@/lib/ap2/chain-guard";
 
 /**
  * Rolling 48 h nonce store. Wire to Memorystore Valkey or Spanner unique
@@ -97,6 +98,19 @@ export async function POST(
     return NextResponse.json(
       { error: "already_resolved", status: approval.status },
       { status: 409 },
+    );
+  }
+
+  // AP2 chain integrity gate (GT6). When the agent attached a full
+  // Intent→Cart→Payment chain to this approval, verify the binding (hashes),
+  // the scope ceiling (Payment ≤ Intent price_max) and expiry BEFORE a human
+  // can resolve the gate. Intent-only approvals (D27 default) carry no chain and
+  // are skipped. This is the binding check; the VC signature stays KMS/WebAuthn.
+  const chainCheck = verifyRecommendationChain(approval.recommendation);
+  if (chainCheck.checked && !chainCheck.ok) {
+    return NextResponse.json(
+      { error: "mandate_chain_invalid", details: chainCheck.errors },
+      { status: 422 },
     );
   }
 
