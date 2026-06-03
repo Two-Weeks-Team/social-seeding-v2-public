@@ -65,6 +65,7 @@ function fmtDate(d: Date): string {
 type View = "timeline" | "canvas";
 
 const SUB_LINKS: { seg: string; label: string }[] = [
+  { seg: "threads", label: "메일" },
   { seg: "performance", label: "성과" },
   { seg: "posts", label: "게시물" },
   { seg: "shipments", label: "배송" },
@@ -287,7 +288,7 @@ export default async function CampaignDetailPage({
                     return threadId ? (
                       <Link
                         key={t.creatorId}
-                        href={`/threads/${encodeURIComponent(threadId)}`}
+                        href={`/threads/${encodeURIComponent(threadId)}?from=${encodeURIComponent(id)}`}
                         className="flex items-center gap-2.5 py-1.5 -mx-2 px-2 rounded-lg hover:bg-surface-2 transition-colors"
                       >
                         {inner}

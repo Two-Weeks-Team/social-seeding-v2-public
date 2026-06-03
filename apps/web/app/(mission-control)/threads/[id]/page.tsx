@@ -17,10 +17,17 @@ function fmtWhen(d: Date): string {
   return `${d.getMonth() + 1}월 ${d.getDate()}일 ${d.toISOString().slice(11, 16)}`;
 }
 
-export default async function ThreadDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ThreadDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
+}) {
   const session = await getServerSession();
   if (!session) redirect("/sign-in");
   const { id } = await params;
+  const { from } = await searchParams;
   const threadId = decodeURIComponent(id);
 
   const messages = await messageRepo.listByThread(threadId, session.workspaceId);
@@ -31,11 +38,16 @@ export default async function ThreadDetailPage({ params }: { params: Promise<{ i
   const p = profiles.get(first.creatorId);
   const display = p?.nickname ?? p?.handle ?? first.creatorId;
   const campaign = await campaignRepo.get(first.campaignId).catch(() => null);
+  // Came from a campaign's mail tab → return there; otherwise the global list.
+  const fromCampaign = from === first.campaignId;
+  const back = fromCampaign
+    ? { href: `/campaigns/${first.campaignId}/threads`, label: `← ${campaign?.brief.brandProduct.name ?? "캠페인"} 메일` }
+    : { href: "/threads", label: "← 이메일 스레드" };
 
   return (
     <div className="max-w-3xl mx-auto px-8 py-8">
       <header className="mb-6">
-        <Link href="/threads" className="text-[12px] text-ink-3 hover:text-ink-2">← 이메일 스레드</Link>
+        <Link href={back.href} className="text-[12px] text-ink-3 hover:text-ink-2">{back.label}</Link>
         <div className="mt-2 flex items-center gap-3">
           <Avatar name={display} src={p?.avatar} size="lg" />
           <div className="min-w-0">
