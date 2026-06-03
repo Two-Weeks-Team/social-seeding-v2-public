@@ -27,6 +27,13 @@
 > (execution `9cc843c1`, SUCCEEDED 11.98s). The Model Garden live smoke returned a validated
 > `CoordinatorOutput` via `publishers/google/models/gemini-3.1-flash-lite` (exit 0). Evidence:
 > `scripts/demo/assets/live-orchestration-evidence.md`.
+>
+> **✓ DEMONSTRATED LIVE 2026-06-03 (PR #70, native-adoption §A / GT1–GT6):** rows **1** (Prompt
+> Optimizer, data-driven 50→90%), **2** (Cloud Trace span tree), and **4** (Memory Bank auto-recall)
+> moved GA-real → demonstrated-live, and rows **18–20** were added — **18** GenAI Evaluation (rubric
+> judged client-side by gemini-3.5-flash; the managed autorater rejects 3.x), **19** Vertex AI RAG
+> Engine grounding (us-west1 — new-project Spanner allowlist), **20** AP2 mandate-chain guard
+> (`verifyMandateChain` wired into `sign-mandate`). Repro: `scripts/native-adoption/`.
 
 ---
 

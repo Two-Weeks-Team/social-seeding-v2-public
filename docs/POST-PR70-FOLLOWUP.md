@@ -25,9 +25,9 @@
 > Each item is verifiable from the conversation. Gates (`verify-build`·`pytest`·ap2 vitest) stay green.
 > **All of §A is on a NEW branch off `main` after #70 merges**, and lands as a **separate PR**.
 
-- [x] **FR1 — Master-board staleness audit + fix** ✅ 2026-06-03 — tracker-cell `⬜` 27→**0**; banner added; samples A3(`cad193c`→editedPayload)·A2(`f83b36e`→RateLimitMiddleware)·A8(`4465d4e`→conversation_responder_eval.py) verified in main.
-  - `docs/IMPROVEMENT-MASTER-PLAN-STATUS.md` Sub-Sprint Tracker shows **27 `⬜`** (A1–A11, B1–B11, X1–X6), but the "Final Status (2026-05-28)" section says all shipped via 10 commits (`cad193c`…`10ebb3f`), all confirmed in `main`, gates green.
-  - Task: for each of the 27, confirm (a) its commit in the Final Status table is an ancestor of `main` AND (b) the claimed artifact exists in HEAD. Flip `⬜→✅` **only when both hold**; if an artifact is missing, mark it genuinely-open and list it. Add a one-line banner: "Sub-Sprint Tracker reconciled YYYY-MM-DD; Final Status section is authoritative."
+- [x] **FR1 — Master-board staleness audit + fix** ✅ 2026-06-03 — tracker-cell `⬜` 26→**0**; banner added; samples A3(`cad193c`→editedPayload)·A2(`f83b36e`→RateLimitMiddleware)·A8(`4465d4e`→conversation_responder_eval.py) verified in main.
+  - `docs/IMPROVEMENT-MASTER-PLAN-STATUS.md` Sub-Sprint Tracker shows **26 `⬜`** task cells (A1–A11, B1–B11, X1·X2·X4·X6 — X3/X5 carry "merge"/"concurrent" notes, not `⬜`), but the "Final Status (2026-05-28)" section says all shipped via 10 commits (`cad193c`…`10ebb3f`), all confirmed in `main`, gates green.
+  - Task: for each of the 26, confirm (a) its commit in the Final Status table is an ancestor of `main` AND (b) the claimed artifact exists in HEAD. Flip `⬜→✅` **only when both hold**; if an artifact is missing, mark it genuinely-open and list it. Add a one-line banner: "Sub-Sprint Tracker reconciled YYYY-MM-DD; Final Status section is authoritative."
   - **Proof**: `grep -c ⬜` in the tracker tables → 0 (or the exact residual list); 3 sampled IDs mapped to commit+artifact.
 
 - [x] **FR2 — Native-Adoption section synced to PR #70 outcomes** ✅ 2026-06-03 — Phase-B 표: B2 auto-recall✅(GT2/2498…)·B3 RAG✅(GT4/6917…)·B4 VAPO✅(GT5 50→90%)·B5 Trace✅(GT1/dc063a2…).
@@ -36,9 +36,9 @@
   - **Proof**: section shows the four ✅ with engine/corpus/trace IDs.
 
 - [x] **FR3 — HONEST-SCOPE rows for the new live capabilities** ✅ 2026-06-03 — table 17→20 data rows: +18 GenAI Eval (client-side 3.x judge)·+19 RAG Engine (us-west1 allowlist)·+20 AP2 chain guard; rows 1/2/4 → demonstrated-live (GT5/GT1/GT2).
-  - `scripts/demo/submission/HONEST-SCOPE.md` (currently 19 rows) lacks the GT1–GT6 surfaces.
+  - `scripts/demo/submission/HONEST-SCOPE.md` (currently 17 data rows) lacks the GT1–GT6 surfaces.
   - Task: add honest rows for: Cloud Trace (live), Memory auto-recall (live, env-pinned region fix), GenAI Evaluation (live; **managed autorater rejects 3.x → client-side gemini-3.5-flash judge**), RAG Engine (live, **us-west1 — new-project Spanner allowlist**), Prompt Optimizer (live, data-driven 50→90%), AP2 chain guard (route-wired). Keep stub/gated boundaries explicit.
-  - **Proof**: row count delta (19 → N) + the new rows printed.
+  - **Proof**: row count delta (17 → N data rows) + the new rows printed.
 
 - [x] **FR4 — Gate re-verify after doc edits** ✅ 2026-06-03 — verify-build **7/7 FULL TURBO** · pytest (agents-adk) **2933 passed** · ap2 vitest **83 passed**.
 
