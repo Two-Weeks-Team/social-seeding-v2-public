@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AgentStatusStrip } from "@/components/mission-control/agent-status-strip";
-import { CampaignByStage, CampaignRow, type CampaignItem } from "@/components/mission-control/campaign-by-stage";
+import { CampaignRow, type CampaignItem } from "@/components/mission-control/campaign-row";
 import { resolveCreators } from "@/lib/creators";
 import { getServerSession } from "@/lib/auth";
 import { campaignRepo, approvalRepo, messageRepo } from "@ss/db";
@@ -12,10 +12,10 @@ import { cn } from "@/lib/cn";
 /**
  * W2 — Campaigns = the operator home. Research-grounded mix (Refero):
  * Mailchimp's clean campaign list (rows + status + search/filter) wrapped in
- * Rox "Revenue Agents" cockpit elements — a live agent-status strip + a
- * 리스트 / 단계별 view toggle. The 단계별 view groups campaigns under vertical
- * stage sections (NOT a draggable kanban: stages are advanced by the agent
- * workflow, so a board would imply an interaction that doesn't exist). C2 tokens.
+ * Rox "Revenue Agents" cockpit elements — a live agent-status strip + a clean
+ * campaign list where each row carries a read-only stage-progress stepper
+ * (stages are advanced by the agent workflow, so there's no draggable board).
+ * C2 tokens.
  */
 const FILTERS: { key: string; label: string }[] = [
   { key: "all", label: "전체" },
@@ -23,8 +23,6 @@ const FILTERS: { key: string; label: string }[] = [
   { key: "completed", label: "완료" },
   { key: "attention", label: "주의" },
 ];
-
-type View = "list" | "stages";
 
 export default async function CampaignsPage({
   searchParams,
@@ -37,7 +35,6 @@ export default async function CampaignsPage({
   const sp = (await searchParams) ?? {};
   const q = (sp.q ?? "").trim();
   const filter = sp.status ?? "all";
-  const view: View = sp.view === "stages" ? "stages" : "list";
 
   const all = await campaignRepo.listByWorkspace(session.workspaceId);
 
@@ -74,13 +71,10 @@ export default async function CampaignsPage({
     updatedAt: c.updatedAt,
   }));
 
-  const buildHref = (next: { status?: string; view?: string }) => {
+  const buildHref = (status: string) => {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
-    const status = next.status ?? filter;
     if (status && status !== "all") params.set("status", status);
-    const v = next.view ?? view;
-    if (v && v !== "list") params.set("view", v);
     const s = params.toString();
     return s ? `/campaigns?${s}` : "/campaigns";
   };
@@ -97,7 +91,7 @@ export default async function CampaignsPage({
 
       <AgentStatusStrip running={runningCount} awaitingReply={awaitingReply} pendingApprovals={allPending.length} completed={completedCount} />
 
-      {/* search + filters + view toggle */}
+      {/* search + filters */}
       <div className="mb-4 flex items-center gap-2.5 flex-wrap">
         <form className="flex items-center gap-2.5" action="/campaigns" method="get">
           <div className="flex items-center gap-2 border border-line rounded-xl px-3.5 py-2 bg-surface w-[300px] max-w-full">
@@ -110,14 +104,13 @@ export default async function CampaignsPage({
             />
           </div>
           {filter !== "all" && <input type="hidden" name="status" value={filter} />}
-          {view !== "list" && <input type="hidden" name="view" value={view} />}
         </form>
         {FILTERS.map((f) => {
           const isActive = filter === f.key || (f.key === "all" && filter === "all");
           return (
             <Link
               key={f.key}
-              href={buildHref({ status: f.key })}
+              href={buildHref(f.key)}
               className={cn(
                 "rounded-full px-3.5 py-1.5 text-[12.5px] font-medium border transition-colors",
                 isActive ? "bg-ink text-white border-ink" : "bg-surface text-ink-2 border-line hover:bg-surface-2",
@@ -127,20 +120,6 @@ export default async function CampaignsPage({
             </Link>
           );
         })}
-        <div className="ml-auto inline-flex p-0.5 bg-surface-2 border border-line rounded-xl gap-0.5">
-          {([["list", "리스트"], ["stages", "단계별"]] as const).map(([v, label]) => (
-            <Link
-              key={v}
-              href={buildHref({ view: v })}
-              className={cn(
-                "px-3 py-1.5 text-[12.5px] rounded-[10px] font-medium transition-colors",
-                view === v ? "bg-surface shadow-soft text-ink" : "text-ink-3 hover:text-ink",
-              )}
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
       </div>
 
       {campaigns.length === 0 ? (
@@ -150,12 +129,10 @@ export default async function CampaignsPage({
           hint={q || filter !== "all" ? "검색어나 필터를 바꿔보세요." : "브리프를 채우면 에이전트가 소싱부터 시작합니다."}
           action={<Link href="/campaigns/new"><Button variant="primary">＋ 새 캠페인</Button></Link>}
         />
-      ) : view === "stages" ? (
-        <CampaignByStage items={items} profiles={listProfiles} />
       ) : (
         <div className="flex flex-col gap-2.5">
           {items.map((it) => (
-            <CampaignRow key={it.id} item={it} profiles={listProfiles} showStage />
+            <CampaignRow key={it.id} item={it} profiles={listProfiles} />
           ))}
         </div>
       )}
