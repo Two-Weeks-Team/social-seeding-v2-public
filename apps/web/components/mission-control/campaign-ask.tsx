@@ -68,13 +68,13 @@ export function CampaignAsk({ campaignId }: { campaignId: string }) {
       {open && (
         <>
       {/* backdrop */}
-      <div className="fixed inset-0 bg-ink/20 z-40" onClick={() => setOpen(false)} aria-hidden />
+      <div className="fixed inset-0 bg-ink/20 z-40 ss-fade-in" onClick={() => setOpen(false)} aria-hidden />
 
       {/* slide-over panel */}
       <aside
         role="dialog"
         aria-label="에이전트에게 물어보기"
-        className="fixed right-0 top-0 bottom-0 w-full max-w-[420px] bg-surface border-l border-line z-50 shadow-2xl flex flex-col animate-in slide-in-from-right duration-200"
+        className="fixed right-0 top-0 bottom-0 w-full max-w-[400px] bg-surface border-l border-line z-50 shadow-2xl flex flex-col ss-slide-in-right"
       >
         <header className="flex items-center gap-2.5 px-5 py-4 border-b border-line shrink-0">
           <span className="w-7 h-7 rounded-full bg-gradient-to-br from-brand to-brand-2 text-white grid place-items-center text-[13px] shrink-0" aria-hidden>✨</span>
@@ -85,18 +85,19 @@ export function CampaignAsk({ campaignId }: { campaignId: string }) {
           <button type="button" onClick={() => setOpen(false)} className="text-ink-3 hover:text-ink text-[16px] leading-none px-1" aria-label="닫기">✕</button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col">
           {turns.length === 0 ? (
-            <div>
-              <p className="text-[13px] text-ink-2">이 캠페인의 성과·크리에이터·진행 상황을 자연어로 물어보세요.</p>
-              <div className="mt-3 flex flex-col gap-1.5">
+            <div className="m-auto w-full max-w-[300px] text-center">
+              <div className="mx-auto w-11 h-11 rounded-full bg-gradient-to-br from-brand to-brand-2 text-white grid place-items-center text-[18px] mb-3" aria-hidden>✨</div>
+              <p className="text-[13px] text-ink-2">이 캠페인의 성과·크리에이터·진행 상황을<br />자연어로 물어보세요.</p>
+              <div className="mt-3.5 flex flex-col gap-1.5">
                 {SUGGESTIONS.map((s) => (
                   <button
                     key={s}
                     type="button"
                     onClick={() => ask(s)}
                     disabled={loading}
-                    className="text-left text-[12.5px] text-ink-2 border border-line rounded-xl px-3 py-2 hover:bg-surface-2 transition-colors disabled:opacity-50"
+                    className="text-[12.5px] text-ink-2 border border-line rounded-xl px-3 py-2 hover:bg-surface-2 transition-colors disabled:opacity-50"
                   >
                     {s}
                   </button>

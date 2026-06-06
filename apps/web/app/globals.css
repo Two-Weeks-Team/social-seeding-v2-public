@@ -106,3 +106,25 @@ select:focus-visible {
 .hairline {
   border-bottom: 1px solid var(--color-line);
 }
+
+/* Slide-over (agent chat) entrance — plain keyframes so it works without a
+ * plugin (Tailwind v4 translate-x utilities don't reliably drive a transform
+ * transition here). */
+@keyframes ss-slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@keyframes ss-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+/* No `both` fill-mode on purpose: the resting state (after the entrance, or in
+ * any environment that doesn't advance the animation) is the element's normal
+ * style — fully visible at translateX(0) / opacity 1. So the slide-over can never
+ * get stuck off-screen; the keyframes are a progressive entrance only. */
+.ss-slide-in-right {
+  animation: ss-slide-in-right 0.24s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.ss-fade-in {
+  animation: ss-fade-in 0.2s ease-out;
+}
