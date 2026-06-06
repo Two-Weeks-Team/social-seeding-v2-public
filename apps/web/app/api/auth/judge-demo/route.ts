@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { Collections, getDb } from "@ss/db";
-import { SESSION_COOKIE, signSession } from "@/lib/auth";
+import { SESSION_COOKIE, cookieSecure, signSession } from "@/lib/auth";
 
 /**
  * GET /api/auth/judge-demo?token=<JUDGE_DEMO_TOKEN>
@@ -112,7 +112,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
-    secure: process.env.NODE_ENV === "production",
+    secure: cookieSecure(),
   });
   return res;
 }

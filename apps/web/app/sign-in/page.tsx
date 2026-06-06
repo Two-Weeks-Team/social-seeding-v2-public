@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { Card, CardBody } from "@/components/ui/card";
 import { GoogleButton } from "@/components/ui/google-button";
 import { googleLoginHref } from "@/lib/auth-links";
-import { SESSION_COOKIE, getServerSession, signSession } from "@/lib/auth";
+import { SESSION_COOKIE, cookieSecure, getServerSession, signSession } from "@/lib/auth";
 
 /**
  * Sign-in. The production path is a real Google OAuth login (the prominent
@@ -28,7 +28,7 @@ async function devLogin(): Promise<void> {
     sameSite: "lax",
     path: "/",
     maxAge: 30 * 24 * 60 * 60,
-    secure: process.env.NODE_ENV === "production",
+    secure: cookieSecure(),
   });
   redirect("/campaigns");
 }

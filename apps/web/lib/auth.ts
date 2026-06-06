@@ -44,6 +44,20 @@ export function defaultWorkspaceId(): string {
   return process.env.DEFAULT_LOGIN_WORKSPACE_ID?.trim() || "ws_demo";
 }
 
+/**
+ * Whether the ss_session cookie carries the `Secure` attribute. True in
+ * production (HTTPS Cloud Run) so the session never rides plain HTTP. But a
+ * LOCAL `next start` demo also runs in NODE_ENV=production while being served
+ * over plain HTTP — and if it's reached via a LAN address (e.g. 192.168.x.x),
+ * which the browser does NOT treat as a secure context (unlike localhost /
+ * 127.0.0.1), a Secure cookie is silently dropped and sign-in loops forever.
+ * Set AUTH_COOKIE_INSECURE=true for such demos. Never set it on the HTTPS deploy.
+ */
+export function cookieSecure(): boolean {
+  if (process.env.AUTH_COOKIE_INSECURE === "true") return false;
+  return process.env.NODE_ENV === "production";
+}
+
 /** Cookie options for the ss_session cookie, shared by every route that sets it. */
 export function sessionCookieOptions(): {
   httpOnly: true;
@@ -57,7 +71,7 @@ export function sessionCookieOptions(): {
     sameSite: "lax",
     path: "/",
     maxAge: DEFAULT_TTL_SECONDS,
-    secure: process.env.NODE_ENV === "production",
+    secure: cookieSecure(),
   };
 }
 
