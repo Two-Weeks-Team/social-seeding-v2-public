@@ -170,6 +170,7 @@ export default async function CampaignDetailPage({
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <CampaignAsk campaignId={id} />
             {isLive ? (
               <div className="flex gap-2">
                 <form action={pauseCampaignAction}>
@@ -284,7 +285,6 @@ export default async function CampaignDetailPage({
                   <ActivityTimeline traces={traces} />
                 </CardBody>
               </Card>
-              <CampaignAsk campaignId={id} />
             </div>
           )}
         </div>
