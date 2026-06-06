@@ -13,5 +13,6 @@ export {
   type ContentVerifyFlag,
 } from "./content-verify.agent";
 export { analystAgent, type AnalystOutput } from "./analyst.agent";
+export { campaignAssistantAgent, type CampaignAssistantOutput } from "./campaign-assistant.agent";
 export { researchAgent, type ResearchOutput } from "./research.agent";
 export { leadOutreachWriterAgent } from "./lead-outreach-writer.agent";

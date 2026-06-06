@@ -10,6 +10,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { StageBar } from "@/components/mission-control/stage-bar";
 import { ActivityTimeline } from "@/components/mission-control/activity-timeline";
 import { CampaignCanvas } from "@/components/mission-control/campaign-canvas";
+import { CampaignAsk } from "@/components/mission-control/campaign-ask";
 import { bucketTracksByState } from "@/components/mission-control/campaign-track-buckets";
 import { getServerSession } from "@/lib/auth";
 import { approvalRepo, campaignRepo, traceRepo, messageRepo } from "@ss/db";
@@ -283,6 +284,7 @@ export default async function CampaignDetailPage({
                   <ActivityTimeline traces={traces} />
                 </CardBody>
               </Card>
+              <CampaignAsk campaignId={id} />
             </div>
           )}
         </div>
