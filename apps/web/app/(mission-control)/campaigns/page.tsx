@@ -1,13 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { StatusTag } from "@/components/ui/status-tag";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Avatar } from "@/components/ui/avatar";
 import { AgentStatusStrip } from "@/components/mission-control/agent-status-strip";
-import { CampaignPipeline, StageBadge, type PipelineItem } from "@/components/mission-control/campaign-pipeline";
-import { campaignStatus } from "@/lib/labels";
-import { fmtAgo } from "@/lib/format";
+import { CampaignByStage, CampaignRow, type CampaignItem } from "@/components/mission-control/campaign-by-stage";
 import { resolveCreators } from "@/lib/creators";
 import { getServerSession } from "@/lib/auth";
 import { campaignRepo, approvalRepo, messageRepo } from "@ss/db";
@@ -17,15 +13,10 @@ import { cn } from "@/lib/cn";
  * W2 — Campaigns = the operator home. Research-grounded mix (Refero):
  * Mailchimp's clean campaign list (rows + status + search/filter) wrapped in
  * Rox "Revenue Agents" cockpit elements — a live agent-status strip + a
- * 리스트 / 파이프라인(stage kanban) view toggle. C2 tokens throughout.
+ * 리스트 / 단계별 view toggle. The 단계별 view groups campaigns under vertical
+ * stage sections (NOT a draggable kanban: stages are advanced by the agent
+ * workflow, so a board would imply an interaction that doesn't exist). C2 tokens.
  */
-function fmtDate(d: Date | string | number | undefined): string {
-  if (!d) return "";
-  const dt = d instanceof Date ? d : new Date(d);
-  if (Number.isNaN(dt.getTime())) return "";
-  return `${dt.getMonth() + 1}월 ${dt.getDate()}일 시작`;
-}
-
 const FILTERS: { key: string; label: string }[] = [
   { key: "all", label: "전체" },
   { key: "running", label: "진행 중" },
@@ -33,7 +24,7 @@ const FILTERS: { key: string; label: string }[] = [
   { key: "attention", label: "주의" },
 ];
 
-type View = "list" | "pipeline";
+type View = "list" | "stages";
 
 export default async function CampaignsPage({
   searchParams,
@@ -46,7 +37,7 @@ export default async function CampaignsPage({
   const sp = (await searchParams) ?? {};
   const q = (sp.q ?? "").trim();
   const filter = sp.status ?? "all";
-  const view: View = sp.view === "pipeline" ? "pipeline" : "list";
+  const view: View = sp.view === "stages" ? "stages" : "list";
 
   const all = await campaignRepo.listByWorkspace(session.workspaceId);
 
@@ -70,7 +61,7 @@ export default async function CampaignsPage({
 
   const listProfiles = await resolveCreators(campaigns.flatMap((c) => c.tracks.slice(0, 3).map((t) => t.creatorId)));
 
-  const items: PipelineItem[] = campaigns.map((c) => ({
+  const items: CampaignItem[] = campaigns.map((c) => ({
     id: c.id,
     name: c.brief.brandProduct.name,
     category: c.brief.brandProduct.category,
@@ -79,6 +70,8 @@ export default async function CampaignsPage({
     creatorIds: c.tracks.slice(0, 3).map((t) => t.creatorId),
     trackCount: c.tracks.length,
     pending: pendingByCampaign.get(c.id) ?? 0,
+    createdAt: (c as { createdAt?: Date }).createdAt,
+    updatedAt: c.updatedAt,
   }));
 
   const buildHref = (next: { status?: string; view?: string }) => {
@@ -135,7 +128,7 @@ export default async function CampaignsPage({
           );
         })}
         <div className="ml-auto inline-flex p-0.5 bg-surface-2 border border-line rounded-xl gap-0.5">
-          {(["list", "pipeline"] as const).map((v) => (
+          {([["list", "리스트"], ["stages", "단계별"]] as const).map(([v, label]) => (
             <Link
               key={v}
               href={buildHref({ view: v })}
@@ -144,7 +137,7 @@ export default async function CampaignsPage({
                 view === v ? "bg-surface shadow-soft text-ink" : "text-ink-3 hover:text-ink",
               )}
             >
-              {v === "list" ? "리스트" : "파이프라인"}
+              {label}
             </Link>
           ))}
         </div>
@@ -157,67 +150,13 @@ export default async function CampaignsPage({
           hint={q || filter !== "all" ? "검색어나 필터를 바꿔보세요." : "브리프를 채우면 에이전트가 소싱부터 시작합니다."}
           action={<Link href="/campaigns/new"><Button variant="primary">＋ 새 캠페인</Button></Link>}
         />
-      ) : view === "pipeline" ? (
-        <CampaignPipeline items={items} profiles={listProfiles} />
+      ) : view === "stages" ? (
+        <CampaignByStage items={items} profiles={listProfiles} />
       ) : (
         <div className="flex flex-col gap-2.5">
-          {campaigns.map((c) => {
-            const st = campaignStatus(c.status);
-            const pending = pendingByCampaign.get(c.id) ?? 0;
-            const createdAt = (c as { createdAt?: Date }).createdAt;
-            return (
-              <Link
-                key={c.id}
-                href={`/campaigns/${c.id}`}
-                className="grid grid-cols-[1.7fr_120px_1fr_100px_88px] gap-4 items-center bg-surface border border-line rounded-2xl shadow-soft px-5 py-4 transition-transform hover:-translate-y-0.5"
-              >
-                <div className="min-w-0">
-                  <div className="text-[15px] font-bold text-ink truncate">{c.brief.brandProduct.name}</div>
-                  <div className="text-[12px] text-ink-3 mt-0.5 truncate">
-                    {c.brief.brandProduct.category}{createdAt ? ` · ${fmtDate(createdAt)}` : ""}
-                  </div>
-                </div>
-                <div>
-                  <StatusTag tone={st.tone}>{st.label}</StatusTag>
-                </div>
-                <div>
-                  <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3 mb-1">단계</div>
-                  <div className="flex items-center gap-1.5">
-                    <StageBadge stage={c.stage} />
-                    {pending > 0 && <span className="text-[11.5px] text-warn font-semibold">· {pending}건</span>}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">크리에이터</div>
-                  {c.tracks.length > 0 ? (
-                    <div className="mt-1 flex items-center">
-                      <div className="flex">
-                        {c.tracks.slice(0, 3).map((t) => {
-                          const p = listProfiles.get(t.creatorId);
-                          return (
-                            <Avatar
-                              key={t.creatorId}
-                              name={p?.nickname ?? p?.handle ?? t.creatorId}
-                              src={p?.avatar}
-                              size="sm"
-                              className="-ml-2 first:ml-0 ring-2 ring-surface"
-                            />
-                          );
-                        })}
-                      </div>
-                      {c.tracks.length > 3 && <span className="ml-1.5 text-[12px] text-ink-3 mono">+{c.tracks.length - 3}</span>}
-                    </div>
-                  ) : (
-                    <div className="text-[13px] text-ink-3 mt-0.5">선정 전</div>
-                  )}
-                </div>
-                <div className="text-right">
-                  <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">활동</div>
-                  <div className="text-[13px] text-ink-2 mt-0.5 mono">{fmtAgo(c.updatedAt)}</div>
-                </div>
-              </Link>
-            );
-          })}
+          {items.map((it) => (
+            <CampaignRow key={it.id} item={it} profiles={listProfiles} showStage />
+          ))}
         </div>
       )}
     </div>
