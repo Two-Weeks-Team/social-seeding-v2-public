@@ -1,9 +1,13 @@
+"use client";
+
+import { useState } from "react";
 import { cn } from "@/lib/cn";
 
 /**
- * Avatar — deterministic muted initials chip. Used for creators (with @handle)
- * and the user, so we NEVER show raw IDs as the visual identity. Color is
- * derived from the seed string against a restrained, palette-harmonious set.
+ * Avatar — a profile image when one is given, else a deterministic muted initials
+ * chip. We NEVER show raw IDs as the visual identity. Crucially, if the image
+ * fails to load (e.g. a TikTok CDN avatarThumb whose signed `x-expires` has
+ * lapsed), it falls back to the initials chip instead of a broken/blank circle.
  */
 const PALETTE = [
   "#7a5c46", // cocoa
@@ -42,13 +46,17 @@ export function Avatar({
   className?: string;
 }) {
   const px = SIZE[size];
-  if (src) {
+  // Track the src that failed so a later src change re-attempts the image.
+  const [erroredSrc, setErroredSrc] = useState<string | null>(null);
+
+  if (src && erroredSrc !== src) {
     return (
       <img
         src={src}
         alt=""
         width={px}
         height={px}
+        onError={() => setErroredSrc(src)}
         className={cn("rounded-full object-cover shrink-0 bg-surface-2", className)}
         style={{ width: px, height: px }}
         aria-hidden
