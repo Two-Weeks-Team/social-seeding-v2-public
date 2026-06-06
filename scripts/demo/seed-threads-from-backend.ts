@@ -74,19 +74,89 @@ function emailAddr(s: string | undefined): string {
 function isBrandAddr(a: string): boolean {
   return /@2weeks\.co$/i.test(a) || a === "";
 }
-function htmlToText(h: string): string {
-  return h
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
+function safeCp(cp: number): string {
+  try {
+    return String.fromCodePoint(cp);
+  } catch {
+    return "";
+  }
+}
+/** Decode the HTML entities these emails actually carry (incl. numeric emoji). */
+function decodeEntities(s: string): string {
+  return s
     .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/\s+/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n: string) => safeCp(parseInt(n, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, n: string) => safeCp(parseInt(n, 16)))
+    .replace(/&amp;/g, "&"); // last, so "&amp;lt;" → "&lt;" → "<" never double-decodes
+}
+/**
+ * Cut a reply's HTML at the start of the quoted previous message(s). Replies
+ * carry the whole prior thread inline (Gmail `gmail_quote` / `<blockquote>`,
+ * Outlook `appendonsend` / `divRplyFwdMsg`); the new text sits before it.
+ */
+function stripQuotedHtml(h: string): string {
+  const markers = [
+    /<div[^>]*class="[^"]*gmail_quote/i,
+    /<blockquote/i,
+    /<div[^>]*id="appendonsend"/i,
+    /<div[^>]*id="divRplyFwdMsg"/i,
+    /<hr[^>]*id="[^"]*(?:stopSpelling|Mailcontroller)/i,
+  ];
+  let cut = h.length;
+  for (const re of markers) {
+    const m = h.match(re);
+    if (m && m.index !== undefined && m.index < cut) cut = m.index;
+  }
+  return h.slice(0, cut);
+}
+/** Plain-text fallback quote trim (Outlook localized headers, "On … wrote:", `____` divider, mobile signatures). */
+function stripQuotedText(t: string): string {
+  const markers = [
+    /\n_{10,}\s*\n?/,
+    /\n(?:On|El|Le|Am)\b.{0,90}?\b(?:wrote|escribió|escribio|a écrit|schrieb):/i,
+    /\n(?:From|De|Von|Da):[^\n]*\n[^\n]*(?:Sent|Enviado|Envoyé|Gesendet|Date):/i,
+    /\n?(?:Obtener|Get) Outlook (?:para|for)\b/i,
+  ];
+  let cut = t.length;
+  for (const re of markers) {
+    const m = t.match(re);
+    if (m && m.index !== undefined && m.index < cut) cut = m.index;
+  }
+  return t.slice(0, cut).trim();
+}
+/** HTML → readable plain text: line breaks preserved, bullets per line, entities decoded. */
+function htmlToText(h: string): string {
+  const t = h
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<\/(?:p|div|li|tr|h[1-6]|blockquote)\s*>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "\n• ")
+    .replace(/<[^>]+>/g, "");
+  return decodeEntities(t)
+    .replace(/[ \t\u00a0]+/g, " ") // collapse spaces/tabs but NOT newlines
+    .replace(/\s*•\s*/g, "\n• ") // each • bullet on its own line
+    .replace(/ *\n */g, "\n") // trim spaces hugging newlines
+    .replace(/\n{3,}/g, "\n\n") // at most one blank line
     .trim();
 }
 function bodyOf(e: RawEmail): string {
+  // htmlContent is the structured source here (body is often empty); strip the
+  // quoted reply chain, then convert to readable text. Fall back to body/snippet.
+  const html = (e.htmlContent ?? "").trim();
+  if (html) {
+    const text = stripQuotedText(htmlToText(stripQuotedHtml(html)));
+    if (text.length > 1) return text;
+  }
   const b = (e.body ?? "").trim();
-  if (b) return htmlToText(b).length > 4 ? htmlToText(b) : b;
-  if (e.htmlContent) return htmlToText(e.htmlContent);
+  if (b) {
+    const text = /<[a-z][\s\S]*>/i.test(b) ? htmlToText(stripQuotedHtml(b)) : decodeEntities(b);
+    return stripQuotedText(text);
+  }
   return (e.snippet ?? "").trim();
 }
 function whenOf(e: RawEmail): Date {
