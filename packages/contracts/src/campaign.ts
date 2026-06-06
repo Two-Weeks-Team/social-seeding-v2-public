@@ -63,6 +63,11 @@ export const CreatorTrackContentSchema = z.object({
   comments: z.number().int().nonnegative().default(0),
   shares: z.number().int().nonnegative().default(0),
   detectedAt: z.coerce.date(),
+  /** Post media for the content-verification grid (optional; populated when known). */
+  coverImage: z.string().optional(), // cached cover path (/demo-covers/<postId>.jpg) or URL
+  postUrl: z.string().optional(), // TikTok permalink (https://www.tiktok.com/@h/video/<postId>)
+  caption: z.string().optional(), // post title/description
+  hashtags: z.array(z.string()).optional(), // without leading '#'
 });
 export type CreatorTrackContent = z.infer<typeof CreatorTrackContentSchema>;
 

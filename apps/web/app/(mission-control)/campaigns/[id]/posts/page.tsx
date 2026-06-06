@@ -5,6 +5,7 @@ import { StatusTag, type StatusTone } from "@/components/ui/status-tag";
 import { Stat } from "@/components/ui/stat";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PostThumb } from "@/components/mission-control/post-thumb";
 import { getServerSession } from "@/lib/auth";
 import { campaignRepo } from "@ss/db";
 import type { CreatorTrack, CreatorTrackContent } from "@ss/contracts";
@@ -119,75 +120,79 @@ export default async function CampaignPostsPage({
       ) : (
         <div className="space-y-6">
           {withContent.length > 0 && (
-            <Card>
-              <CardBody className="px-0 py-0">
-                <table className="w-full text-[13px]">
-                  <thead>
-                    <tr className="text-[10px] uppercase tracking-[0.06em] text-ink-3 font-semibold border-b border-line bg-surface-2">
-                      <th className="text-left px-4 py-2.5 font-semibold">크리에이터</th>
-                      <th className="text-left px-4 py-2.5 font-semibold">결과</th>
-                      <th className="text-left px-4 py-2.5 font-semibold">성과 점수</th>
-                      <th className="text-right px-4 py-2.5 font-semibold">조회수</th>
-                      <th className="text-right px-4 py-2.5 font-semibold">참여율</th>
-                      <th className="text-left px-4 py-2.5 font-semibold">검토 플래그</th>
-                      <th className="text-left px-4 py-2.5 font-semibold">검출일</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {withContent.map((row) => {
-                      const er = engagementRate(row.content);
-                      const ts = trackState(row.state);
-                      const p = profiles.get(row.creatorId);
-                      const display = p?.nickname ?? p?.handle ?? creatorLabel(row.creatorId);
-                      const score = row.content.performanceScore;
-                      return (
-                        <tr
-                          key={`${row.creatorId}-${row.content.postId}`}
-                          className="border-b border-line-2 last:border-0 hover:bg-surface-2/50"
-                        >
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2.5">
-                              <Avatar name={display} src={p?.avatar} size="sm" />
-                              <div className="min-w-0">
-                                <div className="text-ink truncate leading-tight">{display}</div>
-                                {p?.handle && p.handle !== display && (
-                                  <div className="text-[11px] text-ink-3 mono truncate">{p.handle}</div>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <StatusTag tone={ts.tone} size="sm">{ts.label}</StatusTag>
-                          </td>
-                          <td className="px-4 py-3">
-                            <StatusTag tone={scoreTone(score)} size="sm">{score.toFixed(0)} / 100</StatusTag>
-                          </td>
-                          <td className="px-4 py-3 text-right mono tnum text-ink">{fmtNum(row.content.views)}</td>
-                          <td className="px-4 py-3 text-right mono tnum text-ink-2">{(er * 100).toFixed(1)}%</td>
-                          <td className="px-4 py-3">
-                            {row.content.flags.length === 0 ? (
-                              <span className="text-ink-3">—</span>
-                            ) : (
-                              <div className="flex flex-wrap gap-1">
-                                {row.content.flags.map((f) => {
-                                  const fl = flagKo(f);
-                                  return (
-                                    <StatusTag key={f} tone={fl.tone} size="sm">{fl.label}</StatusTag>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 mono tnum text-ink-3">
-                            {row.detectedAt.toISOString().slice(0, 10)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </CardBody>
-            </Card>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {withContent.map((row) => {
+                const c = row.content;
+                const er = engagementRate(c);
+                const ts = trackState(row.state);
+                const p = profiles.get(row.creatorId);
+                const display = p?.nickname ?? p?.handle ?? creatorLabel(row.creatorId);
+                const score = c.performanceScore;
+                const cardClass =
+                  "group block bg-surface border border-line rounded-2xl overflow-hidden shadow-soft transition-transform hover:-translate-y-0.5";
+                const inner = (
+                  <>
+                    {/* 9:16 cover — the actual posted video, with view count + verify badge */}
+                    <div className="relative aspect-[9/16] bg-surface-2 overflow-hidden">
+                      <PostThumb src={c.coverImage} className="transition-transform duration-300 group-hover:scale-[1.03]" />
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/55 to-transparent" />
+                      <div className="absolute bottom-2 left-2.5 flex items-center gap-1 text-white text-[12px] font-semibold mono tnum [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">
+                        <span aria-hidden>▶</span> {fmtNum(c.views)}
+                      </div>
+                      <div className="absolute top-2 right-2">
+                        <StatusTag tone={ts.tone} size="sm">{ts.label}</StatusTag>
+                      </div>
+                    </div>
+                    {/* footer — creator · score · caption · engagement · review flags */}
+                    <div className="p-3">
+                      <div className="flex items-center gap-2">
+                        <Avatar name={display} src={p?.avatar} size="sm" />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[12.5px] text-ink truncate leading-tight">{display}</div>
+                          {p?.handle && p.handle !== display && (
+                            <div className="text-[11px] text-ink-3 mono truncate">{p.handle}</div>
+                          )}
+                        </div>
+                        <StatusTag tone={scoreTone(score)} size="sm">{score.toFixed(0)}</StatusTag>
+                      </div>
+                      {c.caption && (
+                        <p className="mt-2 text-[11.5px] text-ink-2 leading-snug line-clamp-2">{c.caption}</p>
+                      )}
+                      <div className="mt-2 flex items-center gap-3 text-[11px] text-ink-3 mono tnum">
+                        <span>♥ {fmtNum(c.likes)}</span>
+                        <span>참여 {(er * 100).toFixed(1)}%</span>
+                        <span className="ml-auto">{row.detectedAt.toISOString().slice(0, 10)}</span>
+                      </div>
+                      {c.flags.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {c.flags.map((f) => {
+                            const fl = flagKo(f);
+                            return (
+                              <StatusTag key={f} tone={fl.tone} size="sm">{fl.label}</StatusTag>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+                return c.postUrl ? (
+                  <a
+                    key={`${row.creatorId}-${c.postId}`}
+                    href={c.postUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cardClass}
+                  >
+                    {inner}
+                  </a>
+                ) : (
+                  <div key={`${row.creatorId}-${c.postId}`} className={cardClass}>
+                    {inner}
+                  </div>
+                );
+              })}
+            </div>
           )}
 
           {flakedNoPost.length > 0 && (
