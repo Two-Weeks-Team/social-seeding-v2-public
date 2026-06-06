@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, SectionLabel } from "@/components/ui/card";
 import { StatusTag } from "@/components/ui/status-tag";
+import { Stat } from "@/components/ui/stat";
+import { Funnel } from "@/components/ui/funnel";
 import { Avatar } from "@/components/ui/avatar";
 import { StageBar } from "@/components/mission-control/stage-bar";
 import { ActivityTimeline } from "@/components/mission-control/activity-timeline";
@@ -11,11 +13,12 @@ import { CampaignCanvas } from "@/components/mission-control/campaign-canvas";
 import { bucketTracksByState } from "@/components/mission-control/campaign-track-buckets";
 import { getServerSession } from "@/lib/auth";
 import { approvalRepo, campaignRepo, traceRepo, messageRepo } from "@ss/db";
-import { Events } from "@ss/contracts";
+import { Events, AnalyticsReportSchema, type AnalyticsReport } from "@ss/contracts";
 import { inngest } from "@ss/workflows";
+import { invokeCapability } from "@ss/capabilities";
 import { cn } from "@/lib/cn";
-import { campaignStatus, approvalKindKo, trackState } from "@/lib/labels";
-import { creatorLabel, fmtFollowers } from "@/lib/format";
+import { campaignStatus, approvalKindKo, trackState, stageKo } from "@/lib/labels";
+import { creatorLabel, fmtFollowers, fmtCompactKo } from "@/lib/format";
 import { resolveCreators } from "@/lib/creators";
 
 /** Lifecycle controls — cancel + pause/resume (see prior history for the durable-workflow semantics). */
@@ -72,6 +75,15 @@ const SUB_LINKS: { seg: string; label: string }[] = [
   { seg: "report", label: "리포트" },
 ];
 
+const FUNNEL_DEF: { key: keyof AnalyticsReport["funnel"]; label: string }[] = [
+  { key: "outreach_sent", label: "아웃리치" },
+  { key: "in_conversation", label: "대화 중" },
+  { key: "shipped", label: "샘플 발송" },
+  { key: "delivered", label: "수령" },
+  { key: "posted", label: "게시" },
+  { key: "verified", label: "검증 완료" },
+];
+
 export default async function CampaignDetailPage({
   params,
   searchParams,
@@ -119,6 +131,31 @@ export default async function CampaignDetailPage({
   const isComplete = campaign.status === "completed";
   const isStopped = campaign.status === "cancelled";
   const isLive = campaign.status === "running" || campaign.status === "paused";
+
+  // Real performance rollup (same source as the 성과/리포트 tabs) — surfaced inline
+  // so the detail isn't sparse. Degrades to null if compile fails.
+  const analytics = await invokeCapability(
+    "analytics.compile",
+    { campaignId: id },
+    { workspaceId: session.workspaceId, userId: session.userId, rateLimitClass: "default" },
+  )
+    .then((raw) => AnalyticsReportSchema.parse(raw))
+    .catch(() => null);
+  const pct =
+    analytics && analytics.goals.targetLivePosts > 0
+      ? Math.round((analytics.goals.verifiedCount / analytics.goals.targetLivePosts) * 100)
+      : null;
+  const er = analytics?.reach.weightedEngagementRate ?? null;
+  const nextAction =
+    pending.length > 0 && pending[0]
+      ? `승인 대기 · ${approvalKindKo(pending[0].kind)}`
+      : isComplete
+        ? "완료됨"
+        : isStopped
+          ? "취소됨"
+          : isLive
+            ? `${stageKo(campaign.stage)} 진행 중`
+            : st.label;
 
   return (
     <div className="max-w-6xl mx-auto px-8 py-8">
@@ -180,6 +217,31 @@ export default async function CampaignDetailPage({
         <StageBar current={campaign.stage} complete={isComplete} stopped={isStopped} notes={shortlistApproval ? { sourcing: "승인 대기" } : undefined} />
       </div>
 
+      {view === "timeline" && analytics && (
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          <Stat
+            label="검증 게시물"
+            value={analytics.goals.verifiedCount}
+            unit={`/ ${analytics.goals.targetLivePosts}`}
+            tone={analytics.goals.goalMet ? "ok" : analytics.goals.verifiedCount > 0 ? "default" : "muted"}
+            hint={pct !== null ? `목표 대비 ${pct}%` : undefined}
+          />
+          <Stat
+            label="총 조회수"
+            value={fmtCompactKo(analytics.reach.verifiedViews).value}
+            unit={fmtCompactKo(analytics.reach.verifiedViews).unit}
+            tone={analytics.reach.verifiedViews > 0 ? "default" : "muted"}
+          />
+          <Stat
+            label="평균 참여율"
+            value={er !== null ? (er * 100).toFixed(1) : "—"}
+            unit={er !== null ? "%" : undefined}
+            tone={er !== null ? "default" : "muted"}
+          />
+          <Stat label="대상 크리에이터" value={campaign.tracks.length} hint={`검증 완료 ${analytics.goals.verifiedCount}명`} />
+        </div>
+      )}
+
       <div className={cn(view === "canvas" ? "space-y-5" : "grid grid-cols-3 gap-6")}>
         <div className={cn(view === "canvas" ? "" : "col-span-2")}>
           {view === "canvas" ? (
@@ -195,20 +257,33 @@ export default async function CampaignDetailPage({
               trackBuckets={trackBuckets}
             />
           ) : (
-            <Card>
-              <CardBody>
-                <div className="flex items-center justify-between mb-3">
-                  <SectionLabel>활동 타임라인</SectionLabel>
-                  {isLive && (
-                    <div className="text-[11px] text-ink-3 flex items-center gap-1.5">
-                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-ok animate-pulse" />
-                      실시간
+            <div className="space-y-5">
+              {analytics && (
+                <Card>
+                  <CardBody>
+                    <div className="flex items-center justify-between mb-3">
+                      <SectionLabel>전환 퍼널</SectionLabel>
+                      <Link href={`/campaigns/${id}/performance`} className="text-[11.5px] text-ink-3 hover:text-ink-2">성과 전체 →</Link>
                     </div>
-                  )}
-                </div>
-                <ActivityTimeline traces={traces} />
-              </CardBody>
-            </Card>
+                    <Funnel rows={FUNNEL_DEF.map((d) => ({ label: d.label, value: analytics.funnel[d.key] }))} />
+                  </CardBody>
+                </Card>
+              )}
+              <Card>
+                <CardBody>
+                  <div className="flex items-center justify-between mb-3">
+                    <SectionLabel>활동 타임라인</SectionLabel>
+                    {isLive && (
+                      <div className="text-[11px] text-ink-3 flex items-center gap-1.5">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-ok animate-pulse" />
+                        실시간
+                      </div>
+                    )}
+                  </div>
+                  <ActivityTimeline traces={traces} />
+                </CardBody>
+              </Card>
+            </div>
           )}
         </div>
 
@@ -225,6 +300,30 @@ export default async function CampaignDetailPage({
               </CardBody>
             </Card>
           )}
+
+          <Card>
+            <CardBody>
+              <SectionLabel className="mb-3">진행 · 일정</SectionLabel>
+              <dl className="text-[13px] space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <dt className="text-ink-3">상태</dt>
+                  <dd><StatusTag tone={st.tone} size="sm">{st.label}</StatusTag></dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-ink-3 shrink-0">다음 액션</dt>
+                  <dd className="text-ink text-right truncate">{nextAction}</dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt className="text-ink-3">예산 상한</dt>
+                  <dd className="text-ink mono">{campaign.brief.goals.budgetUsd != null ? `$${campaign.brief.goals.budgetUsd}` : "—"}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-ink-3 shrink-0">시작 · 마감</dt>
+                  <dd className="text-ink text-right">{fmtDate(campaign.createdAt)} · {fmtDate(campaign.brief.goals.deadline)}</dd>
+                </div>
+              </dl>
+            </CardBody>
+          </Card>
 
           <Card>
             <CardBody>
@@ -261,6 +360,11 @@ export default async function CampaignDetailPage({
           <Card>
             <CardBody>
               <SectionLabel className="mb-3">대상 크리에이터 ({campaign.tracks.length})</SectionLabel>
+              {analytics && campaign.tracks.length > 0 && (
+                <div className="text-[12px] text-ink-3 mb-2.5 -mt-1">
+                  검증 완료 {analytics.goals.verifiedCount} · 게시 {analytics.funnel.posted} · 대화 중 {analytics.funnel.in_conversation}
+                </div>
+              )}
               {campaign.tracks.length === 0 ? (
                 <div className="text-[12.5px] text-ink-3">아직 선정된 크리에이터가 없습니다.</div>
               ) : (
