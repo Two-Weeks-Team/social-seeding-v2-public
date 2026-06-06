@@ -23,6 +23,10 @@ export const sourcingAgent = defineAgent({
   // check + revise) on briefs with multiple hashtags. Same reasoning
   // as outreach-writer's cap raise — Flash-Lite-pricing intuition was off.
   maxUsd: 2.5,
+  // A broad search can accumulate dozens of candidates; the final JSON listing
+  // them all can exceed the default 4096-token output budget and truncate mid-
+  // JSON → schema escalate. Give sourcing room to emit the full list.
+  maxOutputTokens: 8192,
   input: z.object({
     brief: CampaignBriefSchema,
     excludeCreatorIds: z.array(z.string()).default([]),

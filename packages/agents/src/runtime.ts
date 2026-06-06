@@ -35,6 +35,10 @@ export interface AgentDef<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
   model: ModelId;
   /** absolute USD cap for one invocation; the runtime aborts (escalates) if exceeded */
   maxUsd: number;
+  /** per-call output token budget; defaults to MAX_OUTPUT_TOKENS. Bump for agents
+   *  whose final JSON can be large (e.g. sourcing emitting many candidates) so the
+   *  output isn't truncated mid-JSON → schema-validation escalate. */
+  maxOutputTokens?: number;
   /** the agent's prompt; the runtime appends the output-contract instructions */
   systemPrompt: (input: z.infer<I>) => string;
 }
@@ -106,7 +110,7 @@ export async function runAgent<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       const turn = await ctx.trace.span(`llm:${def.model}`, "llm", { agent: def.id }, async (span) => {
         const t = await model.complete({
           model: def.model, system, messages, tools,
-          maxTokens: MAX_OUTPUT_TOKENS,
+          maxTokens: def.maxOutputTokens ?? MAX_OUTPUT_TOKENS,
           ...(forceTool ? { toolChoice: "any" as const } : {}),
         });
         const callUsd = estimateUsd(def.model, t.inputTokens, t.outputTokens);

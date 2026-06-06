@@ -93,16 +93,28 @@ export async function brandCampaignHandler(
   };
 
   // ── Stage 2: sourcing — runAgent(sourcingAgent) ───────────────────────────
-  const sourcingOutcome = await step.run("source", async () =>
+  // The sourcing agent's final-output formatting on a live model is occasionally
+  // flaky (Gemini sometimes narrates a tool call as text on the finalize turn →
+  // schema-validation escalate). The escalation is non-deterministic, so retry a
+  // couple times with fresh runs before failing — each attempt is its own durable
+  // step.run. (The fake-model golden tests succeed on attempt 1, so this loop is a
+  // no-op there.)
+  const SOURCING_ATTEMPTS = 3;
+  let sourcingOutcome = await step.run("source", async () =>
     runAgent(sourcingAgent, { brief, excludeCreatorIds: [] }, agentCtx),
   );
+  for (let attempt = 2; sourcingOutcome.kind !== "ok" && attempt <= SOURCING_ATTEMPTS; attempt++) {
+    sourcingOutcome = await step.run(`source-retry-${attempt}`, async () =>
+      runAgent(sourcingAgent, { brief, excludeCreatorIds: [] }, agentCtx),
+    );
+  }
   if (sourcingOutcome.kind !== "ok") {
     // Include partial output in the error so live-demo debug surfaces
     // the actual model output that failed validation.
     const partial = "partial" in sourcingOutcome && sourcingOutcome.partial
       ? `\nFirst-pass output:\n${String(sourcingOutcome.partial).slice(0, 1500)}`
       : "";
-    throw new Error(`sourcing agent escalated: ${sourcingOutcome.reason}${partial}`);
+    throw new Error(`sourcing agent escalated after ${SOURCING_ATTEMPTS} attempts: ${sourcingOutcome.reason}${partial}`);
   }
   const candidates: CandidateOut[] = sourcingOutcome.value.candidates;
 
