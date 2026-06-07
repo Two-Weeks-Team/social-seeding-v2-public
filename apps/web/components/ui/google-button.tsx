@@ -17,7 +17,7 @@ export function GoogleButton({
   href,
   size = "lg",
   block = false,
-  label = "Google로 시작",
+  label = "Continue with Google",
   className,
 }: {
   href: string;

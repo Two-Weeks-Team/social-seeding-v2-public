@@ -16,7 +16,7 @@ import { Collections, getDb, campaignRepo, workspaceRepo } from "@ss/db";
  * Three blocks:
  *   1. KPI strip — month-to-date spend vs budget, last-30-days trend,
  *      active campaigns, and the model carrying most of the budget.
- *   2. Per-agent breakdown — which role (소싱 / 작성 / 검증 …) is consuming
+ *   2. Per-agent breakdown — which role (sourcing / writing / verification …) is consuming
  *      the budget, with its model tier, so the operator can decide where to
  *      economize.
  *   3. Per-campaign breakdown — every campaign + verified count +
@@ -107,7 +107,7 @@ async function loadCostRollup(workspaceId: string): Promise<{
     if (inMtd) spentMtd += e.usd;
     // Per-agent + per-campaign rollups follow the 30d window — that's
     // what the operator typically reads ("which agent did I spend on
-    // recently?"), and matches the "최근 30일" label on those tables.
+    // recently?"), and matches the "last 30 days" label on those tables.
     if (!inThirtyDays) continue;
     const a = agentMap.get(e.agent) ?? {
       agent: e.agent, model: e.model, callCount: 0, inputTokens: 0, outputTokens: 0, spentUsd: 0,
@@ -196,48 +196,48 @@ export default async function UsagePage() {
   return (
     <div className="max-w-6xl mx-auto px-8 py-8">
       <header className="mb-6">
-        <h1 className="text-[24px] font-bold tracking-[-0.01em]">사용량 · 비용</h1>
+        <h1 className="text-[24px] font-bold tracking-[-0.01em]">Usage & cost</h1>
         <p className="mt-1 text-[13.5px] text-ink-2">
-          에이전트가 이번 달 쓴 예산을 역할별·캠페인별로 보여줍니다. 어디서 비용이 나가는지 한눈에 확인하세요.
+          See this month&apos;s agent spend by role and campaign, and quickly spot where budget is going.
         </p>
       </header>
 
       {/* ── KPI strip ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">
         <Stat
-          label="이번 달 사용"
+          label="This month"
           value={`$${data.spentMtd.toFixed(2)}`}
           hint={
             data.monthlyBudgetUsd > 0 ? (
               <span className="inline-flex items-center gap-1.5">
-                예산 ${fmtNum(data.monthlyBudgetUsd)} 대비
+                vs ${fmtNum(data.monthlyBudgetUsd)} budget
                 <StatusTag tone={budgetTone(budgetPct)} size="sm">{Math.round(budgetPct * 100)}%</StatusTag>
               </span>
             ) : (
-              "예산 미설정"
+              "No budget set"
             )
           }
           tone={data.spentMtd > 0 ? (budgetPct >= 0.85 ? "stop" : "brand") : "muted"}
         />
         <Stat
-          label="최근 30일"
+          label="Last 30 days"
           value={`$${data.spent30d.toFixed(2)}`}
-          hint={`에이전트 호출 ${fmtNum(data.callCount30d)}회`}
+          hint={`${fmtNum(data.callCount30d)} agent calls`}
           tone={data.spent30d > 0 ? "default" : "muted"}
         />
         <Stat
-          label="활성 캠페인"
+          label="Active campaigns"
           value={activeCampaigns}
-          hint="최근 30일 비용 발생"
+          hint="Spend in last 30 days"
           tone={activeCampaigns > 0 ? "default" : "muted"}
         />
         <Stat
-          label="주력 모델"
+          label="Top model"
           value={<span className="text-[18px]">{topModel ? modelLabel(topModel.model) : "—"}</span>}
           hint={
             topModel
-              ? `$${topModel.spentUsd.toFixed(2)} · 호출 ${fmtNum(topModel.callCount)}회`
-              : "아직 사용 기록 없음"
+              ? `$${topModel.spentUsd.toFixed(2)} · ${fmtNum(topModel.callCount)} calls`
+              : "No usage yet"
           }
           tone={topModel ? "brand" : "muted"}
         />
@@ -246,29 +246,29 @@ export default async function UsagePage() {
       {/* ── per-agent breakdown ───────────────────────────────────────── */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>역할별 비용</CardTitle>
+          <CardTitle>Cost by role</CardTitle>
           <span className="text-[11px] text-ink-3">
-            최근 30일{topAgent ? ` · 1위 ${agentKo(topAgent.agent)}` : ""}
+            Last 30 days{topAgent ? ` · top ${agentKo(topAgent.agent)}` : ""}
           </span>
         </CardHeader>
         <CardBody className="pt-1">
           {data.byAgent.length === 0 ? (
             <EmptyState
               icon="◷"
-              title="아직 에이전트 비용 기록이 없습니다."
-              hint="캠페인이 돌기 시작하면 역할별 사용량이 여기 쌓입니다."
+              title="No agent cost records yet."
+              hint="Once campaigns start running, role-level usage will appear here."
             />
           ) : (
             <table className="w-full text-[13px]">
               <thead className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3 border-b border-line">
                 <tr>
-                  <th className="text-left px-2 py-2.5 font-semibold">에이전트</th>
-                  <th className="text-left px-2 py-2.5 font-semibold">모델</th>
-                  <th className="text-right px-2 py-2.5 font-semibold">호출</th>
-                  <th className="text-right px-2 py-2.5 font-semibold">입력 토큰</th>
-                  <th className="text-right px-2 py-2.5 font-semibold">출력 토큰</th>
-                  <th className="text-right px-2 py-2.5 font-semibold">집행</th>
-                  <th className="text-right px-2 py-2.5 font-semibold">호출당</th>
+                  <th className="text-left px-2 py-2.5 font-semibold">Agent</th>
+                  <th className="text-left px-2 py-2.5 font-semibold">Model</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">Calls</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">Input tokens</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">Output tokens</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">Spend</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">Per call</th>
                 </tr>
               </thead>
               <tbody>
@@ -296,26 +296,26 @@ export default async function UsagePage() {
       {/* ── per-campaign breakdown ────────────────────────────────────── */}
       <Card>
         <CardHeader>
-          <CardTitle>캠페인별 효율</CardTitle>
-          <span className="text-[11px] text-ink-3">검증 게시물당 비용</span>
+          <CardTitle>Efficiency by campaign</CardTitle>
+          <span className="text-[11px] text-ink-3">Cost per verified post</span>
         </CardHeader>
         <CardBody className="pt-1">
           {data.byCampaign.length === 0 ? (
             <EmptyState
               icon="◎"
-              title="아직 캠페인이 없습니다."
-              hint="브리프를 채우면 에이전트가 소싱부터 시작하고, 비용이 캠페인별로 집계됩니다."
+              title="No campaigns yet."
+              hint="Fill in a brief and agents will start sourcing; cost will roll up by campaign."
             />
           ) : (
             <table className="w-full text-[13px]">
               <thead className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3 border-b border-line">
                 <tr>
-                  <th className="text-left px-2 py-2.5 font-semibold">캠페인</th>
-                  <th className="text-right px-2 py-2.5 font-semibold">크리에이터</th>
-                  <th className="text-right px-2 py-2.5 font-semibold">검증</th>
-                  <th className="text-right px-2 py-2.5 font-semibold">집행</th>
-                  <th className="text-right px-2 py-2.5 font-semibold">검증당</th>
-                  <th className="text-right px-2 py-2.5 font-semibold">예산 대비</th>
+                  <th className="text-left px-2 py-2.5 font-semibold">Campaign</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">Creators</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">Verified</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">Spend</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">Per verified</th>
+                  <th className="text-right px-2 py-2.5 font-semibold">Vs budget</th>
                 </tr>
               </thead>
               <tbody>
@@ -334,7 +334,7 @@ export default async function UsagePage() {
                               {c.name}
                             </span>
                             <span className="block text-[11px] text-ink-3 truncate">
-                              {c.category} · 크리에이터 {c.trackCount}명
+                              {c.category} · {c.trackCount} creators
                             </span>
                           </span>
                         </Link>
@@ -359,7 +359,7 @@ export default async function UsagePage() {
                             {Math.round(budgetPctC * 100)}%
                           </StatusTag>
                         ) : (
-                          <span className="text-[12px] text-ink-3">예산 미설정</span>
+                          <span className="text-[12px] text-ink-3">No budget set</span>
                         )}
                       </td>
                     </tr>

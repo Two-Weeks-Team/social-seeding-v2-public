@@ -5,7 +5,7 @@ import { cn } from "@/lib/cn";
  * Agent status strip — research-grounded (Refero: Rox "Revenue Agents" status
  * rows / activity). A calm cockpit line showing what the fleet is doing right
  * now, computed from real data. Each stat is a dot + number + label; the two
- * "needs me" stats (답장 대기 / 승인 대기) are warn-toned and link to their surface.
+ * "needs me" stats (awaiting reply / pending approval) are warn-toned and link to their surface.
  */
 interface Stat {
   label: string;
@@ -34,10 +34,10 @@ export function AgentStatusStrip({
   completed: number;
 }) {
   const stats: Stat[] = [
-    { label: "운영 중", value: running, tone: "run", pulse: running > 0 },
-    { label: "답장 대기", value: awaitingReply, tone: awaitingReply > 0 ? "warn" : "neutral", href: "/threads?tab=needs-reply" },
-    { label: "승인 대기", value: pendingApprovals, tone: pendingApprovals > 0 ? "warn" : "neutral", href: "/approvals" },
-    { label: "완료", value: completed, tone: "neutral" },
+    { label: "Running", value: running, tone: "run", pulse: running > 0 },
+    { label: "Awaiting reply", value: awaitingReply, tone: awaitingReply > 0 ? "warn" : "neutral", href: "/threads?tab=needs-reply" },
+    { label: "Pending approval", value: pendingApprovals, tone: pendingApprovals > 0 ? "warn" : "neutral", href: "/approvals" },
+    { label: "Complete", value: completed, tone: "neutral" },
   ];
 
   return (
@@ -47,7 +47,7 @@ export function AgentStatusStrip({
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-ok opacity-60" />
           <span className="relative inline-flex rounded-full h-2 w-2 bg-ok" />
         </span>
-        <span className="text-[11px] uppercase tracking-[0.08em] text-ink-3">에이전트 현황</span>
+        <span className="text-[11px] uppercase tracking-[0.08em] text-ink-3">Agent status</span>
       </div>
       <div className="flex flex-wrap items-center gap-x-7 gap-y-2.5">
         {stats.map((s) => {

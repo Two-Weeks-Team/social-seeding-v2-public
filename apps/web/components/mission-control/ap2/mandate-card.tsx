@@ -11,8 +11,8 @@
  *
  * AP2-UX.md §3.1 columns:
  *   1. ⚖️ AP2-INTENT badge (brand-tinted; distinguishes from outreach/shipment)
- *   2. Campaign ref — human name (or "캠페인 ·1234" fallback), links to drill-in
- *   3. One-line description (creator_payout · 7명)
+ *   2. Campaign ref — human name (or "Campaign ·1234" fallback), links to drill-in
+ *   3. One-line description (creator_payout · 7)
  *   4. Total amount — locale formatted
  *   5. Wait time — minutes since Intent was created; turns rose after 30 min
  *   6. Payment partner badge with `⚠` if non-AP2-native
@@ -82,8 +82,8 @@ export function MandateCard({
   const waitTone =
     waitMinutes >= 30 ? "rose" : waitMinutes >= 10 ? "amber" : "slate";
   // Human campaign ref — never the raw camp_ token. Use the campaign name when
-  // present; otherwise a short "캠페인 ·{last4}" reference (mirrors creatorLabel).
-  const campaignRef = campaignName?.trim() || `캠페인 ·${campaignId.slice(-4)}`;
+  // present; otherwise a short "Campaign ·{last4}" reference (mirrors creatorLabel).
+  const campaignRef = campaignName?.trim() || `Campaign ·${campaignId.slice(-4)}`;
 
   return (
     <div
@@ -97,7 +97,7 @@ export function MandateCard({
           aria-label={
             bulkDisabled && bulkDisabledReason
               ? `${campaignRef} — ${bulkDisabledReason}`
-              : `${campaignRef} — 일괄 서명 선택`
+              : `${campaignRef} — select for bulk signing`
           }
           checked={bulkChecked}
           disabled={bulkDisabled}
@@ -134,7 +134,7 @@ export function MandateCard({
       <Badge variant={waitTone}>
         <span className="mono">
           {waitMinutes}
-          {locale === "ko" ? "분" : locale === "ja" ? "分" : locale === "zh" ? "分" : "m"}
+          {locale === "en" ? "m" : t("wait_unit_minute")}
         </span>{" "}
         {t("wait_label")}
       </Badge>
@@ -144,7 +144,7 @@ export function MandateCard({
       <Link
         href={`/approvals/${approvalId}`}
         className="text-ink-3 hover:text-brand-ink px-2 py-1"
-        aria-label={`${campaignRef} 승인 열기`}
+        aria-label={`Open approval for ${campaignRef}`}
       >
         →
       </Link>

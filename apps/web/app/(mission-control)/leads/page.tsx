@@ -11,9 +11,9 @@ import { getServerSession } from "@/lib/auth";
 import { leadCampaignRepo, leadRepo } from "@ss/db";
 
 /**
- * /leads — B2B 리드 캠페인 목록 (C2 redesign). Mirrors /campaigns: scannable
+ * /leads — B2B lead campaign list (C2 redesign). Mirrors /campaigns: scannable
  * card-rows for each lead-campaign + a recent-leads panel. Reads only —
- * 워크플로우와 자동화가 모든 쓰기를 담당합니다.
+ * workflows and automation own all writes.
  */
 
 export default async function LeadsPage() {
@@ -29,20 +29,20 @@ export default async function LeadsPage() {
     <div className="max-w-6xl mx-auto px-8 py-8">
       <header className="mb-5 flex items-start justify-between gap-5">
         <div>
-          <h1 className="text-[24px] font-bold tracking-[-0.01em]">리드 · B2B</h1>
+          <h1 className="text-[24px] font-bold tracking-[-0.01em]">Leads · B2B</h1>
           <p className="mt-1 text-[13.5px] text-ink-2 max-w-[560px]">
-            제안하고 싶은 회사 목록을 올리면 에이전트가 각 회사를 조사하고, 제안 포인트를 정리한 뒤 콜드메일까지 보냅니다.
+            Upload companies you want to pitch; agents research each company, prepare angles, and send cold email.
           </p>
         </div>
-        <Link href="/leads/new"><Button variant="primary">＋ 새 리드 캠페인</Button></Link>
+        <Link href="/leads/new"><Button variant="primary">＋ New lead campaign</Button></Link>
       </header>
 
       {campaigns.length === 0 ? (
         <EmptyState
           icon="◎"
-          title="아직 리드 캠페인이 없습니다."
-          hint="제안할 회사 목록을 붙여넣으면 에이전트가 회사 조사부터 콜드메일까지 알아서 진행합니다."
-          action={<Link href="/leads/new"><Button variant="primary">＋ 새 리드 캠페인</Button></Link>}
+          title="No lead campaigns yet."
+          hint="Paste the companies you want to pitch and agents will handle company research through cold email."
+          action={<Link href="/leads/new"><Button variant="primary">＋ New lead campaign</Button></Link>}
         />
       ) : (
         <div className="flex flex-col gap-2.5 mb-7">
@@ -57,26 +57,26 @@ export default async function LeadsPage() {
                 <div className="min-w-0">
                   <div className="text-[15px] font-bold text-ink truncate">{c.brief.name}</div>
                   <div className="text-[12px] text-ink-3 mt-0.5 truncate">
-                    제안 제품 · {c.brief.ourProduct.name}
+                    Offer product · {c.brief.ourProduct.name}
                   </div>
                 </div>
                 <div>
                   <StatusTag tone={st.tone}>{st.label}</StatusTag>
                 </div>
                 <div>
-                  <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">현재 단계</div>
+                  <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">Current stage</div>
                   <div className="text-[13px] text-ink-2 mt-0.5">
                     <span className="font-bold text-ink">{leadCampaignStageWithNumber(c.stage)}</span>
                   </div>
                 </div>
                 <div>
-                  <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">회사</div>
+                  <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">Companies</div>
                   <div className="text-[13px] text-ink-2 mt-0.5 mono">
-                    {c.leadIds.length > 0 ? `${c.leadIds.length}곳` : "등록 전"}
+                    {c.leadIds.length > 0 ? `${c.leadIds.length} companies` : "Not imported"}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">활동</div>
+                  <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">Activity</div>
                   <div className="text-[13px] text-ink-2 mt-0.5 mono">{fmtAgo(c.updatedAt)}</div>
                 </div>
               </Link>
@@ -88,12 +88,12 @@ export default async function LeadsPage() {
       {/* ── recent leads (across all campaigns) ───────────────────────── */}
       <Card>
         <CardHeader>
-          <CardTitle>최근 리드</CardTitle>
-          <span className="text-[11px] text-ink-3 mono">{recentLeads.length}곳</span>
+          <CardTitle>Recent leads</CardTitle>
+          <span className="text-[11px] text-ink-3 mono">{recentLeads.length} companies</span>
         </CardHeader>
         <CardBody className="pt-1.5">
           {recentLeads.length === 0 ? (
-            <div className="text-[12.5px] text-ink-3 py-4">아직 등록된 회사가 없습니다.</div>
+            <div className="text-[12.5px] text-ink-3 py-4">No companies imported yet.</div>
           ) : (
             <div className="space-y-0.5">
               {recentLeads.map((l) => {

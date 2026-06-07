@@ -22,7 +22,7 @@ import { gateKo } from "@/lib/labels";
  *                           + proposedRateUsdGte.
  *   · approveShipment     — before logistics agent + carrier handoff.
  *                           Predicate: followerCountGte.
- *   · approveStageAdvance — still disabled (곧).
+ *   · approveStageAdvance — still disabled (coming soon).
  *
  * Save is a server action — no client JS. Changes affect new campaigns only;
  * in-flight runs read the policy snapshot taken at workflow.start (the
@@ -40,30 +40,30 @@ const REPLY_CLASS_OPTIONS = [
   "unrelated",
 ] as const;
 
-/** Reply-classification → operator Korean. Form value stays the enum string. */
+/** Reply-classification → operator label. Form value stays the enum string. */
 const REPLY_CLASS_KO: Record<(typeof REPLY_CLASS_OPTIONS)[number], string> = {
-  interested: "관심 있음",
-  needs_info: "정보 요청",
-  negotiating: "협상 중",
-  not_now: "지금은 아님",
-  declined: "거절",
-  out_of_office: "부재중 자동응답",
-  unsubscribe: "수신 거부",
-  unrelated: "무관한 회신",
+  interested: "Interested",
+  needs_info: "Needs info",
+  negotiating: "Negotiating",
+  not_now: "Not now",
+  declined: "Declined",
+  out_of_office: "Out of office auto-reply",
+  unsubscribe: "Unsubscribe",
+  unrelated: "Unrelated reply",
 };
 
-/** Autonomy level → operator Korean (the form `level` value stays the enum). */
+/** Autonomy level → operator label (the form `level` value stays the enum). */
 const LEVEL_KO: Record<WorkspacePolicy["level"], string> = {
-  copilot: "코파일럿",
-  checkpointed: "체크포인트",
-  autonomous: "자율 운영",
+  copilot: "Copilot",
+  checkpointed: "Checkpointed",
+  autonomous: "Autonomous",
 };
 
-/** Gate-mode → operator Korean (the radio value stays the enum). */
+/** Gate-mode → operator label (the radio value stays the enum). */
 const MODE_KO: Record<GateConfig["mode"], string> = {
-  always_ask: "항상 확인",
-  auto: "자동 진행",
-  auto_unless: "조건부 자동",
+  always_ask: "Always ask",
+  auto: "Auto",
+  auto_unless: "Auto unless",
 };
 
 async function savePolicyAction(formData: FormData): Promise<void> {
@@ -155,9 +155,9 @@ async function savePolicyAction(formData: FormData): Promise<void> {
 }
 
 const LEVEL_DESCRIPTIONS: Record<WorkspacePolicy["level"], string> = {
-  copilot: "에이전트가 제안만, 모든 액션은 사람이 확인",
-  checkpointed: "에이전트가 실행하되 각 단계에 승인 게이트 (기본)",
-  autonomous: "예외 시에만 사람에게 넘김 · 신뢰가 쌓인 후",
+  copilot: "Agents only suggest; humans confirm every action",
+  checkpointed: "Agents execute with approval gates at each stage (default)",
+  autonomous: "Escalate only exceptions after trust is established",
 };
 
 /**
@@ -219,7 +219,7 @@ async function applyPresetAction(formData: FormData): Promise<void> {
 }
 
 /**
- * Tri-state mode toggle for a gate (항상 확인 / 자동 진행 / 조건부 자동).
+ * Tri-state mode toggle for a gate (always ask / auto / auto unless).
  * Pure presentational segmented control — radio `name` is scoped via the
  * `gateKey` to match the savePolicyAction schema keys exactly.
  */
@@ -274,7 +274,7 @@ async function toggleV2RolloutAction(formData: FormData): Promise<void> {
 const FIELD =
   "mono bg-surface border border-line rounded-xl px-3 py-1.5 text-[13px] text-ink outline-none focus:border-brand-ink/40 tnum";
 
-/** One labelled threshold row: human Korean label + comparator + number field. */
+/** One labelled threshold row: human label + comparator + number field. */
 function Threshold({
   label,
   hint,
@@ -318,37 +318,37 @@ export default async function PoliciesPage() {
   return (
     <div className="max-w-3xl mx-auto px-8 py-8">
       <header className="mb-6">
-        <h1 className="text-[24px] font-bold tracking-[-0.01em] text-ink">자율성 정책</h1>
+        <h1 className="text-[24px] font-bold tracking-[-0.01em] text-ink">Autonomy policy</h1>
         <p className="mt-1 text-[13.5px] text-ink-2 leading-relaxed">
-          에이전트에게 어디까지 맡길지 정합니다. 변경 사항은 새 캠페인부터 적용됩니다 (진행 중 캠페인은 영향 없음).
+          Decide how much agents can handle. Changes apply to new campaigns only and do not affect campaigns already in progress.
         </p>
       </header>
 
-      {/* 활성 버전 전환 — writes the rollout flag on the shared workspace doc.
+      {/* Active version switch — writes the rollout flag on the shared workspace doc.
           Sibling card (not nested in the save form). */}
       <Card className="mb-5">
         <CardBody>
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <SectionLabel>활성 버전 전환</SectionLabel>
+                <SectionLabel>Active version switch</SectionLabel>
                 <StatusTag tone={v2Enabled ? "ok" : "neutral"} size="sm">
-                  {v2Enabled ? "새 버전 사용 중" : "이전 버전 사용 중"}
+                  {v2Enabled ? "New version active" : "Legacy version active"}
                 </StatusTag>
               </div>
               <div className="mt-1.5 text-[12.5px] text-ink-2 leading-relaxed">
-                이 워크스페이스 사용자를 새 운영 화면으로 안내할지 결정합니다.
+                Decide whether workspace users should land on the new operations screen.
               </div>
             </div>
             {canRollout ? (
               <form action={toggleV2RolloutAction}>
                 <input type="hidden" name="enable" value={v2Enabled ? "false" : "true"} />
                 <Button variant="secondary" tone={v2Enabled ? "warn" : "approve"}>
-                  {v2Enabled ? "← 이전 버전으로" : "→ 새 버전으로 전환"}
+                  {v2Enabled ? "← Switch to legacy" : "→ Switch to new version"}
                 </Button>
               </form>
             ) : (
-              <span className="text-[11px] text-ink-3 whitespace-nowrap">관리자만 변경 가능</span>
+              <span className="text-[11px] text-ink-3 whitespace-nowrap">Admins only</span>
             )}
           </div>
         </CardBody>
@@ -364,13 +364,13 @@ export default async function PoliciesPage() {
         <CardBody>
           <div className="flex items-start justify-between gap-4 mb-3">
             <div className="min-w-0">
-              <SectionLabel className="mb-1">원클릭 프리셋</SectionLabel>
+              <SectionLabel className="mb-1">One-click presets</SectionLabel>
               <div className="text-[12.5px] text-ink-2 leading-relaxed">
-                레벨을 누르면 5개 게이트가 일괄로 그 레벨에 맞게 세팅됩니다. 개별 게이트는 아래에서 다시 조정할 수 있습니다.
+                Pick a level to update all gates at once. You can still tune individual gates below.
               </div>
             </div>
             <span className="text-[11px] text-ink-3 whitespace-nowrap">
-              현재 <span className="font-semibold text-ink-2">{LEVEL_KO[policy.level]}</span>
+              Current <span className="font-semibold text-ink-2">{LEVEL_KO[policy.level]}</span>
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -381,7 +381,7 @@ export default async function PoliciesPage() {
                   variant="secondary"
                   tone={lvl === "autonomous" ? "approve" : lvl === "copilot" ? "warn" : "neutral"}
                 >
-                  {LEVEL_KO[lvl]} 적용
+                  Apply {LEVEL_KO[lvl]}
                 </Button>
               </form>
             ))}
@@ -394,8 +394,8 @@ export default async function PoliciesPage() {
               preset buttons above) ──────────────────────────────────────── */}
         <Card>
           <CardHeader>
-            <CardTitle>자율 수준</CardTitle>
-            <span className="text-[11px] text-ink-3">저장 시 적용</span>
+            <CardTitle>Autonomy level</CardTitle>
+            <span className="text-[11px] text-ink-3">Applied on save</span>
           </CardHeader>
           <CardBody>
             <div className="grid grid-cols-3 gap-3">
@@ -420,7 +420,7 @@ export default async function PoliciesPage() {
                     <div className="flex items-center gap-2">
                       <span className="text-[14px] font-bold text-ink">{LEVEL_KO[lvl]}</span>
                       {lvl === "checkpointed" && (
-                        <span className="text-[10px] uppercase tracking-[0.06em] text-brand-ink font-semibold">기본</span>
+                        <span className="text-[10px] uppercase tracking-[0.06em] text-brand-ink font-semibold">Default</span>
                       )}
                     </div>
                     <div className="mt-1.5 text-[11.5px] text-ink-2 leading-relaxed">
@@ -436,8 +436,8 @@ export default async function PoliciesPage() {
         {/* ── Gates ───────────────────────────────────────────────────── */}
         <Card>
           <CardHeader>
-            <CardTitle>게이트별 동작</CardTitle>
-            <CardSubtitle>각 단계에서 사람 확인을 어떻게 받을지</CardSubtitle>
+            <CardTitle>Gate behavior</CardTitle>
+            <CardSubtitle>How human confirmation is requested at each stage</CardSubtitle>
           </CardHeader>
           <CardBody className="space-y-3">
             {/* approveShortlist */}
@@ -446,14 +446,14 @@ export default async function PoliciesPage() {
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
                     <div className="text-[14px] font-bold text-ink">{gateKo("approveShortlist")}</div>
-                    <div className="text-[12px] text-ink-3 mt-0.5">소싱·검증이 끝나고 후보 리스트를 확정하기 전</div>
+                    <div className="text-[12px] text-ink-3 mt-0.5">After sourcing and vetting, before the candidate list is finalized</div>
                   </div>
                   <ModeToggle gateKey="approveShortlist" current={sl.mode} />
                 </div>
                 <Threshold
-                  label="적합도가 낮으면 사람에게 확인"
-                  hint="조건부 자동일 때, 적합도 점수가 아래 값보다 낮으면 사람에게 묻습니다."
-                  comparator="아래 미만이면 확인 <"
+                  label="Ask a human when fit is low"
+                  hint="In auto-unless mode, ask a human when the fit score is below this value."
+                  comparator="Ask when below <"
                 >
                   <input
                     type="number"
@@ -474,15 +474,15 @@ export default async function PoliciesPage() {
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
                     <div className="text-[14px] font-bold text-ink">{gateKo("approveOutreachSend")}</div>
-                    <div className="text-[12px] text-ink-3 mt-0.5">크리에이터에게 첫 아웃리치 메일을 보내기 직전</div>
+                    <div className="text-[12px] text-ink-3 mt-0.5">Right before the first outreach email is sent to a creator</div>
                   </div>
                   <ModeToggle gateKey="approveOutreachSend" current={os.mode} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <Threshold
-                    label="스팸 위험이 높으면 확인"
-                    hint="메일 스팸 점수가 이 값 이상이면 사람에게 넘깁니다."
-                    comparator="이상이면 확인 ≥"
+                    label="Ask when spam risk is high"
+                    hint="Escalate to a human when the email spam score is at or above this value."
+                    comparator="Ask when at least ≥"
                   >
                     <input
                       type="number"
@@ -495,9 +495,9 @@ export default async function PoliciesPage() {
                     />
                   </Threshold>
                   <Threshold
-                    label="대형 인플루언서는 확인"
-                    hint="팔로워 수가 이 값 이상이면 사람이 직접 검토합니다."
-                    comparator="명 이상이면 확인 ≥"
+                    label="Ask for major influencers"
+                    hint="A human reviews creators whose follower count is at or above this value."
+                    comparator="Followers at least ≥"
                   >
                     <input
                       type="number"
@@ -519,17 +519,17 @@ export default async function PoliciesPage() {
                   <div>
                     <div className="text-[14px] font-bold text-ink">{gateKo("approveReplyResponse")}</div>
                     <div className="text-[12px] text-ink-3 mt-0.5">
-                      회신을 자동으로 보내기 전 · 협상·거절로 분류된 회신은 사람에게 넘김
+                      Before sending an automatic reply · negotiating or declined replies are escalated to a human
                     </div>
                   </div>
                   <ModeToggle gateKey="approveReplyResponse" current={rr.mode} />
                 </div>
                 <div className="space-y-4">
                   <Threshold
-                    label="제안 단가가 높으면 확인"
-                    hint="크리에이터가 제안한 단가가 이 금액 이상이면 사람이 확인합니다."
+                    label="Ask when the proposed rate is high"
+                    hint="A human reviews creator-proposed rates at or above this amount."
                     prefix="$"
-                    comparator="이상이면 확인 ≥"
+                    comparator="Ask when at least ≥"
                   >
                     <input
                       type="number"
@@ -541,8 +541,8 @@ export default async function PoliciesPage() {
                     />
                   </Threshold>
                   <div>
-                    <div className="text-[12px] text-ink-2 font-medium">항상 사람이 검토할 회신 종류</div>
-                    <div className="text-[11px] text-ink-3 mt-0.5 leading-relaxed">선택한 종류로 분류된 회신은 자동 응답하지 않고 사람에게 넘깁니다.</div>
+                    <div className="text-[12px] text-ink-2 font-medium">Reply types humans always review</div>
+                    <div className="text-[11px] text-ink-3 mt-0.5 leading-relaxed">Replies classified as selected types are escalated instead of auto-answered.</div>
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {REPLY_CLASS_OPTIONS.map((cls) => {
                         const checked = (rr.escalateIf?.replyClassIn ?? ["negotiating", "declined", "unsubscribe"]).includes(cls);
@@ -575,15 +575,15 @@ export default async function PoliciesPage() {
                   <div>
                     <div className="text-[14px] font-bold text-ink">{gateKo("approveShipment")}</div>
                     <div className="text-[12px] text-ink-3 mt-0.5">
-                      창고 픽업 직전 — 배송 처리 전에 사람이 주소·품목을 확인
+                      Right before warehouse pickup — a human checks the address and items before shipment
                     </div>
                   </div>
                   <ModeToggle gateKey="approveShipment" current={sh.mode} />
                 </div>
                 <Threshold
-                  label="대형 인플루언서·고가 샘플은 확인"
-                  hint="팔로워 수가 이 값 이상이면 사람이 발송 전에 확인합니다."
-                  comparator="명 이상이면 확인 ≥"
+                  label="Ask for major influencers or high-value samples"
+                  hint="A human reviews shipment before sending when follower count is at or above this value."
+                  comparator="Followers at least ≥"
                 >
                   <input
                     type="number"
@@ -597,10 +597,10 @@ export default async function PoliciesPage() {
               </CardBody>
             </Card>
 
-            {/* Disabled gate — coming soon (곧) */}
+            {/* Disabled gate — coming soon */}
             <div className="border border-dashed border-line rounded-2xl px-4 py-3 flex justify-between items-center">
               <span className="text-[13px] text-ink-3">{gateKo("approveStageAdvance")}</span>
-              <span className="text-[11px] text-ink-3 bg-surface-2 rounded-full px-2.5 py-0.5 font-medium">곧</span>
+              <span className="text-[11px] text-ink-3 bg-surface-2 rounded-full px-2.5 py-0.5 font-medium">Soon</span>
             </div>
           </CardBody>
         </Card>
@@ -608,14 +608,14 @@ export default async function PoliciesPage() {
         {/* ── Budgets ────────────────────────────────────────────────── */}
         <Card>
           <CardHeader>
-            <CardTitle>예산</CardTitle>
-            <CardSubtitle>한도와 알림</CardSubtitle>
+            <CardTitle>Budget</CardTitle>
+            <CardSubtitle>Limits and alerts</CardSubtitle>
           </CardHeader>
           <CardBody>
             <div className="grid grid-cols-2 gap-4">
               <label className="block">
-                <span className="block text-[13px] font-medium text-ink">캠페인당 최대 비용</span>
-                <span className="block text-[11px] text-ink-3 mt-0.5">한도 초과 시 차단</span>
+                <span className="block text-[13px] font-medium text-ink">Max cost per campaign</span>
+                <span className="block text-[11px] text-ink-3 mt-0.5">Block when the limit is exceeded</span>
                 <div className="mt-1.5 flex items-center gap-2">
                   <span className="text-ink-3 text-[12px]">$</span>
                   <input
@@ -629,8 +629,8 @@ export default async function PoliciesPage() {
                 </div>
               </label>
               <label className="block">
-                <span className="block text-[13px] font-medium text-ink">월별 워크스페이스 최대 비용</span>
-                <span className="block text-[11px] text-ink-3 mt-0.5">알림 임계 (초과 시 안내)</span>
+                <span className="block text-[13px] font-medium text-ink">Monthly workspace max cost</span>
+                <span className="block text-[11px] text-ink-3 mt-0.5">Alert threshold when exceeded</span>
                 <div className="mt-1.5 flex items-center gap-2">
                   <span className="text-ink-3 text-[12px]">$</span>
                   <input
@@ -650,27 +650,27 @@ export default async function PoliciesPage() {
         {/* ── Brand voice ────────────────────────────────────────────── */}
         <Card>
           <CardHeader>
-            <CardTitle>브랜드 보이스</CardTitle>
-            <CardSubtitle>아웃리치 작성에 반영됩니다 · 곧</CardSubtitle>
+            <CardTitle>Brand voice</CardTitle>
+            <CardSubtitle>Applied to outreach writing · soon</CardSubtitle>
           </CardHeader>
           <CardBody>
             <label className="block mb-3">
-              <span className="block text-[13px] font-medium text-ink mb-1.5">톤 노트</span>
+              <span className="block text-[13px] font-medium text-ink mb-1.5">Tone notes</span>
               <textarea
                 name="voice.toneNotes"
                 rows={2}
                 defaultValue={policy.voice.toneNotes}
-                placeholder="예: 정중하되 간결. 한국어 존댓말. 자랑 톤 금지. 첫 줄 ≤ 14자."
+                placeholder="Example: polite but concise. Avoid bragging. Keep the first line under 14 characters."
                 className="w-full bg-surface border border-line rounded-xl p-2.5 text-[13px] text-ink placeholder:text-ink-3 outline-none focus:border-brand-ink/40"
               />
             </label>
             <label className="block">
-              <span className="block text-[13px] font-medium text-ink mb-1.5">금지 표현 <span className="text-ink-3 font-normal">(쉼표로 구분)</span></span>
+              <span className="block text-[13px] font-medium text-ink mb-1.5">Banned phrases <span className="text-ink-3 font-normal">(comma-separated)</span></span>
               <input
                 name="voice.bannedPhrases"
                 type="text"
                 defaultValue={policy.voice.bannedPhrases.join(", ")}
-                placeholder="예: 대박, 갓성비, 인플루언서님"
+                placeholder="Example: unbelievable, miracle deal, dear influencer"
                 className="w-full bg-surface border border-line rounded-xl p-2.5 text-[13px] text-ink placeholder:text-ink-3 outline-none focus:border-brand-ink/40"
               />
             </label>
@@ -678,8 +678,8 @@ export default async function PoliciesPage() {
         </Card>
 
         <div className="flex justify-end gap-2">
-          <Button type="reset" variant="ghost">되돌리기</Button>
-          <Button type="submit" variant="primary">정책 저장</Button>
+          <Button type="reset" variant="ghost">Reset</Button>
+          <Button type="submit" variant="primary">Save policy</Button>
         </div>
       </form>
     </div>

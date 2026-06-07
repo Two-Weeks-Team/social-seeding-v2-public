@@ -14,31 +14,31 @@ import { getServerSession } from "@/lib/auth";
  */
 
 const LOOP = [
-  { ko: "소싱", en: "source" },
-  { ko: "심사", en: "vet" },
-  { ko: "발송", en: "outreach" },
-  { ko: "답장", en: "reply" },
-  { ko: "배송", en: "ship" },
-  { ko: "검증", en: "verify" },
-  { ko: "리포트", en: "report" },
+  { ko: "Source", en: "source" },
+  { ko: "Vet", en: "vet" },
+  { ko: "Outreach", en: "outreach" },
+  { ko: "Reply", en: "reply" },
+  { ko: "Ship", en: "ship" },
+  { ko: "Verify", en: "verify" },
+  { ko: "Report", en: "report" },
 ] as const;
 
 const CREDS = [
   {
-    title: "클라우드 배포",
-    body: "코디네이터와 22개 에이전트 fleet가 Google Cloud에서 실제로 실행됩니다.",
+    title: "Cloud deployment",
+    body: "The coordinator and 22-agent fleet run on Google Cloud.",
   },
   {
-    title: "실데이터 연동",
-    body: "실제 TikTok 크리에이터 소싱과 실제 이메일 아웃리치 발송으로 검증됩니다.",
+    title: "Live-data integrations",
+    body: "Validated with real TikTok creator sourcing and real email outreach.",
   },
   {
-    title: "멀티에이전트 협업",
-    body: "워크플로가 에이전트 간 메시지를 조율해 캠페인 루프를 함께 굴립니다.",
+    title: "Multi-agent coordination",
+    body: "The workflow coordinates agent-to-agent messages through the full campaign loop.",
   },
   {
-    title: "Gemini 기반 판단",
-    body: "판단과 조율은 고성능 모델, 대량 처리는 경량 모델로 분리해 운영합니다.",
+    title: "Gemini-backed judgment",
+    body: "High-value judgment runs on stronger models; high-volume work runs on lighter models.",
   },
 ] as const;
 
@@ -63,30 +63,30 @@ export default async function RootPage(): Promise<React.ReactNode> {
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-6 pt-16 pb-14 sm:pt-24 sm:pb-20">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-ok-bg px-2.5 py-1 text-[11px] font-semibold text-ok">
-          <span className="w-1.5 h-1.5 rounded-full bg-ok" aria-hidden /> Google Cloud에서 운영 중
+          <span className="w-1.5 h-1.5 rounded-full bg-ok" aria-hidden /> Running on Google Cloud
         </span>
 
         <h1 className="mt-6 text-[32px] sm:text-[46px] leading-[1.14] font-bold tracking-[-0.02em] text-ink">
-          에이전트가 캠페인을 직접 운영합니다.
+          Agents run the campaign loop.
           <br />
-          <span className="text-brand-ink">브리프만 주면 됩니다.</span>
+          <span className="text-brand-ink">You only provide the brief.</span>
         </h1>
 
         <p className="mt-5 max-w-2xl text-[15px] sm:text-[16px] leading-relaxed text-ink-2">
-          소싱 · 심사 · 발송 · 답장 · 배송 · 검증 · 리포트 — 22개 에이전트 fleet가 TikTok 인플루언서
-          캠페인 루프를 자율로 실행합니다. 사람은 직접 켜둔 정책 게이트에서만 개입합니다.
+          Sourcing, vetting, outreach, replies, shipping, verification, and reporting are handled by a
+          22-agent fleet for TikTok influencer campaigns. People step in only at policy gates they enable.
         </p>
 
         <div className="mt-8 flex flex-col sm:flex-row sm:items-center gap-3">
           <GoogleButton href={googleLoginHref()} size="lg" />
-          <span className="text-[12px] text-ink-3">Google 계정으로 로그인 · 워크스페이스 단위 권한</span>
+          <span className="text-[12px] text-ink-3">Sign in with Google · Workspace-scoped access</span>
         </div>
       </section>
 
       {/* The loop */}
       <section className="border-y border-line bg-surface">
         <div className="max-w-5xl mx-auto px-6 py-10">
-          <div className="text-[10px] uppercase tracking-[0.06em] text-ink-3 font-semibold">운영 루프</div>
+          <div className="text-[10px] uppercase tracking-[0.06em] text-ink-3 font-semibold">Operating loop</div>
           <ol className="mt-4 flex items-center gap-2 overflow-x-auto pb-2 -mx-6 px-6 sm:mx-0 sm:px-0 sm:flex-wrap">
             {LOOP.map((s, i) => (
               <li key={s.en} className="flex items-center gap-2 shrink-0">
@@ -99,7 +99,7 @@ export default async function RootPage(): Promise<React.ReactNode> {
                     →
                   </span>
                 ) : (
-                  <span aria-hidden className="ml-1 text-brand-ink/50 text-[13px] select-none" title="다시 소싱으로">
+                  <span aria-hidden className="ml-1 text-brand-ink/50 text-[13px] select-none" title="Back to sourcing">
                     ↺
                   </span>
                 )}
@@ -107,8 +107,8 @@ export default async function RootPage(): Promise<React.ReactNode> {
             ))}
           </ol>
           <p className="mt-4 text-[12px] text-ink-2">
-            사람이 멈추는 지점: 정책 게이트 — 기본값은{" "}
-            <span className="font-semibold text-ink">항상 확인</span>입니다.
+            Human checkpoints: policy gates. The default is{" "}
+            <span className="font-semibold text-ink">always review</span>.
           </p>
         </div>
       </section>

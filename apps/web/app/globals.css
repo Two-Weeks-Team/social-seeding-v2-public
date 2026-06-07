@@ -8,7 +8,7 @@
  *   ink         espresso black (#1b1813) → ink-2 / ink-3
  *   brand       deep espresso (#2a241c) = primary fill / logo / headline numerals
  *   brand-soft  champagne (#f1e8d2) + brand-ink bronze-gold (#8a6c2e) = chips / accents
- *   status      ok(달성) run(진행) warn(주의) stop(미달·응답없음) — color + text + dot, never color alone
+ *   status      ok(achieved) run(active) warn(caution) stop(missed/no response) — color + text + dot, never color alone
  *   shadows     soft, warm · gradients banned · motion 120-200ms ease
  *
  * Registered via Tailwind v4 @theme so semantic utilities exist:

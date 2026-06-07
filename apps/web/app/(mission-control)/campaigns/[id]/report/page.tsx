@@ -19,7 +19,7 @@ import { fmtNum } from "@/lib/format";
  * (highlights / concerns / recommendations), the markdown narrative, and a
  * history list of past deliveries.
  *
- * "재생성" emits a report-deliver request; the page revalidates as the report
+ * "Regenerate" emits a report-deliver request; the page revalidates as the report
  * completes. The share link copies a public, token-gated URL.
  *
  * Presentation only — the server action + data fetching are preserved verbatim.
@@ -57,7 +57,7 @@ async function generateReportAction(formData: FormData): Promise<void> {
       narrative: buildDeterministicNarrative(analytics),
       shareToken: "",
       analystCostUsd: 0,
-      notes: "자동 집계 요약 (LLM 미사용)",
+      notes: "Automatic aggregate summary (no LLM)",
       generatedAt: new Date(),
     });
     revalidatePath(`/campaigns/${campaignId}/report`);
@@ -87,41 +87,41 @@ function buildDeterministicNarrative(a: AnalyticsReport): ReportNarrative {
 
   const summary =
     a.goals.verifiedCount > 0
-      ? `${a.brief.name} 캠페인은 검증 게시물 ${a.goals.verifiedCount}건${pct !== null ? ` (목표 대비 ${pct}%)` : ""}, 총 도달 ${fmtNum(views)}회${er ? ` · 평균 참여율 ${er}%` : ""}를 기록했습니다.`
-      : `${a.brief.name} 캠페인은 검증된 게시물이 없어 목표를 달성하지 못했습니다. 아웃리치 단계에서 응답이 부족했던 것이 주요 원인입니다.`;
+      ? `${a.brief.name} recorded ${a.goals.verifiedCount} verified posts${pct !== null ? ` (${pct}% of goal)` : ""}, ${fmtNum(views)} total verified views${er ? `, and ${er}% average engagement` : ""}.`
+      : `${a.brief.name} has no verified posts and did not meet the goal. Low response during outreach is the likely primary cause.`;
 
   const highlights: string[] = [];
-  if (a.goals.goalMet) highlights.push(`목표 ${a.goals.targetLivePosts}건 달성 (검증 ${a.goals.verifiedCount}건).`);
-  if (views > 0) highlights.push(`총 도달 ${fmtNum(views)}회, 참여 합계 ${fmtNum(engagement)}건.`);
-  if (er) highlights.push(`평균 참여율 ${er}%.`);
-  if (top) highlights.push(`최고 성과 게시물 조회수 ${fmtNum(top.views ?? 0)}회.`);
+  if (a.goals.goalMet) highlights.push(`Met the ${a.goals.targetLivePosts}-post goal with ${a.goals.verifiedCount} verified posts.`);
+  if (views > 0) highlights.push(`${fmtNum(views)} total verified views and ${fmtNum(engagement)} total engagements.`);
+  if (er) highlights.push(`${er}% average engagement rate.`);
+  if (top) highlights.push(`Top-performing post reached ${fmtNum(top.views ?? 0)} views.`);
 
   const concerns: string[] = [];
-  if (a.goals.verifiedCount === 0) concerns.push("검증된 게시물이 없습니다.");
-  if (a.flags.includes("low_response_rate")) concerns.push("응답률이 낮습니다.");
-  if (a.flags.includes("high_flake_rate")) concerns.push("게시 이탈률이 높습니다.");
-  if (a.flags.includes("budget_exceeded")) concerns.push("예산을 초과했습니다.");
-  if (a.flags.includes("deadline_missed")) concerns.push("마감일을 넘겼습니다.");
+  if (a.goals.verifiedCount === 0) concerns.push("No verified posts yet.");
+  if (a.flags.includes("low_response_rate")) concerns.push("Response rate is low.");
+  if (a.flags.includes("high_flake_rate")) concerns.push("Post drop-off is high.");
+  if (a.flags.includes("budget_exceeded")) concerns.push("Budget was exceeded.");
+  if (a.flags.includes("deadline_missed")) concerns.push("Deadline was missed.");
 
   const recommendations: string[] = [];
-  if (a.goals.verifiedCount === 0) recommendations.push("타겟 참여율 기준을 낮춰 더 넓은 후보 풀로 재소싱하세요.");
-  else if (a.goals.goalMet) recommendations.push("성과가 높은 크리에이터와 후속 협업을 검토하세요.");
-  else recommendations.push("응답 대기 기간을 늘리거나 추가 아웃리치를 보내세요.");
-  if (recommendations.length === 0) recommendations.push("현 추세를 유지하며 다음 집계에서 재평가하세요.");
+  if (a.goals.verifiedCount === 0) recommendations.push("Lower the target engagement threshold and re-source from a broader candidate pool.");
+  else if (a.goals.goalMet) recommendations.push("Consider follow-up collaborations with the strongest creators.");
+  else recommendations.push("Extend the reply window or send additional outreach.");
+  if (recommendations.length === 0) recommendations.push("Maintain the current trend and reassess at the next rollup.");
 
   const markdown = [
-    `# ${a.brief.name} 성과 리포트`,
+    `# ${a.brief.name} Performance Report`,
     "",
-    "## 요약",
+    "## Summary",
     summary,
     "",
-    "## 핵심 지표",
-    `- 검증 게시물: ${a.goals.verifiedCount} / ${a.goals.targetLivePosts}${pct !== null ? ` (${pct}%)` : ""}`,
-    `- 총 도달: ${fmtNum(views)}회`,
-    `- 평균 참여율: ${er ?? "—"}${er ? "%" : ""}`,
-    `- 집행 비용: $${a.cost.spentUsd.toFixed(2)}`,
+    "## Key Metrics",
+    `- Verified posts: ${a.goals.verifiedCount} / ${a.goals.targetLivePosts}${pct !== null ? ` (${pct}%)` : ""}`,
+    `- Total reach: ${fmtNum(views)} views`,
+    `- Average engagement: ${er ?? "—"}${er ? "%" : ""}`,
+    `- Spend: $${a.cost.spentUsd.toFixed(2)}`,
     "",
-    "## 추천",
+    "## Recommendations",
     ...recommendations.map((r) => `- ${r}`),
   ].join("\n");
 
@@ -204,57 +204,57 @@ function renderMarkdown(md: string): React.ReactElement {
 
 // ── analytics tile strip ────────────────────────────────────────────────────
 function AnalyticsTiles({ a }: { a: AnalyticsReport }) {
-  const pct = a.goals.percentOfGoal !== null ? `목표 대비 ${Math.round(a.goals.percentOfGoal * 100)}%` : "목표 미설정";
+  const pct = a.goals.percentOfGoal !== null ? `${Math.round(a.goals.percentOfGoal * 100)}% of goal` : "No goal set";
   const hasReach = a.reach.verifiedViews > 0;
   const er = a.reach.weightedEngagementRate !== null
     ? `${(a.reach.weightedEngagementRate * 100).toFixed(1)}%`
     : "—";
   const budget = a.cost.percentOfBudget !== null
-    ? `예산 대비 ${Math.round(a.cost.percentOfBudget * 100)}%`
-    : "예산 미설정";
+    ? `${Math.round(a.cost.percentOfBudget * 100)}% of budget`
+    : "No budget set";
   const cppvp = a.cost.costPerVerifiedPost !== null
-    ? `게시물당 $${a.cost.costPerVerifiedPost.toFixed(2)}`
+    ? `$${a.cost.costPerVerifiedPost.toFixed(2)} per post`
     : "—";
   const deadlinePast = a.goals.daysToDeadline < 0;
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">
       <Stat
-        label="목표 / 검증"
+        label="Goal / verified"
         value={a.goals.verifiedCount}
         unit={`/ ${a.goals.targetLivePosts}`}
         hint={pct}
         tone={a.goals.goalMet ? "ok" : "default"}
       />
       <Stat
-        label="총 도달"
+        label="Total reach"
         value={hasReach ? fmtNum(a.reach.verifiedViews) : 0}
-        hint={hasReach ? `참여율 ${er}` : "게시물 없음"}
+        hint={hasReach ? `Engagement ${er}` : "No posts"}
         tone={hasReach ? "default" : "muted"}
       />
       <Stat
-        label="집행 비용"
+        label="Spend"
         value={`$${a.cost.spentUsd.toFixed(2)}`}
         hint={`${budget} · ${cppvp}`}
         tone="brand"
       />
       <Stat
-        label="마감"
-        value={a.goals.daysToDeadline >= 0 ? `+${a.goals.daysToDeadline}일` : `${a.goals.daysToDeadline}일`}
-        hint={`${a.goals.daysToDeadline >= 0 ? "남음" : "경과"} · ${a.brief.deadline.toISOString().slice(0, 10)}`}
+        label="Deadline"
+        value={a.goals.daysToDeadline >= 0 ? `+${a.goals.daysToDeadline}d` : `${a.goals.daysToDeadline}d`}
+        hint={`${a.goals.daysToDeadline >= 0 ? "remaining" : "elapsed"} · ${a.brief.deadline.toISOString().slice(0, 10)}`}
         tone={deadlinePast ? "stop" : "default"}
       />
     </div>
   );
 }
 
-/** ReportFlag → operator Korean label + status tone. */
+/** ReportFlag → operator English label + status tone. */
 const FLAG_KO: Record<string, { label: string; tone: StatusTone }> = {
-  goal_met: { label: "목표 달성", tone: "ok" },
-  budget_exceeded: { label: "예산 초과", tone: "stop" },
-  deadline_missed: { label: "마감 미달", tone: "stop" },
-  low_response_rate: { label: "낮은 응답률", tone: "warn" },
-  high_flake_rate: { label: "높은 이탈률", tone: "warn" },
-  no_verified_yet: { label: "검증 게시물 없음", tone: "warn" },
+  goal_met: { label: "Goal met", tone: "ok" },
+  budget_exceeded: { label: "Budget exceeded", tone: "stop" },
+  deadline_missed: { label: "Deadline missed", tone: "stop" },
+  low_response_rate: { label: "Low response rate", tone: "warn" },
+  high_flake_rate: { label: "High drop-off", tone: "warn" },
+  no_verified_yet: { label: "No verified posts", tone: "warn" },
 };
 function flagKo(flag: string): { label: string; tone: StatusTone } {
   return FLAG_KO[flag] ?? { label: flag.replace(/_/g, " "), tone: "warn" };
@@ -262,9 +262,9 @@ function flagKo(flag: string): { label: string; tone: StatusTone } {
 
 function triggerLabel(t: Report["trigger"]): string {
   switch (t) {
-    case "cron": return "자동 주간 집계";
-    case "stage_transition": return "캠페인 종료 집계";
-    case "manual": return "직접 생성";
+    case "cron": return "Automatic weekly rollup";
+    case "stage_transition": return "Campaign-close rollup";
+    case "manual": return "Manual";
   }
 }
 
@@ -295,11 +295,11 @@ export default async function CampaignReportPage({
         </Link>
         <div className="mt-2 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-[24px] font-bold tracking-[-0.01em]">결과 리포트</h1>
+            <h1 className="text-[24px] font-bold tracking-[-0.01em]">Results report</h1>
             {latest ? (
               <div className="mt-1 text-[12.5px] text-ink-3">
-                {campaign.brief.brandProduct.name} · 생성 {fmtStamp(latest.generatedAt)} · {triggerLabel(latest.trigger)}
-                {reports.length > 1 ? ` · ${reports.length}회 집계됨` : ""}
+                {campaign.brief.brandProduct.name} · generated {fmtStamp(latest.generatedAt)} · {triggerLabel(latest.trigger)}
+                {reports.length > 1 ? ` · ${reports.length} rollups` : ""}
               </div>
             ) : (
               <div className="mt-1 text-[12.5px] text-ink-3">{campaign.brief.brandProduct.name}</div>
@@ -307,19 +307,19 @@ export default async function CampaignReportPage({
           </div>
           <form action={generateReportAction}>
             <input type="hidden" name="campaignId" value={id} />
-            <Button variant="primary" tone="approve">{latest ? "새 리포트 생성" : "리포트 생성"}</Button>
+            <Button variant="primary" tone="approve">{latest ? "Generate new report" : "Generate report"}</Button>
           </form>
         </div>
       </header>
 
       {!latest ? (
         <EmptyState
-          title="아직 리포트가 없습니다"
-          hint="검증된 게시물이 모이면 자동으로 리포트가 만들어집니다. 지금 바로 생성하면 현 시점의 스냅샷을 받아볼 수 있어요."
+          title="No report yet"
+          hint="Reports are created automatically when verified posts arrive. Generate one now to capture the current snapshot."
           action={
             <form action={generateReportAction}>
               <input type="hidden" name="campaignId" value={id} />
-              <Button variant="primary" tone="approve">리포트 생성</Button>
+              <Button variant="primary" tone="approve">Generate report</Button>
             </form>
           }
         />
@@ -329,7 +329,7 @@ export default async function CampaignReportPage({
 
           <Card>
             <CardBody>
-              <SectionLabel className="mb-2">요약</SectionLabel>
+              <SectionLabel className="mb-2">Summary</SectionLabel>
               <p className="text-[14px] text-ink leading-relaxed">{latest.narrative.summary}</p>
               {latest.analytics.flags.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1.5">
@@ -346,7 +346,7 @@ export default async function CampaignReportPage({
             {latest.narrative.highlights.length > 0 && (
               <Card>
                 <CardBody>
-                  <SectionLabel className="mb-2 text-ok">잘된 점</SectionLabel>
+                  <SectionLabel className="mb-2 text-ok">What worked</SectionLabel>
                   <ul className="list-disc pl-4 text-[13px] text-ink-2 space-y-1.5">
                     {latest.narrative.highlights.map((h, i) => <li key={i}>{h}</li>)}
                   </ul>
@@ -356,7 +356,7 @@ export default async function CampaignReportPage({
             {latest.narrative.concerns.length > 0 && (
               <Card>
                 <CardBody>
-                  <SectionLabel className="mb-2 text-warn">살펴볼 점</SectionLabel>
+                  <SectionLabel className="mb-2 text-warn">Watchouts</SectionLabel>
                   <ul className="list-disc pl-4 text-[13px] text-ink-2 space-y-1.5">
                     {latest.narrative.concerns.map((c, i) => <li key={i}>{c}</li>)}
                   </ul>
@@ -365,7 +365,7 @@ export default async function CampaignReportPage({
             )}
             <Card>
               <CardBody>
-                <SectionLabel className="mb-2">다음 캠페인 제안</SectionLabel>
+                <SectionLabel className="mb-2">Next-campaign suggestions</SectionLabel>
                 <ul className="list-disc pl-4 text-[13px] text-ink-2 space-y-1.5">
                   {latest.narrative.recommendations.map((r, i) => <li key={i}>{r}</li>)}
                 </ul>
@@ -375,7 +375,7 @@ export default async function CampaignReportPage({
 
           <Card className="mt-6">
             <CardHeader>
-              <CardTitle>리포트 본문</CardTitle>
+              <CardTitle>Report body</CardTitle>
               {latest.shareToken && (
                 <Link
                   href={`/share/${latest.id}?t=${encodeURIComponent(latest.shareToken)}`}
@@ -383,7 +383,7 @@ export default async function CampaignReportPage({
                   rel="noopener noreferrer"
                   className="text-[11px] text-ink-3 hover:text-ink-2 underline-offset-2 hover:underline"
                 >
-                  공개 미리보기 열기 ↗
+                  Open public preview ↗
                 </Link>
               )}
             </CardHeader>
@@ -392,7 +392,7 @@ export default async function CampaignReportPage({
 
           {history.length > 0 && (
             <Card className="mt-6">
-              <CardHeader><CardTitle>이전 리포트 · {history.length}개</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Previous reports · {history.length}</CardTitle></CardHeader>
               <CardBody className="pt-1.5">
                 <ul className="divide-y divide-line-2">
                   {history.map((r) => (
@@ -402,8 +402,8 @@ export default async function CampaignReportPage({
                         <span className="ml-2 text-[11px] text-ink-3">{triggerLabel(r.trigger)}</span>
                       </div>
                       <div className="text-[11px] text-ink-3">
-                        검증 {r.analytics.goals.verifiedCount} / {r.analytics.goals.targetLivePosts}
-                        {r.analytics.flags.length > 0 ? ` · 플래그 ${r.analytics.flags.length}건` : ""}
+                        verified {r.analytics.goals.verifiedCount} / {r.analytics.goals.targetLivePosts}
+                        {r.analytics.flags.length > 0 ? ` · ${r.analytics.flags.length} flags` : ""}
                       </div>
                     </li>
                   ))}

@@ -22,7 +22,7 @@
  *   D27 — partner info is displayed prominently because the operator's risk
  *         model differs by partner; hiding it is anti-pattern §9.5.
  *   D34 — `displayName` is the partner's brand name in Latin script. The
- *         locale-specific copy (e.g. "Adyen 결제 게이트웨이") lives in
+ *         locale-specific copy (e.g. "Adyen payment gateway") lives in
  *         next-intl messages keyed by `approvals.ap2.partner.{id}.name` when
  *         a translation is needed; otherwise we use displayName verbatim.
  *

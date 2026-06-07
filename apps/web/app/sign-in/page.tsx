@@ -52,30 +52,30 @@ export default async function SignInPage(): Promise<React.ReactNode> {
           </div>
 
           <div>
-            <h1 className="text-[20px] font-bold tracking-[-0.01em] text-ink">로그인</h1>
-            <p className="mt-1 text-[13px] text-ink-2">Google 계정으로 워크스페이스에 접속합니다.</p>
+            <h1 className="text-[20px] font-bold tracking-[-0.01em] text-ink">Sign in</h1>
+            <p className="mt-1 text-[13px] text-ink-2">Access your workspace with a Google account.</p>
           </div>
 
-          <GoogleButton href={googleLoginHref()} size="lg" block label="Google로 로그인" />
+          <GoogleButton href={googleLoginHref()} size="lg" block label="Sign in with Google" />
 
           <p className="text-[12px] leading-relaxed text-ink-3">
-            로그인하면 에이전트 fleet가 이 워크스페이스의 캠페인을 운영합니다. 외부 발송은 정책
-            게이트(기본값 <span className="font-semibold text-ink-2">항상 확인</span>)를 거칩니다.
+            Once signed in, the agent fleet runs campaigns for this workspace. External sends pass through
+            policy gates, with <span className="font-semibold text-ink-2">always review</span> as the default.
           </p>
 
           {devLoginEnabled ? (
             <div className="pt-4 border-t border-line space-y-2.5">
-              <div className="text-[10px] uppercase tracking-[0.06em] text-ink-3 font-semibold">개발용</div>
+              <div className="text-[10px] uppercase tracking-[0.06em] text-ink-3 font-semibold">Development</div>
               <form action={devLogin}>
                 <button
                   type="submit"
                   className="w-full inline-flex items-center justify-center rounded-xl border border-line bg-surface px-3 py-2 text-[12px] font-semibold text-ink-2 hover:bg-surface-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ink focus-visible:ring-offset-2"
                 >
-                  테스트 세션으로 로그인 ({demoEmail} · {demoWorkspaceId})
+                  Sign in with test session ({demoEmail} · {demoWorkspaceId})
                 </button>
               </form>
               <details className="text-[11px] text-ink-3">
-                <summary className="cursor-pointer hover:text-ink-2 transition-colors">curl 로그인</summary>
+                <summary className="cursor-pointer hover:text-ink-2 transition-colors">curl login</summary>
                 <div className="mono bg-canvas border border-line rounded-xl px-2.5 py-1.5 text-[11px] text-ink-2 mt-1.5 overflow-x-auto whitespace-nowrap">
                   curl -X POST http://localhost:3000/api/auth/test-login -H &apos;content-type:
                   application/json&apos; -d &apos;{`{`}&quot;secret&quot;:&quot;$AUTH_TEST_LOGIN_SECRET&quot;

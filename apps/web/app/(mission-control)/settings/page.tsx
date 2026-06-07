@@ -10,7 +10,7 @@ import { gmailConnectionStatus } from "@/lib/gmail-oauth";
 /**
  * Integrations / settings — the user-facing Gmail connect page (C2 redesign).
  *
- * After login, the operator lands here and clicks "Gmail 연결" to run the
+ * After login, the operator lands here and clicks "Connect Gmail" to run the
  * OAuth consent flow (/api/auth/gmail/start → Google consent → callback stores
  * the refresh token in the shared backend). The same page every team member
  * uses to (re)connect their sending mailbox. No client JS — the button is a
@@ -41,15 +41,14 @@ export default async function SettingsPage({
   // Espresso fill is reserved for the action we want them to take — connect /
   // reconnect. A healthy connected state demotes reconnect to the ivory surface.
   const actionPrimary = !status.connected || status.needsReauth;
-  const buttonLabel = status.connected ? "Gmail 재연결" : status.needsReauth ? "Gmail 다시 연결" : "Gmail 연결";
+  const buttonLabel = status.connected ? "Reconnect Gmail" : status.needsReauth ? "Reconnect Gmail" : "Connect Gmail";
 
   return (
     <div className="max-w-3xl mx-auto px-8 py-8">
       <header className="mb-5">
-        <h1 className="text-[24px] font-bold tracking-[-0.01em]">연동 설정</h1>
+        <h1 className="text-[24px] font-bold tracking-[-0.01em]">Integration settings</h1>
         <p className="mt-1 text-[13.5px] text-ink-2 max-w-[640px]">
-          에이전트가 아웃리치·답장 메일을 보내려면 Gmail 계정을 연결해야 합니다. 연결은 Google 동의 화면을
-          거치며, 발급된 토큰은 공유 백엔드에 안전하게 저장됩니다.
+          Connect Gmail so agents can send outreach and replies. The connection goes through Google consent, and issued tokens are stored securely in the shared backend.
         </p>
       </header>
 
@@ -57,16 +56,16 @@ export default async function SettingsPage({
       {status.needsReauth ? (
         <DiagnosticBanner
           tone="stop"
-          title="Gmail 재인증이 필요합니다"
+          title="Gmail re-authentication required"
           actions={
-            <a href={startHref} aria-label="Gmail 다시 연결" className={cn(LINK_BASE, "bg-brand text-white hover:bg-brand-2 shadow-brand")}>
-              Gmail 다시 연결
+            <a href={startHref} aria-label="Reconnect Gmail" className={cn(LINK_BASE, "bg-brand text-white hover:bg-brand-2 shadow-brand")}>
+              Reconnect Gmail
             </a>
           }
           className="mb-5"
         >
-          연결이 만료되었거나 권한이 해지되어 지금은 이 계정으로 메일을 보낼 수 없습니다. 다시 연결하기 전까지
-          에이전트의 아웃리치·답장 발송이 모두 멈춥니다.
+          The connection expired or permissions were revoked, so this account cannot send mail right now.
+          Agent outreach and replies are paused until Gmail is reconnected.
         </DiagnosticBanner>
       ) : null}
 
@@ -74,29 +73,29 @@ export default async function SettingsPage({
         <div className="mb-5 rounded-2xl border border-ok/25 bg-ok-bg px-5 py-3.5 text-[13.5px] text-ink-2 flex items-center gap-2.5 shadow-soft">
           <span className="w-[7px] h-[7px] rounded-full bg-ok shrink-0" aria-hidden />
           <span>
-            <b className="mono text-ink">{gmail_connected}</b> 연결 완료 — 이제 이 계정으로 메일을 보낼 수 있습니다.
+            <b className="mono text-ink">{gmail_connected}</b> connected. This account can now send mail.
           </span>
         </div>
       ) : null}
 
       <Card>
         <CardBody>
-          <SectionLabel>Gmail 발신 계정</SectionLabel>
+          <SectionLabel>Gmail sending account</SectionLabel>
           <div className="mt-3 flex items-center justify-between gap-4">
             <div className="min-w-0">
               <div className="text-[15px] font-bold text-ink truncate">{email}</div>
               <div className="mt-1.5">
                 {status.connected ? (
                   <StatusTag tone="ok" size="sm">
-                    연결됨
+                    Connected
                     {status.expiresAt ? (
-                      <span className="mono font-normal ml-1">만료 {new Date(status.expiresAt).toLocaleString("ko-KR")}</span>
+                      <span className="mono font-normal ml-1">expires {new Date(status.expiresAt).toLocaleString("en-US")}</span>
                     ) : null}
                   </StatusTag>
                 ) : status.needsReauth ? (
-                  <StatusTag tone="stop" size="sm">재인증 필요</StatusTag>
+                  <StatusTag tone="stop" size="sm">Re-auth required</StatusTag>
                 ) : (
-                  <StatusTag tone="neutral" size="sm">미연결</StatusTag>
+                  <StatusTag tone="neutral" size="sm">Not connected</StatusTag>
                 )}
               </div>
             </div>
@@ -115,7 +114,7 @@ export default async function SettingsPage({
             </a>
           </div>
           <p className="mt-4 pt-3.5 border-t border-line-2 text-[12px] text-ink-3 leading-relaxed">
-            메일 보내기·읽기 권한을 사용하며, 발송은 운영자 허용 목록 내 계정으로만 제한됩니다.
+            Uses send/read mail permissions. Sending is limited to accounts on the operator allowlist.
           </p>
         </CardBody>
       </Card>

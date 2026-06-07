@@ -9,12 +9,12 @@ import { resolveCreators } from "@/lib/creators";
 import { cn } from "@/lib/cn";
 
 /**
- * 이메일 스레드 상세 — the full back-and-forth for one creator thread. Outbound
+ * Email thread detail — the full back-and-forth for one creator thread. Outbound
  * (fleet) messages align right on a champagne fill; inbound (creator) align left
  * with the creator's avatar + the responder's classification. Reads v2_messages.
  */
 function fmtWhen(d: Date): string {
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${d.toISOString().slice(11, 16)}`;
+  return `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} ${d.toISOString().slice(11, 16)}`;
 }
 
 export default async function ThreadDetailPage({
@@ -41,8 +41,8 @@ export default async function ThreadDetailPage({
   // Came from a campaign's mail tab → return there; otherwise the global list.
   const fromCampaign = from === first.campaignId;
   const back = fromCampaign
-    ? { href: `/campaigns/${first.campaignId}/threads`, label: `← ${campaign?.brief.brandProduct.name ?? "캠페인"} 메일` }
-    : { href: "/threads", label: "← 이메일 스레드" };
+    ? { href: `/campaigns/${first.campaignId}/threads`, label: `← ${campaign?.brief.brandProduct.name ?? "Campaign"} mail` }
+    : { href: "/threads", label: "← Email threads" };
 
   return (
     <div className="max-w-3xl mx-auto px-8 py-8">
@@ -54,12 +54,12 @@ export default async function ThreadDetailPage({
             <h1 className="text-[20px] font-bold tracking-[-0.01em] truncate">{display}</h1>
             <div className="text-[12.5px] text-ink-3 truncate">
               {p?.handle && p.handle !== display ? `${p.handle} · ` : ""}
-              {campaign ? campaign.brief.brandProduct.name : "캠페인"}
+              {campaign ? campaign.brief.brandProduct.name : "Campaign"}
             </div>
           </div>
         </div>
         <div className="mt-3 text-[13px] text-ink-2">
-          <span className="text-ink-3">제목 </span>{first.subject}
+          <span className="text-ink-3">Subject </span>{first.subject}
         </div>
       </header>
 
@@ -71,7 +71,7 @@ export default async function ThreadDetailPage({
             <div key={m.id} className={cn("flex", out ? "justify-end" : "justify-start")}>
               <div className={cn("max-w-[80%]", out ? "items-end" : "items-start", "flex flex-col gap-1")}>
                 <div className="flex items-center gap-2 px-1">
-                  <span className="text-[11.5px] font-semibold text-ink-2">{out ? "우리 (에이전트)" : display}</span>
+                  <span className="text-[11.5px] font-semibold text-ink-2">{out ? "Us (agent)" : display}</span>
                   {cls && <StatusTag tone={cls.tone} size="sm">{cls.label}</StatusTag>}
                   <span className="text-[11px] text-ink-3 mono">{fmtWhen(m.sentAt)}</span>
                 </div>

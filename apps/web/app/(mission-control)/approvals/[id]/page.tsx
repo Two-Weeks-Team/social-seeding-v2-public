@@ -26,15 +26,15 @@ import { fmtAgo, fmtNum, creatorHandle } from "@/lib/format";
 import { renderPaymentMandateApproval } from "./_ap2/render-payment-mandate";
 
 /**
- * 승인 드릴인 (C2). 서버 컴포넌트(폼) + resolve 서버 액션.
- * `approval.kind` 별로 분기:
- *   · 후보 리스트   — 행별 유지/제외 체크가 있는 후보 테이블.
- *   · 아웃리치 발송 — 초안 미리보기 + 평가 점수 + 편집 가능한 제목/본문.
- *   · 회신 응답     — 협의 에스컬레이션(편집 없음) 또는 자동 회신 초안(편집 가능).
- *   · 배송 확인     — 주소 + 품목 확인.
- *   · 결제 승인     — AP2 결제 위임 드릴인(_ap2).
+ * Approval drill-in (C2). Server component forms + resolve server action.
+ * Branches by `approval.kind`:
+ *   · shortlist      — candidate table with per-row keep/remove checks.
+ *   · outreach send  — draft preview + evaluation scores + editable subject/body.
+ *   · reply response — negotiation escalation (no edits) or editable auto-reply draft.
+ *   · shipment       — address + item confirmation.
+ *   · payment        — AP2 payment mandate drill-in (_ap2).
  *
- * 모든 경로는 approvalRepo.resolve + 워크플로 게이트를 푸는 이벤트로 끝납니다.
+ * Every path ends with approvalRepo.resolve + an event that releases the workflow gate.
  */
 
 async function resolveAction(formData: FormData): Promise<void> {
@@ -121,7 +121,7 @@ async function resolveAction(formData: FormData): Promise<void> {
   redirect(`/campaigns/${approval.campaignId}`);
 }
 
-/** 적합도 바 — 0~1 점수. 낮음(주의색)→높음(달성색) 그라데이션 없이 단색 바. */
+/** Fit meter — 0-1 score. Uses a single color bar instead of a low-to-high gradient. */
 function FitScoreMeter({ score }: { score: number }) {
   const pct = Math.round(Math.max(0, Math.min(1, score)) * 100);
   const tone = score >= 0.7 ? "bg-ok" : score >= 0.4 ? "bg-warn" : "bg-stop";
@@ -136,8 +136,8 @@ function FitScoreMeter({ score }: { score: number }) {
 }
 
 /**
- * 0~1(또는 0~max) 점수 바. invert=true(스팸)는 낮을수록 좋음(주의→미달),
- * invert=false(평가)는 높을수록 좋음.
+ * 0-1 (or 0-max) score bar. invert=true means lower is better (spam);
+ * invert=false means higher is better.
  */
 function ScoreBar({
   value,
@@ -152,7 +152,7 @@ function ScoreBar({
 }) {
   const ratio = Math.max(0, Math.min(max, value)) / max;
   const pct = Math.round(ratio * 100);
-  // invert (스팸): 낮음=양호. 그 외(평가): 높음=양호.
+  // invert (spam): lower is better. Otherwise (evaluation): higher is better.
   const good = invert ? ratio <= 0.25 : ratio >= 0.7;
   const mid = invert ? ratio <= 0.5 : ratio >= 0.4;
   const tone = good ? "bg-ok" : mid ? "bg-warn" : "bg-stop";
@@ -171,9 +171,8 @@ function ScoreBar({
 }
 
 /**
- * HTML 본문 미리보기 — 샌드박스 iframe 안에서 렌더해 부모 DOM을 에이전트 생성
- * HTML(스타일 누수, 임베드 <script> 등)로부터 격리합니다. srcdoc + sandbox(""):
- * 스크립트/네비게이션/폼 모두 차단된 읽기 전용 미리보기.
+ * HTML body preview — rendered in a sandboxed iframe so agent-generated HTML
+ * cannot leak styles, scripts, navigation, or forms into the parent DOM.
  */
 function HtmlPreview({ html, height = 260 }: { html: string; height?: number }) {
   const doc = `<!doctype html><html><head><meta charset="utf-8"><style>
@@ -192,44 +191,44 @@ function HtmlPreview({ html, height = 260 }: { html: string; height?: number }) 
   );
 }
 
-/** 평가 항목 한글 라벨. */
+/** Evaluation labels. */
 const JUDGE_LABEL: Record<string, string> = {
-  brand: "브랜드 적합",
-  conversion: "전환력",
-  deliverability: "도달성",
-  skeptic: "신뢰도",
+  brand: "Brand fit",
+  conversion: "Conversion",
+  deliverability: "Deliverability",
+  skeptic: "Trust",
 };
 
-/** 아웃리치 각도(angle) 한글 라벨. */
+/** Outreach angle labels. */
 const ANGLE_LABEL: Record<string, string> = {
-  free_tier_announcement: "무료 제공 안내",
-  pain_killer: "문제 해결 제안",
-  peer_proof: "동료 사례",
-  data_specific: "데이터 기반",
-  contrarian_hook: "역발상 훅",
-  aspirational: "비전 제안",
+  free_tier_announcement: "Free-tier announcement",
+  pain_killer: "Pain killer",
+  peer_proof: "Peer proof",
+  data_specific: "Data specific",
+  contrarian_hook: "Contrarian hook",
+  aspirational: "Aspirational",
 };
 
-/** 후보 플래그 한글 라벨 + 색 톤. */
+/** Candidate flag labels + color tone. */
 const FLAG_LABEL: Record<string, { label: string; tone: "warn" | "stop" }> = {
-  below_engagement_floor: { label: "참여율 미달", tone: "warn" },
-  blacklisted: { label: "블랙리스트", tone: "stop" },
-  wrong_language: { label: "언어 불일치", tone: "warn" },
-  brand_unsafe: { label: "브랜드 부적합", tone: "stop" },
-  prior_flake: { label: "과거 이탈 이력", tone: "warn" },
-  data_stale: { label: "데이터 오래됨", tone: "warn" },
+  below_engagement_floor: { label: "Below engagement floor", tone: "warn" },
+  blacklisted: { label: "Blacklisted", tone: "stop" },
+  wrong_language: { label: "Language mismatch", tone: "warn" },
+  brand_unsafe: { label: "Brand unsafe", tone: "stop" },
+  prior_flake: { label: "Prior flake history", tone: "warn" },
+  data_stale: { label: "Stale data", tone: "warn" },
 };
 
-/** 회신 분류 한글 라벨 + StatusTag 톤. */
+/** Reply classification labels + StatusTag tone. */
 const CLASSIFICATION_LABEL: Record<ConversationTurn["classification"], string> = {
-  interested: "관심 있음",
-  needs_info: "정보 요청",
-  negotiating: "협의 중",
-  not_now: "지금은 아님",
-  declined: "거절",
-  out_of_office: "부재중",
-  unsubscribe: "수신 거부",
-  unrelated: "무관",
+  interested: "Interested",
+  needs_info: "Needs info",
+  negotiating: "Negotiating",
+  not_now: "Not now",
+  declined: "Declined",
+  out_of_office: "Out of office",
+  unsubscribe: "Unsubscribe",
+  unrelated: "Unrelated",
 };
 
 const CLASSIFICATION_TONE: Record<ConversationTurn["classification"], "ok" | "run" | "warn" | "stop" | "neutral"> = {
@@ -243,7 +242,7 @@ const CLASSIFICATION_TONE: Record<ConversationTurn["classification"], "ok" | "ru
   unrelated: "neutral",
 };
 
-/** 드릴인 공통 헤더 — 뒤로가기 + 종류 라벨 + 제목 + 대기 시간 + 캠페인 링크. */
+/** Shared drill-in header — back link + kind label + title + wait time + campaign link. */
 function DrillHeader({
   kind,
   title,
@@ -257,15 +256,15 @@ function DrillHeader({
 }) {
   return (
     <header className="mb-5">
-      <Link href="/approvals" className="text-[12px] text-ink-3 hover:text-ink-2">← 승인 인박스</Link>
+      <Link href="/approvals" className="text-[12px] text-ink-3 hover:text-ink-2">← Approval inbox</Link>
       <div className="mt-2 flex items-end justify-between flex-wrap gap-3">
         <div>
           <SectionLabel>{approvalKindKo(kind)}</SectionLabel>
           <h1 className="mt-1 text-[24px] font-bold tracking-[-0.01em]">{title}</h1>
           <div className="mt-1 text-[12.5px] text-ink-3">
-            {fmtAgo(approval.createdAt)} 대기 시작 ·{" "}
+            Waiting since {fmtAgo(approval.createdAt)} ·{" "}
             <Link className="text-ink-2 hover:text-ink underline underline-offset-2" href={`/campaigns/${approval.campaignId}`}>
-              캠페인으로 이동
+              Go to campaign
             </Link>
           </div>
         </div>
@@ -275,7 +274,7 @@ function DrillHeader({
   );
 }
 
-/** 추천 사유 카드 — 모든 드릴인에서 재사용. */
+/** Rationale card reused by every drill-in. */
 function RationaleCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <Card className="mb-5">
@@ -287,7 +286,7 @@ function RationaleCard({ title, children }: { title: string; children: React.Rea
   );
 }
 
-/** 형식 불일치 등 검토 불가 상황 — 초록 위장 없이 정직한 진단 배너. */
+/** Honest diagnostic banner for invalid shapes or other unreviewable items. */
 function DrillError({
   kind,
   title,
@@ -302,8 +301,8 @@ function DrillError({
   return (
     <div className="max-w-3xl mx-auto px-8 py-8">
       <DrillHeader kind={kind} title={title} approval={approval} />
-      <DiagnosticBanner tone="stop" title="이 항목은 지금 검토할 수 없습니다">
-        {detail} 워크플로 기록을 확인한 뒤 다시 시도해주세요.
+      <DiagnosticBanner tone="stop" title="This item cannot be reviewed right now">
+        {detail} Check the workflow record and try again.
       </DiagnosticBanner>
     </div>
   );
@@ -327,7 +326,7 @@ export default async function ApprovalDetailPage({ params }: { params: Promise<{
   if (approval.kind === "shipment") {
     return renderShipmentApproval(approval, brandName);
   }
-  // AP2 결제 위임 — 5번째 종류. recommendation은 render 시점에 Zod로 검증됩니다.
+  // AP2 payment mandate — fifth kind. The recommendation is validated with Zod at render time.
   if (approval.kind === "payment_mandate") {
     return renderPaymentMandateApproval(approval, brandName);
   }
@@ -335,10 +334,10 @@ export default async function ApprovalDetailPage({ params }: { params: Promise<{
   if (approval.kind !== "shortlist") {
     return (
       <div className="max-w-3xl mx-auto px-8 py-8">
-        <DrillHeader kind={approval.kind} title={brandName ?? "이름 미상 캠페인"} approval={approval} />
+        <DrillHeader kind={approval.kind} title={brandName ?? "Unnamed campaign"} approval={approval} />
         <Card flat>
           <CardBody>
-            <p className="text-[13.5px] text-ink-2">이 종류의 검토 화면은 곧 추가됩니다.</p>
+            <p className="text-[13.5px] text-ink-2">A review screen for this approval type is coming soon.</p>
           </CardBody>
         </Card>
       </div>
@@ -351,11 +350,11 @@ export default async function ApprovalDetailPage({ params }: { params: Promise<{
     <div className="max-w-6xl mx-auto px-8 py-8">
       <DrillHeader
         kind="shortlist"
-        title={`${brandName ?? "이름 미상 캠페인"} · 후보 ${candidates.length}명 검토`}
+        title={`${brandName ?? "Unnamed campaign"} · review ${candidates.length} candidates`}
         approval={approval}
       />
 
-      <RationaleCard title="에이전트가 추천한 이유">{approval.rationale}</RationaleCard>
+      <RationaleCard title="Why the agent recommended this">{approval.rationale}</RationaleCard>
 
       <form action={resolveAction}>
         <input type="hidden" name="approvalId" value={approval.id} />
@@ -365,16 +364,16 @@ export default async function ApprovalDetailPage({ params }: { params: Promise<{
             <thead className="text-[10px] uppercase tracking-[0.06em] text-ink-3 border-b border-line bg-surface-2">
               <tr>
                 <th className="w-10 px-4 py-3"></th>
-                <th className="text-left px-4 py-3 font-semibold">크리에이터</th>
-                <th className="text-right px-4 py-3 font-semibold">팔로워</th>
-                <th className="text-left px-4 py-3 font-semibold">적합도</th>
-                <th className="text-left px-4 py-3 font-semibold">주의 사항</th>
-                <th className="text-left px-4 py-3 font-semibold">매칭 사유</th>
+                <th className="text-left px-4 py-3 font-semibold">Creator</th>
+                <th className="text-right px-4 py-3 font-semibold">Followers</th>
+                <th className="text-left px-4 py-3 font-semibold">Fit</th>
+                <th className="text-left px-4 py-3 font-semibold">Warnings</th>
+                <th className="text-left px-4 py-3 font-semibold">Match reason</th>
               </tr>
             </thead>
             <tbody>
               {candidates.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-ink-3">후보가 없습니다.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-ink-3">No candidates.</td></tr>
               )}
               {candidates.map((c) => {
                 const handle = creatorHandle({ uniqueId: c.creator.uniqueId });
@@ -395,7 +394,7 @@ export default async function ApprovalDetailPage({ params }: { params: Promise<{
                     </td>
                     <td className="px-4 py-3">
                       {c.flags.length === 0 ? (
-                        <StatusTag tone="ok" size="sm">문제 없음</StatusTag>
+                        <StatusTag tone="ok" size="sm">No issues</StatusTag>
                       ) : (
                         <div className="flex flex-wrap gap-1.5">
                           {c.flags.map((f) => {
@@ -416,9 +415,9 @@ export default async function ApprovalDetailPage({ params }: { params: Promise<{
         </Card>
 
         <div className="mt-5 flex justify-end gap-2.5">
-          <Button type="submit" name="decision" value="reject" variant="secondary" tone="reject">거부</Button>
-          <Button type="submit" name="decision" value="approveSelected" variant="secondary">선택한 후보만 승인</Button>
-          <Button type="submit" name="decision" value="approveAll" variant="primary" tone="approve">전체 승인</Button>
+          <Button type="submit" name="decision" value="reject" variant="secondary" tone="reject">Reject</Button>
+          <Button type="submit" name="decision" value="approveSelected" variant="secondary">Approve selected only</Button>
+          <Button type="submit" name="decision" value="approveAll" variant="primary" tone="approve">Approve all</Button>
         </div>
       </form>
     </div>
@@ -426,9 +425,9 @@ export default async function ApprovalDetailPage({ params }: { params: Promise<{
 }
 
 /**
- * 아웃리치 발송 드릴인. 작성 에이전트 토너먼트가 만든 초안을 보여줍니다:
- * 각도 + 스팸 점수 + 평가 4종 바 + 인용 가능한 근거 + 편집 가능한 제목/본문.
- * 본문은 샌드박스 iframe으로 안전하게 미리보기합니다.
+ * Outreach send drill-in. Shows the draft produced by the writer-agent tournament:
+ * angle + spam score + four evaluation bars + grounded facts + editable subject/body.
+ * The body is previewed safely in a sandboxed iframe.
  */
 function renderOutreachSendApproval(approval: Approval, brandName: string | undefined): React.ReactElement {
   const parsed = OutreachDraftSchema.safeParse(approval.recommendation);
@@ -436,8 +435,8 @@ function renderOutreachSendApproval(approval: Approval, brandName: string | unde
     return (
       <DrillError
         kind="outreach_send"
-        title={brandName ?? "이름 미상 캠페인"}
-        detail="첨부된 초안이 아웃리치 형식과 맞지 않습니다."
+        title={brandName ?? "Unnamed campaign"}
+        detail="The attached draft does not match the outreach format."
         approval={approval}
       />
     );
@@ -450,35 +449,35 @@ function renderOutreachSendApproval(approval: Approval, brandName: string | unde
     <div className="max-w-4xl mx-auto px-8 py-8">
       <DrillHeader
         kind="outreach_send"
-        title={`${brandName ?? "이름 미상 캠페인"} · 첫 아웃리치 검토`}
+        title={`${brandName ?? "Unnamed campaign"} · review first outreach`}
         approval={approval}
         right={
-          <StatusTag tone={spamTone}>접근 각도 · {ANGLE_LABEL[draft.angle] ?? draft.angle}</StatusTag>
+          <StatusTag tone={spamTone}>Angle · {ANGLE_LABEL[draft.angle] ?? draft.angle}</StatusTag>
         }
       />
 
-      <RationaleCard title="에이전트가 이 안을 고른 이유">{approval.rationale}</RationaleCard>
+      <RationaleCard title="Why the agent chose this draft">{approval.rationale}</RationaleCard>
 
       <div className="grid grid-cols-3 gap-5 mb-5">
         <Card className="col-span-2">
           <CardBody>
-            <SectionLabel className="mb-3">평가 점수</SectionLabel>
+            <SectionLabel className="mb-3">Evaluation scores</SectionLabel>
             <div className="space-y-2.5">
               <ScoreBar label={JUDGE_LABEL.brand!} value={judge.brand ?? 0} />
               <ScoreBar label={JUDGE_LABEL.conversion!} value={judge.conversion ?? 0} />
               <ScoreBar label={JUDGE_LABEL.deliverability!} value={judge.deliverability ?? 0} />
               <ScoreBar label={JUDGE_LABEL.skeptic!} value={judge.skeptic ?? 0} />
               <div className="border-t border-line-2 mt-3 pt-3">
-                <ScoreBar label="스팸 위험도" value={draft.spamScore} max={10} invert />
+                <ScoreBar label="Spam risk" value={draft.spamScore} max={10} invert />
               </div>
             </div>
           </CardBody>
         </Card>
         <Card>
           <CardBody>
-            <SectionLabel className="mb-2">인용 근거 ({draft.groundedFacts.length})</SectionLabel>
+            <SectionLabel className="mb-2">Grounded facts ({draft.groundedFacts.length})</SectionLabel>
             {draft.groundedFacts.length === 0 ? (
-              <div className="text-[12.5px] text-ink-3">근거 없음</div>
+              <div className="text-[12.5px] text-ink-3">No facts</div>
             ) : (
               <ul className="text-[12px] text-ink-2 space-y-1.5">
                 {draft.groundedFacts.map((f) => (
@@ -495,7 +494,7 @@ function renderOutreachSendApproval(approval: Approval, brandName: string | unde
 
         <Card className="mb-5">
           <CardBody>
-            <SectionLabel className="mb-2">제목</SectionLabel>
+            <SectionLabel className="mb-2">Subject</SectionLabel>
             <input
               type="text"
               name="editedSubject"
@@ -503,7 +502,7 @@ function renderOutreachSendApproval(approval: Approval, brandName: string | unde
               maxLength={120}
               className="w-full bg-surface border border-line rounded-xl px-3.5 py-2.5 text-[14px] text-ink outline-none"
             />
-            <SectionLabel className="mt-4 mb-2">본문 (HTML)</SectionLabel>
+            <SectionLabel className="mt-4 mb-2">Body (HTML)</SectionLabel>
             <textarea
               name="editedBody"
               defaultValue={draft.body}
@@ -515,18 +514,18 @@ function renderOutreachSendApproval(approval: Approval, brandName: string | unde
 
         <Card className="mb-5">
           <CardBody>
-            <SectionLabel className="mb-2">미리보기 (격리 렌더)</SectionLabel>
+            <SectionLabel className="mb-2">Preview (isolated render)</SectionLabel>
             <HtmlPreview html={draft.body} />
             <p className="mt-2.5 text-[11.5px] text-ink-3">
-              실제 발송 시 추적 픽셀과 수신거부 안내가 자동으로 덧붙습니다 — 미리보기에는 빠져 있습니다.
+              Tracking pixels and unsubscribe copy are added automatically at send time — they are not shown in this preview.
             </p>
           </CardBody>
         </Card>
 
         <div className="flex justify-end gap-2.5">
-          <Button type="submit" name="decision" value="reject" variant="secondary" tone="reject">거부</Button>
+          <Button type="submit" name="decision" value="reject" variant="secondary" tone="reject">Reject</Button>
           <Button type="submit" name="decision" value="approveEdited" variant="primary" tone="approve">
-            승인 (편집 반영)
+            Approve with edits
           </Button>
         </div>
       </form>
@@ -535,10 +534,10 @@ function renderOutreachSendApproval(approval: Approval, brandName: string | unde
 }
 
 /**
- * 회신 응답 드릴인. recommendation 형태가 둘 중 하나:
- *   · ConversationTurn — 협의 분류로 에스컬레이션됨. 자동 회신 없음, 사람이 검토만.
- *   · 회신 초안 { subject, body, deliverabilityScore? } — 편집 후 발송 가능.
- * Zod safeParse로 형태를 판별합니다.
+ * Reply response drill-in. recommendation is one of:
+ *   · ConversationTurn — escalated for negotiation; no auto-reply, human review only.
+ *   · reply draft { subject, body, deliverabilityScore? } — editable before send.
+ * Zod safeParse distinguishes the shape.
  */
 function renderReplyResponseApproval(approval: Approval, brandName: string | undefined): React.ReactElement {
   const asTurn = ConversationTurnSchema.safeParse(approval.recommendation);
@@ -556,8 +555,8 @@ function renderReplyResponseApproval(approval: Approval, brandName: string | und
   return (
     <DrillError
       kind="reply_response"
-      title={brandName ?? "이름 미상 캠페인"}
-      detail="첨부된 데이터가 회신 형식과 맞지 않습니다."
+      title={brandName ?? "Unnamed campaign"}
+      detail="The attached data does not match the reply format."
       approval={approval}
     />
   );
@@ -573,7 +572,7 @@ function renderReplyResponseEscalation(
     <div className="max-w-4xl mx-auto px-8 py-8">
       <DrillHeader
         kind="reply_response"
-        title={`${brandName ?? "이름 미상 캠페인"} · 사람 검토 필요`}
+        title={`${brandName ?? "Unnamed campaign"} · human review needed`}
         approval={approval}
         right={
           <StatusTag tone={CLASSIFICATION_TONE[turn.classification]}>
@@ -582,26 +581,26 @@ function renderReplyResponseEscalation(
         }
       />
 
-      <RationaleCard title="에이전트가 사람에게 넘긴 이유">
+      <RationaleCard title="Why the agent escalated this">
         {turn.needsHumanReason ?? approval.rationale}
       </RationaleCard>
 
       <Card className="mb-5">
         <CardBody>
-          <SectionLabel className="mb-3">추출된 신호</SectionLabel>
+          <SectionLabel className="mb-3">Extracted signals</SectionLabel>
           {noSignals ? (
-            <div className="text-[12.5px] text-ink-3">추출된 신호가 없습니다 — 전체 내용은 캠페인 타임라인에서 확인해주세요.</div>
+            <div className="text-[12.5px] text-ink-3">No extracted signals — check the campaign timeline for the full message.</div>
           ) : (
             <dl className="text-[13.5px] space-y-3">
               {turn.extracted.proposedRateUsd !== undefined && (
                 <div>
-                  <dt className="text-[11px] text-ink-3">제안된 단가</dt>
+                  <dt className="text-[11px] text-ink-3">Proposed rate</dt>
                   <dd className="mono tnum text-ink">USD {fmtNum(turn.extracted.proposedRateUsd)}</dd>
                 </div>
               )}
               {turn.extracted.question && (
                 <div>
-                  <dt className="text-[11px] text-ink-3">질문 (원문)</dt>
+                  <dt className="text-[11px] text-ink-3">Question (original)</dt>
                   <dd className="mt-1 bg-surface-2 border border-line rounded-xl px-3.5 py-2.5 text-ink-2">
                     {turn.extracted.question}
                   </dd>
@@ -609,24 +608,24 @@ function renderReplyResponseEscalation(
               )}
               {turn.extracted.shippingAddress && (
                 <div>
-                  <dt className="text-[11px] text-ink-3">공유된 배송지</dt>
+                  <dt className="text-[11px] text-ink-3">Shared shipping address</dt>
                   <dd className="mono text-ink-2">{turn.extracted.shippingAddress}</dd>
                 </div>
               )}
             </dl>
           )}
           <p className="mt-4 text-[12px] text-ink-3 leading-relaxed">
-            이 단계는 자동 회신이 없습니다. <strong className="text-ink-2">거부</strong>는 이 크리에이터와의 진행을 종료하고,
-            {" "}<strong className="text-ink-2">확인 완료</strong>는 사람 검토를 마쳤다는 표시입니다 — 실제 회신은 따로 보내주세요.
+            This step does not send an automatic reply. <strong className="text-ink-2">Reject</strong> ends progress with this creator,
+            {" "}<strong className="text-ink-2">Mark reviewed</strong> records that human review is complete — send the actual reply separately.
           </p>
         </CardBody>
       </Card>
 
       <form action={resolveAction} className="flex justify-end gap-2.5">
         <input type="hidden" name="approvalId" value={approval.id} />
-        <Button type="submit" name="decision" value="reject" variant="secondary" tone="reject">거부 (진행 종료)</Button>
+        <Button type="submit" name="decision" value="reject" variant="secondary" tone="reject">Reject and end progress</Button>
         <Button type="submit" name="decision" value="approveAll" variant="primary" tone="approve">
-          확인 완료
+          Mark reviewed
         </Button>
       </form>
     </div>
@@ -644,22 +643,22 @@ function renderReplyResponseDraft(
     <div className="max-w-4xl mx-auto px-8 py-8">
       <DrillHeader
         kind="reply_response"
-        title={`${brandName ?? "이름 미상 캠페인"} · 자동 회신 검토`}
+        title={`${brandName ?? "Unnamed campaign"} · review auto reply`}
         approval={approval}
         right={
           ds !== undefined ? (
-            <StatusTag tone={dsTone}>도달성 {ds.toFixed(2)}</StatusTag>
+            <StatusTag tone={dsTone}>Deliverability {ds.toFixed(2)}</StatusTag>
           ) : undefined
         }
       />
 
-      <RationaleCard title="에이전트가 이 안을 고른 이유">{approval.rationale}</RationaleCard>
+      <RationaleCard title="Why the agent chose this draft">{approval.rationale}</RationaleCard>
 
       {ds !== undefined && (
         <Card className="mb-5">
           <CardBody>
-            <SectionLabel className="mb-3">도달성 자가 점검</SectionLabel>
-            <ScoreBar label="도달성" value={ds} />
+            <SectionLabel className="mb-3">Deliverability self-check</SectionLabel>
+            <ScoreBar label="Deliverability" value={ds} />
           </CardBody>
         </Card>
       )}
@@ -669,7 +668,7 @@ function renderReplyResponseDraft(
 
         <Card className="mb-5">
           <CardBody>
-            <SectionLabel className="mb-2">제목</SectionLabel>
+            <SectionLabel className="mb-2">Subject</SectionLabel>
             <input
               type="text"
               name="editedSubject"
@@ -677,7 +676,7 @@ function renderReplyResponseDraft(
               maxLength={120}
               className="w-full bg-surface border border-line rounded-xl px-3.5 py-2.5 text-[14px] text-ink outline-none"
             />
-            <SectionLabel className="mt-4 mb-2">본문 (HTML)</SectionLabel>
+            <SectionLabel className="mt-4 mb-2">Body (HTML)</SectionLabel>
             <textarea
               name="editedBody"
               defaultValue={draft.body}
@@ -689,18 +688,18 @@ function renderReplyResponseDraft(
 
         <Card className="mb-5">
           <CardBody>
-            <SectionLabel className="mb-2">미리보기 (격리 렌더)</SectionLabel>
+            <SectionLabel className="mb-2">Preview (isolated render)</SectionLabel>
             <HtmlPreview html={draft.body} height={200} />
             <p className="mt-2.5 text-[11.5px] text-ink-3">
-              추적 픽셀과 수신거부 안내는 발송 시 자동으로 덧붙습니다.
+              Tracking pixels and unsubscribe copy are added automatically at send time.
             </p>
           </CardBody>
         </Card>
 
         <div className="flex justify-end gap-2.5">
-          <Button type="submit" name="decision" value="reject" variant="secondary" tone="reject">거부</Button>
+          <Button type="submit" name="decision" value="reject" variant="secondary" tone="reject">Reject</Button>
           <Button type="submit" name="decision" value="approveEdited" variant="primary" tone="approve">
-            승인 (편집 반영 후 발송)
+            Approve with edits and send
           </Button>
         </div>
       </form>
@@ -709,9 +708,9 @@ function renderReplyResponseDraft(
 }
 
 /**
- * 배송 확인 드릴인. recommendation = { rawAddress, brand, products[] }.
- * 사람이 원문 주소 + 품목 명세를 확인한 뒤 패키지가 배송됩니다(게이트는 배송 직전).
- * 거부하면 패키지는 실제로 발송되지 않습니다. 주소 편집은 불가(물류 에이전트 담당).
+ * Shipment confirmation drill-in. recommendation = { rawAddress, brand, products[] }.
+ * A human confirms the raw address + item details before the package ships.
+ * Rejecting prevents shipment. Address editing is owned by the logistics agent.
  */
 function renderShipmentApproval(approval: Approval, brandName: string | undefined): React.ReactElement {
   const rec = approval.recommendation as
@@ -733,49 +732,49 @@ function renderShipmentApproval(approval: Approval, brandName: string | undefine
     <div className="max-w-3xl mx-auto px-8 py-8">
       <DrillHeader
         kind="shipment"
-        title={`${brandName ?? "이름 미상 캠페인"} · 샘플 발송 직전 확인`}
+        title={`${brandName ?? "Unnamed campaign"} · confirm before sample shipment`}
         approval={approval}
-        right={<StatusTag tone="warn">발송 대기</StatusTag>}
+        right={<StatusTag tone="warn">Awaiting shipment</StatusTag>}
       />
 
-      <RationaleCard title="에이전트가 보낸 사유">{approval.rationale}</RationaleCard>
+      <RationaleCard title="Why the agent sent this">{approval.rationale}</RationaleCard>
 
       <Card className="mb-5">
         <CardBody>
-          <SectionLabel className="mb-2">크리에이터가 공유한 주소 (원문)</SectionLabel>
+          <SectionLabel className="mb-2">Address shared by creator (raw)</SectionLabel>
           {rawAddress ? (
             <pre className="bg-surface-2 border border-line rounded-xl p-3.5 text-[13px] text-ink-2 whitespace-pre-wrap break-words font-sans">
               {rawAddress}
             </pre>
           ) : (
-            <DiagnosticBanner tone="stop" title="주소 데이터가 없습니다">
-              캠페인 타임라인에서 배송지 수집 단계를 확인해주세요.
+            <DiagnosticBanner tone="stop" title="No address data">
+              Check the shipping-address collection step in the campaign timeline.
             </DiagnosticBanner>
           )}
           <p className="mt-2.5 text-[11.5px] text-ink-3 leading-relaxed">
-            승인하시면 물류 에이전트가 위 텍스트를 정형화된 주소로 변환해 배송사에 전달합니다. 거부하시면 진행이 종료되고 패키지는 발송되지 않습니다.
+            If approved, the logistics agent converts the text above into a structured address and sends it to the carrier. Rejecting ends progress and no package is shipped.
           </p>
         </CardBody>
       </Card>
 
       <Card className="mb-5">
         <CardBody>
-          <SectionLabel className="mb-3">발송 품목 ({products.length})</SectionLabel>
+          <SectionLabel className="mb-3">Shipment items ({products.length})</SectionLabel>
           {products.length === 0 ? (
-            <div className="text-[12.5px] text-ink-3">품목이 없습니다.</div>
+            <div className="text-[12.5px] text-ink-3">No items.</div>
           ) : (
             <>
               <div className="grid grid-cols-2 gap-4 mb-4">
-                <Stat label="신고가 합계" value={`$${totalValueUsd.toFixed(2)}`} tone="brand" />
-                <Stat label="중량 합계" value={fmtNum(totalWeight)} unit="g" />
+                <Stat label="Total declared value" value={`$${totalValueUsd.toFixed(2)}`} tone="brand" />
+                <Stat label="Total weight" value={fmtNum(totalWeight)} unit="g" />
               </div>
               <table className="w-full text-[13px]">
                 <thead className="text-[10px] uppercase tracking-[0.06em] text-ink-3 border-b border-line">
                   <tr>
-                    <th className="text-left py-2.5 font-semibold">품목</th>
-                    <th className="text-left py-2.5 font-semibold">코드</th>
-                    <th className="text-right py-2.5 font-semibold">신고가</th>
-                    <th className="text-right py-2.5 font-semibold">중량</th>
+                    <th className="text-left py-2.5 font-semibold">Item</th>
+                    <th className="text-left py-2.5 font-semibold">Code</th>
+                    <th className="text-right py-2.5 font-semibold">Declared value</th>
+                    <th className="text-right py-2.5 font-semibold">Weight</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -792,16 +791,16 @@ function renderShipmentApproval(approval: Approval, brandName: string | undefine
             </>
           )}
           <p className="mt-3 text-[11.5px] text-ink-3 leading-relaxed">
-            품목 · 신고가 · 중량은 캠페인 설정에서 옵니다 — 이 화면에서는 편집할 수 없습니다. 다르게 보내야 한다면 거부 후 캠페인 정책을 수정해주세요.
+            Items, declared value, and weight come from campaign settings and cannot be edited here. If the shipment needs to change, reject it and update the campaign policy.
           </p>
         </CardBody>
       </Card>
 
       <form action={resolveAction} className="flex justify-end gap-2.5">
         <input type="hidden" name="approvalId" value={approval.id} />
-        <Button type="submit" name="decision" value="reject" variant="secondary" tone="reject">거부 (발송 안 함)</Button>
+        <Button type="submit" name="decision" value="reject" variant="secondary" tone="reject">Reject and do not ship</Button>
         <Button type="submit" name="decision" value="approveAll" variant="primary" tone="approve">
-          발송 승인
+          Approve shipment
         </Button>
       </form>
     </div>

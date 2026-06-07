@@ -18,10 +18,10 @@ import { cn } from "@/lib/cn";
  * C2 tokens.
  */
 const FILTERS: { key: string; label: string }[] = [
-  { key: "all", label: "전체" },
-  { key: "running", label: "진행 중" },
-  { key: "completed", label: "완료" },
-  { key: "attention", label: "주의" },
+  { key: "all", label: "All" },
+  { key: "running", label: "Running" },
+  { key: "completed", label: "Complete" },
+  { key: "attention", label: "Needs attention" },
 ];
 
 export default async function CampaignsPage({
@@ -83,10 +83,10 @@ export default async function CampaignsPage({
     <div className="max-w-6xl mx-auto px-8 py-8">
       <header className="mb-5 flex items-start justify-between gap-5">
         <div>
-          <h1 className="text-[24px] font-bold tracking-[-0.01em]">캠페인</h1>
-          <p className="mt-1 text-[13.5px] text-ink-2">에이전트가 운영 중인 캠페인입니다. 행을 누르면 무엇을 했는지 타임라인이 열립니다.</p>
+          <h1 className="text-[24px] font-bold tracking-[-0.01em]">Campaigns</h1>
+          <p className="mt-1 text-[13.5px] text-ink-2">Campaigns run by the agent fleet. Open a row to see the work timeline.</p>
         </div>
-        <Link href="/campaigns/new"><Button variant="primary">＋ 새 캠페인</Button></Link>
+        <Link href="/campaigns/new"><Button variant="primary">＋ New campaign</Button></Link>
       </header>
 
       <AgentStatusStrip running={runningCount} awaitingReply={awaitingReply} pendingApprovals={allPending.length} completed={completedCount} />
@@ -99,7 +99,7 @@ export default async function CampaignsPage({
             <input
               name="q"
               defaultValue={q}
-              placeholder="캠페인 검색…"
+              placeholder="Search campaigns…"
               className="flex-1 bg-transparent text-[13px] text-ink placeholder:text-ink-3 outline-none"
             />
           </div>
@@ -125,9 +125,9 @@ export default async function CampaignsPage({
       {campaigns.length === 0 ? (
         <EmptyState
           icon="◎"
-          title={q || filter !== "all" ? "조건에 맞는 캠페인이 없습니다." : "아직 캠페인이 없습니다."}
-          hint={q || filter !== "all" ? "검색어나 필터를 바꿔보세요." : "브리프를 채우면 에이전트가 소싱부터 시작합니다."}
-          action={<Link href="/campaigns/new"><Button variant="primary">＋ 새 캠페인</Button></Link>}
+          title={q || filter !== "all" ? "No campaigns match these filters." : "No campaigns yet."}
+          hint={q || filter !== "all" ? "Try changing the search term or filter." : "Fill in a brief and the agents will start sourcing."}
+          action={<Link href="/campaigns/new"><Button variant="primary">＋ New campaign</Button></Link>}
         />
       ) : (
         <div className="flex flex-col gap-2.5">

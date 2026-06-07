@@ -8,8 +8,8 @@ import { cn } from "@/lib/cn";
 
 /**
  * Campaign row for the operator home list. Each row carries a compact, read-only
- * stage-progress stepper (B안) — campaign stages are advanced by the agent
- * workflow, so this shows "어디까지 왔나" inline without implying a draggable board.
+ * stage-progress stepper — campaign stages are advanced by the agent workflow,
+ * so this shows "how far along" inline without implying a draggable board.
  * C2 tokens; the current stage gets a muted, palette-harmonious accent.
  */
 export interface CampaignItem {
@@ -43,7 +43,7 @@ export function StageProgress({ stage }: { stage: string }) {
   const cur = idx < 0 ? 0 : idx;
   return (
     <div>
-      <div className="flex items-center gap-1" role="img" aria-label={`단계 ${cur + 1}/${STAGE_ORDER.length}: ${stageKo(stage)}`}>
+      <div className="flex items-center gap-1" role="img" aria-label={`Stage ${cur + 1}/${STAGE_ORDER.length}: ${stageKo(stage)}`}>
         {STAGE_ORDER.map((s, i) => (
           <span
             key={s}
@@ -63,11 +63,11 @@ export function StageProgress({ stage }: { stage: string }) {
 function fmtStart(d: CampaignItem["createdAt"]): string {
   if (!d) return "";
   const dt = d instanceof Date ? d : new Date(d);
-  return Number.isNaN(dt.getTime()) ? "" : `${dt.getMonth() + 1}월 ${dt.getDate()}일 시작`;
+  return Number.isNaN(dt.getTime()) ? "" : `Started ${dt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 }
 
 function FaceStack({ item, profiles }: { item: CampaignItem; profiles: Map<string, CreatorView> }) {
-  if (item.trackCount === 0) return <div className="text-[13px] text-ink-3 mt-0.5">선정 전</div>;
+  if (item.trackCount === 0) return <div className="text-[13px] text-ink-3 mt-0.5">Not selected yet</div>;
   return (
     <div className="mt-1 flex items-center">
       <div className="flex">
@@ -98,16 +98,16 @@ export function CampaignRow({ item, profiles }: { item: CampaignItem; profiles: 
         <StatusTag tone={st.tone}>{st.label}</StatusTag>
       </div>
       <div>
-        <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3 mb-1.5">단계</div>
+        <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3 mb-1.5">Stage</div>
         <StageProgress stage={item.stage} />
-        {item.pending > 0 && <div className="text-[11px] text-warn font-semibold mt-1">{item.pending}건 대기</div>}
+        {item.pending > 0 && <div className="text-[11px] text-warn font-semibold mt-1">{item.pending} pending</div>}
       </div>
       <div>
-        <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">크리에이터</div>
+        <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">Creators</div>
         <FaceStack item={item} profiles={profiles} />
       </div>
       <div className="text-right">
-        <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">활동</div>
+        <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">Activity</div>
         <div className="text-[13px] text-ink-2 mt-0.5 mono">{item.updatedAt ? fmtAgo(item.updatedAt instanceof Date ? item.updatedAt : new Date(item.updatedAt)) : "—"}</div>
       </div>
     </Link>

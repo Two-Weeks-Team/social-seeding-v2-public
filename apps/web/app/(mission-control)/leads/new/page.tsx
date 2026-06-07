@@ -11,10 +11,10 @@ import { Events, LeadCampaignBriefSchema } from "@ss/contracts";
 import { inngest } from "@ss/workflows";
 
 /**
- * /leads/new — 새 리드 캠페인 브리프 폼 (C2 redesign). Operator pastes a list of
+ * /leads/new — new lead campaign brief form (C2 redesign). Operator pastes a list of
  * companies + the offer brief. On submit: leadCampaignRepo.create + emit the
- * lead-campaign event; the workflow takes over (회사 등록 → 조사 → 제안 준비 →
- * 콜드메일). Presentation only — the action + field names are unchanged.
+ * lead-campaign event; the workflow takes over (company import -> research ->
+ * proposal prep -> cold email). Presentation only — the action + field names are unchanged.
  */
 
 async function createLeadCampaignAction(formData: FormData): Promise<void> {
@@ -67,8 +67,8 @@ async function createLeadCampaignAction(formData: FormData): Promise<void> {
   });
 
   // Parse the lead list — one row per line. Two accepted formats:
-  //   "회사명 | https://homepage.url"
-  //   "회사명" (홈페이지 주소 생략 — 주소가 없으면 워크플로우가 자동으로 제외합니다)
+  //   "Company name | https://homepage.url"
+  //   "Company name" (homepage omitted; rows without URLs are skipped by the workflow)
   const leadInputs = f.leadList
     .split("\n")
     .map((line) => line.trim())
@@ -76,7 +76,7 @@ async function createLeadCampaignAction(formData: FormData): Promise<void> {
     .map((line) => {
       const [name, url] = line.split("|").map((s) => s.trim());
       return {
-        companyName: name ?? "(이름 없음)",
+        companyName: name ?? "(Unnamed company)",
         ...(url && /^https?:\/\//i.test(url) ? { homepageUrl: url } : {}),
       };
     })
@@ -115,44 +115,44 @@ export default async function NewLeadCampaignPage({
   return (
     <div className="max-w-3xl mx-auto px-8 py-8">
       <header className="mb-5">
-        <Link href="/leads" className="text-[12px] text-ink-3 hover:text-ink-2">← 리드 목록</Link>
-        <h1 className="mt-2 text-[24px] font-bold tracking-[-0.01em]">새 리드 캠페인</h1>
+        <Link href="/leads" className="text-[12px] text-ink-3 hover:text-ink-2">← Lead campaigns</Link>
+        <h1 className="mt-2 text-[24px] font-bold tracking-[-0.01em]">New lead campaign</h1>
         <p className="mt-1 text-[13.5px] text-ink-2 max-w-[560px]">
-          제안하고 싶은 회사 목록과 우리 제품을 알려주면, 에이전트가 각 회사를 조사해 제안 포인트를 정리하고 콜드메일을 보냅니다.
+          Share the companies you want to pitch and your offer. Agents research each company, prepare pitch angles, and send cold email.
         </p>
       </header>
 
       {error && (
         <DiagnosticBanner
           tone="warn"
-          title={error === "invalid" ? "입력값을 확인해주세요." : "회사 목록이 비어 있습니다."}
+          title={error === "invalid" ? "Check the input values." : "The company list is empty."}
           className="mb-5"
         >
           {error === "invalid"
-            ? "필수 항목이 비었거나 형식이 맞지 않습니다. 캠페인 이름·제안 요약·목표 답신 수·마감일을 다시 확인해주세요."
-            : "최소 한 곳 이상의 회사를 한 줄에 하나씩 입력해주세요."}
+            ? "Some required fields are missing or incorrectly formatted. Check the campaign name, pitch summary, target replies, and deadline."
+            : "Enter at least one company, one per line."}
         </DiagnosticBanner>
       )}
 
       <form action={createLeadCampaignAction} className="space-y-4">
         {/* ── brief ─────────────────────────────────────────── */}
         <Card><CardBody>
-          <SectionLabel className="mb-3">캠페인 요약</SectionLabel>
-          <label htmlFor="name" className={LABEL}>캠페인 이름</label>
+          <SectionLabel className="mb-3">Campaign summary</SectionLabel>
+          <label htmlFor="name" className={LABEL}>Campaign name</label>
           <input
             id="name"
             name="name"
             required
             minLength={2}
             maxLength={120}
-            placeholder="K-뷰티 브랜드에 제안"
+            placeholder="Pitch K-beauty brands"
             className={FIELD}
           />
         </CardBody></Card>
 
         <Card><CardBody>
-          <SectionLabel className="mb-3">우리가 제안하는 것</SectionLabel>
-          <label htmlFor="ourProduct.name" className={LABEL}>제품 이름</label>
+          <SectionLabel className="mb-3">What we offer</SectionLabel>
+          <label htmlFor="ourProduct.name" className={LABEL}>Product name</label>
           <input
             id="ourProduct.name"
             name="ourProduct.name"
@@ -160,27 +160,27 @@ export default async function NewLeadCampaignPage({
             defaultValue="Social Seeding"
             className={`${FIELD} mb-4`}
           />
-          <label htmlFor="ourProduct.pitchSummary" className={LABEL}>한 줄 소개 (10자 이상)</label>
+          <label htmlFor="ourProduct.pitchSummary" className={LABEL}>One-line pitch (10+ chars)</label>
           <input
             id="ourProduct.pitchSummary"
             name="ourProduct.pitchSummary"
             required
             minLength={10}
-            defaultValue="TikTok 인플루언서 마케팅 플랫폼"
+            defaultValue="TikTok influencer marketing platform"
             className={`${FIELD} mb-4`}
           />
-          <label htmlFor="ourProduct.keyClaims" className={LABEL}>핵심 강점 (쉼표로 구분)</label>
+          <label htmlFor="ourProduct.keyClaims" className={LABEL}>Key strengths (comma-separated)</label>
           <input
             id="ourProduct.keyClaims"
             name="ourProduct.keyClaims"
-            placeholder="해시태그 적합도로 크리에이터 발굴, 회신 자동 처리"
+            placeholder="Find creators by hashtag fit, automate reply handling"
             className={FIELD}
           />
         </CardBody></Card>
 
         <Card><CardBody>
-          <SectionLabel className="mb-3">대상 + 콜드메일</SectionLabel>
-          <label htmlFor="targeting.countries" className={LABEL}>대상 국가 (국가 코드, 쉼표로 구분)</label>
+          <SectionLabel className="mb-3">Target + cold email</SectionLabel>
+          <label htmlFor="targeting.countries" className={LABEL}>Target countries (country codes, comma-separated)</label>
           <input
             id="targeting.countries"
             name="targeting.countries"
@@ -188,14 +188,14 @@ export default async function NewLeadCampaignPage({
             defaultValue="KR"
             className={`${FIELD} mono mb-4`}
           />
-          <label htmlFor="outreach.toneNotes" className={LABEL}>메일 톤 메모 (선택)</label>
+          <label htmlFor="outreach.toneNotes" className={LABEL}>Email tone notes (optional)</label>
           <input
             id="outreach.toneNotes"
             name="outreach.toneNotes"
-            placeholder="간결하게, 과장 없이"
+            placeholder="Concise, no exaggeration"
             className={`${FIELD} mb-4`}
           />
-          <label htmlFor="outreach.maxSendsPerBatch" className={LABEL}>한 번에 보낼 최대 메일 수</label>
+          <label htmlFor="outreach.maxSendsPerBatch" className={LABEL}>Max emails per batch</label>
           <input
             id="outreach.maxSendsPerBatch"
             name="outreach.maxSendsPerBatch"
@@ -208,8 +208,8 @@ export default async function NewLeadCampaignPage({
         </CardBody></Card>
 
         <Card><CardBody>
-          <SectionLabel className="mb-3">목표</SectionLabel>
-          <label htmlFor="goals.targetReplies" className={LABEL}>목표 답신 수</label>
+          <SectionLabel className="mb-3">Goals</SectionLabel>
+          <label htmlFor="goals.targetReplies" className={LABEL}>Target replies</label>
           <input
             id="goals.targetReplies"
             name="goals.targetReplies"
@@ -219,7 +219,7 @@ export default async function NewLeadCampaignPage({
             defaultValue="5"
             className={`${FIELD} mono w-32 mb-4`}
           />
-          <label htmlFor="goals.deadline" className={LABEL}>마감일</label>
+          <label htmlFor="goals.deadline" className={LABEL}>Deadline</label>
           <input
             id="goals.deadline"
             name="goals.deadline"
@@ -227,7 +227,7 @@ export default async function NewLeadCampaignPage({
             required
             className={`${FIELD} mono w-52 mb-4`}
           />
-          <label htmlFor="goals.budgetUsd" className={LABEL}>예산 (USD, 선택)</label>
+          <label htmlFor="goals.budgetUsd" className={LABEL}>Budget (USD, optional)</label>
           <input
             id="goals.budgetUsd"
             name="goals.budgetUsd"
@@ -240,23 +240,23 @@ export default async function NewLeadCampaignPage({
         </CardBody></Card>
 
         <Card><CardBody>
-          <SectionLabel className="mb-3">회사 목록 (최대 200곳)</SectionLabel>
+          <SectionLabel className="mb-3">Company list (max 200)</SectionLabel>
           <p className="text-[12.5px] text-ink-2 mb-2.5">
-            한 줄에 한 회사씩 입력하세요. 형식: <span className="mono text-ink">회사명 | https://homepage.url</span>
-            <span className="text-ink-3"> · 홈페이지 주소가 없으면 조사가 어려워 자동으로 제외됩니다.</span>
+            Enter one company per line. Format: <span className="mono text-ink">Company name | https://homepage.url</span>
+            <span className="text-ink-3"> · Rows without a homepage are hard to research and will be skipped automatically.</span>
           </p>
           <textarea
             name="leadList"
             required
             rows={10}
-            placeholder={"글로우 토닉 | https://glow-tonic.kr\n하이드라 코 | https://hydra.kr\n프레시 뷰티 | https://fresh.kr"}
+            placeholder={"Glow Tonic | https://glow-tonic.com\nHydra Co | https://hydra.example\nFresh Beauty | https://fresh.example"}
             className={`${FIELD} mono text-[12px] leading-relaxed`}
           />
         </CardBody></Card>
 
         <div className="flex items-center justify-end gap-3 pt-1">
-          <Link href="/leads"><Button variant="secondary">취소</Button></Link>
-          <Button variant="primary" type="submit">캠페인 시작 →</Button>
+          <Link href="/leads"><Button variant="secondary">Cancel</Button></Link>
+          <Button variant="primary" type="submit">Start campaign →</Button>
         </div>
       </form>
     </div>

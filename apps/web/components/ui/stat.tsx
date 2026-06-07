@@ -4,7 +4,7 @@ import { cn } from "@/lib/cn";
 /**
  * Stat — KPI card. `value` is the headline figure; `unit` renders smaller after
  * it; `hint` is the sub-line. `tone` tints the value (brand/ok/stop) or "muted"
- * for a non-computable "—" so "측정 불가" reads differently from a real 0.
+ * for a non-computable "—" so "not measurable" reads differently from a real 0.
  */
 export function Stat({
   label,

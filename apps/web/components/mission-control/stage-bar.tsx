@@ -7,18 +7,18 @@ import type { CampaignStage } from "@ss/contracts";
  *
  * `complete` is the SINGLE source of truth fix for the audit's status
  * contradiction: when the campaign is completed, every step renders done — we
- * never show "● 진행 중" on a stage of a finished campaign.
+ * never show an in-progress state on a stage of a finished campaign.
  */
 
 const ORDER: CampaignStage[] = ["overview", "sourcing", "outreach", "shipping", "content_review", "performance"];
 
 const LABEL_KO: Record<CampaignStage, string> = {
-  overview: "개요",
-  sourcing: "소싱",
-  outreach: "아웃리치",
-  shipping: "배송",
-  content_review: "콘텐츠 검수",
-  performance: "성과",
+  overview: "Overview",
+  sourcing: "Sourcing",
+  outreach: "Outreach",
+  shipping: "Shipping",
+  content_review: "Content review",
+  performance: "Performance",
 };
 
 export function StageBar({

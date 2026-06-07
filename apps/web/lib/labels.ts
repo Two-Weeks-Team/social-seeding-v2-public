@@ -1,7 +1,7 @@
 import type { StatusTone } from "@/components/ui/status-tag";
 
 /**
- * Operator-language label map — the single place machine enums become Korean the
+ * Operator-language label map — the single place machine enums become English the
  * marketer actually reads. The audit's #1 systemic defect was raw code
  * identifiers as UI labels; every screen routes its enum→label through here.
  */
@@ -10,11 +10,11 @@ import type { StatusTone } from "@/components/ui/status-tag";
 export type CampaignStatus = "draft" | "running" | "paused" | "completed" | "cancelled";
 
 const CAMPAIGN_STATUS_KO: Record<CampaignStatus, string> = {
-  draft: "초안",
-  running: "진행 중",
-  paused: "일시정지",
-  completed: "완료",
-  cancelled: "취소",
+  draft: "Draft",
+  running: "Running",
+  paused: "Paused",
+  completed: "Complete",
+  cancelled: "Cancelled",
 };
 
 const CAMPAIGN_STATUS_TONE: Record<CampaignStatus, StatusTone> = {
@@ -39,19 +39,19 @@ export const STAGE_ORDER: CampaignStage[] = [
 ];
 
 const STAGE_KO: Record<CampaignStage, string> = {
-  overview: "개요",
-  sourcing: "소싱",
-  outreach: "아웃리치",
-  shipping: "배송",
-  content_review: "콘텐츠 검수",
-  performance: "성과",
+  overview: "Overview",
+  sourcing: "Sourcing",
+  outreach: "Outreach",
+  shipping: "Shipping",
+  content_review: "Content review",
+  performance: "Performance",
 };
 
 export function stageKo(stage: string): string {
   return STAGE_KO[stage as CampaignStage] ?? stage;
 }
 
-/** "3 · 아웃리치" style label with the 1-based step number. */
+/** "3 · Outreach" style label with the 1-based step number. */
 export function stageWithNumber(stage: string): string {
   const i = STAGE_ORDER.indexOf(stage as CampaignStage);
   return i >= 0 ? `${i + 1} · ${STAGE_KO[stage as CampaignStage]}` : stageKo(stage);
@@ -59,14 +59,14 @@ export function stageWithNumber(stage: string): string {
 
 // ── Approval kinds ──────────────────────────────────────────────────────────
 const APPROVAL_KIND_KO: Record<string, string> = {
-  shortlist: "후보 리스트 승인",
-  outreach_send: "아웃리치 발송",
-  reply_response: "회신 응답",
-  shipment: "배송 확인",
-  content_review: "콘텐츠 검수",
-  budget: "예산 승인",
-  stage_advance: "단계 진행",
-  payment_mandate: "결제 승인",
+  shortlist: "Shortlist approval",
+  outreach_send: "Outreach send",
+  reply_response: "Reply response",
+  shipment: "Shipment confirmation",
+  content_review: "Content review",
+  budget: "Budget approval",
+  stage_advance: "Stage advance",
+  payment_mandate: "Payment approval",
 };
 
 export function approvalKindKo(kind: string): string {
@@ -75,18 +75,18 @@ export function approvalKindKo(kind: string): string {
 
 // ── Creator track state ─────────────────────────────────────────────────────
 const TRACK_STATE_KO: Record<string, string> = {
-  sourced: "선정됨",
-  outreach_sent: "아웃리치 발송",
-  in_conversation: "대화 중",
-  agreed: "협의 완료",
-  address_collected: "주소 확인",
-  shipped: "샘플 발송",
-  delivered: "수령",
-  posted: "게시",
-  verified: "검증 완료",
-  no_response: "무응답",
-  declined: "거절",
-  flaked: "이탈",
+  sourced: "Sourced",
+  outreach_sent: "Outreach sent",
+  in_conversation: "In conversation",
+  agreed: "Agreed",
+  address_collected: "Address collected",
+  shipped: "Sample shipped",
+  delivered: "Delivered",
+  posted: "Posted",
+  verified: "Verified",
+  no_response: "No response",
+  declined: "Declined",
+  flaked: "Dropped",
 };
 
 const TRACK_STATE_TONE: Record<string, StatusTone> = {
@@ -108,27 +108,27 @@ export function trackState(state: string): { label: string; tone: StatusTone } {
   return { label: TRACK_STATE_KO[state] ?? state, tone: TRACK_STATE_TONE[state] ?? "neutral" };
 }
 
-// ── Activity-timeline span names → plain Korean ─────────────────────────────
+// ── Activity-timeline span names → plain English ────────────────────────────
 // The audit flagged raw span names (workflow:brand-campaign, decision:approveShortlist)
 // + OTel vocabulary as the operator-facing "what the agents did" record.
 const SPAN_LABEL_KO: Array<[RegExp, string]> = [
-  [/^workflow:brand-campaign/, "캠페인 워크플로우 시작"],
-  [/^workflow:/, "워크플로우 시작"],
-  [/^decision:approveShortlist/, "후보 리스트 승인"],
-  [/^decision:approveOutreach/, "아웃리치 발송 승인"],
-  [/^decision:/, "승인 결정"],
-  [/^agent:sourcing/, "크리에이터 소싱"],
-  [/^agent:vetting/, "후보 검증"],
-  [/^agent:outreach/, "아웃리치 작성·발송"],
-  [/^agent:conversation|^agent:responder/, "회신 처리"],
-  [/^agent:logistics/, "배송 처리"],
-  [/^agent:content[_-]?verify/, "콘텐츠 검증"],
-  [/^agent:analyst|^agent:analytics/, "성과 분석"],
-  [/^agent:/, "에이전트 작업"],
-  [/^tool:tiktok/, "TikTok 조회"],
-  [/^tool:gmail/, "메일 발송"],
-  [/^tool:blacklist/, "블랙리스트 확인"],
-  [/^tool:/, "도구 실행"],
+  [/^workflow:brand-campaign/, "Campaign workflow started"],
+  [/^workflow:/, "Workflow started"],
+  [/^decision:approveShortlist/, "Shortlist approved"],
+  [/^decision:approveOutreach/, "Outreach send approved"],
+  [/^decision:/, "Approval decision"],
+  [/^agent:sourcing/, "Creator sourcing"],
+  [/^agent:vetting/, "Candidate vetting"],
+  [/^agent:outreach/, "Outreach draft/send"],
+  [/^agent:conversation|^agent:responder/, "Reply handling"],
+  [/^agent:logistics/, "Shipment handling"],
+  [/^agent:content[_-]?verify/, "Content verification"],
+  [/^agent:analyst|^agent:analytics/, "Performance analysis"],
+  [/^agent:/, "Agent task"],
+  [/^tool:tiktok/, "TikTok lookup"],
+  [/^tool:gmail/, "Email sent"],
+  [/^tool:blacklist/, "Blacklist check"],
+  [/^tool:/, "Tool run"],
 ];
 
 export function spanLabelKo(name: string): string {
@@ -137,21 +137,21 @@ export function spanLabelKo(name: string): string {
 }
 
 // ── Lead (B2B) lifecycle ────────────────────────────────────────────────────
-// A sales lead moves through import → 분석 → 조사 → 콜드메일 → 대화. The raw enum
+// A sales lead moves through import → enrichment → research → cold email → conversation. The raw enum
 // values (imported / enriching / researched …) leak agent internals, so every
 // lead screen routes its stage through here.
 const LEAD_STAGE_KO: Record<string, string> = {
-  imported: "등록됨",
-  enriching: "회사 분석 중",
-  enriched: "회사 분석 완료",
-  researching: "제안 준비 중",
-  researched: "제안 준비 완료",
-  outreach_sent: "콜드메일 발송",
-  in_conversation: "대화 중",
-  agreed: "협의 완료",
-  declined: "거절",
-  no_response: "무응답",
-  flaked: "정보 부족",
+  imported: "Imported",
+  enriching: "Enriching company",
+  enriched: "Company enriched",
+  researching: "Preparing proposal",
+  researched: "Proposal ready",
+  outreach_sent: "Cold email sent",
+  in_conversation: "In conversation",
+  agreed: "Agreed",
+  declined: "Declined",
+  no_response: "No response",
+  flaked: "Missing info",
 };
 
 const LEAD_STAGE_TONE: Record<string, StatusTone> = {
@@ -174,11 +174,11 @@ export function leadStage(stage: string): { label: string; tone: StatusTone } {
 
 // Lead-campaign lifecycle stages (narrower than brand-campaign's 6 steps).
 const LEAD_CAMPAIGN_STAGE_KO: Record<string, string> = {
-  overview: "개요",
-  import: "회사 등록",
-  research: "분석·제안 준비",
-  outreach: "콜드메일",
-  performance: "성과",
+  overview: "Overview",
+  import: "Company import",
+  research: "Analysis & proposal prep",
+  outreach: "Cold email",
+  performance: "Performance",
 };
 
 const LEAD_CAMPAIGN_STAGE_ORDER = ["overview", "import", "research", "outreach", "performance"];
@@ -187,17 +187,17 @@ export function leadCampaignStage(stage: string): string {
   return LEAD_CAMPAIGN_STAGE_KO[stage] ?? stage;
 }
 
-/** "2 · 회사 등록" style label with the 1-based step number. */
+/** "2 · Company import" style label with the 1-based step number. */
 export function leadCampaignStageWithNumber(stage: string): string {
   const i = LEAD_CAMPAIGN_STAGE_ORDER.indexOf(stage);
   return i >= 0 ? `${i + 1} · ${LEAD_CAMPAIGN_STAGE_KO[stage]}` : leadCampaignStage(stage);
 }
 
-/** Sales priority (high/medium/low) → Korean + status tone. */
+/** Sales priority (high/medium/low) → English + status tone. */
 export function salesPriority(p: string): { label: string; tone: StatusTone } {
-  if (p === "high") return { label: "우선순위 높음", tone: "ok" };
-  if (p === "medium") return { label: "우선순위 중간", tone: "warn" };
-  if (p === "low") return { label: "우선순위 낮음", tone: "neutral" };
+  if (p === "high") return { label: "High priority", tone: "ok" };
+  if (p === "medium") return { label: "Medium priority", tone: "warn" };
+  if (p === "low") return { label: "Low priority", tone: "neutral" };
   return { label: p, tone: "neutral" };
 }
 
@@ -206,33 +206,33 @@ export function salesPriority(p: string): { label: string; tone: StatusTone } {
 // outreach-writer …). The usage dashboard routes those through here so the
 // operator reads roles, never code identifiers.
 const AGENT_KO: Record<string, string> = {
-  intake: "브리프 정리",
-  research: "브랜드 리서치",
-  sourcing: "크리에이터 소싱",
-  vetting: "후보 검증",
-  "outreach-writer": "아웃리치 작성",
-  "lead-outreach-writer": "리드 아웃리치 작성",
-  conversation: "회신 처리",
-  "conversation-responder": "회신 응답",
-  logistics: "배송 처리",
-  "content-verify": "콘텐츠 검증",
-  analyst: "성과 분석",
+  intake: "Brief intake",
+  research: "Brand research",
+  sourcing: "Creator sourcing",
+  vetting: "Candidate vetting",
+  "outreach-writer": "Outreach writing",
+  "lead-outreach-writer": "Lead outreach writing",
+  conversation: "Reply handling",
+  "conversation-responder": "Reply response",
+  logistics: "Shipment handling",
+  "content-verify": "Content verification",
+  analyst: "Performance analysis",
 };
 
 export function agentKo(agent: string): string {
-  return AGENT_KO[agent] ?? "에이전트 작업";
+  return AGENT_KO[agent] ?? "Agent task";
 }
 
 // ── Reply classification (email thread / responder) ─────────────────────────
 const REPLY_CLASS_KO: Record<string, { label: string; tone: StatusTone }> = {
-  interested: { label: "관심 있음", tone: "ok" },
-  needs_info: { label: "정보 요청", tone: "run" },
-  negotiating: { label: "협의 중", tone: "warn" },
-  not_now: { label: "지금은 아님", tone: "neutral" },
-  declined: { label: "거절", tone: "stop" },
-  out_of_office: { label: "부재중", tone: "neutral" },
-  unsubscribe: { label: "수신 거부", tone: "stop" },
-  unrelated: { label: "무관", tone: "neutral" },
+  interested: { label: "Interested", tone: "ok" },
+  needs_info: { label: "Needs info", tone: "run" },
+  negotiating: { label: "Negotiating", tone: "warn" },
+  not_now: { label: "Not now", tone: "neutral" },
+  declined: { label: "Declined", tone: "stop" },
+  out_of_office: { label: "Out of office", tone: "neutral" },
+  unsubscribe: { label: "Unsubscribed", tone: "stop" },
+  unrelated: { label: "Unrelated", tone: "neutral" },
 };
 
 export function replyClass(c: string): { label: string; tone: StatusTone } {
@@ -241,11 +241,11 @@ export function replyClass(c: string): { label: string; tone: StatusTone } {
 
 // ── Autonomy gate labels (policies page) ────────────────────────────────────
 const GATE_KO: Record<string, string> = {
-  approveShortlist: "후보 리스트 확정",
-  approveOutreachSend: "아웃리치 첫 발송",
-  approveReplyResponse: "회신 자동 응답",
-  approveShipment: "샘플 배송",
-  approveStageAdvance: "단계 진행",
+  approveShortlist: "Finalize shortlist",
+  approveOutreachSend: "First outreach send",
+  approveReplyResponse: "Auto reply response",
+  approveShipment: "Sample shipment",
+  approveStageAdvance: "Stage advance",
 };
 
 export function gateKo(gate: string): string {

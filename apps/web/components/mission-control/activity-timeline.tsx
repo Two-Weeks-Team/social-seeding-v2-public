@@ -15,15 +15,15 @@ function fmtClock(ms: number): string {
 }
 
 function fmtDuration(span: PersistedSpan): string | null {
-  if (!span.endedAt) return "진행 중";
+  if (!span.endedAt) return "running";
   const d = span.endedAt - span.startedAt;
   if (d < 1000) return null; // hide sub-second "0ms"-looking durations
-  if (d < 60_000) return `${(d / 1000).toFixed(1)}초`;
-  return `${Math.round(d / 60_000)}분`;
+  if (d < 60_000) return `${(d / 1000).toFixed(1)}s`;
+  return `${Math.round(d / 60_000)}m`;
 }
 
 function fmtRunWhen(d: Date): string {
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${d.toISOString().slice(11, 16)}`;
+  return `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} ${d.toISOString().slice(11, 16)}`;
 }
 
 const DOT: Record<PersistedSpan["kind"], string> = {
@@ -71,7 +71,7 @@ function SpanRow({ node, depth }: { node: TreeNode; depth: number }) {
       </div>
       {span.error && (
         <div className="text-[11.5px] text-stop mb-1" style={{ paddingLeft: depth * 18 + 18 }}>
-          문제 발생: {span.error}
+          Issue: {span.error}
         </div>
       )}
       {node.children.map((c) => <SpanRow key={c.span.id} node={c} depth={depth + 1} />)}
@@ -84,21 +84,21 @@ export function ActivityTimeline({ traces }: { traces: PersistedTraceDoc[] }) {
     return (
       <div
         role="feed"
-        aria-label="에이전트 활동 타임라인"
+        aria-label="Agent activity timeline"
         aria-live="polite"
         aria-busy="false"
         className="text-[13px] text-ink-3 py-8 text-center"
       >
-        아직 활동이 없습니다. 캠페인이 소싱 단계로 들어가면 에이전트가 한 일이 여기에 실시간으로 쌓입니다.
+        No activity yet. Once the campaign enters sourcing, agent work will appear here in real time.
       </div>
     );
   }
   return (
-    <div role="feed" aria-label="에이전트 활동 타임라인" aria-live="polite" aria-busy="false" className="space-y-5">
+    <div role="feed" aria-label="Agent activity timeline" aria-live="polite" aria-busy="false" className="space-y-5">
       {traces.map((run) => {
         const tree = buildTree(run.spans);
         return (
-          <section key={run.runId} role="article" aria-label={`실행 ${fmtRunWhen(run.startedAt)}`}>
+          <section key={run.runId} role="article" aria-label={`Run ${fmtRunWhen(run.startedAt)}`}>
             <div className="text-[11px] text-ink-3 mb-1.5">{fmtRunWhen(run.startedAt)}</div>
             <div className="border-l-2 border-line pl-3">
               {tree.map((n) => <SpanRow key={n.span.id} node={n} depth={0} />)}

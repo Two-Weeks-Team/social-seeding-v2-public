@@ -7,7 +7,7 @@
  *   D26 — Dialogflow CX surface.
  *   D27 — voice channel readback before any sign action; never auto-signs.
  *   D34 — confirm phrase is locale-specific:
- *           ko → "네 서명"
+ *           ko → "yes sign"
  *           en → "yes sign"
  *           ja → "確認"
  *           zh → "确认签名"
@@ -19,7 +19,7 @@
  *   - explicit warning for non-AP2-native partners
  *   - explicit warning for first-time partners (and refuses bulk via voice)
  *   - confirmation phrase: must be one of the exact registered phrases;
- *     ambiguous like "OK" / "응" is rejected.
+ *     ambiguous like "OK" is rejected.
  *
  * Anti-pattern §9.4 (raw JWS as primary): the voice readback presents
  * semantic fields (campaign, recipients count, amount, partner), never the
@@ -47,14 +47,14 @@ export interface VoiceConfirmationProps {
 }
 
 const CONFIRM_PHRASES: Record<AP2Locale, string[]> = {
-  ko: ["네 서명", "예 서명", "서명할게"],
+  ko: ["yes sign", "yes, sign", "confirm sign"],
   en: ["yes sign", "yes, sign", "confirm sign"],
   ja: ["確認", "はい署名", "確認します"],
   zh: ["确认签名", "确认", "签署"],
 };
 
 const CANCEL_PHRASES: Record<AP2Locale, string[]> = {
-  ko: ["취소", "아니오", "그만"],
+  ko: ["cancel", "no", "stop"],
   en: ["cancel", "no", "stop"],
   ja: ["キャンセル", "いいえ", "やめて"],
   zh: ["取消", "不", "停止"],

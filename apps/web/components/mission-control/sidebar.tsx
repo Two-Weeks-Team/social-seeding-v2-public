@@ -17,17 +17,17 @@ interface NavItem {
 }
 
 const PRIMARY: NavItem[] = [
-  { href: "/campaigns", label: "캠페인" },
-  { href: "/leads", label: "리드 (B2B)" },
-  { href: "/approvals", label: "승인 대기" },
-  { href: "/threads", label: "이메일 스레드" },
-  { href: "/policies", label: "자율성 정책" },
-  { href: "/usage", label: "사용량 · 비용" },
-  { href: "/settings", label: "Gmail 연동" },
+  { href: "/campaigns", label: "Campaigns" },
+  { href: "/leads", label: "Leads (B2B)" },
+  { href: "/approvals", label: "Approvals" },
+  { href: "/threads", label: "Email threads" },
+  { href: "/policies", label: "Autonomy policy" },
+  { href: "/usage", label: "Usage & cost" },
+  { href: "/settings", label: "Gmail connection" },
 ];
 
 const SECONDARY: NavItem[] = [
-  { href: "#", label: "크리에이터 라이브러리", soon: true },
+  { href: "#", label: "Creator library", soon: true },
 ];
 
 export function Sidebar({
@@ -93,11 +93,11 @@ export function Sidebar({
           );
         })}
 
-        <div className="pt-4 pb-1.5 px-3 text-[10.5px] uppercase tracking-[0.08em] text-ink-3">자세히 보기</div>
+        <div className="pt-4 pb-1.5 px-3 text-[10.5px] uppercase tracking-[0.08em] text-ink-3">More</div>
         {SECONDARY.map((item) => (
           <div key={item.label} className="w-full px-3 py-2 rounded-[11px] flex items-center gap-2.5 text-ink-3 cursor-default" aria-disabled>
             <span>{item.label}</span>
-            {item.soon && <span className="ml-auto text-[10px] text-brand-ink bg-brand-soft rounded-full px-2 py-0.5 font-semibold">곧</span>}
+            {item.soon && <span className="ml-auto text-[10px] text-brand-ink bg-brand-soft rounded-full px-2 py-0.5 font-semibold">Soon</span>}
           </div>
         ))}
       </nav>
@@ -105,7 +105,7 @@ export function Sidebar({
       {/* Footer — budget meter + user */}
       <div className="border-t border-line px-4 py-3.5 text-[11.5px] text-ink-2">
         <div className="flex items-center justify-between mb-1.5">
-          <span>이번 달 예산</span>
+          <span>Monthly budget</span>
           <span className="mono text-ink">${monthlySpendUsd.toFixed(2)} / ${monthlyBudgetUsd}</span>
         </div>
         <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">

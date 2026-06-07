@@ -58,31 +58,31 @@ async function pauseCampaignAction(formData: FormData): Promise<void> {
   revalidatePath(`/campaigns/${campaignId}`);
 }
 
-const LANG_KO: Record<string, string> = { ko: "한국어", en: "영어", ja: "일본어", zh: "중국어", "zh-CN": "중국어" };
+const LANG_KO: Record<string, string> = { ko: "Korean", en: "English", ja: "Japanese", zh: "Chinese", "zh-CN": "Chinese" };
 function langs(codes: string[]): string {
   return codes.map((c) => LANG_KO[c] ?? c).join(", ");
 }
 function fmtDate(d: Date): string {
-  return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 type View = "timeline" | "canvas";
 
 const SUB_LINKS: { seg: string; label: string }[] = [
-  { seg: "threads", label: "메일" },
-  { seg: "performance", label: "성과" },
-  { seg: "posts", label: "게시물" },
-  { seg: "shipments", label: "배송" },
-  { seg: "report", label: "리포트" },
+  { seg: "threads", label: "Mail" },
+  { seg: "performance", label: "Performance" },
+  { seg: "posts", label: "Posts" },
+  { seg: "shipments", label: "Shipping" },
+  { seg: "report", label: "Report" },
 ];
 
 const FUNNEL_DEF: { key: keyof AnalyticsReport["funnel"]; label: string }[] = [
-  { key: "outreach_sent", label: "아웃리치" },
-  { key: "in_conversation", label: "대화 중" },
-  { key: "shipped", label: "샘플 발송" },
-  { key: "delivered", label: "수령" },
-  { key: "posted", label: "게시" },
-  { key: "verified", label: "검증 완료" },
+  { key: "outreach_sent", label: "Outreach" },
+  { key: "in_conversation", label: "In conversation" },
+  { key: "shipped", label: "Sample shipped" },
+  { key: "delivered", label: "Delivered" },
+  { key: "posted", label: "Posted" },
+  { key: "verified", label: "Verified" },
 ];
 
 export default async function CampaignDetailPage({
@@ -133,7 +133,7 @@ export default async function CampaignDetailPage({
   const isStopped = campaign.status === "cancelled";
   const isLive = campaign.status === "running" || campaign.status === "paused";
 
-  // Real performance rollup (same source as the 성과/리포트 tabs) — surfaced inline
+  // Real performance rollup (same source as the Performance/Report tabs) — surfaced inline
   // so the detail isn't sparse. Degrades to null if compile fails.
   const analytics = await invokeCapability(
     "analytics.compile",
@@ -149,24 +149,24 @@ export default async function CampaignDetailPage({
   const er = analytics?.reach.weightedEngagementRate ?? null;
   const nextAction =
     pending.length > 0 && pending[0]
-      ? `승인 대기 · ${approvalKindKo(pending[0].kind)}`
+      ? `Pending approval · ${approvalKindKo(pending[0].kind)}`
       : isComplete
-        ? "완료됨"
+        ? "Complete"
         : isStopped
-          ? "취소됨"
+          ? "Cancelled"
           : isLive
-            ? `${stageKo(campaign.stage)} 진행 중`
+            ? `${stageKo(campaign.stage)} running`
             : st.label;
 
   return (
     <div className="max-w-6xl mx-auto px-8 py-8">
       <header className="mb-5">
-        <Link href="/campaigns" className="text-[12px] text-ink-3 hover:text-ink-2">← 캠페인 목록</Link>
+        <Link href="/campaigns" className="text-[12px] text-ink-3 hover:text-ink-2">← Campaigns</Link>
         <div className="mt-2 flex items-start justify-between gap-4">
           <div>
             <h1 className="text-[24px] font-bold tracking-[-0.01em]">{campaign.brief.brandProduct.name}</h1>
             <div className="mt-1 text-[12.5px] text-ink-3">
-              {campaign.brief.brandProduct.category} · {fmtDate(campaign.createdAt)} 시작
+              {campaign.brief.brandProduct.category} · started {fmtDate(campaign.createdAt)}
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -175,11 +175,11 @@ export default async function CampaignDetailPage({
               <div className="flex gap-2">
                 <form action={pauseCampaignAction}>
                   <input type="hidden" name="campaignId" value={id} />
-                  <Button>{campaign.status === "paused" ? "▶ 재개" : "⏸ 일시정지"}</Button>
+                  <Button>{campaign.status === "paused" ? "▶ Resume" : "⏸ Pause"}</Button>
                 </form>
                 <form action={cancelCampaignAction}>
                   <input type="hidden" name="campaignId" value={id} />
-                  <Button tone="reject">✕ 취소</Button>
+                  <Button tone="reject">✕ Cancel</Button>
                 </form>
               </div>
             ) : (
@@ -200,12 +200,12 @@ export default async function CampaignDetailPage({
                   view === v ? "bg-surface shadow-soft text-ink" : "text-ink-3 hover:text-ink",
                 )}
               >
-                {v === "timeline" ? "타임라인" : "캔버스"}
+                {v === "timeline" ? "Timeline" : "Canvas"}
               </Link>
             ))}
           </div>
           <div className="flex items-center gap-1 text-[12.5px]">
-            <span className="text-ink-3 mr-1">상세 보기</span>
+            <span className="text-ink-3 mr-1">Details</span>
             {SUB_LINKS.map((l) => (
               <Link key={l.seg} href={`/campaigns/${id}/${l.seg}`} className="px-2 py-1 rounded-lg text-ink-2 hover:bg-surface-2 hover:text-ink">
                 {l.label}
@@ -216,31 +216,31 @@ export default async function CampaignDetailPage({
       </header>
 
       <div className="mb-6">
-        <StageBar current={campaign.stage} complete={isComplete} stopped={isStopped} notes={shortlistApproval ? { sourcing: "승인 대기" } : undefined} />
+        <StageBar current={campaign.stage} complete={isComplete} stopped={isStopped} notes={shortlistApproval ? { sourcing: "Pending approval" } : undefined} />
       </div>
 
       {view === "timeline" && analytics && (
         <div className="grid grid-cols-4 gap-4 mb-6">
           <Stat
-            label="검증 게시물"
+            label="Verified posts"
             value={analytics.goals.verifiedCount}
             unit={`/ ${analytics.goals.targetLivePosts}`}
             tone={analytics.goals.goalMet ? "ok" : analytics.goals.verifiedCount > 0 ? "default" : "muted"}
-            hint={pct !== null ? `목표 대비 ${pct}%` : undefined}
+            hint={pct !== null ? `${pct}% of goal` : undefined}
           />
           <Stat
-            label="총 조회수"
+            label="Total views"
             value={fmtCompactKo(analytics.reach.verifiedViews).value}
             unit={fmtCompactKo(analytics.reach.verifiedViews).unit}
             tone={analytics.reach.verifiedViews > 0 ? "default" : "muted"}
           />
           <Stat
-            label="평균 참여율"
+            label="Avg engagement"
             value={er !== null ? (er * 100).toFixed(1) : "—"}
             unit={er !== null ? "%" : undefined}
             tone={er !== null ? "default" : "muted"}
           />
-          <Stat label="대상 크리에이터" value={campaign.tracks.length} hint={`검증 완료 ${analytics.goals.verifiedCount}명`} />
+          <Stat label="Target creators" value={campaign.tracks.length} hint={`${analytics.goals.verifiedCount} verified`} />
         </div>
       )}
 
@@ -264,8 +264,8 @@ export default async function CampaignDetailPage({
                 <Card>
                   <CardBody>
                     <div className="flex items-center justify-between mb-3">
-                      <SectionLabel>전환 퍼널</SectionLabel>
-                      <Link href={`/campaigns/${id}/performance`} className="text-[11.5px] text-ink-3 hover:text-ink-2">성과 전체 →</Link>
+                      <SectionLabel>Conversion funnel</SectionLabel>
+                      <Link href={`/campaigns/${id}/performance`} className="text-[11.5px] text-ink-3 hover:text-ink-2">Full performance →</Link>
                     </div>
                     <Funnel rows={FUNNEL_DEF.map((d) => ({ label: d.label, value: analytics.funnel[d.key] }))} />
                   </CardBody>
@@ -274,11 +274,11 @@ export default async function CampaignDetailPage({
               <Card>
                 <CardBody>
                   <div className="flex items-center justify-between mb-3">
-                    <SectionLabel>활동 타임라인</SectionLabel>
+                    <SectionLabel>Activity timeline</SectionLabel>
                     {isLive && (
                       <div className="text-[11px] text-ink-3 flex items-center gap-1.5">
                         <span className="inline-block w-1.5 h-1.5 rounded-full bg-ok animate-pulse" />
-                        실시간
+                        Live
                       </div>
                     )}
                   </div>
@@ -293,11 +293,11 @@ export default async function CampaignDetailPage({
           {pending.length > 0 && pending[0] && (
             <Card className="bg-warn-bg border-warn/25" flat>
               <CardBody>
-                <SectionLabel className="text-warn mb-2">필요한 결정</SectionLabel>
-                <div className="text-[14px] font-semibold text-ink">{approvalKindKo(pending[0].kind)} 대기</div>
+                <SectionLabel className="text-warn mb-2">Decision needed</SectionLabel>
+                <div className="text-[14px] font-semibold text-ink">{approvalKindKo(pending[0].kind)} pending</div>
                 {pending[0].rationale && <p className="mt-1 text-[12.5px] text-ink-2">{pending[0].rationale}</p>}
                 <Link href={`/approvals/${pending[0].id}`} className="mt-3 block">
-                  <Button variant="primary" tone="warn" className="w-full">검토하러 가기 →</Button>
+                  <Button variant="primary" tone="warn" className="w-full">Review →</Button>
                 </Link>
               </CardBody>
             </Card>
@@ -305,22 +305,22 @@ export default async function CampaignDetailPage({
 
           <Card>
             <CardBody>
-              <SectionLabel className="mb-3">진행 · 일정</SectionLabel>
+              <SectionLabel className="mb-3">Progress · Schedule</SectionLabel>
               <dl className="text-[13px] space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <dt className="text-ink-3">상태</dt>
+                  <dt className="text-ink-3">Status</dt>
                   <dd><StatusTag tone={st.tone} size="sm">{st.label}</StatusTag></dd>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <dt className="text-ink-3 shrink-0">다음 액션</dt>
+                  <dt className="text-ink-3 shrink-0">Next action</dt>
                   <dd className="text-ink text-right truncate">{nextAction}</dd>
                 </div>
                 <div className="flex items-center justify-between">
-                  <dt className="text-ink-3">예산 상한</dt>
+                  <dt className="text-ink-3">Budget cap</dt>
                   <dd className="text-ink mono">{campaign.brief.goals.budgetUsd != null ? `$${campaign.brief.goals.budgetUsd}` : "—"}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <dt className="text-ink-3 shrink-0">시작 · 마감</dt>
+                  <dt className="text-ink-3 shrink-0">Start · Deadline</dt>
                   <dd className="text-ink text-right">{fmtDate(campaign.createdAt)} · {fmtDate(campaign.brief.goals.deadline)}</dd>
                 </div>
               </dl>
@@ -329,31 +329,31 @@ export default async function CampaignDetailPage({
 
           <Card>
             <CardBody>
-              <SectionLabel className="mb-3">캠페인 개요</SectionLabel>
+              <SectionLabel className="mb-3">Campaign overview</SectionLabel>
               <dl className="text-[13px] space-y-2.5">
                 <div>
-                  <dt className="text-[11px] text-ink-3">브랜드 · 제품</dt>
+                  <dt className="text-[11px] text-ink-3">Brand · Product</dt>
                   <dd className="font-semibold text-ink">
                     {campaign.brief.brandProduct.name} <span className="text-ink-3 font-normal">({campaign.brief.brandProduct.category})</span>
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[11px] text-ink-3">설명</dt>
+                  <dt className="text-[11px] text-ink-3">Description</dt>
                   <dd className="text-ink-2">{campaign.brief.brandProduct.description}</dd>
                 </div>
                 <div>
-                  <dt className="text-[11px] text-ink-3">타겟</dt>
+                  <dt className="text-[11px] text-ink-3">Target</dt>
                   <dd className="text-ink-2">
-                    크리에이터 {campaign.brief.targeting.creatorCount}명 · 참여율 {(campaign.brief.targeting.minEngagementRate * 100).toFixed(1)}% 이상 · {langs(campaign.brief.targeting.languages)}
+                    {campaign.brief.targeting.creatorCount} creators · ER {(campaign.brief.targeting.minEngagementRate * 100).toFixed(1)}%+ · {langs(campaign.brief.targeting.languages)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[11px] text-ink-3">샘플 발송</dt>
-                  <dd className="text-ink-2">{campaign.brief.logistics.shipsSamples ? "예" : "아니오"}</dd>
+                  <dt className="text-[11px] text-ink-3">Sample shipping</dt>
+                  <dd className="text-ink-2">{campaign.brief.logistics.shipsSamples ? "Yes" : "No"}</dd>
                 </div>
                 <div>
-                  <dt className="text-[11px] text-ink-3">목표</dt>
-                  <dd className="text-ink-2">게시물 {campaign.brief.goals.targetLivePosts}건 · 마감 {fmtDate(campaign.brief.goals.deadline)}</dd>
+                  <dt className="text-[11px] text-ink-3">Goal</dt>
+                  <dd className="text-ink-2">{campaign.brief.goals.targetLivePosts} posts · due {fmtDate(campaign.brief.goals.deadline)}</dd>
                 </div>
               </dl>
             </CardBody>
@@ -361,14 +361,14 @@ export default async function CampaignDetailPage({
 
           <Card>
             <CardBody>
-              <SectionLabel className="mb-3">대상 크리에이터 ({campaign.tracks.length})</SectionLabel>
+              <SectionLabel className="mb-3">Target creators ({campaign.tracks.length})</SectionLabel>
               {analytics && campaign.tracks.length > 0 && (
                 <div className="text-[12px] text-ink-3 mb-2.5 -mt-1">
-                  검증 완료 {analytics.goals.verifiedCount} · 게시 {analytics.funnel.posted} · 대화 중 {analytics.funnel.in_conversation}
+                  {analytics.goals.verifiedCount} verified · {analytics.funnel.posted} posted · {analytics.funnel.in_conversation} in conversation
                 </div>
               )}
               {campaign.tracks.length === 0 ? (
-                <div className="text-[12.5px] text-ink-3">아직 선정된 크리에이터가 없습니다.</div>
+                <div className="text-[12.5px] text-ink-3">No creators selected yet.</div>
               ) : (
                 <div className="space-y-0.5">
                   {campaign.tracks.slice(0, 6).map((t) => {
@@ -383,7 +383,7 @@ export default async function CampaignDetailPage({
                           <div className="text-[12.5px] text-ink truncate leading-tight">{display}</div>
                           {p?.handle && p.handle !== display && (
                             <div className="text-[11px] text-ink-3 mono truncate">
-                              {p.handle}{p.followers ? ` · 팔로워 ${fmtFollowers(p.followers)}` : ""}
+                              {p.handle}{p.followers ? ` · ${fmtFollowers(p.followers)} followers` : ""}
                             </div>
                           )}
                         </div>
@@ -404,7 +404,7 @@ export default async function CampaignDetailPage({
                     );
                   })}
                   {campaign.tracks.length > 6 && (
-                    <div className="text-[11px] text-ink-3 mt-1.5">+{campaign.tracks.length - 6}명 더</div>
+                    <div className="text-[11px] text-ink-3 mt-1.5">+{campaign.tracks.length - 6} more</div>
                   )}
                 </div>
               )}

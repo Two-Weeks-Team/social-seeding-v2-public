@@ -141,43 +141,43 @@ export default async function SharePage({ params, searchParams }: SharePageProps
       <div className="max-w-3xl mx-auto px-6 py-12">
         {/* minimal header — branded but operator-free */}
         <div className="mb-8 pb-6 border-b border-line">
-          <SectionLabel>캠페인 성과 리포트</SectionLabel>
+          <SectionLabel>Campaign performance report</SectionLabel>
           <h1 className="mt-1.5 text-[28px] font-bold tracking-[-0.01em] text-ink">
             {a.brief.name}
           </h1>
           <div className="mt-1.5 text-[13px] text-ink-3">
-            {a.brief.category} · 생성일 <span className="mono">{report.generatedAt.toISOString().slice(0, 10)}</span>
+            {a.brief.category} · generated <span className="mono">{report.generatedAt.toISOString().slice(0, 10)}</span>
           </div>
         </div>
 
         {/* compact stat strip */}
         <div className="grid grid-cols-3 gap-4 mb-8">
           <Card><CardBody>
-            <SectionLabel>검증 게시물</SectionLabel>
+            <SectionLabel>Verified posts</SectionLabel>
             <div className="mt-1.5 text-[22px] font-bold text-ink tnum mono">{verifiedFraction}</div>
             {a.goals.goalMet && (
-              <StatusTag tone="ok" size="sm" className="mt-2">목표 달성</StatusTag>
+              <StatusTag tone="ok" size="sm" className="mt-2">Goal met</StatusTag>
             )}
           </CardBody></Card>
           <Card><CardBody>
-            <SectionLabel>총 도달</SectionLabel>
+            <SectionLabel>Total reach</SectionLabel>
             <div className="mt-1.5 text-[22px] font-bold text-ink tnum mono">{reach}</div>
-            <div className="mt-1 text-[11px] text-ink-3">검증 조회수 · 참여율 {er}</div>
+            <div className="mt-1 text-[11px] text-ink-3">Verified views · engagement rate {er}</div>
           </CardBody></Card>
           <Card><CardBody>
-            <SectionLabel>마감일</SectionLabel>
+            <SectionLabel>Deadline</SectionLabel>
             <div className={`mt-1.5 text-[22px] font-bold tnum mono ${a.goals.daysToDeadline < 0 ? "text-stop" : "text-ink"}`}>
               {a.brief.deadline.toISOString().slice(0, 10)}
             </div>
             <div className="mt-1 text-[11px] text-ink-3">
-              {a.goals.daysToDeadline >= 0 ? `${a.goals.daysToDeadline}일 남음` : `${-a.goals.daysToDeadline}일 지남`}
+              {a.goals.daysToDeadline >= 0 ? `${a.goals.daysToDeadline} days left` : `${-a.goals.daysToDeadline} days past`}
             </div>
           </CardBody></Card>
         </div>
 
         {/* summary callout */}
         <Card className="mb-6"><CardBody>
-          <SectionLabel className="mb-2">요약</SectionLabel>
+          <SectionLabel className="mb-2">Summary</SectionLabel>
           <p className="text-[16px] text-ink leading-relaxed">{report.narrative.summary}</p>
         </CardBody></Card>
 
@@ -188,7 +188,7 @@ export default async function SharePage({ params, searchParams }: SharePageProps
 
         {/* footer: branding only — no auth-only navigation */}
         <footer className="mt-12 pt-6 border-t border-line text-[11px] text-ink-3">
-          Social Seeding · 공개 미리보기 · 링크 폐기는 캠페인 운영자에게 문의해주세요.
+          Social Seeding · Public preview · Contact the campaign operator to revoke this link.
         </footer>
       </div>
     </main>

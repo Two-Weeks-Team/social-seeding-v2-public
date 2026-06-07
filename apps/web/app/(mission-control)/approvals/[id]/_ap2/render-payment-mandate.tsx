@@ -41,7 +41,7 @@ export async function renderPaymentMandateApproval(
           href="/approvals"
           className="text-[12px] text-ink-3 hover:text-ink-2"
         >
-          ← 승인 인박스
+          ← Approval inbox
         </Link>
         <div className="mt-2 mb-5">
           <SectionLabel>{approvalKindKo("payment_mandate")}</SectionLabel>
@@ -49,9 +49,9 @@ export async function renderPaymentMandateApproval(
             {approvalKindKo("payment_mandate")}
           </h1>
         </div>
-        <DiagnosticBanner tone="stop" title="이 항목은 지금 검토할 수 없습니다">
-          첨부된 결제 위임 데이터가 형식과 맞지 않습니다. 워크플로 기록을
-          확인한 뒤 다시 시도해주세요.
+        <DiagnosticBanner tone="stop" title="This item cannot be reviewed right now">
+          The attached payment mandate data does not match the expected format.
+          Check the workflow record and try again.
         </DiagnosticBanner>
       </div>
     );
@@ -75,7 +75,7 @@ export async function renderPaymentMandateApproval(
  *   1. session preference (TODO once `getServerSession` exposes
  *      `preferredLocale`; for now falls through to (2)).
  *   2. `Accept-Language` header — first matching D34 locale.
- *   3. fall back to "ko" (day-1 primary).
+ *   3. fall back to "en" for the demo/judge-facing default.
  */
 async function detectLocale(): Promise<AP2Locale> {
   try {
@@ -88,5 +88,5 @@ async function detectLocale(): Promise<AP2Locale> {
   } catch {
     // SSR / static context — fall through.
   }
-  return "ko";
+  return "en";
 }

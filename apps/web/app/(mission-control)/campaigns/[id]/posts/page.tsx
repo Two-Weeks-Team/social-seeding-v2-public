@@ -17,7 +17,7 @@ import { resolveCreators } from "@/lib/creators";
  * /campaigns/[id]/posts — content-review list. One row per track where
  * content-verify produced a snapshot (track.content present); that happens at
  * terminal 'verified' OR 'flaked-with-post' states. Tracks that ended without
- * a post have no content snapshot — they appear below in the "게시 없음" bucket
+ * a post have no content snapshot — they appear below in the "No post" bucket
  * for operator triage.
  *
  * Presentation only — data fetching + filtering preserved verbatim.
@@ -35,14 +35,14 @@ function scoreTone(score: number): StatusTone {
   return "stop";
 }
 
-/** Content-verify flag → operator-readable Korean (never the raw flag code). */
+/** Content-verify flag → operator-readable English (never the raw flag code). */
 const FLAG_KO: Record<string, { label: string; tone: StatusTone }> = {
-  competitor_mention: { label: "경쟁사 언급", tone: "stop" },
-  prompt_injection: { label: "프롬프트 조작 의심", tone: "stop" },
-  brand_unsafe: { label: "브랜드 부적합", tone: "stop" },
-  no_brand_mention: { label: "브랜드 미언급", tone: "warn" },
-  off_brief: { label: "브리프 불일치", tone: "warn" },
-  low_engagement: { label: "낮은 참여", tone: "warn" },
+  competitor_mention: { label: "Competitor mention", tone: "stop" },
+  prompt_injection: { label: "Prompt injection suspected", tone: "stop" },
+  brand_unsafe: { label: "Brand unsafe", tone: "stop" },
+  no_brand_mention: { label: "No brand mention", tone: "warn" },
+  off_brief: { label: "Off brief", tone: "warn" },
+  low_engagement: { label: "Low engagement", tone: "warn" },
 };
 function flagKo(flag: string): { label: string; tone: StatusTone } {
   return FLAG_KO[flag] ?? { label: flag.replace(/_/g, " "), tone: "warn" };
@@ -92,9 +92,9 @@ export default async function CampaignPostsPage({
         </Link>
         <div className="mt-2 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-[24px] font-bold tracking-[-0.01em]">콘텐츠 검증</h1>
+            <h1 className="text-[24px] font-bold tracking-[-0.01em]">Content verification</h1>
             <div className="mt-1 text-[12.5px] text-ink-3">
-              {campaign.brief.brandProduct.name} · 게시물 {withContent.length}건 집계
+              {campaign.brief.brandProduct.name} · {withContent.length} posts detected
             </div>
           </div>
         </div>
@@ -102,20 +102,20 @@ export default async function CampaignPostsPage({
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">
         <Stat
-          label="목표 / 검증 완료"
+          label="Goal / verified"
           value={verifiedCount}
           unit={`/ ${campaign.brief.goals.targetLivePosts}`}
           tone={verifiedCount >= campaign.brief.goals.targetLivePosts ? "ok" : "default"}
         />
-        <Stat label="관련성 실패" value={flakedWithPostCount} tone={flakedWithPostCount > 0 ? "stop" : "muted"} hint="게시됐으나 브리프 불일치" />
-        <Stat label="게시 없음" value={flakedNoPost.length} tone={flakedNoPost.length > 0 ? "stop" : "muted"} hint="기한 내 게시물 미확인" />
-        <Stat label="검출된 게시물" value={withContent.length} tone={withContent.length > 0 ? "brand" : "muted"} />
+        <Stat label="Relevance failures" value={flakedWithPostCount} tone={flakedWithPostCount > 0 ? "stop" : "muted"} hint="Posted but off brief" />
+        <Stat label="No post" value={flakedNoPost.length} tone={flakedNoPost.length > 0 ? "stop" : "muted"} hint="No post found by deadline" />
+        <Stat label="Detected posts" value={withContent.length} tone={withContent.length > 0 ? "brand" : "muted"} />
       </div>
 
       {withContent.length === 0 && flakedNoPost.length === 0 ? (
         <EmptyState
-          title="아직 검출된 게시물이 없습니다"
-          hint="크리에이터가 게시물을 올리면 자동으로 검증해 여기에 표시됩니다."
+          title="No detected posts yet"
+          hint="When creators publish, posts are verified automatically and shown here."
         />
       ) : (
         <div className="space-y-6">
@@ -160,7 +160,7 @@ export default async function CampaignPostsPage({
                       )}
                       <div className="mt-2 flex items-center gap-3 text-[11px] text-ink-3 mono tnum">
                         <span>♥ {fmtNum(c.likes)}</span>
-                        <span>참여 {(er * 100).toFixed(1)}%</span>
+                        <span>ER {(er * 100).toFixed(1)}%</span>
                         <span className="ml-auto">{row.detectedAt.toISOString().slice(0, 10)}</span>
                       </div>
                       {c.flags.length > 0 && (
@@ -198,11 +198,12 @@ export default async function CampaignPostsPage({
           {flakedNoPost.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>게시 없이 종료 · {flakedNoPost.length}명</CardTitle>
+                <CardTitle>Closed without a post · {flakedNoPost.length}</CardTitle>
               </CardHeader>
               <CardBody>
                 <p className="text-[12.5px] text-ink-2 mb-3">
-                  샘플 수령 후 기한 내 게시물이 확인되지 않아 자동으로 종료된 크리에이터입니다. 개별 확인 후 응답 정책을 조정하거나 다시 안내를 보낼 수 있어요.
+                  These creators were automatically closed because no post was found by the deadline after sample delivery.
+                  Review individually, adjust response policy, or send a follow-up.
                 </p>
                 <ul className="space-y-1.5">
                   {flakedNoPost.slice(0, 10).map((t) => {
@@ -213,13 +214,13 @@ export default async function CampaignPostsPage({
                         <Avatar name={display} src={p?.avatar} size="sm" />
                         <span className="text-[12.5px] text-ink truncate">{display}</span>
                         <span className="ml-auto text-[11px] text-ink-3 mono tnum">
-                          마지막 활동 {t.lastActivityAt.toISOString().slice(0, 10)}
+                          Last activity {t.lastActivityAt.toISOString().slice(0, 10)}
                         </span>
                       </li>
                     );
                   })}
                   {flakedNoPost.length > 10 && (
-                    <li className="text-[11px] text-ink-3 pt-1">+{flakedNoPost.length - 10}명 더</li>
+                    <li className="text-[11px] text-ink-3 pt-1">+{flakedNoPost.length - 10} more</li>
                   )}
                 </ul>
               </CardBody>

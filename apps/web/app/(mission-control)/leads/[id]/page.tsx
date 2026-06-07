@@ -13,17 +13,17 @@ import { campaignStatus, leadStage, leadCampaignStageWithNumber, salesPriority }
 import { fmtAgo } from "@/lib/format";
 
 /**
- * /leads/[id] — 리드 캠페인 상세 (C2 redesign). Mirrors /campaigns/[id]:
- *   · brief header + 상태/단계
- *   · KPI strip (등록 / 답신 목표·진행)
- *   · honest funnel (조사 → 제안 준비 → 콜드메일 → 대화 → 협의)
- *   · per-lead list with 회사명 · 진행 상태 · 제안 요약
+ * /leads/[id] — lead campaign detail (C2 redesign). Mirrors /campaigns/[id]:
+ *   · brief header + status/stage
+ *   · KPI strip (registered companies / reply goal progress)
+ *   · honest funnel (research -> proposal prep -> cold email -> conversation -> agreed)
+ *   · per-lead list with company name · progress state · pitch summary
  *
- * Read-only — 워크플로우와 자동화가 모든 쓰기를 담당합니다.
+ * Read-only — workflows and automation own all writes.
  */
 
 function fmtDate(d: Date): string {
-  return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 interface FunnelCounts {
@@ -88,22 +88,22 @@ export default async function LeadCampaignDetailPage({
   const targetReplies = campaign.brief.goals.targetReplies;
 
   const funnelRows: FunnelRow[] = [
-    { label: "회사 분석", value: funnel.enriched + funnel.researched + funnel.outreach_sent + funnel.in_conversation + funnel.agreed },
-    { label: "제안 준비", value: funnel.researched + funnel.outreach_sent + funnel.in_conversation + funnel.agreed },
-    { label: "콜드메일", value: funnel.outreach_sent + funnel.in_conversation + funnel.agreed },
-    { label: "대화 중", value: funnel.in_conversation + funnel.agreed },
-    { label: "협의 완료", value: funnel.agreed },
+    { label: "Company analysis", value: funnel.enriched + funnel.researched + funnel.outreach_sent + funnel.in_conversation + funnel.agreed },
+    { label: "Proposal prep", value: funnel.researched + funnel.outreach_sent + funnel.in_conversation + funnel.agreed },
+    { label: "Cold email", value: funnel.outreach_sent + funnel.in_conversation + funnel.agreed },
+    { label: "In conversation", value: funnel.in_conversation + funnel.agreed },
+    { label: "Agreed", value: funnel.agreed },
   ];
 
   return (
     <div className="max-w-6xl mx-auto px-8 py-8">
       <header className="mb-5">
-        <Link href="/leads" className="text-[12px] text-ink-3 hover:text-ink-2">← 리드 목록</Link>
+        <Link href="/leads" className="text-[12px] text-ink-3 hover:text-ink-2">← Lead campaigns</Link>
         <div className="mt-2 flex items-start justify-between gap-4">
           <div>
             <h1 className="text-[24px] font-bold tracking-[-0.01em]">{campaign.brief.name}</h1>
             <div className="mt-1 text-[12.5px] text-ink-3">
-              제안 제품 · {campaign.brief.ourProduct.name} · {fmtDate(campaign.createdAt)} 시작
+              Offer product · {campaign.brief.ourProduct.name} · started {fmtDate(campaign.createdAt)}
             </div>
           </div>
           <div className="flex items-center gap-2.5">
@@ -116,29 +116,29 @@ export default async function LeadCampaignDetailPage({
       {/* KPI strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">
         <Stat
-          label="등록 회사"
+          label="Registered companies"
           value={leads.length}
-          unit="곳"
-          hint={leads.length > 0 ? "에이전트가 순차로 처리합니다" : "회사 등록 대기 중"}
+          unit="companies"
+          hint={leads.length > 0 ? "Agents process them sequentially" : "Waiting for company import"}
           tone={leads.length > 0 ? "brand" : "muted"}
         />
         <Stat
-          label="답신 / 목표"
+          label="Replies / goal"
           value={repliesCount}
           unit={`/ ${targetReplies}`}
-          hint={repliesCount >= targetReplies ? "목표 달성" : `목표까지 ${Math.max(0, targetReplies - repliesCount)}곳`}
+          hint={repliesCount >= targetReplies ? "Goal met" : `${Math.max(0, targetReplies - repliesCount)} remaining`}
           tone={repliesCount >= targetReplies && repliesCount > 0 ? "ok" : "default"}
         />
         <Stat
-          label="콜드메일 발송"
+          label="Cold emails sent"
           value={funnel.outreach_sent + funnel.in_conversation + funnel.agreed}
-          unit="곳"
-          hint={`대화 중 ${funnel.in_conversation}곳 · 협의 ${funnel.agreed}곳`}
+          unit="companies"
+          hint={`${funnel.in_conversation} in conversation · ${funnel.agreed} agreed`}
         />
         <Stat
-          label="마감"
+          label="Deadline"
           value={fmtDate(campaign.brief.goals.deadline)}
-          hint={campaign.brief.goals.budgetUsd !== undefined ? `예산 $${campaign.brief.goals.budgetUsd}` : "예산 미설정"}
+          hint={campaign.brief.goals.budgetUsd !== undefined ? `Budget $${campaign.brief.goals.budgetUsd}` : "No budget set"}
           tone="muted"
         />
       </div>
@@ -147,8 +147,8 @@ export default async function LeadCampaignDetailPage({
         {/* funnel */}
         <Card>
           <CardHeader>
-            <CardTitle>단계별 진행</CardTitle>
-            <span className="text-[11px] text-ink-3 mono">0 = 빈 막대</span>
+            <CardTitle>Stage progress</CardTitle>
+            <span className="text-[11px] text-ink-3 mono">0 = empty bar</span>
           </CardHeader>
           <CardBody><Funnel rows={funnelRows} /></CardBody>
         </Card>
@@ -156,16 +156,16 @@ export default async function LeadCampaignDetailPage({
         {/* per-lead list */}
         <Card>
           <CardHeader>
-            <CardTitle>리드</CardTitle>
-            <span className="text-[11px] text-ink-3 mono">{leads.length}곳</span>
+            <CardTitle>Leads</CardTitle>
+            <span className="text-[11px] text-ink-3 mono">{leads.length} companies</span>
           </CardHeader>
           <CardBody className="pt-1.5">
             {leads.length === 0 ? (
               <div className="py-4">
                 <EmptyState
                   icon="◎"
-                  title="아직 등록된 회사가 없습니다."
-                  hint="에이전트가 회사 목록을 등록하는 중일 수 있습니다. 잠시 후 다시 확인해주세요."
+                  title="No companies imported yet."
+                  hint="Agents may still be importing the company list. Check again shortly."
                   className="shadow-none border-line-2"
                 />
               </div>
@@ -193,7 +193,7 @@ export default async function LeadCampaignDetailPage({
                           {summary ? (
                             <p className="mt-2 text-[12.5px] text-ink-2 leading-relaxed line-clamp-3">{summary}</p>
                           ) : (
-                            <p className="mt-2 text-[12px] text-ink-3">조사 결과를 준비하고 있습니다.</p>
+                            <p className="mt-2 text-[12px] text-ink-3">Research results are being prepared.</p>
                           )}
                         </div>
                         <div className="text-right text-[11px] text-ink-3 shrink-0 mono">
@@ -212,9 +212,9 @@ export default async function LeadCampaignDetailPage({
       {/* honest footnote when leads exist but none reached outreach yet */}
       {leads.length > 0 && funnel.outreach_sent + funnel.in_conversation + funnel.agreed === 0 && (
         <div className="mt-4">
-          <SectionLabel className="mb-1">진행 안내</SectionLabel>
+          <SectionLabel className="mb-1">Progress note</SectionLabel>
           <p className="text-[12.5px] text-ink-2">
-            아직 콜드메일이 나가지 않았습니다. 에이전트가 각 회사를 조사하고 제안 포인트를 정리한 뒤 순차로 발송합니다.
+            No cold emails have been sent yet. Agents are researching each company and preparing pitch angles before sending sequentially.
           </p>
         </div>
       )}

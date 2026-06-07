@@ -26,7 +26,7 @@ import type { AP2Locale } from "@/lib/ap2/mandate";
 export interface MandateStatePillProps {
   state: AP2State;
   locale: AP2Locale;
-  /** Optional secondary annotation (e.g. "12분 전 signed"). */
+  /** Optional secondary annotation (e.g. "signed 12m ago"). */
   detail?: string;
 }
 
@@ -35,7 +35,7 @@ export function MandateStatePill({ state, locale, detail }: MandateStatePillProp
   const label = t(`state_${state}`);
   return (
     <span className="inline-flex items-center gap-2">
-      <Badge variant={AP2_STATE_TONE[state]} aria-label={`결제 상태: ${label}`}>
+      <Badge variant={AP2_STATE_TONE[state]} aria-label={`Payment state: ${label}`}>
         <span aria-hidden="true">
           {state === "PAID" || state === "SETTLED" ? "✓ " : null}
           {state === "REJECTED" || state === "REFUNDED" ? "✕ " : null}

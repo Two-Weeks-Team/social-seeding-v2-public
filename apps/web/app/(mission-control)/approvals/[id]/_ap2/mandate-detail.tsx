@@ -109,8 +109,8 @@ export function MandateDetail(props: MandateDetailProps) {
   const guard = expiryGuard(props.draft.exp);
   const expiryLabel = formatDuration(secondsRemaining, props.locale);
   // Human campaign ref — never the raw camp_ token. Use the campaign name when
-  // present; otherwise a short "캠페인 ·{last4}" reference (mirrors mandate-card).
-  const campaignRef = props.campaignName?.trim() || `캠페인 ·${props.campaignId.slice(-4)}`;
+  // present; otherwise a short "Campaign ·{last4}" reference (mirrors mandate-card).
+  const campaignRef = props.campaignName?.trim() || `Campaign ·${props.campaignId.slice(-4)}`;
 
   const chips = props.draft.serverChips ?? props.draft.initialChips;
   const blockingChips = chips.filter(
@@ -267,7 +267,7 @@ export function MandateDetail(props: MandateDetailProps) {
                 {t("expires_in")} {expiryLabel}
               </span>
               {guard.block && !guard.expired && (
-                <span className="ml-2 text-stop">[60초 이내 잠금]</span>
+                <span className="ml-2 text-stop">[locks within 60 seconds]</span>
               )}
             </div>
           </div>
@@ -433,38 +433,25 @@ function shortJti(jti: string): string {
 }
 
 function formatDuration(seconds: number, locale: AP2Locale): string {
+  const t = createTranslator(locale);
   if (seconds <= 0) {
-    return locale === "ko" ? "만료됨" : locale === "ja" ? "期限切れ" : locale === "zh" ? "已过期" : "expired";
+    return t("expired");
   }
   const totalSec = Math.floor(seconds);
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
   if (h > 0) {
-    return locale === "ko"
-      ? `${h}시간 ${m}분`
-      : locale === "ja"
-        ? `${h}時間 ${m}分`
-        : locale === "zh"
-          ? `${h} 小时 ${m} 分钟`
-          : `${h}h ${m}m`;
+    return locale === "en"
+      ? `${h}h ${m}m`
+      : `${h} ${t("wait_unit_hour")} ${m} ${t("wait_unit_minute")}`;
   }
   if (m > 0) {
-    return locale === "ko"
-      ? `${m}분 ${s}초`
-      : locale === "ja"
-        ? `${m}分 ${s}秒`
-        : locale === "zh"
-          ? `${m} 分钟 ${s} 秒`
-          : `${m}m ${s}s`;
+    return locale === "en"
+      ? `${m}m ${s}s`
+      : `${m} ${t("wait_unit_minute")} ${s} ${t("wait_unit_second")}`;
   }
-  return locale === "ko"
-    ? `${s}초`
-    : locale === "ja"
-      ? `${s}秒`
-      : locale === "zh"
-        ? `${s} 秒`
-        : `${s}s`;
+  return locale === "en" ? `${s}s` : `${s} ${t("wait_unit_second")}`;
 }
 
 function SummaryGrid({

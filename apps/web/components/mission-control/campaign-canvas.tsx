@@ -45,20 +45,20 @@ interface SsNodeData extends Record<string, unknown> {
 }
 
 const KIND_KO: Record<SsNodeData["kind"], string> = {
-  brief: "브리프",
-  agent: "에이전트",
-  tool: "도구",
-  gate: "승인 게이트",
-  wait: "대기",
-  group: "병렬 처리",
+  brief: "Brief",
+  agent: "Agent",
+  tool: "Tool",
+  gate: "Approval gate",
+  wait: "Wait",
+  group: "Parallel work",
 };
 
 const STATUS_KO: Record<Status, string> = {
-  done: "완료",
-  running: "진행 중",
-  waiting: "대기 중",
-  pending: "예정",
-  errored: "오류",
+  done: "Complete",
+  running: "Running",
+  waiting: "Waiting",
+  pending: "Pending",
+  errored: "Error",
 };
 
 const TONE_BORDER: Record<Tone, string> = {
@@ -150,61 +150,61 @@ function buildGraph(a: BuildArgs): { nodes: Node<SsNodeData>[]; edges: Edge[] } 
   const nodes: Node<SsNodeData>[] = [
     {
       id: "brief", position: { x: 16, y: 180 }, type: "ssNode",
-      data: { label: a.brandName, kind: "brief", tone: "neutral", status: passed("overview") ? "done" : "running", hint: `크리에이터 ${a.targetCreatorCount}명 · 예산 $${a.budgetCapUsd}` },
+      data: { label: a.brandName, kind: "brief", tone: "neutral", status: passed("overview") ? "done" : "running", hint: `${a.targetCreatorCount} creators · $${a.budgetCapUsd} budget` },
     },
     {
       id: "sourcing", position: { x: 220, y: 180 }, type: "ssNode",
-      data: { label: "크리에이터 소싱", kind: "agent", tone: "brand", status: sourcingStatus, hint: "TikTok 후보 검색 · 블랙리스트 확인" },
+      data: { label: "Creator sourcing", kind: "agent", tone: "brand", status: sourcingStatus, hint: "TikTok candidate search · blacklist check" },
     },
     {
       id: "vetting", position: { x: 440, y: 270 }, type: "ssNode",
-      data: { label: "후보 검증", kind: "group", tone: "brand", status: vetGroupStatus, hint: a.vetCount > 0 ? `${a.vetCount}명 평가` : "후보별 병렬 평가" },
+      data: { label: "Candidate vetting", kind: "group", tone: "brand", status: vetGroupStatus, hint: a.vetCount > 0 ? `${a.vetCount} evaluated` : "Parallel candidate scoring" },
     },
     {
       id: "shortlist", position: { x: 520, y: 180 }, type: "ssNode",
-      data: { label: "후보 선정", kind: "tool", tone: "neutral", status: shortlistStatus, hint: a.shortlistCount ? `${a.shortlistCount}명 추천` : undefined },
+      data: { label: "Shortlist selection", kind: "tool", tone: "neutral", status: shortlistStatus, hint: a.shortlistCount ? `${a.shortlistCount} recommended` : undefined },
     },
     {
       id: "gate-shortlist", position: { x: 720, y: 180 }, type: "ssNode",
       data: {
-        label: "후보 리스트 승인", kind: "gate", tone: "warn", status: gateStatus,
-        hint: a.shortlistGateApprovalId ? "사람 검토 대기" : a.trackCount > 0 ? `${a.trackCount}명 확정` : "정책 게이트",
-        ...(a.shortlistGateApprovalId ? { primaryAction: { label: "검토하러 가기 →", href: `/approvals/${a.shortlistGateApprovalId}` } } : {}),
+        label: "Shortlist approval", kind: "gate", tone: "warn", status: gateStatus,
+        hint: a.shortlistGateApprovalId ? "Waiting for human review" : a.trackCount > 0 ? `${a.trackCount} confirmed` : "Policy gate",
+        ...(a.shortlistGateApprovalId ? { primaryAction: { label: "Review →", href: `/approvals/${a.shortlistGateApprovalId}` } } : {}),
       },
     },
     {
       id: "outreach", position: { x: 960, y: 200 }, type: "ssNode",
       data: {
-        label: "아웃리치 작성·발송", kind: "agent", tone: "brand", status: outreachStatus,
-        hint: outreachStarted ? `진행 ${liveTracks}명 · 종료 ${terminalTracks}명` : buckets ? `${a.trackCount}명 대기` : "메일 발송",
+        label: "Outreach draft/send", kind: "agent", tone: "brand", status: outreachStatus,
+        hint: outreachStarted ? `${liveTracks} active · ${terminalTracks} closed` : buckets ? `${a.trackCount} waiting` : "Email send",
       },
     },
     {
       id: "wait-reply", position: { x: 960, y: 320 }, type: "ssNode",
-      data: { label: "회신 대기 · 3일", kind: "wait", tone: "neutral", status: waitStatus, hint: buckets && buckets.outreach_sent > 0 ? `${buckets.outreach_sent}명 응답 대기` : "응답 이벤트 대기" },
+      data: { label: "Reply wait · 3 days", kind: "wait", tone: "neutral", status: waitStatus, hint: buckets && buckets.outreach_sent > 0 ? `${buckets.outreach_sent} awaiting response` : "Waiting for reply events" },
     },
     {
       id: "shipping", position: { x: 1160, y: 200 }, type: "ssNode",
       data: {
-        label: "배송 처리", kind: "agent", tone: "brand",
+        label: "Shipment handling", kind: "agent", tone: "brand",
         status: buckets
           ? buckets.shipped + buckets.delivered + buckets.address_collected > 0
             ? buckets.delivered + buckets.posted + buckets.verified + buckets.flaked >= a.trackCount ? "done" : "running"
             : isCurrent("shipping") ? "running" : "pending"
           : stageStatus("shipping"),
-        hint: buckets ? `발송 중 ${buckets.address_collected + buckets.shipped}명 · 수령 ${buckets.delivered}명` : "샘플 발송",
+        hint: buckets ? `${buckets.address_collected + buckets.shipped} shipping · ${buckets.delivered} delivered` : "Sample shipment",
       },
     },
     {
       id: "content", position: { x: 1360, y: 200 }, type: "ssNode",
       data: {
-        label: "콘텐츠 검증", kind: "agent", tone: "brand",
+        label: "Content verification", kind: "agent", tone: "brand",
         status: buckets
           ? buckets.verified + buckets.posted > 0 || buckets.flaked > 0
             ? buckets.delivered === 0 && buckets.shipped === 0 ? "done" : "running"
             : buckets.delivered > 0 ? "waiting" : "pending"
           : stageStatus("content_review"),
-        hint: buckets ? (buckets.delivered > 0 ? `수령 ${buckets.delivered}명 · 게시 대기` : `검증 ${buckets.verified}명 · 이탈 ${buckets.flaked}명`) : "콘텐츠 검토 예정",
+        hint: buckets ? (buckets.delivered > 0 ? `${buckets.delivered} delivered · waiting for posts` : `${buckets.verified} verified · ${buckets.flaked} dropped`) : "Content review pending",
       },
     },
   ];
@@ -286,16 +286,16 @@ export function CampaignCanvas(props: CampaignCanvasProps) {
 
       <aside className="w-72 border-l border-line bg-surface overflow-y-auto shrink-0">
         {!selected ? (
-          <div className="p-5 text-[12.5px] text-ink-3">노드를 누르면 세부 정보가 여기에 표시됩니다.</div>
+          <div className="p-5 text-[12.5px] text-ink-3">Select a node to show details here.</div>
         ) : (
           <div className="p-5 space-y-3">
             <div>
-              <div className="text-[10px] uppercase tracking-[0.05em] text-ink-3 font-semibold">선택한 단계</div>
+              <div className="text-[10px] uppercase tracking-[0.05em] text-ink-3 font-semibold">Selected step</div>
               <div className="mt-1.5 text-[16px] font-bold text-ink">{selected.label}</div>
               <div className="mt-0.5 text-[11.5px] text-ink-3">{KIND_KO[selected.kind]}</div>
             </div>
             <div className="text-[12.5px]">
-              <span className="text-ink-2">상태 </span>
+              <span className="text-ink-2">Status </span>
               <span className={cn("font-semibold", STATUS_TEXT[selected.status])}>{STATUS_KO[selected.status]}</span>
             </div>
             {selected.hint && <div className="text-[12.5px] text-ink-2">{selected.hint}</div>}

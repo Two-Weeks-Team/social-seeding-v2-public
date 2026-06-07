@@ -17,7 +17,7 @@
  *     rows are passed in).
  *
  * The toolbar is "sticky" at the bottom of the viewport when 2+ rows are
- * selected. On click of `전체 서명`, the parent opens a modal (rendered
+ * selected. On click of `Sign all`, the parent opens a modal (rendered
  * separately) showing the delta-diff readback per AP2-UX.md §3.4.
  */
 
@@ -204,13 +204,13 @@ function BulkSeparate({
 }
 
 /**
- * Bulk-approve modal — rendered when the operator clicks `전체 서명`.
+ * Bulk-approve modal — rendered when the operator clicks `Sign all`.
  * Per AP2-UX.md §3.4 it shows:
  *   - The per-Mandate one-line summary
  *   - delta diff card (agent-draft → operator override) per changed Mandate
  *   - The warning about non-AP2-native partners
  *   - The warning about first-time partners
- *   - Final "WebAuthn 인증 후 N건 서명" button
+ *   - Final "Sign N with WebAuthn" button
  */
 export interface BulkApproveModalProps {
   selected: BulkSelectionItem[];

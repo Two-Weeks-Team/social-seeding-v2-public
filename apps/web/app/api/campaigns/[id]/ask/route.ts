@@ -10,7 +10,7 @@ import { resolveCreators } from "@/lib/creators";
 import { stageKo, campaignStatus } from "@/lib/labels";
 
 /**
- * POST /api/campaigns/[id]/ask — the campaign "에이전트에게 물어보기" assistant.
+ * POST /api/campaigns/[id]/ask — the campaign "Ask the agent" assistant.
  * Read-only Q&A grounded in a preloaded campaign snapshot + the agent's read
  * tools (analytics.compile, tiktok.getCreator). Mirrors the intake SSE route's
  * request/response shape. Demo sessions are allowed (read-only, no mutations).
@@ -29,7 +29,9 @@ const Body = z.object({
 function fmtDate(d: Date | string | number | undefined): string {
   if (!d) return "—";
   const dt = d instanceof Date ? d : new Date(d);
-  return Number.isNaN(dt.getTime()) ? "—" : `${dt.getMonth() + 1}월 ${dt.getDate()}일`;
+  return Number.isNaN(dt.getTime())
+    ? "—"
+    : dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -63,24 +65,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     ? [...a.tracks]
         .sort((x, y) => (y.views ?? 0) - (x.views ?? 0))
         .slice(0, 10)
-        .map((t) => `- ${handleOf(t.creatorId)} · ${t.state}${t.views != null ? ` · ${t.views.toLocaleString()} 조회` : ""}${t.performanceScore != null ? ` · 점수 ${t.performanceScore}` : ""}`)
+        .map((t) => `- ${handleOf(t.creatorId)} · ${t.state}${t.views != null ? ` · ${t.views.toLocaleString()} views` : ""}${t.performanceScore != null ? ` · score ${t.performanceScore}` : ""}`)
     : campaign.tracks.slice(0, 10).map((t) => `- ${handleOf(t.creatorId)} · ${t.state}`);
 
   const er = a?.reach.weightedEngagementRate ?? null;
   const context = [
-    `브랜드/제품: ${campaign.brief.brandProduct.name} (${campaign.brief.brandProduct.category})`,
-    `설명: ${campaign.brief.brandProduct.description}`,
-    `상태: ${campaignStatus(campaign.status).label} · 현재 단계: ${stageKo(campaign.stage)}`,
-    `목표: 게시물 ${campaign.brief.goals.targetLivePosts}건 · 마감 ${fmtDate(campaign.brief.goals.deadline)} · 예산 ${campaign.brief.goals.budgetUsd != null ? `$${campaign.brief.goals.budgetUsd}` : "—"}`,
-    `타겟: 크리에이터 ${campaign.brief.targeting.creatorCount}명 · 최소 참여율 ${(campaign.brief.targeting.minEngagementRate * 100).toFixed(1)}%`,
+    `Brand/product: ${campaign.brief.brandProduct.name} (${campaign.brief.brandProduct.category})`,
+    `Description: ${campaign.brief.brandProduct.description}`,
+    `Status: ${campaignStatus(campaign.status).label} · current stage: ${stageKo(campaign.stage)}`,
+    `Goals: ${campaign.brief.goals.targetLivePosts} posts · deadline ${fmtDate(campaign.brief.goals.deadline)} · budget ${campaign.brief.goals.budgetUsd != null ? `$${campaign.brief.goals.budgetUsd}` : "—"}`,
+    `Targeting: ${campaign.brief.targeting.creatorCount} creators · minimum engagement rate ${(campaign.brief.targeting.minEngagementRate * 100).toFixed(1)}%`,
     a
-      ? `성과 집계: 검증 ${a.goals.verifiedCount}/${a.goals.targetLivePosts} (목표대비 ${a.goals.percentOfGoal !== null ? Math.round(a.goals.percentOfGoal * 100) + "%" : "n/a"}) · 총 조회수 ${a.reach.verifiedViews.toLocaleString()} · 평균 참여율 ${er !== null ? (er * 100).toFixed(1) + "%" : "n/a"}`
-      : "성과 집계: 아직 없음",
+      ? `Performance summary: verified ${a.goals.verifiedCount}/${a.goals.targetLivePosts} (${a.goals.percentOfGoal !== null ? Math.round(a.goals.percentOfGoal * 100) + "%" : "n/a"} of goal) · total views ${a.reach.verifiedViews.toLocaleString()} · average engagement rate ${er !== null ? (er * 100).toFixed(1) + "%" : "n/a"}`
+      : "Performance summary: none yet",
     a
-      ? `퍼널: 아웃리치 ${a.funnel.outreach_sent} · 대화중 ${a.funnel.in_conversation} · 배송 ${a.funnel.shipped} · 수령 ${a.funnel.delivered} · 게시 ${a.funnel.posted} · 검증 ${a.funnel.verified}`
+      ? `Funnel: outreach ${a.funnel.outreach_sent} · in conversation ${a.funnel.in_conversation} · shipped ${a.funnel.shipped} · delivered ${a.funnel.delivered} · posted ${a.funnel.posted} · verified ${a.funnel.verified}`
       : "",
-    `이메일 스레드: ${threads.length}개 · 답장 대기 ${awaiting}개`,
-    `대상 크리에이터 (${campaign.tracks.length}명):`,
+    `Email threads: ${threads.length} · waiting for replies ${awaiting}`,
+    `Target creators (${campaign.tracks.length}):`,
     ...creatorLines,
   ]
     .filter(Boolean)
@@ -103,7 +105,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const msg = err instanceof Error ? err.message : String(err);
     if (/GEMINI_API_KEY|GOOGLE_GENAI_USE_VERTEXAI|GOOGLE_CLOUD_PROJECT|permission|credit|quota|429|403/i.test(msg)) {
       return NextResponse.json(
-        { error: "assistant_unavailable", reason: "어시스턴트 LLM이 현재 비활성화 상태입니다 (Gemini 인증/쿼터). 잠시 후 다시 시도해주세요." },
+        { error: "assistant_unavailable", reason: "The assistant LLM is currently unavailable because Gemini authentication or quota is unavailable. Try again shortly." },
         { status: 503 },
       );
     }

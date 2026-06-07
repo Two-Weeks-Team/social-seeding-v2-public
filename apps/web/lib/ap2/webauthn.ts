@@ -115,7 +115,7 @@ export function isWebAuthnSupported(): boolean {
 /**
  * Whether the operator's device exposes a platform authenticator (Touch ID,
  * Windows Hello, Android biometric). Probe used by the inbox to decide
- * whether to render `[전체 서명]` as enabled vs. "open on supported device".
+ * whether to render `[Sign all]` as enabled vs. "open on supported device".
  */
 export async function hasPlatformAuthenticator(): Promise<boolean> {
   if (!isWebAuthnSupported()) return false;

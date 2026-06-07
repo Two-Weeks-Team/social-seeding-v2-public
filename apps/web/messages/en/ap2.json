@@ -9,6 +9,7 @@
       "wait_unit_minute": "minutes",
       "wait_unit_hour": "hours",
       "wait_unit_day": "days",
+      "wait_unit_second": "seconds",
       "expires_in": "expires in",
       "expired": "expired",
       "rationale_label": "Why the agent chose this",

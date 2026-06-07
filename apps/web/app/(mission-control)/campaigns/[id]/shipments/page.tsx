@@ -18,17 +18,17 @@ import { creatorLabel } from "@/lib/format";
  * Presentation only — data fetching preserved verbatim.
  */
 
-/** ShipmentStatus → operator Korean label + status tone (color + text + dot). */
+/** ShipmentStatus → operator English label + status tone (color + text + dot). */
 const STATUS_KO: Record<ShipmentStatus, { label: string; tone: StatusTone }> = {
-  pending: { label: "발송 대기", tone: "neutral" },
-  address_pending: { label: "주소 대기", tone: "warn" },
-  shipped: { label: "발송됨", tone: "run" },
-  in_transit: { label: "배송 중", tone: "run" },
-  out_for_delivery: { label: "배송 출발", tone: "run" },
-  delivered: { label: "수령 완료", tone: "ok" },
-  failed: { label: "배송 실패", tone: "stop" },
-  returned: { label: "반송", tone: "stop" },
-  cancelled: { label: "취소", tone: "stop" },
+  pending: { label: "Pending shipment", tone: "neutral" },
+  address_pending: { label: "Waiting for address", tone: "warn" },
+  shipped: { label: "Shipped", tone: "run" },
+  in_transit: { label: "In transit", tone: "run" },
+  out_for_delivery: { label: "Out for delivery", tone: "run" },
+  delivered: { label: "Delivered", tone: "ok" },
+  failed: { label: "Delivery failed", tone: "stop" },
+  returned: { label: "Returned", tone: "stop" },
+  cancelled: { label: "Cancelled", tone: "stop" },
 };
 function shipmentStatus(s: ShipmentStatus): { label: string; tone: StatusTone } {
   return STATUS_KO[s] ?? { label: s, tone: "neutral" };
@@ -47,7 +47,7 @@ function summarizeProducts(s: Shipment): string {
   if (s.products.length === 0) return "—";
   const first = s.products[0]!;
   if (s.products.length === 1) return first.name;
-  return `${first.name} 외 ${s.products.length - 1}건`;
+  return `${first.name} + ${s.products.length - 1} more`;
 }
 
 export default async function CampaignShipmentsPage({
@@ -82,30 +82,30 @@ export default async function CampaignShipmentsPage({
         </Link>
         <div className="mt-2 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-[24px] font-bold tracking-[-0.01em]">발송 현황</h1>
+            <h1 className="text-[24px] font-bold tracking-[-0.01em]">Shipment status</h1>
             <div className="mt-1 text-[12.5px] text-ink-3">
-              {campaign.brief.brandProduct.name} · 발송 {shipments.length}건
+              {campaign.brief.brandProduct.name} · {shipments.length} shipments
             </div>
           </div>
         </div>
       </header>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">
-        <Stat label="총 발송" value={shipments.length} tone={shipments.length > 0 ? "brand" : "muted"} />
-        <Stat label="배송 중" value={inTransitCount} tone={inTransitCount > 0 ? "default" : "muted"} />
-        <Stat label="수령 완료" value={deliveredCount} tone={deliveredCount > 0 ? "ok" : "muted"} />
+        <Stat label="Total shipments" value={shipments.length} tone={shipments.length > 0 ? "brand" : "muted"} />
+        <Stat label="In transit" value={inTransitCount} tone={inTransitCount > 0 ? "default" : "muted"} />
+        <Stat label="Delivered" value={deliveredCount} tone={deliveredCount > 0 ? "ok" : "muted"} />
         <Stat
-          label="배송 문제"
+          label="Shipping issues"
           value={issueCount}
           tone={issueCount > 0 ? "stop" : "muted"}
-          hint={`총 신고가 ${fmtUsd(totalValue)}`}
+          hint={`${fmtUsd(totalValue)} declared value`}
         />
       </div>
 
       {shipments.length === 0 ? (
         <EmptyState
-          title="아직 발송된 샘플이 없습니다"
-          hint="크리에이터가 배송지 주소를 확인하면 샘플 발송이 자동으로 시작되고 진행 상황이 여기에 표시됩니다."
+          title="No samples shipped yet"
+          hint="Once creators confirm shipping addresses, samples are shipped automatically and progress appears here."
         />
       ) : (
         <Card>
@@ -113,14 +113,14 @@ export default async function CampaignShipmentsPage({
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="text-[10px] uppercase tracking-[0.06em] text-ink-3 font-semibold border-b border-line bg-surface-2">
-                  <th className="text-left px-4 py-2.5 font-semibold">크리에이터</th>
-                  <th className="text-left px-4 py-2.5 font-semibold">상태</th>
-                  <th className="text-left px-4 py-2.5 font-semibold">송장번호</th>
-                  <th className="text-left px-4 py-2.5 font-semibold">품목</th>
-                  <th className="text-right px-4 py-2.5 font-semibold">신고가</th>
-                  <th className="text-left px-4 py-2.5 font-semibold">출발</th>
-                  <th className="text-left px-4 py-2.5 font-semibold">도착</th>
-                  <th className="text-left px-4 py-2.5 font-semibold">최근 업데이트</th>
+                  <th className="text-left px-4 py-2.5 font-semibold">Creator</th>
+                  <th className="text-left px-4 py-2.5 font-semibold">Status</th>
+                  <th className="text-left px-4 py-2.5 font-semibold">Tracking no.</th>
+                  <th className="text-left px-4 py-2.5 font-semibold">Items</th>
+                  <th className="text-right px-4 py-2.5 font-semibold">Declared value</th>
+                  <th className="text-left px-4 py-2.5 font-semibold">Shipped</th>
+                  <th className="text-left px-4 py-2.5 font-semibold">Delivered</th>
+                  <th className="text-left px-4 py-2.5 font-semibold">Last update</th>
                 </tr>
               </thead>
               <tbody>
@@ -161,9 +161,9 @@ export default async function CampaignShipmentsPage({
         <Card className="mt-6">
           <CardHeader>
             <CardTitle>
-              최근 추적 이벤트 · {creatorLabel(shipments[0].creatorId)}
+              Latest tracking events · {creatorLabel(shipments[0].creatorId)}
             </CardTitle>
-            <span className="text-[11px] text-ink-3">{shipments[0].trackingEvents.length}건</span>
+            <span className="text-[11px] text-ink-3">{shipments[0].trackingEvents.length} events</span>
           </CardHeader>
           <CardBody>
             <ol className="space-y-2.5">
@@ -177,7 +177,7 @@ export default async function CampaignShipmentsPage({
                       {e.timestamp.toISOString().slice(0, 16).replace("T", " ")}
                     </span>
                     <span className="text-ink-2 flex-1">
-                      {e.description || "상태 업데이트"}
+                      {e.description || "Status update"}
                       {e.location && <span className="text-ink-3"> · {e.location}</span>}
                     </span>
                   </li>

@@ -4,14 +4,14 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
 
 /**
- * 에이전트에게 물어보기 — a header trigger (✨ pill) that opens a right slide-over
+ * Ask the agent — a header trigger (✨ pill) that opens a right slide-over
  * chat panel, so it reads unmistakably as a conversation (not another data card).
  * Read-only Q&A (POST /api/campaigns/[id]/ask → campaignAssistantAgent). The agent
  * answers, never acts. Honest states: loading, 503 (assistant unavailable), error.
  */
 type Turn = { role: "user" | "assistant"; content: string; citations?: string[] };
 
-const SUGGESTIONS = ["성과 요약해줘", "어떤 크리에이터가 제일 잘했어?", "답장 기다리는 사람 있어?"];
+const SUGGESTIONS = ["Summarize performance", "Which creator performed best?", "Is anyone waiting on a reply?"];
 
 export function CampaignAsk({ campaignId }: { campaignId: string }) {
   const [open, setOpen] = useState(false);
@@ -45,12 +45,12 @@ export function CampaignAsk({ campaignId }: { campaignId: string }) {
       });
       const data = (await res.json().catch(() => ({}))) as { answer?: string; citations?: string[]; reason?: string; error?: string };
       if (!res.ok) {
-        setError(data.reason || data.error || "응답을 가져오지 못했습니다.");
+        setError(data.reason || data.error || "Could not fetch an answer.");
       } else {
         setTurns((prev) => [...prev, { role: "assistant", content: data.answer ?? "", citations: data.citations ?? [] }]);
       }
     } catch {
-      setError("네트워크 오류로 응답을 가져오지 못했습니다.");
+      setError("A network error prevented the answer from loading.");
     }
     setLoading(false);
   }
@@ -62,7 +62,7 @@ export function CampaignAsk({ campaignId }: { campaignId: string }) {
         onClick={() => setOpen(true)}
         className="inline-flex items-center gap-1.5 rounded-xl border border-brand-ink/25 bg-brand-soft px-3.5 py-2 text-[12.5px] font-medium text-brand-ink hover:bg-brand-soft/70 transition-colors"
       >
-        <span aria-hidden>✨</span> 에이전트에게 물어보기
+        <span aria-hidden>✨</span> Ask the agent
       </button>
 
       {open && (
@@ -73,23 +73,23 @@ export function CampaignAsk({ campaignId }: { campaignId: string }) {
       {/* slide-over panel */}
       <aside
         role="dialog"
-        aria-label="에이전트에게 물어보기"
+        aria-label="Ask the agent"
         className="fixed right-0 top-0 bottom-0 w-full max-w-[400px] bg-surface border-l border-line z-50 shadow-2xl flex flex-col ss-slide-in-right"
       >
         <header className="flex items-center gap-2.5 px-5 py-4 border-b border-line shrink-0">
           <span className="w-7 h-7 rounded-full bg-gradient-to-br from-brand to-brand-2 text-white grid place-items-center text-[13px] shrink-0" aria-hidden>✨</span>
           <div className="min-w-0 flex-1">
-            <div className="text-[14px] font-bold text-ink leading-tight">에이전트에게 물어보기</div>
-            <div className="text-[11px] text-ink-3">이 캠페인 · 읽기 전용 (답만, 실행은 안 함)</div>
+            <div className="text-[14px] font-bold text-ink leading-tight">Ask the agent</div>
+            <div className="text-[11px] text-ink-3">This campaign · Read-only answers, no actions</div>
           </div>
-          <button type="button" onClick={() => setOpen(false)} className="text-ink-3 hover:text-ink text-[16px] leading-none px-1" aria-label="닫기">✕</button>
+          <button type="button" onClick={() => setOpen(false)} className="text-ink-3 hover:text-ink text-[16px] leading-none px-1" aria-label="Close">✕</button>
         </header>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col">
           {turns.length === 0 ? (
             <div className="m-auto w-full max-w-[300px] text-center">
               <div className="mx-auto w-11 h-11 rounded-full bg-gradient-to-br from-brand to-brand-2 text-white grid place-items-center text-[18px] mb-3" aria-hidden>✨</div>
-              <p className="text-[13px] text-ink-2">이 캠페인의 성과·크리에이터·진행 상황을<br />자연어로 물어보세요.</p>
+              <p className="text-[13px] text-ink-2">Ask about this campaign&apos;s performance,<br />creators, or progress in natural language.</p>
               <div className="mt-3.5 flex flex-col gap-1.5">
                 {SUGGESTIONS.map((s) => (
                   <button
@@ -120,7 +120,7 @@ export function CampaignAsk({ campaignId }: { campaignId: string }) {
                   </div>
                 </div>
               ))}
-              {loading && <div className="text-[12.5px] text-ink-3">에이전트가 확인 중…</div>}
+              {loading && <div className="text-[12.5px] text-ink-3">The agent is checking…</div>}
             </div>
           )}
         </div>
@@ -133,7 +133,7 @@ export function CampaignAsk({ campaignId }: { campaignId: string }) {
             onChange={(e) => setQ(e.target.value)}
             disabled={loading}
             maxLength={500}
-            placeholder="이 캠페인에 대해 물어보세요…"
+            placeholder="Ask about this campaign…"
             className="flex-1 bg-surface border border-line rounded-xl px-3.5 py-2 text-[13px] text-ink placeholder:text-ink-3 outline-none focus:border-brand-ink/40"
           />
           <button
@@ -141,7 +141,7 @@ export function CampaignAsk({ campaignId }: { campaignId: string }) {
             disabled={loading || !q.trim()}
             className="rounded-xl bg-brand text-white text-[13px] font-medium px-4 py-2 disabled:opacity-50 shadow-brand shrink-0"
           >
-            {loading ? "…" : "전송"}
+            {loading ? "…" : "Send"}
           </button>
         </form>
       </aside>

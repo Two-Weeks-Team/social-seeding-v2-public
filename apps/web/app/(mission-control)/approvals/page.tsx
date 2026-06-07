@@ -11,12 +11,12 @@ import { approvalKindKo } from "@/lib/labels";
 import { fmtAgo } from "@/lib/format";
 
 /**
- * 승인 인박스 (C2). 워크스페이스 전체의 대기 중인 결정을 종류별로 묶어 보여줍니다.
- * 후보 리스트는 클릭하면 후보 테이블 드릴인이 열립니다.
- * 대기 항목이 0건이면 종류별 빈 박스를 늘어놓는 대신, 한 개의 차분한 EmptyState만 띄웁니다.
+ * Approval inbox (C2). Groups pending decisions across the workspace by kind.
+ * Shortlist rows link into the candidate table drill-in.
+ * When there are zero pending items, render one calm EmptyState instead of per-kind boxes.
  */
 
-// 종류별 헤더 노출 순서 (대기 항목이 있는 종류만 카드로 렌더).
+// Header display order by approval kind; only kinds with pending items render.
 const KIND_ORDER: Approval["kind"][] = [
   "shortlist",
   "outreach_send",
@@ -28,7 +28,7 @@ const KIND_ORDER: Approval["kind"][] = [
   "stage_advance",
 ];
 
-// 드릴인 검토 화면이 준비된 종류 — "검토" 버튼을 노출합니다.
+// Kinds with a drill-in review screen; these show the Review button.
 const REVIEWABLE_KINDS = new Set<Approval["kind"]>([
   "shortlist",
   "outreach_send",
@@ -39,7 +39,7 @@ const REVIEWABLE_KINDS = new Set<Approval["kind"]>([
   "payment_mandate",
 ]);
 
-/** outreach_send 추천(OutreachDraft)에서 제목만 best-effort 추출. */
+/** Best-effort subject extraction from an outreach_send recommendation (OutreachDraft). */
 function outreachSubject(rec: unknown): string | null {
   if (rec && typeof rec === "object" && !Array.isArray(rec) && "subject" in rec) {
     const s = (rec as { subject: unknown }).subject;
@@ -53,36 +53,36 @@ export default async function ApprovalsPage() {
   if (!session) redirect("/sign-in");
 
   const pending = await approvalRepo.listPendingByWorkspace(session.workspaceId);
-  // 화면 표시용 캠페인(브랜드) 이름 매핑.
+  // Campaign/brand name map for display.
   const campaigns = await campaignRepo.listByWorkspace(session.workspaceId);
   const byCampaign = new Map(campaigns.map((c) => [c.id, c.brief.brandProduct.name]));
 
   const grouped = new Map<Approval["kind"], Approval[]>();
   for (const a of pending) grouped.set(a.kind, [...(grouped.get(a.kind) ?? []), a]);
 
-  // 실제로 대기 항목이 있는 종류만, 정해진 순서대로.
+  // Only kinds with pending rows, in the fixed display order.
   const activeKinds = KIND_ORDER.filter((k) => (grouped.get(k)?.length ?? 0) > 0);
 
   return (
     <div className="max-w-4xl mx-auto px-8 py-8">
       <header className="mb-6 flex items-start justify-between gap-5">
         <div>
-          <h1 className="text-[24px] font-bold tracking-[-0.01em]">승인 인박스</h1>
+          <h1 className="text-[24px] font-bold tracking-[-0.01em]">Approval inbox</h1>
           <p className="mt-1 text-[13.5px] text-ink-2">
-            에이전트가 추천을 미리 채워뒀습니다. 한 종류씩 확인하고 결정만 내려주세요.
+            Agents have prefilled recommendations. Review one category at a time and make the final call.
           </p>
         </div>
         {pending.length > 0 && (
-          <StatusTag tone="warn">{pending.length}건 대기</StatusTag>
+          <StatusTag tone="warn">{pending.length} pending</StatusTag>
         )}
       </header>
 
       {pending.length === 0 ? (
         <EmptyState
           icon="✓"
-          title="0건 대기 · 다 처리했어요"
-          hint="새로운 결정이 필요해지면 에이전트가 추천과 함께 여기에 올려둡니다."
-          action={<Link href="/campaigns"><Button variant="primary">캠페인 보기</Button></Link>}
+          title="0 pending · all clear"
+          hint="When a new decision is needed, agents will place it here with a recommendation."
+          action={<Link href="/campaigns"><Button variant="primary">View campaigns</Button></Link>}
         />
       ) : (
         <div className="space-y-6">
@@ -91,7 +91,7 @@ export default async function ApprovalsPage() {
             return (
               <section key={kind}>
                 <SectionLabel className="mb-2.5">
-                  {approvalKindKo(kind)} · {rows.length}건
+                  {approvalKindKo(kind)} · {rows.length} items
                 </SectionLabel>
                 <div className="space-y-2.5">
                   {rows.map((a) => {
@@ -106,10 +106,10 @@ export default async function ApprovalsPage() {
                           <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
                               <div className="text-[15px] font-bold text-ink">
-                                {byCampaign.get(a.campaignId) ?? "이름 미상 캠페인"}
+                                {byCampaign.get(a.campaignId) ?? "Unnamed campaign"}
                                 {candidateCount != null && (
                                   <span className="ml-2 text-[13px] font-medium text-ink-2">
-                                    후보 {candidateCount}명
+                                    {candidateCount} candidates
                                   </span>
                                 )}
                               </div>
@@ -128,7 +128,7 @@ export default async function ApprovalsPage() {
                               <div className="text-[12px] text-ink-3 mono">{fmtAgo(a.createdAt)}</div>
                               {REVIEWABLE_KINDS.has(kind) && (
                                 <Link href={`/approvals/${a.id}`}>
-                                  <Button variant="primary" size="sm">검토 →</Button>
+                                  <Button variant="primary" size="sm">Review →</Button>
                                 </Link>
                               )}
                             </div>

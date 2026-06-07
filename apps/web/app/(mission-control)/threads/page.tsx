@@ -11,7 +11,7 @@ import { resolveCreators } from "@/lib/creators";
 import { cn } from "@/lib/cn";
 
 /**
- * 이메일 스레드 — every creator email conversation in the workspace (outbound
+ * Email threads — every creator email conversation in the workspace (outbound
  * outreach/replies + inbound creator replies), newest activity first. Each row
  * opens the full thread. Reads v2_messages via messageRepo.
  */
@@ -35,11 +35,11 @@ export default async function ThreadsPage() {
   return (
     <div className="max-w-5xl mx-auto px-8 py-8">
       <header className="mb-5">
-        <h1 className="text-[24px] font-bold tracking-[-0.01em]">이메일 스레드</h1>
+        <h1 className="text-[24px] font-bold tracking-[-0.01em]">Email threads</h1>
         <p className="mt-1 text-[13.5px] text-ink-2">
-          에이전트가 크리에이터와 주고받은 아웃리치·답장 대화입니다.
+          Outreach and reply conversations the agents exchanged with creators.
           {awaitingCount > 0 && (
-            <> <span className="text-warn font-semibold">{awaitingCount}건</span>이 답장을 기다리고 있어요.</>
+            <> <span className="text-warn font-semibold">{awaitingCount}</span> waiting for a reply.</>
           )}
         </p>
       </header>
@@ -47,8 +47,8 @@ export default async function ThreadsPage() {
       {threads.length === 0 ? (
         <EmptyState
           icon="✉"
-          title="아직 주고받은 메일이 없습니다"
-          hint="캠페인이 아웃리치 단계로 들어가면 크리에이터와의 대화가 여기에 쌓입니다."
+          title="No email yet"
+          hint="When campaigns enter outreach, creator conversations will appear here."
         />
       ) : (
         <div className="flex flex-col gap-2.5">
@@ -71,10 +71,10 @@ export default async function ThreadsPage() {
                   <div className="flex items-center gap-2">
                     <span className={cn("text-[14px] truncate", reply ? "font-bold text-ink" : "font-semibold text-ink")}>{display}</span>
                     {p?.handle && p.handle !== display && <span className="text-[11.5px] text-ink-3 mono truncate">{p.handle}</span>}
-                    <span className="text-[11.5px] text-ink-3 truncate">· {campaignName.get(t.campaignId) ?? "캠페인"}</span>
+                    <span className="text-[11.5px] text-ink-3 truncate">· {campaignName.get(t.campaignId) ?? "Campaign"}</span>
                   </div>
                   <div className="mt-0.5 text-[13px] text-ink-2 truncate">
-                    <span className="text-ink-3">{t.lastDirection === "outbound" ? "보냄: " : "받음: "}</span>
+                    <span className="text-ink-3">{t.lastDirection === "outbound" ? "Sent: " : "Received: "}</span>
                     {t.lastSnippet}
                   </div>
                 </div>
@@ -82,11 +82,11 @@ export default async function ThreadsPage() {
                   <span className="text-[11.5px] text-ink-3 mono">{fmtAgo(t.lastAt)}</span>
                   <div className="flex items-center gap-1.5">
                     {reply ? (
-                      <StatusTag tone="warn" size="sm">답장 필요</StatusTag>
+                      <StatusTag tone="warn" size="sm">Reply needed</StatusTag>
                     ) : (
                       cls && <StatusTag tone={cls.tone} size="sm">{cls.label}</StatusTag>
                     )}
-                    <span className="text-[11px] text-ink-3">{t.messageCount}개</span>
+                    <span className="text-[11px] text-ink-3">{t.messageCount} messages</span>
                   </div>
                 </div>
               </Link>

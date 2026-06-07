@@ -23,12 +23,12 @@ import { resolveCreators } from "@/lib/creators";
  */
 
 const FUNNEL_DEF: Array<{ key: keyof AnalyticsReport["funnel"]; label: string }> = [
-  { key: "outreach_sent", label: "아웃리치 발송" },
-  { key: "in_conversation", label: "대화 중" },
-  { key: "shipped", label: "샘플 발송" },
-  { key: "delivered", label: "수령" },
-  { key: "posted", label: "게시" },
-  { key: "verified", label: "검증 완료" },
+  { key: "outreach_sent", label: "Outreach sent" },
+  { key: "in_conversation", label: "In conversation" },
+  { key: "shipped", label: "Sample shipped" },
+  { key: "delivered", label: "Delivered" },
+  { key: "posted", label: "Posted" },
+  { key: "verified", label: "Verified" },
 ];
 
 export default async function PerformancePage({ params }: { params: Promise<{ id: string }> }) {
@@ -54,10 +54,10 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
   const reach = fmtCompactKo(a.reach.verifiedViews);
 
   const header = zeroResult
-    ? { tone: "stop" as const, label: "성과 미달 · 검증 게시물 없음" }
+    ? { tone: "stop" as const, label: "Missed goal · no verified posts" }
     : goalMet
-      ? { tone: "ok" as const, label: "목표 달성" }
-      : { tone: "warn" as const, label: "부분 달성" };
+      ? { tone: "ok" as const, label: "Goal met" }
+      : { tone: "warn" as const, label: "Partial progress" };
 
   const funnelRows: FunnelRow[] = FUNNEL_DEF.map((r) => ({ label: r.label, value: a.funnel[r.key] }));
 
@@ -73,7 +73,7 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
         <Link href={`/campaigns/${id}`} className="text-[12px] text-ink-3 hover:text-ink-2">← {a.brief.name}</Link>
         <div className="mt-2 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-[24px] font-bold tracking-[-0.01em]">성과 분석</h1>
+            <h1 className="text-[24px] font-bold tracking-[-0.01em]">Performance analysis</h1>
             <div className="mt-1 text-[12.5px] text-ink-3">{a.brief.category}</div>
           </div>
           <StatusTag tone={header.tone}>{header.label}</StatusTag>
@@ -85,50 +85,51 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
         <DiagnosticBanner
           tone="stop"
           title={campaign.tracks.length > 0
-            ? `크리에이터 ${campaign.tracks.length}명 중 0명이 게시까지 도달하지 못해 목표를 달성하지 못했습니다.`
-            : "아직 게시된 콘텐츠가 없어 목표를 달성하지 못했습니다."}
+            ? `0 of ${campaign.tracks.length} creators reached posting, so the campaign missed its goal.`
+            : "No posted content yet, so the campaign has not met its goal."}
           actions={
             <>
-              <Link href="/campaigns/new"><Button variant="primary" size="sm">더 넓은 조건으로 새 캠페인</Button></Link>
-              <Link href="/policies"><Button size="sm">응답 정책 조정</Button></Link>
-              <Link href="/settings"><Button size="sm">Gmail 연결 확인</Button></Link>
+              <Link href="/campaigns/new"><Button variant="primary" size="sm">Start a broader campaign</Button></Link>
+              <Link href="/policies"><Button size="sm">Adjust reply policy</Button></Link>
+              <Link href="/settings"><Button size="sm">Check Gmail connection</Button></Link>
             </>
           }
           className="mb-6"
         >
-          아웃리치는 발송됐지만 검증된 게시물이 없습니다. 타겟 참여율(ER ≥ {(campaign.brief.targeting.minEngagementRate * 100).toFixed(1)}%) 기준이 높아 후보 풀이 좁았던 것이 가장 가능성 있는 원인입니다. 아래에서 바로 다시 시도할 수 있어요.
+          Outreach was sent, but no posts were verified. The most likely cause is a narrow candidate pool from the target
+          engagement threshold (ER ≥ {(campaign.brief.targeting.minEngagementRate * 100).toFixed(1)}%). You can retry from here.
         </DiagnosticBanner>
       ) : (
         <div className="mb-6 rounded-2xl border border-ok/25 bg-ok-bg px-5 py-3.5 text-[13px] text-ink-2">
-          성과 분석을 에이전트가 자율 완료했습니다. 검증 게시물 {verified}건을 집계해 아래 지표를 산출했습니다.
+          Agents completed the performance analysis and calculated these metrics from {verified} verified posts.
         </div>
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">
         <Stat
-          label="목표 / 게시"
+          label="Goal / posts"
           value={verified}
           unit={`/ ${a.goals.targetLivePosts}`}
-          hint={a.goals.percentOfGoal !== null ? `목표 대비 ${Math.round(a.goals.percentOfGoal * 100)}%` : "목표 미설정"}
+          hint={a.goals.percentOfGoal !== null ? `${Math.round(a.goals.percentOfGoal * 100)}% of goal` : "No goal set"}
           tone={zeroResult ? "stop" : goalMet ? "ok" : "default"}
         />
         <Stat
-          label="총 도달"
+          label="Total reach"
           value={a.reach.verifiedViews > 0 ? reach.value : 0}
           unit={a.reach.verifiedViews > 0 ? reach.unit : undefined}
-          hint={a.reach.verifiedViews > 0 ? `조회수 합계 ${fmtNum(a.reach.verifiedViews)}` : "게시물 없음"}
+          hint={a.reach.verifiedViews > 0 ? `${fmtNum(a.reach.verifiedViews)} total views` : "No posts"}
         />
         <Stat
-          label="평균 참여율"
+          label="Avg engagement"
           value={er ?? "—"}
           unit={er ? "%" : undefined}
           hint={`♥ ${fmtNum(a.reach.verifiedLikes)} · 💬 ${fmtNum(a.reach.verifiedComments)} · ↗ ${fmtNum(a.reach.verifiedShares)}`}
           tone={er ? "default" : "muted"}
         />
         <Stat
-          label="성과 점수"
+          label="Performance score"
           value={a.performance.avgPerformanceScore !== null ? a.performance.avgPerformanceScore : "—"}
-          hint={a.performance.avgPerformanceScore !== null ? `참여 합계 ${fmtNum(engagement)}` : "측정할 데이터 없음"}
+          hint={a.performance.avgPerformanceScore !== null ? `${fmtNum(engagement)} total engagements` : "No measurable data"}
           tone={a.performance.avgPerformanceScore !== null ? "brand" : "muted"}
         />
       </div>
@@ -136,17 +137,17 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader>
-            <CardTitle>퍼널 — 단계별 전환</CardTitle>
-            <span className="text-[11px] text-ink-3 mono">0 = 빈 막대</span>
+            <CardTitle>Funnel — stage conversion</CardTitle>
+            <span className="text-[11px] text-ink-3 mono">0 = empty bar</span>
           </CardHeader>
           <CardBody><Funnel rows={funnelRows} /></CardBody>
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>게시물 리더보드</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Post leaderboard</CardTitle></CardHeader>
           <CardBody className="pt-1.5">
             {leaderboard.length === 0 ? (
-              <div className="text-[12.5px] text-ink-3 py-4">검증된 게시물이 아직 없습니다.</div>
+              <div className="text-[12.5px] text-ink-3 py-4">No verified posts yet.</div>
             ) : (
               <div className="space-y-0.5">
                 {leaderboard.map((t, i) => {
@@ -163,7 +164,7 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
                         )}
                       </div>
                       <span className="ml-auto text-[13px] mono font-bold text-ink shrink-0">
-                        {fmtNum(t.views ?? 0)} <span className="text-ink-3 font-normal">뷰</span>
+                        {fmtNum(t.views ?? 0)} <span className="text-ink-3 font-normal">views</span>
                       </span>
                     </div>
                   );
@@ -175,7 +176,7 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
       </div>
 
       <div className="mt-4 text-[11px] text-ink-3">
-        집계 {a.generatedAt.toISOString().slice(0, 16).replace("T", " ")} · 집행 ${a.cost.spentUsd.toFixed(2)}
+        Generated {a.generatedAt.toISOString().slice(0, 16).replace("T", " ")} · spent ${a.cost.spentUsd.toFixed(2)}
       </div>
     </div>
   );

@@ -108,24 +108,24 @@ export default async function UnsubscribePage({
     <main className="min-h-screen bg-canvas flex items-center justify-center px-4 py-12">
       <Card className="max-w-md w-full">
         <CardBody>
-          <h1 className="text-[20px] font-bold tracking-[-0.01em] text-ink mb-2">수신 거부</h1>
+          <h1 className="text-[20px] font-bold tracking-[-0.01em] text-ink mb-2">Unsubscribe</h1>
           <p className="text-[13px] text-ink-2 leading-relaxed">
             {campaign?.brief.brandProduct.name ? (
               <>
-                <strong className="text-ink">{campaign.brief.brandProduct.name}</strong> 캠페인의 콜라보 제안 이메일을 더 이상 받지 않으시려면
-                아래를 눌러 확인해주세요.
+                Click below if you no longer want to receive collaboration proposal emails for the{" "}
+                <strong className="text-ink">{campaign.brief.brandProduct.name}</strong> campaign.
               </>
             ) : (
-              "이 발송인에게 더 이상 이메일을 받지 않으시려면 아래를 눌러 확인해주세요."
+              "Click below if you no longer want to receive emails from this sender."
             )}
           </p>
           <div className="mt-4 text-[11px] text-ink-3">
-            링크 유효기간 <span className="mono">{new Date(res.exp * 1000).toISOString().slice(0, 10)}</span>까지
+            Link valid until <span className="mono">{new Date(res.exp * 1000).toISOString().slice(0, 10)}</span>
           </div>
           <form action={confirmAction} className="mt-5 flex justify-end">
             <input type="hidden" name="token" value={parsed.data.token} />
             <Button type="submit" variant="primary" tone="reject">
-              수신 거부 확인
+              Confirm unsubscribe
             </Button>
           </form>
         </CardBody>
@@ -146,10 +146,10 @@ function Result({
       <main className="min-h-screen bg-canvas flex items-center justify-center px-4 py-12">
         <Card className="max-w-md w-full">
           <CardBody>
-            <StatusTag tone="ok" size="sm">완료</StatusTag>
-            <h1 className="mt-2.5 text-[20px] font-bold tracking-[-0.01em] text-ink">수신 거부됨</h1>
+            <StatusTag tone="ok" size="sm">Done</StatusTag>
+            <h1 className="mt-2.5 text-[20px] font-bold tracking-[-0.01em] text-ink">Unsubscribed</h1>
             <p className="mt-2 text-[13px] text-ink-2 leading-relaxed">
-              이 이메일 주소는 해당 캠페인 발송 목록에서 제거되었습니다. 앞으로 같은 발송인의 자동 제안 메일은 보내지 않습니다.
+              This email address has been removed from the campaign mailing list. Automated proposal emails from this sender will no longer be sent.
             </p>
           </CardBody>
         </Card>
@@ -161,10 +161,10 @@ function Result({
       <main className="min-h-screen bg-canvas flex items-center justify-center px-4 py-12">
         <Card className="max-w-md w-full">
           <CardBody>
-            <StatusTag tone="warn" size="sm">접수됨</StatusTag>
-            <h1 className="mt-2.5 text-[20px] font-bold tracking-[-0.01em] text-ink">수신 거부 요청 접수됨</h1>
+            <StatusTag tone="warn" size="sm">Received</StatusTag>
+            <h1 className="mt-2.5 text-[20px] font-bold tracking-[-0.01em] text-ink">Unsubscribe request received</h1>
             <p className="mt-2 text-[13px] text-ink-2 leading-relaxed">
-              요청을 접수했습니다. 연결된 이메일 주소를 자동으로 확인하지 못해 운영자가 직접 처리합니다 (보통 24시간 이내).
+              We received the request. The linked email address could not be verified automatically, so an operator will process it manually, usually within 24 hours.
             </p>
           </CardBody>
         </Card>
@@ -173,22 +173,22 @@ function Result({
   }
   const message =
     reason === "expired"
-      ? "토큰이 만료되었습니다. 발송인에게 직접 회신해 수신 거부를 요청해주세요."
+      ? "This token has expired. Reply directly to the sender to request unsubscribe."
       : reason === "bad_signature"
-        ? "토큰 서명이 일치하지 않습니다. 링크가 변조되었거나 잘못 복사되었을 수 있습니다."
+        ? "The token signature does not match. The link may have been altered or copied incorrectly."
         : reason === "not_configured"
-          ? "수신 거부 시스템이 일시 점검 중입니다. 잠시 후 다시 시도해주세요."
+          ? "The unsubscribe system is temporarily unavailable. Try again shortly."
           : reason === "missing_token"
-            ? "수신 거부 링크가 잘못되었습니다 (토큰 누락)."
+            ? "This unsubscribe link is invalid because the token is missing."
             : reason === "campaign_missing"
-              ? "관련 캠페인을 찾을 수 없습니다."
-              : "수신 거부 요청을 처리할 수 없습니다.";
+              ? "The related campaign could not be found."
+              : "The unsubscribe request could not be processed.";
   return (
     <main className="min-h-screen bg-canvas flex items-center justify-center px-4 py-12">
       <Card className="max-w-md w-full">
         <CardBody>
-          <StatusTag tone="stop" size="sm">오류</StatusTag>
-          <h1 className="mt-2.5 text-[20px] font-bold tracking-[-0.01em] text-ink">처리할 수 없음</h1>
+          <StatusTag tone="stop" size="sm">Error</StatusTag>
+          <h1 className="mt-2.5 text-[20px] font-bold tracking-[-0.01em] text-ink">Cannot process request</h1>
           <p className="mt-2 text-[13px] text-ink-2 leading-relaxed">{message}</p>
         </CardBody>
       </Card>

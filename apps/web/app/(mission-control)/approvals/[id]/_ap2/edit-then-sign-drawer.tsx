@@ -256,7 +256,7 @@ export function EditThenSignDrawer({
                 </tbody>
               </table>
               {!anyIncluded && (
-                <DiagnosticBanner tone="stop" title="수신자를 한 명 이상 선택해야 합니다" className="mt-3" />
+                <DiagnosticBanner tone="stop" title="Select at least one recipient" className="mt-3" />
               )}
             </CardBody>
           </Card>
