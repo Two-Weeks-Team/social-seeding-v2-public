@@ -31,6 +31,35 @@ const FUNNEL_DEF: Array<{ key: keyof AnalyticsReport["funnel"]; label: string }>
   { key: "verified", label: "Verified" },
 ];
 
+// A funnel chart must be CUMULATIVE ("reached this stage or further"), not a current-state
+// snapshot — otherwise a verified track (counted only in `verified`) makes Verified exceed
+// Posted/Delivered. Map each lifecycle/terminal state to the furthest stage it reached, then
+// count tracks at-or-beyond each stage so the funnel is monotonically non-increasing.
+const LIFECYCLE = [
+  "candidate", "shortlisted", "outreach_sent", "in_conversation", "agreed",
+  "address_collected", "shipped", "delivered", "posted", "verified",
+] as const;
+const REACHED_AT: Record<string, (typeof LIFECYCLE)[number]> = {
+  candidate: "candidate", shortlisted: "shortlisted",
+  outreach_sent: "outreach_sent", no_response: "outreach_sent",
+  in_conversation: "in_conversation", declined: "in_conversation",
+  agreed: "agreed", address_collected: "address_collected",
+  shipped: "shipped", flaked: "shipped",
+  delivered: "delivered", posted: "posted", verified: "verified",
+};
+function reachedFunnel(fn: AnalyticsReport["funnel"]): Record<string, number> {
+  const out: Record<string, number> = {};
+  LIFECYCLE.forEach((stage, si) => {
+    let n = 0;
+    for (const [state, count] of Object.entries(fn)) {
+      const ri = LIFECYCLE.indexOf(REACHED_AT[state] ?? (state as (typeof LIFECYCLE)[number]));
+      if (ri >= si) n += count;
+    }
+    out[stage] = n;
+  });
+  return out;
+}
+
 export default async function PerformancePage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
   if (!session) redirect("/sign-in");
@@ -59,13 +88,25 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
       ? { tone: "ok" as const, label: "Goal met" }
       : { tone: "warn" as const, label: "Partial progress" };
 
-  const funnelRows: FunnelRow[] = FUNNEL_DEF.map((r) => ({ label: r.label, value: a.funnel[r.key] }));
+  const reached = reachedFunnel(a.funnel);
+  const funnelRows: FunnelRow[] = FUNNEL_DEF.map((r) => ({ label: r.label, value: reached[r.key] ?? 0 }));
 
-  const leaderboard = [...(a.tracks ?? [])]
+  // Rank by views (the metric the row shows), de-duped to one row per creator.
+  // The v1 import stores a creator's 2nd post as "<id>#2", which resolves to the
+  // same handle — so without de-duping the same creator shows up twice.
+  const ranked = [...(a.tracks ?? [])]
     .filter((t) => t.performanceScore !== null)
-    .sort((x, y) => (y.performanceScore ?? 0) - (x.performanceScore ?? 0))
+    .sort((x, y) => (y.views ?? 0) - (x.views ?? 0));
+  const profiles = await resolveCreators(ranked.map((t) => t.creatorId));
+  const seenCreator = new Set<string>();
+  const leaderboard = ranked
+    .filter((t) => {
+      const key = profiles.get(t.creatorId)?.handle ?? t.creatorId.replace(/#\d+$/, "");
+      if (seenCreator.has(key)) return false;
+      seenCreator.add(key);
+      return true;
+    })
     .slice(0, 12);
-  const profiles = await resolveCreators(leaderboard.map((t) => t.creatorId));
 
   return (
     <div className="max-w-5xl mx-auto px-8 py-8">
