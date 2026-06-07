@@ -65,7 +65,7 @@ The remaining captures (S-11..S-18) are committed to the repo and linked from th
 
 | # | Filename | Where to capture | Dimensions | Notes |
 |---|----------|------------------|------------|-------|
-| S-08 ★ | `wow-business-roi-tam.png` | Live landing / demo ROI scene: $0.01/view (D28) + TAM/SAM/SOM visualization | 1920 × 1080 | Business is co-#1 rubric weight (30%). Show $24B TAM → $1.7B SAM → $540k SOM with source labels. Per D28/D49. |
+| S-08 ★ | `wow-business-roi-tam.png` | Live landing / demo ROI scene: $0.01/view (D28) + TAM/SAM/SOM visualization | 1920 × 1080 | Business is co-#1 rubric weight (30%). Operator model — show $27.5–37.3B media-spend TAM → $3.3B SAM → ~$10M ARR SOM (1% × ~29% take) with source labels. Per D28/D49. |
 | S-09 ★ | `a2a-animation-diagram.png` | Animated A2A cross-call diagram (still frame, or short GIF) | 1920 × 1080 | coordinator → a2a_invoke → ss-mcp → task/completed, animated. Per D49. |
 
 ## 5. Build + test + govern evidence

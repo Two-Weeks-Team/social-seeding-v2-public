@@ -107,26 +107,26 @@ public data is thin we say so and mark the step **[ASSUMPTION]**.
 |---|---|---|
 | Global influencer-marketing **spend** (2026) | **$27.5B – $37.3B** | [CITED] The Business Research Company $27.54B (2026); Statista-range firms to $37.27B. (thebusinessresearchcompany.com, statista.com) |
 | Influencer-marketing **platform/software** segment (2026) | **$1.15B** | [CITED] MarketsandMarkets: platform market $1.15B (2026) → $2.03B (2031), 12% CAGR. (marketsandmarkets.com) |
-| **TAM we use** | **≈ $1.15B** (software/platform) | [DERIVED] Social Seeding is **software that runs campaigns**, not an agency taking media spend, so the addressable pie is the **platform/software** segment, not the full $27B media spend. Using the software segment is the conservative, defensible TAM. |
+| **TAM we use** | **≈ $27.5–37.3B** (media spend) | [DERIVED] Social Seeding is an **autonomous campaign operator** that *runs* campaigns and intermediates the brand's creator-marketing spend — so the addressable pie is the **media-spend market**, not just the software slice. (The $1.15B software-platform segment is the floor if we were a pure tool.) |
 
 ### 3.2 SAM — serviceable addressable market
 
 | Step | Value | Basis |
 |---|---|---|
-| Target: brands running **10+ creator campaigns/mo** with **$5k+ monthly creator spend** | — | [ASSUMPTION] our ICP (matches devpost-track3 "$5k–$50k/mo" target) |
-| Addressable brand count | **≈ 80,000 brands** | [ASSUMPTION] segmentation estimate; **not a measured count** — flagged as thin data |
-| Annual revenue per brand to a platform (ARPM) | **$1,800/yr** | [DERIVED] ≈ our $1,250–$2,500/mo tier (devpost-track3) is the *agency-replacement* price; the *platform-software* ARPU is lower — we model $150/mo software ARPU × 12 = $1,800/yr to stay inside the $1.15B software TAM |
-| **SAM** | **80,000 × $1,800 ≈ $144M** | [DERIVED] software-segment slice; an estimate, not a measured market. Sanity check: $144M is ~12.5% of the $1.15B platform TAM — a plausible "active-program" subset. |
+| Serviceable segment | DTC/SMB + cross-border / gatekeeper-excluded brands running **performance** creator campaigns | [ASSUMPTION] our ICP — the brands an autonomous operator can win first (matches devpost-track3 "$5k–$50k/mo" target) |
+| Share of TAM serviceable | **~10%** | [ASSUMPTION] the SMB/DTC + emerging-market slice an operator-led product serves day-1 (not the whole $27–37B) |
+| **SAM** | **≈ $3.3B** | [DERIVED] ~10% of the $27.5–37.3B media TAM. An estimate, not a measured market. |
 
 ### 3.3 SOM — serviceable obtainable market (3-year)
 
 | Step | Value | Basis |
 |---|---|---|
-| Beachhead regions | KR + JP + EN-language DTC | [ASSUMPTION] D34 i18n locales; D3 A2A-only distribution wedge |
-| Reachable brands in beachhead | **≈ 3,000** | [ASSUMPTION] DTC + Shopify-Plus tier in beachhead regions; thin data, flagged |
-| Realistic 3-yr capture | **1%** | [ASSUMPTION] conservative early-stage capture |
-| Blended ARPM | **$1,500/yr** | [DERIVED] mix of software ARPU + agency-replacement tenants |
-| **SOM (3-yr)** | **3,000 × 1% × ... ≈ $540k ARR** | [DERIVED] 3,000 reachable × 1% capture = 30 tenants × ~$18k blended annual = ~$540k ARR. Bottom-up; assumption-driven. Matches the devpost-track3 figure exactly. |
+| Beachhead | KR/JP/EN-language DTC + **cross-border** (e.g. a KR brand → LATAM creators — the Wooliliwoo case) | [ASSUMPTION] D34 i18n locales; D3 A2A-only distribution wedge |
+| Active brands (yr-3) × operated spend | **~150 × ~$220k/yr** | [ASSUMPTION] reachable DTC/SMB performance-creator brands × per-brand annual creator budget we operate |
+| Realistic 3-yr capture of SAM | **~1%** | [ASSUMPTION] conservative early-stage capture (the ~150-brand path below) |
+| Campaign spend operated (GMV) | **≈ $33M/yr** | [DERIVED] ~150 brands × ~$220k = $33M ≈ 1% of the $3.3B SAM |
+| Take-rate | **~29%** | [DERIVED] platform keeps ~29% of operated spend after creator/product compensation + COGS (`gcp-research/pricing/MODEL.md`) |
+| **SOM (3-yr)** | **≈ $10M ARR** | [DERIVED] $33M operated × ~29% take. Bottom-up; assumption-driven. |
 
 **Methodology honesty.** TAM is **CITED**. SAM and SOM are **top-down narrowed by labeled
 assumptions** — the brand counts (80k, 3k) are estimates, not measured registries, and are flagged
@@ -144,8 +144,9 @@ view events → Pub/Sub → BigQuery → meter (devpost-track3).
 **Why per-campaign-free, not a one-time trial:** every campaign starts free, so there is zero
 adoption friction to launching *another* campaign; small/test campaigns (<10k views) are entirely
 free; and revenue is **outcome-aligned** — we only earn when we make a campaign succeed past 10k.
-The free allowance is cheap to offer because billing is per-view-delivered and our marginal cost is
-machine compute (~$0.05–$7.40/campaign, §2.3/§4.1), not a per-view payout. The honest counter — "many
+The free allowance is cheap to offer because billing is per-view-delivered and our compute marginal cost
+is low (~$7.40/campaign, §2.3) — the larger COGS is the creator/product compensation we manage as operator
+(§4.1). The honest counter — "many
 campaigns may stay under 10k and bill $0" — is the intended shape: the model monetizes breakout
 campaigns and the *compounding data asset* below (§4.3), with retention to be validated in pilots (§6).
 
@@ -156,23 +157,20 @@ campaigns and the *compounding data asset* below (§4.3), with retention to be v
 | TikTok ad CPM range (2025) | $4.8 – $13.26 | [CITED] lebesgue.io ($4.8 avg), triplewhale/scrumball ($9.16–$13.26) |
 | Our effective CPM | **$10.00** | [DERIVED] $0.01 × 1,000 — within the cited band, on the value-priced side vs managed-service CPMs |
 
-### 4.1 Gross margin on a delivered campaign
+### 4.1 Take-rate on a delivered campaign
 
-Take the §2 scenario delivering, say, **1,000,000 views** (20 creators × 50k avg views — [ASSUMPTION], conservative for micro tier). The first 10,000 views are free (D28), so **990,000 views are billable**:
+As an **operator** we run the campaign end-to-end — including the creator/product compensation — and keep a **take** of the brand's spend. Take the §2 scenario delivering **1,000,000 views** (20 creators × 50k avg — [ASSUMPTION], conservative for the micro tier). First 10,000 free (D28), so **990,000 billable**:
 
 | Line | Value | Formula |
 |---|---|---|
-| Billable views | **990,000** | [DERIVED] 1,000,000 − 10,000 free/campaign (D28) |
-| Revenue | **$9,900** | [DERIVED] 990,000 × $0.01 (D28) |
-| Cost of goods (our compute) | **$7.40** | [DERIVED] §2.3 |
-| **Gross margin** | **≈ 99.9%** | [DERIVED] ($9,900 − $7.40) / $9,900 |
+| Brand billing (revenue) | **$9,900** | [DERIVED] 990,000 × $0.01 (D28) |
+| − Creator/product compensation | **≈ $5,400** | [DERIVED, `MODEL.md`] ≈ $0.0055/view — the creators we seed/compensate |
+| − Compute + COGS | **≈ $7–60** | [DERIVED] §2.3 compute ~$7.40 + fees/support |
+| **Platform take (net)** | **≈ $2,870 (~29%)** | [DERIVED] revenue − creator/product − COGS (`MODEL.md`) |
 
-> Worked example on real demo data (우리리우 2nd): 59,498 verified views − 10,000 free = **49,498 billable × $0.01 = $494.98** for a campaign that ran on ~$0.05 of agent compute. (The free tier costs us ~10,000 × $0 payout + the same ~$0.05 compute — it is a customer-acquisition lever, not a margin sink.)
+> Worked example on real demo data (Wooliliwoo 2nd, Mexico): 59,498 verified views − 10,000 free = **49,498 billable × $0.01 = $494.98 campaign billing**; on ~$7.40 of agent compute the platform take is **~29%** after creator/product compensation.
 
-The gross margin is extreme because **the cost basis is machine compute, not human labor** — the
-same structural fact that produces the §2 cost delta. Caveats kept honest: this excludes
-customer-acquisition cost, support, the human-review labor on *our* side (~2h/campaign), and the
-creator pay (which is the brand's spend, not ours). It is **cost-of-goods margin**, not net margin.
+This is a **take-rate**, not a software gross margin. The take is sensitive to creator-compensation cost — at the lower-cost end of each band the platform keeps ~29¢ per delivered $1; better creator matching (cheaper effective comp) lifts it (`MODEL.md §5`). **Honesty note:** in the shipped product, creator compensation is largely **product-seeding (gifting)**, so the cash $0.0055/view payout above is the `MODEL.md` *model*; the realized take depends on the seeding-vs-cash mix per campaign. Caveats: excludes customer-acquisition cost and our ~2h/campaign human review.
 
 ### 4.2 Cost envelope (D39 / D46)
 

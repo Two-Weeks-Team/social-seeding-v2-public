@@ -452,19 +452,19 @@
 
         <g>
           <rect x="40" y="32" width="222" height="56" rx="10" fill="#11243f" stroke="#2a4a78"/>
-          <text x="151" y="56" text-anchor="middle" fill="#dbe7ff" font-size="12" font-weight="700">Campaign budget</text>
-          <text x="151" y="76" text-anchor="middle" fill="#79b0ff" font-size="15" font-weight="800" font-family="ui-monospace, monospace">$380.00</text>
+          <text x="151" y="56" text-anchor="middle" fill="#dbe7ff" font-size="12" font-weight="700">Delivered views (우리리우)</text>
+          <text x="151" y="76" text-anchor="middle" fill="#79b0ff" font-size="15" font-weight="800" font-family="ui-monospace, monospace">59,498</text>
         </g>
         <g>
           <rect x="362" y="32" width="278" height="56" rx="10" fill="#1a1230" stroke="#463273"/>
-          <text x="501" y="50" text-anchor="middle" fill="#e6dbff" font-size="11.5" font-weight="700">Delivered &amp; verified views</text>
-          <text x="501" y="70" text-anchor="middle" fill="#c4a6ff" font-size="15" font-weight="800" font-family="ui-monospace, monospace">38,000 views</text>
+          <text x="501" y="50" text-anchor="middle" fill="#e6dbff" font-size="11.5" font-weight="700">Billable views (− first 10k free)</text>
+          <text x="501" y="70" text-anchor="middle" fill="#c4a6ff" font-size="15" font-weight="800" font-family="ui-monospace, monospace">49,498 views</text>
           <text x="501" y="84" text-anchor="middle" fill="#8a72c0" font-size="9">content_verify confirms each delivery</text>
         </g>
         <g>
           <rect x="740" y="32" width="300" height="56" rx="10" fill="#0f2a1c" stroke="#1f5436"/>
-          <text x="890" y="50" text-anchor="middle" fill="#d6ffe6" font-size="11.5" font-weight="700">Billed @ $0.01 / view</text>
-          <text x="890" y="70" text-anchor="middle" fill="#6ee7a8" font-size="15" font-weight="800" font-family="ui-monospace, monospace">$380.00</text>
+          <text x="890" y="50" text-anchor="middle" fill="#d6ffe6" font-size="11.5" font-weight="700">Revenue @ $0.01 / view</text>
+          <text x="890" y="70" text-anchor="middle" fill="#6ee7a8" font-size="15" font-weight="800" font-family="ui-monospace, monospace">$494.98</text>
           <text x="890" y="84" text-anchor="middle" fill="#5fae84" font-size="9">Pub/Sub → BigQuery → Apigee metering</text>
         </g>
       </svg>
@@ -482,15 +482,15 @@
         <div class="d">Per-seat / per-creator SaaS bills regardless of outcome. Per-delivered-view ties spend to attention actually delivered.</div>
       </div>
       <div class="card">
-        <div class="k">Demo run cost</div>
-        <div class="v" style="color:#79b0ff;">$1.34</div>
-        <div class="d">Full brand-campaign loop (173 agent calls, 22 agents) — well under the $1,500 GCP credit envelope (D39).</div>
+        <div class="k">Take-rate</div>
+        <div class="v" style="color:#6ee7a8;">~29%</div>
+        <div class="d"><b>Operator model</b> — we run the full campaign + creator compensation; after creator/product payouts + COGS (~$7.40/campaign compute) we keep a ~29% take of the brand's spend (MODEL.md). Well under the $1,500 GCP credit (D39).</div>
       </div>
     </div>
     <p class="footnote">
-      eCPM math: $0.01/view × 1,000 = $10 CPM. Worked example uses 38,000 verified views (the demo's Scene-7 view-count
-      figure) at the $0.01 unit price ⇒ $380. Metering pipeline: Pub/Sub event → BigQuery → Apigee X usage billing
-      (DECISIONS.md §5). Pricing decision: <b>D28</b>.
+      eCPM math: $0.01/view × 1,000 = $10 CPM. Worked example uses <b>real demo data</b> (Wooliliwoo 2nd, Mexico): 59,498 verified
+      views − 10,000 free = 49,498 billable × $0.01 = <b>$494.98</b> campaign billing; our take ~29% after creator/product + ~$7.40 compute.
+      Metering pipeline: Pub/Sub → BigQuery → Apigee X usage billing (designed, not yet live). Pricing: <b>D28</b>.
     </p>
   </section>
 
@@ -498,10 +498,10 @@
   <!-- (c-2) TAM / SAM / SOM napkin chart — honest, sourced.                   -->
   <!-- ====================================================================== -->
   <section class="panel" id="tam">
-    <h2><span class="pill pill-amber">Market</span> TAM / SAM / SOM — Korean influencer marketing</h2>
+    <h2><span class="pill pill-amber">Market</span> TAM / SAM / SOM — creator-marketing spend we operate</h2>
     <p class="sub">
-      Napkin estimate. Every figure carries its source and the assumption used to derive it (RULES.md — no overclaim).
-      <span class="pill pill-amber" style="margin-left:4px;">D28</span>
+      TAM is <b>cited</b>; SAM/SOM are top-down narrowed by labeled assumptions (RULES.md — no overclaim).
+      <span class="pill pill-amber" style="margin-left:4px;">D28</span> <span class="pill pill-amber" style="margin-left:4px;">D49</span>
     </p>
 
     <div class="grid2">
@@ -510,42 +510,42 @@
         <svg viewBox="0 0 320 300" width="100%" style="max-width:320px;" role="img" aria-label="Concentric TAM SAM SOM chart">
           <!-- TAM -->
           <circle cx="160" cy="150" r="135" fill="#11243f" stroke="#2a4a78" stroke-width="1.5"/>
-          <text x="160" y="40" text-anchor="middle" fill="#79b0ff" font-size="12" font-weight="700">TAM · Global</text>
-          <text x="160" y="58" text-anchor="middle" fill="#dbe7ff" font-size="15" font-weight="800" font-family="ui-monospace, monospace">$32.6B</text>
+          <text x="160" y="40" text-anchor="middle" fill="#79b0ff" font-size="12" font-weight="700">TAM · Media spend</text>
+          <text x="160" y="58" text-anchor="middle" fill="#dbe7ff" font-size="15" font-weight="800" font-family="ui-monospace, monospace">$33B</text>
           <!-- SAM -->
           <circle cx="160" cy="178" r="92" fill="#1a1230" stroke="#463273" stroke-width="1.5"/>
-          <text x="160" y="120" text-anchor="middle" fill="#c4a6ff" font-size="11.5" font-weight="700">SAM · Korea</text>
-          <text x="160" y="138" text-anchor="middle" fill="#e6dbff" font-size="14" font-weight="800" font-family="ui-monospace, monospace">$489M</text>
+          <text x="160" y="120" text-anchor="middle" fill="#c4a6ff" font-size="11.5" font-weight="700">SAM</text>
+          <text x="160" y="138" text-anchor="middle" fill="#e6dbff" font-size="14" font-weight="800" font-family="ui-monospace, monospace">$3.3B</text>
           <!-- SOM -->
           <circle cx="160" cy="205" r="48" fill="#0f2a1c" stroke="#1f5436" stroke-width="1.5"/>
-          <text x="160" y="200" text-anchor="middle" fill="#6ee7a8" font-size="11" font-weight="700">SOM</text>
-          <text x="160" y="217" text-anchor="middle" fill="#d6ffe6" font-size="13" font-weight="800" font-family="ui-monospace, monospace">~$5M</text>
+          <text x="160" y="200" text-anchor="middle" fill="#6ee7a8" font-size="11" font-weight="700">SOM·3yr</text>
+          <text x="160" y="217" text-anchor="middle" fill="#d6ffe6" font-size="12" font-weight="800" font-family="ui-monospace, monospace">~$10M</text>
         </svg>
       </div>
 
       <div>
         <div class="card" style="border-left:3px solid #2a4a78;">
-          <div class="k" style="color:#79b0ff;">TAM — global influencer marketing 2025</div>
-          <div class="v" style="font-size:22px;">$32.6B</div>
-          <div class="src">Source: Statista, global influencer marketing market ≈ $32.55B in 2025 (up ~35% YoY from $24B in 2024). Used as the total addressable ceiling.</div>
+          <div class="k" style="color:#79b0ff;">TAM — influencer-marketing spend 2026</div>
+          <div class="v" style="font-size:22px;">$33B</div>
+          <div class="src">Source: global influencer-marketing spend ≈ <b>$27.5–37.3B (2026)</b> (The Business Research Company; Statista-range). As an autonomous campaign <b>operator</b> we intermediate this spend — the media market, not just a software slice, is addressable.</div>
         </div>
         <div class="card" style="border-left:3px solid #463273; margin-top:12px;">
-          <div class="k" style="color:#c4a6ff;">SAM — Korea influencer ad spend 2025</div>
-          <div class="v" style="font-size:22px;">$489M</div>
-          <div class="src">Source: Statista Influencer Advertising outlook — Korea ad spend ≈ US$489.24M in 2025, projected ≈ US$786M by 2030. This is the serviceable Korea-region slice our A2A-only distribution path (D2/D3) targets.</div>
+          <div class="k" style="color:#c4a6ff;">SAM — serviceable segment</div>
+          <div class="v" style="font-size:22px;">$3.3B</div>
+          <div class="src">[DERIVED] the DTC/SMB + cross-border / gatekeeper-excluded slice running performance creator campaigns ≈ ~10% of TAM. A labeled estimate, not a measured market.</div>
         </div>
         <div class="card" style="border-left:3px solid #1f5436; margin-top:12px;">
           <div class="k" style="color:#6ee7a8;">SOM — obtainable, 3-yr</div>
-          <div class="v" style="font-size:22px;">~$5M</div>
-          <div class="src"><b>Assumption (ours, not a market report):</b> ~1% of the $489M Korea SAM captured over 3 years ⇒ ≈ $5M ARR. Single-digit-% capture is a deliberately conservative early-stage planning figure, not a forecast.</div>
+          <div class="v" style="font-size:22px;">~$10M ARR</div>
+          <div class="src"><b>Assumption (ours):</b> 1% of the $3.3B SAM intermediated = ~$33M campaign spend operated → at a ~29% take ≈ ~$10M ARR by yr-3. Conservative single-digit-% capture, not a forecast.</div>
         </div>
       </div>
     </div>
     <p class="footnote">
-      Figures are point estimates from third-party market reports (Statista) plus one explicitly-labelled internal
-      assumption for SOM. They are sizing context for the $0.01/view model (D28), not revenue guidance. Different
-      reports scope the market differently (e.g. fashion-only KR influencer ≈ $2.89B, 2025); we use the narrower
-      "influencer advertising spend" line for SAM because it best matches what a per-view product actually bills against.
+      TAM is a cited third-party figure (TBRC/Statista); SAM and SOM are top-down narrowed by explicitly-labeled
+      internal assumptions (serviceable %, capture rate, take-rate). They are sizing context for the operator model
+      (D28), not revenue guidance. As an operator we address the <b>creator-marketing spend</b> ($27–37B), keeping a
+      ~29% take after creator/product compensation + COGS.
     </p>
   </section>
 
@@ -561,7 +561,7 @@
       </div>
       <div class="card" style="border-top:3px solid #8b5cf6;">
         <div class="k" style="color:#c4a6ff;">D29-B · KR-region gap</div>
-        <div class="d" style="color:#c2d2e8;">No paid Marketplace listing for a Korean entity (D2). A2A-only distribution (D3) is the reframed innovation — the $489M SAM above.</div>
+        <div class="d" style="color:#c2d2e8;">The real innovation is the <b>portable A2A distribution + billing rail</b> (D3): any agent → signed card → discovered, called &amp; billed. Korea's Marketplace payout gap (D2) is just why we live it first — anyone can copy it.</div>
       </div>
       <div class="card" style="border-top:3px solid #34a853;">
         <div class="k" style="color:#6ee7a8;">D29-C · Multimodal + AP2 + Multi-agent</div>

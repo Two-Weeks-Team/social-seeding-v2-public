@@ -390,16 +390,18 @@ rather than building TikTok scrapers.
 roadmap to replace projections with evidence is in [`BUSINESS-CASE.md §6`](./BUSINESS-CASE.md).
 
 **TAM / SAM / SOM** (top-down from cited reports, narrowed by labeled assumptions; full model in
-[`BUSINESS-CASE.md §3`](./BUSINESS-CASE.md)):
-- **TAM** — the influencer-marketing **platform/software** segment ≈ **$1.15 B** in 2026
-  (MarketsandMarkets, → $2.03 B by 2031). We use the software segment, not the full ~$27 B media
-  spend, because Social Seeding is software that runs campaigns, not an agency taking media spend —
-  the conservative, defensible TAM.
-- **SAM** — brands running 10+ creator campaigns/month with $5k+ monthly creator spend ≈ 80,000
-  brands × $1,800/yr software ARPU ≈ **$144 M** (~12.5% of the platform TAM). The brand count is a
-  segmentation estimate, not a measured registry — flagged as the weakest link.
-- **SOM (3-year)** — KR/JP/EN DTC + Shopify Plus ≈ 3,000 reachable brands × 1% capture × ~$18k blended
-  annual ≈ **$540 k ARR** (bottom-up, assumption-driven).
+[`BUSINESS-CASE.md §3`](./BUSINESS-CASE.md)). Social Seeding is an **autonomous campaign operator** — it
+runs the full loop (sourcing→outreach→seeding→verification) and intermediates the brand's creator-marketing
+spend, keeping a take. So we size the **media spend**, not just a software slice:
+- **TAM** — global influencer-marketing **spend** ≈ **$27.5–37.3 B** in 2026 (The Business Research
+  Company $27.54B; Statista-range to $37.27B) — the spend an autonomous operator addresses.
+- **SAM** — the DTC/SMB + cross-border / gatekeeper-excluded slice running performance creator campaigns
+  ≈ **$3.3 B** (~10% of TAM; labeled estimate, not a measured market).
+- **SOM (3-year)** — ~1% of the SAM intermediated ≈ **$33 M campaign spend operated** → at a ~29%
+  take-rate ≈ **~$10 M ARR** by year 3 (conservative single-digit-% capture, assumption-driven).
+- **Unit economics** — $0.01/delivered view ($10 eCPM); on real demo data (Wooliliwoo 2nd, Mexico)
+  49,498 billable views × $0.01 = **$494.98 campaign billing**, ~29% take after creator/product + ~$7.40
+  agent+infra compute. Metering (Pub/Sub→BigQuery→Apigee) is designed, not yet live.
 
 **Cost envelope (D46 auto-scale)**: all three live Cloud Run services are `min=0` scale-to-zero;
 total GCP spend runs **~$1-5/mo**. One real Imagen demo take is a few cents; heavy stores
