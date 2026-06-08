@@ -1,0 +1,12 @@
+.git
+.next
+node_modules
+**/node_modules
+coverage
+dist
+.turbo
+.vercel
+.DS_Store
+*.log
+devpost-submission-package
+devpost-submission-package.zip
