@@ -9,6 +9,7 @@
       "wait_unit_minute": "分钟",
       "wait_unit_hour": "小时",
       "wait_unit_day": "天",
+      "wait_unit_second": "秒",
       "expires_in": "过期时间",
       "expired": "已过期",
       "rationale_label": "代理选择此方案的原因",

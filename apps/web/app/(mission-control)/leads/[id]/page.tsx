@@ -1,49 +1,29 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { Badge, type BadgeVariant } from "@/components/ui/badge";
-import { Card, CardBody, SectionLabel } from "@/components/ui/card";
+import { Card, CardBody, CardHeader, CardTitle, SectionLabel } from "@/components/ui/card";
+import { StatusTag } from "@/components/ui/status-tag";
+import { Stat } from "@/components/ui/stat";
+import { Funnel, type FunnelRow } from "@/components/ui/funnel";
+import { Avatar } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/ui/empty-state";
 import { getServerSession } from "@/lib/auth";
 import { leadCampaignRepo, leadRepo } from "@ss/db";
 import type { Lead } from "@ss/contracts";
+import { campaignStatus, leadStage, leadCampaignStageWithNumber, salesPriority } from "@/lib/labels";
+import { fmtAgo } from "@/lib/format";
 
 /**
- * /leads/[id] — Phase 5 P5-C4 lead-campaign detail view. Shows:
- *   · brief + stage + status (mirrors /campaigns/[id] header)
- *   · funnel strip: imported / enriched / researched / outreach_sent /
- *     in_conversation / agreed / declined / no_response / flaked
- *   · per-lead leaderboard table (sortable by stage + confidence)
- *   · per-lead expand row shows enrichment summary + research pitch
- *     (no nested route; keep the surface flat for v5 MVP)
+ * /leads/[id] — lead campaign detail (C2 redesign). Mirrors /campaigns/[id]:
+ *   · brief header + status/stage
+ *   · KPI strip (registered companies / reply goal progress)
+ *   · honest funnel (research -> proposal prep -> cold email -> conversation -> agreed)
+ *   · per-lead list with company name · progress state · pitch summary
  *
- * Read-only — the workflow + cron own all writes.
+ * Read-only — workflows and automation own all writes.
  */
 
-function leadStageVariant(stage: Lead["stage"]): BadgeVariant {
-  switch (stage) {
-    case "imported":
-    case "enriching":
-    case "researching":
-      return "slate";
-    case "enriched":
-    case "researched":
-    case "outreach_sent":
-      return "blue";
-    case "in_conversation":
-      return "amber";
-    case "agreed":
-      return "emerald";
-    case "declined":
-    case "flaked":
-      return "rose";
-    case "no_response":
-      return "amber";
-    default:
-      return "slate";
-  }
-}
-
-function priorityVariant(p: "high" | "medium" | "low"): BadgeVariant {
-  return p === "high" ? "emerald" : p === "medium" ? "amber" : "slate";
+function fmtDate(d: Date): string {
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 interface FunnelCounts {
@@ -99,97 +79,145 @@ export default async function LeadCampaignDetailPage({
   const leads = all.filter((l) => idSet.has(l.id));
 
   const funnel = funnelOf(leads);
+  const st = campaignStatus(campaign.status);
+
+  // Replies = anything that moved past first contact into a real conversation.
+  const repliesCount = leads.filter(
+    (l) => l.stage === "in_conversation" || l.stage === "agreed",
+  ).length;
+  const targetReplies = campaign.brief.goals.targetReplies;
+
+  const funnelRows: FunnelRow[] = [
+    { label: "Company analysis", value: funnel.enriched + funnel.researched + funnel.outreach_sent + funnel.in_conversation + funnel.agreed },
+    { label: "Proposal prep", value: funnel.researched + funnel.outreach_sent + funnel.in_conversation + funnel.agreed },
+    { label: "Cold email", value: funnel.outreach_sent + funnel.in_conversation + funnel.agreed },
+    { label: "In conversation", value: funnel.in_conversation + funnel.agreed },
+    { label: "Agreed", value: funnel.agreed },
+  ];
 
   return (
     <div className="max-w-6xl mx-auto px-8 py-8">
-      <header className="mb-6">
-        <Link href="/leads" className="text-[11px] text-slate-500 hover:text-slate-900">← 리드 캠페인</Link>
-        <div className="mt-2 flex items-end justify-between gap-3">
+      <header className="mb-5">
+        <Link href="/leads" className="text-[12px] text-ink-3 hover:text-ink-2">← Lead campaigns</Link>
+        <div className="mt-2 flex items-start justify-between gap-4">
           <div>
-            <SectionLabel>{campaign.brief.ourProduct.name.toUpperCase()}</SectionLabel>
-            <h1 className="mt-1 text-[22px] font-semibold">{campaign.brief.name}</h1>
-            <div className="mt-1 text-[12px] text-slate-500">
-              생성 {campaign.createdAt.toISOString().slice(0, 10)} · 목표 답신 {campaign.brief.goals.targetReplies} · 마감 {campaign.brief.goals.deadline.toISOString().slice(0, 10)}
-              {campaign.brief.goals.budgetUsd !== undefined && ` · 예산 $${campaign.brief.goals.budgetUsd}`}
+            <h1 className="text-[24px] font-bold tracking-[-0.01em]">{campaign.brief.name}</h1>
+            <div className="mt-1 text-[12.5px] text-ink-3">
+              Offer product · {campaign.brief.ourProduct.name} · started {fmtDate(campaign.createdAt)}
             </div>
           </div>
-          <div className="flex gap-2">
-            <Badge variant="slate">stage {campaign.stage}</Badge>
-            <Badge variant={campaign.status === "completed" ? "emerald" : campaign.status === "cancelled" ? "rose" : "blue"}>
-              {campaign.status}
-            </Badge>
+          <div className="flex items-center gap-2.5">
+            <StatusTag tone="neutral">{leadCampaignStageWithNumber(campaign.stage)}</StatusTag>
+            <StatusTag tone={st.tone}>{st.label}</StatusTag>
           </div>
         </div>
       </header>
 
-      {/* funnel strip */}
-      <div className="grid grid-cols-3 md:grid-cols-9 gap-2 mb-6">
-        {(
-          [
-            ["imported", funnel.imported],
-            ["enriched", funnel.enriched],
-            ["researched", funnel.researched],
-            ["outreach", funnel.outreach_sent],
-            ["in_conv", funnel.in_conversation],
-            ["agreed", funnel.agreed],
-            ["declined", funnel.declined],
-            ["no_resp", funnel.no_response],
-            ["flaked", funnel.flaked],
-          ] as const
-        ).map(([label, count]) => (
-          <Card key={label}><CardBody className="!py-2">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500">{label}</div>
-            <div className="mt-0.5 text-[18px] font-semibold mono">{count}</div>
-          </CardBody></Card>
-        ))}
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">
+        <Stat
+          label="Registered companies"
+          value={leads.length}
+          unit="companies"
+          hint={leads.length > 0 ? "Agents process them sequentially" : "Waiting for company import"}
+          tone={leads.length > 0 ? "brand" : "muted"}
+        />
+        <Stat
+          label="Replies / goal"
+          value={repliesCount}
+          unit={`/ ${targetReplies}`}
+          hint={repliesCount >= targetReplies ? "Goal met" : `${Math.max(0, targetReplies - repliesCount)} remaining`}
+          tone={repliesCount >= targetReplies && repliesCount > 0 ? "ok" : "default"}
+        />
+        <Stat
+          label="Cold emails sent"
+          value={funnel.outreach_sent + funnel.in_conversation + funnel.agreed}
+          unit="companies"
+          hint={`${funnel.in_conversation} in conversation · ${funnel.agreed} agreed`}
+        />
+        <Stat
+          label="Deadline"
+          value={fmtDate(campaign.brief.goals.deadline)}
+          hint={campaign.brief.goals.budgetUsd !== undefined ? `Budget $${campaign.brief.goals.budgetUsd}` : "No budget set"}
+          tone="muted"
+        />
       </div>
 
-      {/* leaderboard */}
-      <Card><CardBody>
-        <SectionLabel className="mb-3">리드 ({leads.length})</SectionLabel>
-        {leads.length === 0 ? (
-          <div className="text-[13px] text-slate-500 py-8 text-center">
-            아직 리드가 없습니다. lead-campaign 워크플로우가 import 중일 수 있습니다.
-          </div>
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {leads.map((l) => (
-              <li key={l.id} className="py-3">
-                <div className="flex items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[14px] font-medium text-slate-900">{l.companyName}</span>
-                      <Badge variant={leadStageVariant(l.stage)}>{l.stage}</Badge>
-                      {l.enrichment && (
-                        <Badge variant={priorityVariant(l.enrichment.analysis.sales_priority)}>
-                          priority {l.enrichment.analysis.sales_priority}
-                        </Badge>
-                      )}
-                    </div>
-                    {l.homepageUrl && (
-                      <div className="mt-0.5 text-[11px] text-slate-500 mono truncate">{l.homepageUrl}</div>
-                    )}
-                    {l.research && (
-                      <div className="mt-2 text-[12px] text-slate-700 leading-relaxed">
-                        <span className="text-slate-500">pitch:</span> {l.research.pitch}
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_1.5fr] gap-4">
+        {/* funnel */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Stage progress</CardTitle>
+            <span className="text-[11px] text-ink-3 mono">0 = empty bar</span>
+          </CardHeader>
+          <CardBody><Funnel rows={funnelRows} /></CardBody>
+        </Card>
+
+        {/* per-lead list */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Leads</CardTitle>
+            <span className="text-[11px] text-ink-3 mono">{leads.length} companies</span>
+          </CardHeader>
+          <CardBody className="pt-1.5">
+            {leads.length === 0 ? (
+              <div className="py-4">
+                <EmptyState
+                  icon="◎"
+                  title="No companies imported yet."
+                  hint="Agents may still be importing the company list. Check again shortly."
+                  className="shadow-none border-line-2"
+                />
+              </div>
+            ) : (
+              <ul className="space-y-0.5">
+                {leads.map((l) => {
+                  const ls = leadStage(l.stage);
+                  const summary = l.research?.pitch ?? l.enrichment?.analysis.company_summary;
+                  const priority = l.enrichment ? salesPriority(l.enrichment.analysis.sales_priority) : null;
+                  return (
+                    <li key={l.id} className="py-3 border-b border-line-2 last:border-0">
+                      <div className="flex items-start gap-3">
+                        <Avatar name={l.companyName} size="md" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[14px] font-semibold text-ink">{l.companyName}</span>
+                            <StatusTag tone={ls.tone} size="sm">{ls.label}</StatusTag>
+                            {priority && (
+                              <StatusTag tone={priority.tone} size="sm">{priority.label}</StatusTag>
+                            )}
+                          </div>
+                          {l.homepageUrl && (
+                            <div className="mt-0.5 text-[11px] text-ink-3 truncate">{l.homepageUrl}</div>
+                          )}
+                          {summary ? (
+                            <p className="mt-2 text-[12.5px] text-ink-2 leading-relaxed line-clamp-3">{summary}</p>
+                          ) : (
+                            <p className="mt-2 text-[12px] text-ink-3">Research results are being prepared.</p>
+                          )}
+                        </div>
+                        <div className="text-right text-[11px] text-ink-3 shrink-0 mono">
+                          {fmtAgo(l.lastActivityAt)}
+                        </div>
                       </div>
-                    )}
-                    {l.enrichment && !l.research && (
-                      <div className="mt-2 text-[12px] text-slate-700 leading-relaxed">
-                        <span className="text-slate-500">summary:</span> {l.enrichment.analysis.company_summary}
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-right text-[11px] text-slate-500 shrink-0 mono">
-                    <div>{l.lastActivityAt.toISOString().slice(0, 10)}</div>
-                    {l.research && <div>conf {l.research.confidence}</div>}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardBody></Card>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardBody>
+        </Card>
+      </div>
+
+      {/* honest footnote when leads exist but none reached outreach yet */}
+      {leads.length > 0 && funnel.outreach_sent + funnel.in_conversation + funnel.agreed === 0 && (
+        <div className="mt-4">
+          <SectionLabel className="mb-1">Progress note</SectionLabel>
+          <p className="text-[12.5px] text-ink-2">
+            No cold emails have been sent yet. Agents are researching each company and preparing pitch angles before sending sequentially.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

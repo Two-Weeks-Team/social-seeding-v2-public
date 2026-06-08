@@ -10,9 +10,9 @@
  *   D34 — currency / wait-time / partner labels all use the operator's locale.
  *
  * AP2-UX.md §3.1 columns:
- *   1. ⚖️ AP2-INTENT badge (slate-blue distinguishes from outreach/shipment)
- *   2. Campaign id (camp_a8f3…) — links to campaign drill-in
- *   3. One-line description (creator_payout · 7명)
+ *   1. ⚖️ AP2-INTENT badge (brand-tinted; distinguishes from outreach/shipment)
+ *   2. Campaign ref — human name (or "Campaign ·1234" fallback), links to drill-in
+ *   3. One-line description (creator_payout · 7)
  *   4. Total amount — locale formatted
  *   5. Wait time — minutes since Intent was created; turns rose after 30 min
  *   6. Payment partner badge with `⚠` if non-AP2-native
@@ -81,10 +81,13 @@ export function MandateCard({
   const description = `${t(categoryKey)} · ${draft.recipients.length}`;
   const waitTone =
     waitMinutes >= 30 ? "rose" : waitMinutes >= 10 ? "amber" : "slate";
+  // Human campaign ref — never the raw camp_ token. Use the campaign name when
+  // present; otherwise a short "Campaign ·{last4}" reference (mirrors creatorLabel).
+  const campaignRef = campaignName?.trim() || `Campaign ·${campaignId.slice(-4)}`;
 
   return (
     <div
-      className="grid grid-cols-[auto_auto_1fr_auto_auto_auto_auto] gap-3 items-center px-4 py-3 border-b border-slate-100 hover:bg-slate-50/60"
+      className="grid grid-cols-[auto_auto_1fr_auto_auto_auto_auto] gap-3 items-center px-4 py-3 border-b border-line-2 hover:bg-surface-2/50"
       data-approval-id={approvalId}
       role="row"
     >
@@ -93,13 +96,13 @@ export function MandateCard({
           type="checkbox"
           aria-label={
             bulkDisabled && bulkDisabledReason
-              ? `${campaignName} — ${bulkDisabledReason}`
-              : `${campaignName} — select for bulk sign`
+              ? `${campaignRef} — ${bulkDisabledReason}`
+              : `${campaignRef} — select for bulk signing`
           }
           checked={bulkChecked}
           disabled={bulkDisabled}
           onChange={(e) => onBulkToggle?.(approvalId, e.target.checked)}
-          className="h-5 w-5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+          className="h-5 w-5 cursor-pointer accent-brand disabled:cursor-not-allowed disabled:opacity-40"
         />
       ) : (
         <span aria-hidden="true" className="w-5" />
@@ -110,21 +113,18 @@ export function MandateCard({
       </Badge>
 
       <div className="min-w-0">
-        <div className="text-[13px] font-medium text-slate-900 truncate">
-          {campaignName}
-        </div>
         <Link
           href={`/campaigns/${campaignId}`}
-          className="text-[11px] mono text-slate-500 hover:text-slate-900 underline-offset-2 hover:underline"
+          className="text-[13px] font-medium text-ink truncate hover:text-brand-ink underline-offset-2 hover:underline block"
         >
-          camp_{campaignId.slice(0, 8)}
+          {campaignRef}
         </Link>
-        <span className="text-[12px] text-slate-600 ml-2">· {description}</span>
+        <span className="text-[12px] text-ink-2">{description}</span>
       </div>
 
       <div className="text-right">
         <div
-          className="text-[14px] font-semibold mono text-slate-900"
+          className="text-[14px] font-semibold mono tnum text-ink"
           aria-label={formatMoneyAriaLabel(draft.totalAmount as Money, locale)}
         >
           {formatMoney(draft.totalAmount as Money, locale)}
@@ -134,7 +134,7 @@ export function MandateCard({
       <Badge variant={waitTone}>
         <span className="mono">
           {waitMinutes}
-          {locale === "ko" ? "분" : locale === "ja" ? "分" : locale === "zh" ? "分" : "m"}
+          {locale === "en" ? "m" : t("wait_unit_minute")}
         </span>{" "}
         {t("wait_label")}
       </Badge>
@@ -143,8 +143,8 @@ export function MandateCard({
 
       <Link
         href={`/approvals/${approvalId}`}
-        className="text-slate-500 hover:text-slate-900 px-2 py-1"
-        aria-label={`Open approval ${campaignName}`}
+        className="text-ink-3 hover:text-brand-ink px-2 py-1"
+        aria-label={`Open approval for ${campaignRef}`}
       >
         →
       </Link>

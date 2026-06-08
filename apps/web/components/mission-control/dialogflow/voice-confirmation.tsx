@@ -7,7 +7,7 @@
  *   D26 — Dialogflow CX surface.
  *   D27 — voice channel readback before any sign action; never auto-signs.
  *   D34 — confirm phrase is locale-specific:
- *           ko → "네 서명"
+ *           ko → "yes sign"
  *           en → "yes sign"
  *           ja → "確認"
  *           zh → "确认签名"
@@ -19,7 +19,7 @@
  *   - explicit warning for non-AP2-native partners
  *   - explicit warning for first-time partners (and refuses bulk via voice)
  *   - confirmation phrase: must be one of the exact registered phrases;
- *     ambiguous like "OK" / "응" is rejected.
+ *     ambiguous like "OK" is rejected.
  *
  * Anti-pattern §9.4 (raw JWS as primary): the voice readback presents
  * semantic fields (campaign, recipients count, amount, partner), never the
@@ -47,14 +47,14 @@ export interface VoiceConfirmationProps {
 }
 
 const CONFIRM_PHRASES: Record<AP2Locale, string[]> = {
-  ko: ["네 서명", "예 서명", "서명할게"],
+  ko: ["yes sign", "yes, sign", "confirm sign"],
   en: ["yes sign", "yes, sign", "confirm sign"],
   ja: ["確認", "はい署名", "確認します"],
   zh: ["确认签名", "确认", "签署"],
 };
 
 const CANCEL_PHRASES: Record<AP2Locale, string[]> = {
-  ko: ["취소", "아니오", "그만"],
+  ko: ["cancel", "no", "stop"],
   en: ["cancel", "no", "stop"],
   ja: ["キャンセル", "いいえ", "やめて"],
   zh: ["取消", "不", "停止"],
@@ -149,17 +149,17 @@ export function VoiceConfirmation({
 
   return (
     <div
-      className="mt-3 p-3 border border-slate-200 rounded-md bg-slate-50/60"
+      className="mt-3 p-3 border border-line rounded-xl bg-surface-2/60"
       role="region"
       aria-label="Voice confirmation"
     >
-      <p className="text-[12px] text-slate-700">
+      <p className="text-[12px] text-ink-2">
         {t("voice_readback_prefix")} ({matches.length}):
       </p>
       <ul className="mt-2 space-y-0.5 text-[12px] mono">
         {matches.map((m) => (
           <li key={m.approvalId} className="flex items-center gap-2">
-            <span className="text-slate-500">{m.approvalId.slice(0, 10)}</span>
+            <span className="text-ink-3">{m.approvalId.slice(0, 10)}</span>
             <span aria-label={formatMoneyAriaLabel(m.amount, locale)}>
               {formatMoney(m.amount, locale)}
             </span>
@@ -175,12 +175,12 @@ export function VoiceConfirmation({
         </p>
       )}
       {blockedByFirstTime && (
-        <p className="mt-2 text-[12px] text-rose-700" role="alert">
+        <p className="mt-2 text-[12px] text-stop" role="alert">
           {t("voice_readback_first_time_block", { count: firstTimePartnerCount })}
         </p>
       )}
       {!blockedByFirstTime && (
-        <p className="mt-2 text-[12px] text-slate-600">
+        <p className="mt-2 text-[12px] text-ink-2">
           {t("voice_readback_confirm", { count: matches.length })}
         </p>
       )}
@@ -197,7 +197,7 @@ export function VoiceConfirmation({
           {t("voice_cancel_word")}
         </Button>
         {transcript && (
-          <span className="text-[11px] mono text-slate-500">→ {transcript}</span>
+          <span className="text-[11px] mono text-ink-3">→ {transcript}</span>
         )}
       </div>
     </div>

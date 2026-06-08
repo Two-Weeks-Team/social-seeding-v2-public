@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE, signSession } from "@/lib/auth";
+import { SESSION_COOKIE, cookieSecure, signSession } from "@/lib/auth";
 
 /**
  * E2E auth bypass — mints a session JWT directly (mirrors v1 `/api/auth/test-login`).
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     sameSite: "lax",
     path: "/",
     maxAge: 30 * 24 * 60 * 60,
-    secure: process.env.NODE_ENV === "production",
+    secure: cookieSecure(),
   });
   return res;
 }

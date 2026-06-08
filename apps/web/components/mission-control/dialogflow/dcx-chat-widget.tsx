@@ -125,7 +125,7 @@ export function DcxChatWidget({
         all controlled values.
       */}
       {open && (
-        <div className="w-[380px] max-w-[92vw] h-[520px] bg-white border border-slate-200 rounded-md shadow-md overflow-hidden">
+        <div className="w-[380px] max-w-[92vw] h-[520px] bg-surface border border-line rounded-xl shadow-soft overflow-hidden">
           <DfMessenger
             agentId={agentId}
             languageCode={localeTag}

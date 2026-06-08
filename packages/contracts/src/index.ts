@@ -14,3 +14,4 @@ export * from "./events";
 export * from "./analytics";
 export * from "./report";
 export * from "./lead";
+export * from "./message";

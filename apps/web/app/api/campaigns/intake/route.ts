@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes("GEMINI_API_KEY")) {
       return NextResponse.json(
-        { error: "intake_unavailable", reason: "GEMINI_API_KEY 가 설정되지 않아 대화형 intake 가 비활성화 상태입니다. /campaigns/new 의 manual form 을 사용해주세요." },
+        { error: "intake_unavailable", reason: "GEMINI_API_KEY is not configured, so interactive intake is disabled. Use the manual form at /campaigns/new." },
         { status: 503 },
       );
     }

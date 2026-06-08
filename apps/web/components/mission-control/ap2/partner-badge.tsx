@@ -50,7 +50,7 @@ export function PartnerBadge({
         <span aria-hidden="true">{partner.icon}</span>
         <span>{partner.displayName}</span>
         {showWarning && !partner.apNative && (
-          <span aria-hidden="true" className="text-amber-600">
+          <span aria-hidden="true" className="text-warn">
             ⚠
           </span>
         )}
@@ -72,14 +72,14 @@ export function PartnerBadge({
         {showWarning && !partner.apNative && (
           <span
             aria-hidden="true"
-            className="text-amber-700 text-[11px] font-medium"
+            className="text-warn text-[11px] font-medium"
             title={tag}
           >
             ⚠
           </span>
         )}
       </span>
-      <span className="text-[11px] text-slate-500 pl-1">{tag}</span>
+      <span className="text-[11px] text-ink-3 pl-1">{tag}</span>
     </span>
   );
 }
@@ -103,12 +103,12 @@ export function PartnerSummary({
   const entries = Array.from(counts.entries());
   if (entries.length === 0) return null;
   return (
-    <span className="text-[12px] text-slate-700">
+    <span className="text-[12px] text-ink-2">
       {entries.map(([name, count], i) => (
         <span key={name}>
           {i > 0 && ", "}
           <span className="mono">{name}</span>
-          <span className="text-slate-500"> ×{count}</span>
+          <span className="text-ink-3"> ×{count}</span>
         </span>
       ))}
     </span>

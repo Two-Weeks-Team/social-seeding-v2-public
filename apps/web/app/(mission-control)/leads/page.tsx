@@ -1,44 +1,20 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardBody, SectionLabel } from "@/components/ui/card";
+import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatusTag } from "@/components/ui/status-tag";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Avatar } from "@/components/ui/avatar";
+import { campaignStatus, leadStage, leadCampaignStageWithNumber } from "@/lib/labels";
+import { fmtAgo } from "@/lib/format";
 import { getServerSession } from "@/lib/auth";
 import { leadCampaignRepo, leadRepo } from "@ss/db";
-import type { Lead } from "@ss/contracts";
 
 /**
- * /leads — Phase 5 P5-C4. Operator's view of all lead-campaigns +
- * recent leads in the workspace. Mirrors /campaigns: list view with a
- * "+ New campaign" CTA. Two tables — one per lead-campaign (top) and
- * one row per lead (bottom, scoped to the most-recent campaigns).
- *
- * Reads only — workflow + cron own all writes.
+ * /leads — B2B lead campaign list (C2 redesign). Mirrors /campaigns: scannable
+ * card-rows for each lead-campaign + a recent-leads panel. Reads only —
+ * workflows and automation own all writes.
  */
-
-function leadStageVariant(stage: Lead["stage"]): BadgeVariant {
-  switch (stage) {
-    case "imported":
-    case "enriching":
-    case "researching":
-      return "slate";
-    case "enriched":
-    case "researched":
-    case "outreach_sent":
-      return "blue";
-    case "in_conversation":
-      return "amber";
-    case "agreed":
-      return "emerald";
-    case "declined":
-    case "flaked":
-      return "rose";
-    case "no_response":
-      return "amber";
-    default:
-      return "slate";
-  }
-}
 
 export default async function LeadsPage() {
   const session = await getServerSession();
@@ -46,122 +22,103 @@ export default async function LeadsPage() {
 
   const [campaigns, recentLeads] = await Promise.all([
     leadCampaignRepo.listByWorkspace(session.workspaceId),
-    leadRepo.listByWorkspace(session.workspaceId, 30),
+    leadRepo.listByWorkspace(session.workspaceId, 12),
   ]);
 
   return (
     <div className="max-w-6xl mx-auto px-8 py-8">
-      <header className="mb-6 flex items-end justify-between">
+      <header className="mb-5 flex items-start justify-between gap-5">
         <div>
-          <SectionLabel>LEADS</SectionLabel>
-          <h1 className="mt-1 text-[22px] font-semibold">리드 (B2B)</h1>
-          <p className="mt-1 text-[13px] text-slate-500">
-            sales-lead 캠페인 — 회사 리스트를 import 하면 crm.enrich + research 에이전트를 거쳐 자동 outreach 됩니다.
+          <h1 className="text-[24px] font-bold tracking-[-0.01em]">Leads · B2B</h1>
+          <p className="mt-1 text-[13.5px] text-ink-2 max-w-[560px]">
+            Upload companies you want to pitch; agents research each company, prepare angles, and send cold email.
           </p>
         </div>
-        <Link href="/leads/new">
-          <Button variant="primary" tone="approve">+ 새 리드 캠페인</Button>
-        </Link>
+        <Link href="/leads/new"><Button variant="primary">＋ New lead campaign</Button></Link>
       </header>
 
-      {/* ── lead-campaigns ────────────────────────────────────────────── */}
-      <Card className="mb-6"><CardBody>
-        <SectionLabel className="mb-3">캠페인 ({campaigns.length})</SectionLabel>
-        {campaigns.length === 0 ? (
-          <div className="text-[13px] text-slate-500 py-8 text-center">
-            아직 리드 캠페인이 없습니다.{" "}
-            <Link href="/leads/new" className="text-blue-700 hover:underline">새 캠페인 시작 →</Link>
-          </div>
-        ) : (
-          <table className="w-full text-[13px]">
-            <thead className="text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
-              <tr>
-                <th className="text-left px-2 py-2 font-medium">캠페인</th>
-                <th className="text-left px-2 py-2 font-medium">단계</th>
-                <th className="text-left px-2 py-2 font-medium">상태</th>
-                <th className="text-right px-2 py-2 font-medium">leads</th>
-                <th className="text-right px-2 py-2 font-medium">업데이트</th>
-              </tr>
-            </thead>
-            <tbody>
-              {campaigns.map((c) => (
-                <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50/60">
-                  <td className="px-2 py-2.5">
-                    <Link href={`/leads/${c.id}`} className="text-slate-900 hover:underline">
-                      {c.brief.name}
-                    </Link>
-                    <div className="text-[11px] text-slate-500 mono">{c.brief.ourProduct.name}</div>
-                  </td>
-                  <td className="px-2 py-2.5"><Badge variant="slate">{c.stage}</Badge></td>
-                  <td className="px-2 py-2.5">
-                    <Badge variant={c.status === "completed" ? "emerald" : c.status === "cancelled" ? "rose" : "blue"}>
-                      {c.status}
-                    </Badge>
-                  </td>
-                  <td className="px-2 py-2.5 mono text-right">{c.leadIds.length}</td>
-                  <td className="px-2 py-2.5 mono text-right text-slate-500">
-                    {c.updatedAt.toISOString().slice(0, 10)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </CardBody></Card>
+      {campaigns.length === 0 ? (
+        <EmptyState
+          icon="◎"
+          title="No lead campaigns yet."
+          hint="Paste the companies you want to pitch and agents will handle company research through cold email."
+          action={<Link href="/leads/new"><Button variant="primary">＋ New lead campaign</Button></Link>}
+        />
+      ) : (
+        <div className="flex flex-col gap-2.5 mb-7">
+          {campaigns.map((c) => {
+            const st = campaignStatus(c.status);
+            return (
+              <Link
+                key={c.id}
+                href={`/leads/${c.id}`}
+                className="grid grid-cols-[1.7fr_130px_1.1fr_88px_96px] gap-4 items-center bg-surface border border-line rounded-2xl shadow-soft px-5 py-4 transition-transform hover:-translate-y-0.5"
+              >
+                <div className="min-w-0">
+                  <div className="text-[15px] font-bold text-ink truncate">{c.brief.name}</div>
+                  <div className="text-[12px] text-ink-3 mt-0.5 truncate">
+                    Offer product · {c.brief.ourProduct.name}
+                  </div>
+                </div>
+                <div>
+                  <StatusTag tone={st.tone}>{st.label}</StatusTag>
+                </div>
+                <div>
+                  <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">Current stage</div>
+                  <div className="text-[13px] text-ink-2 mt-0.5">
+                    <span className="font-bold text-ink">{leadCampaignStageWithNumber(c.stage)}</span>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">Companies</div>
+                  <div className="text-[13px] text-ink-2 mt-0.5 mono">
+                    {c.leadIds.length > 0 ? `${c.leadIds.length} companies` : "Not imported"}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10.5px] uppercase tracking-[0.05em] text-ink-3">Activity</div>
+                  <div className="text-[13px] text-ink-2 mt-0.5 mono">{fmtAgo(c.updatedAt)}</div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── recent leads (across all campaigns) ───────────────────────── */}
-      <Card><CardBody>
-        <SectionLabel className="mb-3">최근 리드 ({recentLeads.length})</SectionLabel>
-        {recentLeads.length === 0 ? (
-          <div className="text-[13px] text-slate-500 py-6 text-center">
-            아직 import 된 리드가 없습니다.
-          </div>
-        ) : (
-          <table className="w-full text-[13px]">
-            <thead className="text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
-              <tr>
-                <th className="text-left px-2 py-2 font-medium">회사</th>
-                <th className="text-left px-2 py-2 font-medium">country</th>
-                <th className="text-left px-2 py-2 font-medium">stage</th>
-                <th className="text-left px-2 py-2 font-medium">enrich</th>
-                <th className="text-left px-2 py-2 font-medium">research</th>
-                <th className="text-right px-2 py-2 font-medium">활동</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentLeads.map((l) => (
-                <tr key={l.id} className="border-b border-slate-100 hover:bg-slate-50/60">
-                  <td className="px-2 py-2.5">
-                    <div className="text-slate-900">{l.companyName}</div>
-                    {l.homepageUrl && (
-                      <div className="text-[11px] text-slate-500 mono truncate max-w-[260px]">{l.homepageUrl}</div>
-                    )}
-                  </td>
-                  <td className="px-2 py-2.5 mono text-slate-700">{l.country}</td>
-                  <td className="px-2 py-2.5"><Badge variant={leadStageVariant(l.stage)}>{l.stage}</Badge></td>
-                  <td className="px-2 py-2.5">
-                    {l.enrichment ? (
-                      <Badge variant="emerald">{l.enrichment.analysis.sales_priority}</Badge>
-                    ) : (
-                      <span className="text-slate-400 text-[12px]">—</span>
-                    )}
-                  </td>
-                  <td className="px-2 py-2.5">
-                    {l.research ? (
-                      <Badge variant="emerald">confidence {l.research.confidence}</Badge>
-                    ) : (
-                      <span className="text-slate-400 text-[12px]">—</span>
-                    )}
-                  </td>
-                  <td className="px-2 py-2.5 mono text-right text-slate-500">
-                    {l.lastActivityAt.toISOString().slice(0, 10)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </CardBody></Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent leads</CardTitle>
+          <span className="text-[11px] text-ink-3 mono">{recentLeads.length} companies</span>
+        </CardHeader>
+        <CardBody className="pt-1.5">
+          {recentLeads.length === 0 ? (
+            <div className="text-[12.5px] text-ink-3 py-4">No companies imported yet.</div>
+          ) : (
+            <div className="space-y-0.5">
+              {recentLeads.map((l) => {
+                const ls = leadStage(l.stage);
+                return (
+                  <div
+                    key={l.id}
+                    className="flex items-center gap-3 py-2.5 border-b border-line-2 last:border-0"
+                  >
+                    <Avatar name={l.companyName} size="sm" />
+                    <div className="min-w-0">
+                      <div className="text-[13px] text-ink truncate">{l.companyName}</div>
+                      {l.homepageUrl && (
+                        <div className="text-[11px] text-ink-3 truncate max-w-[300px]">{l.homepageUrl}</div>
+                      )}
+                    </div>
+                    <StatusTag tone={ls.tone} size="sm" className="ml-auto">{ls.label}</StatusTag>
+                    <span className="text-[11px] text-ink-3 mono w-16 text-right shrink-0">{fmtAgo(l.lastActivityAt)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardBody>
+      </Card>
     </div>
   );
 }

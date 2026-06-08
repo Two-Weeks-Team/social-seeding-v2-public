@@ -1,37 +1,28 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, SectionLabel } from "@/components/ui/card";
+import { StatusTag } from "@/components/ui/status-tag";
+import { Stat } from "@/components/ui/stat";
+import { Funnel } from "@/components/ui/funnel";
+import { Avatar } from "@/components/ui/avatar";
 import { StageBar } from "@/components/mission-control/stage-bar";
 import { ActivityTimeline } from "@/components/mission-control/activity-timeline";
 import { CampaignCanvas } from "@/components/mission-control/campaign-canvas";
-// Pure helper — imported from the non-client sibling module so this
-// server component can call it directly. (Next 16 forbids invoking a
-// non-component export of a "use client" module from server code.)
+import { CampaignAsk } from "@/components/mission-control/campaign-ask";
 import { bucketTracksByState } from "@/components/mission-control/campaign-track-buckets";
 import { getServerSession } from "@/lib/auth";
-import { approvalRepo, campaignRepo, traceRepo } from "@ss/db";
-import { Events, type CreatorTrack } from "@ss/contracts";
+import { approvalRepo, campaignRepo, traceRepo, messageRepo } from "@ss/db";
+import { Events, AnalyticsReportSchema, type AnalyticsReport } from "@ss/contracts";
 import { inngest } from "@ss/workflows";
+import { invokeCapability } from "@ss/capabilities";
 import { cn } from "@/lib/cn";
+import { campaignStatus, approvalKindKo, trackState, stageKo } from "@/lib/labels";
+import { creatorLabel, fmtFollowers, fmtCompactKo } from "@/lib/format";
+import { resolveCreators } from "@/lib/creators";
 
-/**
- * Lifecycle controls — cancel (P4-C6) + pause/resume (P6.5 carry-over).
- *
- * Cancel: brand-campaign's `cancelOn: [{event: CampaignCancelled,
- * match: "data.campaignId"}]` aborts the durable Inngest run; the patch
- * here makes MC reflect the state immediately.
- *
- * Pause/Resume: P6.5 added a `pauseCheck(step, campaignId)` guard before
- * every gmail.send in creator-track + lead-track. When the campaign is
- * `status='paused'`, the helper parks the workflow on
- * `step.waitForEvent('campaign/resumed', 30d)` so no further outreach
- * goes out. Resume re-fires the event and the workflow proceeds.
- * Already-in-flight Inngest runs survive — Inngest's durable timers +
- * step graph carry over a pause without re-emit.
- */
+/** Lifecycle controls — cancel + pause/resume (see prior history for the durable-workflow semantics). */
 async function cancelCampaignAction(formData: FormData): Promise<void> {
   "use server";
   const session = await getServerSession();
@@ -40,7 +31,6 @@ async function cancelCampaignAction(formData: FormData): Promise<void> {
   if (typeof campaignId !== "string") throw new Error("missing campaignId");
   const c = await campaignRepo.get(campaignId);
   if (!c || c.brief.workspaceId !== session.workspaceId) throw new Error("forbidden");
-  // Idempotent: already-cancelled / already-completed don't re-emit.
   if (c.status === "cancelled" || c.status === "completed") {
     revalidatePath(`/campaigns/${campaignId}`);
     return;
@@ -64,55 +54,36 @@ async function pauseCampaignAction(formData: FormData): Promise<void> {
   }
   const isPaused = c.status === "paused";
   await campaignRepo.patchStage(campaignId, c.stage, isPaused ? "running" : "paused");
-  // The events are advisory; workflows pick up the new status on the
-  // next pauseCheck() / resume waitForEvent. The persisted status is
-  // the load-bearing source-of-truth.
-  await inngest.send({
-    name: isPaused ? Events.CampaignResumed : Events.CampaignPaused,
-    data: { campaignId },
-  });
+  await inngest.send({ name: isPaused ? Events.CampaignResumed : Events.CampaignPaused, data: { campaignId } });
   revalidatePath(`/campaigns/${campaignId}`);
 }
 
-/**
- * State → badge color. Mirrors the canvas's progress narrative:
- *   live (running) → blue/amber, terminal-good → emerald, terminal-bad → rose.
- */
-function trackStateVariant(state: CreatorTrack["state"]): "slate" | "blue" | "amber" | "emerald" | "rose" {
-  switch (state) {
-    case "outreach_sent":
-    case "in_conversation":
-      return "blue";
-    case "agreed":
-    case "address_collected":
-    case "shipped":
-    case "delivered":
-    case "posted":
-    case "verified":
-      return "emerald";
-    case "declined":
-    case "flaked":
-      return "rose";
-    case "no_response":
-      return "amber";
-    default:
-      return "slate";
-  }
+const LANG_KO: Record<string, string> = { ko: "Korean", en: "English", ja: "Japanese", zh: "Chinese", "zh-CN": "Chinese" };
+function langs(codes: string[]): string {
+  return codes.map((c) => LANG_KO[c] ?? c).join(", ");
+}
+function fmtDate(d: Date): string {
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-/**
- * W2 + W3 + Phase-2-C1 — Campaign detail.
- *
- * Two co-existing views of the same workflow, toggled by ?view=:
- *   timeline (default)  reverse-chron span feed from v2_agent_traces (W3)
- *   canvas              spatial workflow graph via @xyflow/react (Phase 2)
- *
- * The cross-campaign approval inbox stays separate (/approvals); these views
- * are single-campaign. Brief + tracks + pending-approval panel render the
- * same regardless of view.
- */
-
 type View = "timeline" | "canvas";
+
+const SUB_LINKS: { seg: string; label: string }[] = [
+  { seg: "threads", label: "Mail" },
+  { seg: "performance", label: "Performance" },
+  { seg: "posts", label: "Posts" },
+  { seg: "shipments", label: "Shipping" },
+  { seg: "report", label: "Report" },
+];
+
+const FUNNEL_DEF: { key: keyof AnalyticsReport["funnel"]; label: string }[] = [
+  { key: "outreach_sent", label: "Outreach" },
+  { key: "in_conversation", label: "In conversation" },
+  { key: "shipped", label: "Sample shipped" },
+  { key: "delivered", label: "Delivered" },
+  { key: "posted", label: "Posted" },
+  { key: "verified", label: "Verified" },
+];
 
 export default async function CampaignDetailPage({
   params,
@@ -136,117 +107,144 @@ export default async function CampaignDetailPage({
     .catch(() => []);
   const traces = await traceRepo.listByCampaign(id).catch(() => []);
 
-  // Derive canvas state from the trace + pending data
   const shortlistApproval = pending.find((a) => a.kind === "shortlist");
-  const vetCount = traces.reduce((sum, t) => sum + t.spans.filter((s) => s.name === "agent:vetting").length, 0);
+  // A vetting span may represent a batch — prefer its attrs.evaluated count,
+  // else count one per span. (Keeps the timeline readable while the canvas still
+  // shows the true number of candidates evaluated.)
+  const vetCount = traces.reduce(
+    (sum, t) =>
+      sum +
+      t.spans
+        .filter((s) => s.name === "agent:vetting")
+        .reduce((a, s) => a + (typeof s.attrs.evaluated === "number" ? (s.attrs.evaluated as number) : 1), 0),
+    0,
+  );
   const shortlistCount =
     shortlistApproval && Array.isArray(shortlistApproval.recommendation)
       ? (shortlistApproval.recommendation as unknown[]).length
       : undefined;
   const trackBuckets = bucketTracksByState(campaign.tracks);
+  const trackProfiles = await resolveCreators(campaign.tracks.slice(0, 6).map((t) => t.creatorId));
+  const campaignThreads = await messageRepo.threadsByCampaign(id, session.workspaceId).catch(() => []);
+  const threadByCreator = new Map(campaignThreads.map((t) => [t.creatorId, t.threadId]));
 
-  // Canvas view needs more horizontal room than the rest of MC's pages —
-  // ease the page-level max-width when in canvas mode so the React Flow
-  // viewport gets enough pixels to render nodes at a readable scale.
+  const st = campaignStatus(campaign.status);
+  const isComplete = campaign.status === "completed";
+  const isStopped = campaign.status === "cancelled";
+  const isLive = campaign.status === "running" || campaign.status === "paused";
+
+  // Real performance rollup (same source as the Performance/Report tabs) — surfaced inline
+  // so the detail isn't sparse. Degrades to null if compile fails.
+  const analytics = await invokeCapability(
+    "analytics.compile",
+    { campaignId: id },
+    { workspaceId: session.workspaceId, userId: session.userId, rateLimitClass: "default" },
+  )
+    .then((raw) => AnalyticsReportSchema.parse(raw))
+    .catch(() => null);
+  const pct =
+    analytics && analytics.goals.targetLivePosts > 0
+      ? Math.round((analytics.goals.verifiedCount / analytics.goals.targetLivePosts) * 100)
+      : null;
+  const er = analytics?.reach.weightedEngagementRate ?? null;
+  const nextAction =
+    pending.length > 0 && pending[0]
+      ? `Pending approval · ${approvalKindKo(pending[0].kind)}`
+      : isComplete
+        ? "Complete"
+        : isStopped
+          ? "Cancelled"
+          : isLive
+            ? `${stageKo(campaign.stage)} running`
+            : st.label;
+
   return (
-    <div className={cn(view === "canvas" ? "max-w-[1600px]" : "max-w-6xl", "mx-auto px-8 py-8")}>
-      <header className="mb-4">
-        <Link href="/campaigns" className="text-[11px] text-slate-500 hover:text-slate-900">
-          ← 캠페인 목록
-        </Link>
-        <div className="mt-2 flex items-end justify-between gap-4">
+    <div className="max-w-6xl mx-auto px-8 py-8">
+      <header className="mb-5">
+        <Link href="/campaigns" className="text-[12px] text-ink-3 hover:text-ink-2">← Campaigns</Link>
+        <div className="mt-2 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-[22px] font-semibold">{campaign.brief.brandProduct.name}</h1>
-            <div className="mt-1 text-[12px] text-slate-500 mono">
-              camp_{campaign.id} · workspace={campaign.brief.workspaceId} · created {campaign.createdAt.toISOString().slice(0, 10)}
+            <h1 className="text-[24px] font-bold tracking-[-0.01em]">{campaign.brief.brandProduct.name}</h1>
+            <div className="mt-1 text-[12.5px] text-ink-3">
+              {campaign.brief.brandProduct.category} · started {fmtDate(campaign.createdAt)}
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {/* view toggle — timeline vs canvas */}
-            <div className="inline-flex p-0.5 bg-slate-100 border border-slate-200 rounded-md gap-0.5">
-              {(["timeline", "canvas"] as const).map((v) => {
-                const isActive = view === v;
-                return (
-                  <Link
-                    key={v}
-                    href={`/campaigns/${id}?view=${v}`}
-                    className={cn(
-                      "px-3 py-1 text-[12px] rounded transition-colors",
-                      isActive ? "bg-white shadow-sm text-slate-900 font-medium" : "text-slate-600 hover:text-slate-900",
-                    )}
-                  >
-                    {v}
-                  </Link>
-                );
-              })}
-            </div>
-            {/* Phase 3 — shipment + content list views. Phase 4 adds report. */}
-            <div className="flex items-center gap-1.5 text-[12px]">
+            <CampaignAsk campaignId={id} />
+            {isLive ? (
+              <div className="flex gap-2">
+                <form action={pauseCampaignAction}>
+                  <input type="hidden" name="campaignId" value={id} />
+                  <Button>{campaign.status === "paused" ? "▶ Resume" : "⏸ Pause"}</Button>
+                </form>
+                <form action={cancelCampaignAction}>
+                  <input type="hidden" name="campaignId" value={id} />
+                  <Button tone="reject">✕ Cancel</Button>
+                </form>
+              </div>
+            ) : (
+              <StatusTag tone={st.tone}>{st.label}</StatusTag>
+            )}
+          </div>
+        </div>
+
+        {/* secondary nav — segmented in-page view toggle + a separate detail-page group */}
+        <div className="mt-4 flex items-center gap-4 flex-wrap">
+          <div className="inline-flex p-0.5 bg-surface-2 border border-line rounded-xl gap-0.5">
+            {(["timeline", "canvas"] as const).map((v) => (
               <Link
-                href={`/campaigns/${id}/shipments`}
-                className="text-slate-600 hover:text-slate-900 underline-offset-2 hover:underline"
+                key={v}
+                href={`/campaigns/${id}?view=${v}`}
+                className={cn(
+                  "px-3.5 py-1.5 text-[12.5px] rounded-[10px] transition-colors font-medium",
+                  view === v ? "bg-surface shadow-soft text-ink" : "text-ink-3 hover:text-ink",
+                )}
               >
-                shipments
+                {v === "timeline" ? "Timeline" : "Canvas"}
               </Link>
-              <span className="text-slate-300">·</span>
-              <Link
-                href={`/campaigns/${id}/posts`}
-                className="text-slate-600 hover:text-slate-900 underline-offset-2 hover:underline"
-              >
-                posts
+            ))}
+          </div>
+          <div className="flex items-center gap-1 text-[12.5px]">
+            <span className="text-ink-3 mr-1">Details</span>
+            {SUB_LINKS.map((l) => (
+              <Link key={l.seg} href={`/campaigns/${id}/${l.seg}`} className="px-2 py-1 rounded-lg text-ink-2 hover:bg-surface-2 hover:text-ink">
+                {l.label}
               </Link>
-              <span className="text-slate-300">·</span>
-              <Link
-                href={`/campaigns/${id}/report`}
-                className="text-slate-600 hover:text-slate-900 underline-offset-2 hover:underline"
-              >
-                report
-              </Link>
-              <span className="text-slate-300">·</span>
-              <Link
-                href={`/campaigns/${id}/performance`}
-                className="text-slate-600 hover:text-slate-900 underline-offset-2 hover:underline"
-              >
-                performance
-              </Link>
-            </div>
-            <div className="flex gap-2">
-              {campaign.status === "running" || campaign.status === "paused" ? (
-                <>
-                  <form action={pauseCampaignAction}>
-                    <input type="hidden" name="campaignId" value={id} />
-                    <Button>{campaign.status === "paused" ? "▶ 재개" : "⏸ 일시정지"}</Button>
-                  </form>
-                  <form action={cancelCampaignAction}>
-                    <input type="hidden" name="campaignId" value={id} />
-                    <Button tone="reject">✕ 취소</Button>
-                  </form>
-                </>
-              ) : (
-                <Badge variant={campaign.status === "completed" ? "emerald" : "slate"}>
-                  {campaign.status}
-                </Badge>
-              )}
-            </div>
+            ))}
           </div>
         </div>
       </header>
 
       <div className="mb-6">
-        <StageBar current={campaign.stage} notes={shortlistApproval ? { sourcing: "● 승인 대기" } : undefined} />
+        <StageBar current={campaign.stage} complete={isComplete} stopped={isStopped} notes={shortlistApproval ? { sourcing: "Pending approval" } : undefined} />
       </div>
 
-      {/*
-        Layout adapts to ?view= — canvas needs the FULL page width because the
-        node graph is designed wide (sourcing → outreach → shipping → content
-        → performance spans ~1300px). The 3-col grid we use for the timeline
-        view crushes the canvas into ~440px and React Flow's fitView scales
-        nodes down to ~0.3x, making them unreadable (live-demo 2026-05-15).
-        In canvas mode the brief / needs-you / tracks panels stack BELOW the
-        canvas in a 3-up horizontal row instead.
-      */}
+      {view === "timeline" && analytics && (
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          <Stat
+            label="Verified posts"
+            value={analytics.goals.verifiedCount}
+            unit={`/ ${analytics.goals.targetLivePosts}`}
+            tone={analytics.goals.goalMet ? "ok" : analytics.goals.verifiedCount > 0 ? "default" : "muted"}
+            hint={pct !== null ? `${pct}% of goal` : undefined}
+          />
+          <Stat
+            label="Total views"
+            value={fmtCompactKo(analytics.reach.verifiedViews).value}
+            unit={fmtCompactKo(analytics.reach.verifiedViews).unit}
+            tone={analytics.reach.verifiedViews > 0 ? "default" : "muted"}
+          />
+          <Stat
+            label="Avg engagement"
+            value={er !== null ? (er * 100).toFixed(1) : "—"}
+            unit={er !== null ? "%" : undefined}
+            tone={er !== null ? "default" : "muted"}
+          />
+          <Stat label="Target creators" value={campaign.tracks.length} hint={`${analytics.goals.verifiedCount} verified`} />
+        </div>
+      )}
+
       <div className={cn(view === "canvas" ? "space-y-5" : "grid grid-cols-3 gap-6")}>
-        {/* LEFT (or top, in canvas mode) — view body */}
         <div className={cn(view === "canvas" ? "" : "col-span-2")}>
           {view === "canvas" ? (
             <CampaignCanvas
@@ -254,40 +252,52 @@ export default async function CampaignDetailPage({
               brandName={campaign.brief.brandProduct.name}
               targetCreatorCount={campaign.brief.targeting.creatorCount}
               vetCount={vetCount}
-              budgetCapUsd={25}
+              budgetCapUsd={campaign.brief.goals.budgetUsd ?? 25}
               shortlistCount={shortlistCount}
               shortlistGateApprovalId={shortlistApproval?.id}
               trackCount={campaign.tracks.length}
               trackBuckets={trackBuckets}
             />
           ) : (
-            <Card>
-              <CardBody>
-                <div className="flex items-center justify-between mb-3">
-                  <SectionLabel>활동 타임라인</SectionLabel>
-                  <div className="text-[10px] text-slate-500 flex items-center gap-1.5">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    live
+            <div className="space-y-5">
+              {analytics && (
+                <Card>
+                  <CardBody>
+                    <div className="flex items-center justify-between mb-3">
+                      <SectionLabel>Conversion funnel</SectionLabel>
+                      <Link href={`/campaigns/${id}/performance`} className="text-[11.5px] text-ink-3 hover:text-ink-2">Full performance →</Link>
+                    </div>
+                    <Funnel rows={FUNNEL_DEF.map((d) => ({ label: d.label, value: analytics.funnel[d.key] }))} />
+                  </CardBody>
+                </Card>
+              )}
+              <Card>
+                <CardBody>
+                  <div className="flex items-center justify-between mb-3">
+                    <SectionLabel>Activity timeline</SectionLabel>
+                    {isLive && (
+                      <div className="text-[11px] text-ink-3 flex items-center gap-1.5">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-ok animate-pulse" />
+                        Live
+                      </div>
+                    )}
                   </div>
-                </div>
-                <ActivityTimeline traces={traces} />
-              </CardBody>
-            </Card>
+                  <ActivityTimeline traces={traces} />
+                </CardBody>
+              </Card>
+            </div>
           )}
         </div>
 
-        {/* RIGHT (or bottom 3-up, in canvas mode) — needs-you + brief + tracks */}
         <aside className={cn(view === "canvas" ? "grid grid-cols-3 gap-5" : "space-y-5")}>
-          {pending.length > 0 && (
-            <Card className="bg-amber-50 border-amber-200">
+          {pending.length > 0 && pending[0] && (
+            <Card className="bg-warn-bg border-warn/25" flat>
               <CardBody>
-                <SectionLabel className="text-amber-700 mb-2">필요한 결정</SectionLabel>
-                <div className="text-[14px] font-medium text-slate-900">
-                  {pending[0]?.kind === "shortlist" ? "후보 리스트 승인 대기" : `${pending[0]?.kind} 승인 대기`}
-                </div>
-                <p className="mt-1 text-[12px] text-slate-700">{pending[0]?.rationale}</p>
-                <Link href={`/approvals/${pending[0]?.id}`} className="mt-3 block">
-                  <Button variant="primary" tone="warn" className="w-full">검토하러 가기 →</Button>
+                <SectionLabel className="text-warn mb-2">Decision needed</SectionLabel>
+                <div className="text-[14px] font-semibold text-ink">{approvalKindKo(pending[0].kind)} pending</div>
+                {pending[0].rationale && <p className="mt-1 text-[12.5px] text-ink-2">{pending[0].rationale}</p>}
+                <Link href={`/approvals/${pending[0].id}`} className="mt-3 block">
+                  <Button variant="primary" tone="warn" className="w-full">Review →</Button>
                 </Link>
               </CardBody>
             </Card>
@@ -295,36 +305,23 @@ export default async function CampaignDetailPage({
 
           <Card>
             <CardBody>
-              <SectionLabel className="mb-2">캠페인 brief</SectionLabel>
-              <dl className="text-[13px] space-y-2">
-                <div>
-                  <dt className="text-[11px] text-slate-500">브랜드 · 제품</dt>
-                  <dd className="font-medium">
-                    {campaign.brief.brandProduct.name}{" "}
-                    <span className="text-slate-500 font-normal">({campaign.brief.brandProduct.category})</span>
-                  </dd>
+              <SectionLabel className="mb-3">Progress · Schedule</SectionLabel>
+              <dl className="text-[13px] space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <dt className="text-ink-3">Status</dt>
+                  <dd><StatusTag tone={st.tone} size="sm">{st.label}</StatusTag></dd>
                 </div>
-                <div>
-                  <dt className="text-[11px] text-slate-500">설명</dt>
-                  <dd>{campaign.brief.brandProduct.description}</dd>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-ink-3 shrink-0">Next action</dt>
+                  <dd className="text-ink text-right truncate">{nextAction}</dd>
                 </div>
-                <div>
-                  <dt className="text-[11px] text-slate-500">타겟팅</dt>
-                  <dd>
-                    {campaign.brief.targeting.creatorCount}명 / ER ≥ {(campaign.brief.targeting.minEngagementRate * 100).toFixed(1)}% /{" "}
-                    lang={campaign.brief.targeting.languages.join(",")}
-                  </dd>
+                <div className="flex items-center justify-between">
+                  <dt className="text-ink-3">Budget cap</dt>
+                  <dd className="text-ink mono">{campaign.brief.goals.budgetUsd != null ? `$${campaign.brief.goals.budgetUsd}` : "—"}</dd>
                 </div>
-                <div>
-                  <dt className="text-[11px] text-slate-500">샘플 발송</dt>
-                  <dd>{campaign.brief.logistics.shipsSamples ? "예" : "아니오"}</dd>
-                </div>
-                <div>
-                  <dt className="text-[11px] text-slate-500">목표</dt>
-                  <dd>
-                    live posts {campaign.brief.goals.targetLivePosts}개 by{" "}
-                    {campaign.brief.goals.deadline.toISOString().slice(0, 10)}
-                  </dd>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-ink-3 shrink-0">Start · Deadline</dt>
+                  <dd className="text-ink text-right">{fmtDate(campaign.createdAt)} · {fmtDate(campaign.brief.goals.deadline)}</dd>
                 </div>
               </dl>
             </CardBody>
@@ -332,29 +329,84 @@ export default async function CampaignDetailPage({
 
           <Card>
             <CardBody>
-              <SectionLabel className="mb-2">트랙 ({campaign.tracks.length})</SectionLabel>
-              {campaign.tracks.length === 0 && (
-                <div className="text-[12px] text-slate-500">아직 트랙이 없습니다.</div>
-              )}
-              {campaign.tracks.length > 0 && (
-                <div className="mb-2 flex flex-wrap gap-1">
-                  {(Object.entries(trackBuckets) as [keyof typeof trackBuckets, number][])
-                    .filter(([, n]) => n > 0)
-                    .map(([state, n]) => (
-                      <Badge key={state} variant={trackStateVariant(state)}>
-                        {state} · {n}
-                      </Badge>
-                    ))}
+              <SectionLabel className="mb-3">Campaign overview</SectionLabel>
+              <dl className="text-[13px] space-y-2.5">
+                <div>
+                  <dt className="text-[11px] text-ink-3">Brand · Product</dt>
+                  <dd className="font-semibold text-ink">
+                    {campaign.brief.brandProduct.name} <span className="text-ink-3 font-normal">({campaign.brief.brandProduct.category})</span>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] text-ink-3">Description</dt>
+                  <dd className="text-ink-2">{campaign.brief.brandProduct.description}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] text-ink-3">Target</dt>
+                  <dd className="text-ink-2">
+                    {campaign.brief.targeting.creatorCount} creators · ER {(campaign.brief.targeting.minEngagementRate * 100).toFixed(1)}%+ · {langs(campaign.brief.targeting.languages)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] text-ink-3">Sample shipping</dt>
+                  <dd className="text-ink-2">{campaign.brief.logistics.shipsSamples ? "Yes" : "No"}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] text-ink-3">Goal</dt>
+                  <dd className="text-ink-2">{campaign.brief.goals.targetLivePosts} posts · due {fmtDate(campaign.brief.goals.deadline)}</dd>
+                </div>
+              </dl>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardBody>
+              <SectionLabel className="mb-3">Target creators ({campaign.tracks.length})</SectionLabel>
+              {analytics && campaign.tracks.length > 0 && (
+                <div className="text-[12px] text-ink-3 mb-2.5 -mt-1">
+                  {analytics.goals.verifiedCount} verified · {analytics.funnel.posted} posted · {analytics.funnel.in_conversation} in conversation
                 </div>
               )}
-              {campaign.tracks.slice(0, 5).map((t) => (
-                <div key={t.creatorId} className="flex items-center justify-between text-[12px] py-1">
-                  <span className="mono">{t.creatorId}</span>
-                  <Badge variant={trackStateVariant(t.state)}>{t.state}</Badge>
+              {campaign.tracks.length === 0 ? (
+                <div className="text-[12.5px] text-ink-3">No creators selected yet.</div>
+              ) : (
+                <div className="space-y-0.5">
+                  {campaign.tracks.slice(0, 6).map((t) => {
+                    const ts = trackState(t.state);
+                    const p = trackProfiles.get(t.creatorId);
+                    const display = p?.nickname ?? p?.handle ?? creatorLabel(t.creatorId);
+                    const threadId = threadByCreator.get(t.creatorId);
+                    const inner = (
+                      <>
+                        <Avatar name={display} src={p?.avatar} size="sm" />
+                        <div className="min-w-0">
+                          <div className="text-[12.5px] text-ink truncate leading-tight">{display}</div>
+                          {p?.handle && p.handle !== display && (
+                            <div className="text-[11px] text-ink-3 mono truncate">
+                              {p.handle}{p.followers ? ` · ${fmtFollowers(p.followers)} followers` : ""}
+                            </div>
+                          )}
+                        </div>
+                        {threadId && <span className="ml-auto text-ink-3 text-[12px] shrink-0" aria-hidden>✉</span>}
+                        <StatusTag tone={ts.tone} size="sm" className={cn("shrink-0", !threadId && "ml-auto")}>{ts.label}</StatusTag>
+                      </>
+                    );
+                    return threadId ? (
+                      <Link
+                        key={t.creatorId}
+                        href={`/threads/${encodeURIComponent(threadId)}?from=${encodeURIComponent(id)}`}
+                        className="flex items-center gap-2.5 py-1.5 -mx-2 px-2 rounded-lg hover:bg-surface-2 transition-colors"
+                      >
+                        {inner}
+                      </Link>
+                    ) : (
+                      <div key={t.creatorId} className="flex items-center gap-2.5 py-1.5">{inner}</div>
+                    );
+                  })}
+                  {campaign.tracks.length > 6 && (
+                    <div className="text-[11px] text-ink-3 mt-1.5">+{campaign.tracks.length - 6} more</div>
+                  )}
                 </div>
-              ))}
-              {campaign.tracks.length > 5 && (
-                <div className="text-[11px] text-slate-500 mt-1">+{campaign.tracks.length - 5}명 더</div>
               )}
             </CardBody>
           </Card>

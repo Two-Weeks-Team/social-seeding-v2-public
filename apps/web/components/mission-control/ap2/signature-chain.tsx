@@ -71,7 +71,7 @@ export function SignatureChain({
         suffix={partner ? `→ ${partner.displayName}` : undefined}
       />
       {partner && !partner.apNative && (
-        <p className="mt-2 text-[11px] text-amber-700">
+        <p className="mt-2 text-[11px] text-warn">
           ⚠ {t("partner_orchestrated")} — agentic_signals delivered via merchant orchestration only.
         </p>
       )}
@@ -92,12 +92,12 @@ function ChainNode({
 }) {
   const tone =
     step.status === "signed"
-      ? "border-emerald-200 bg-emerald-50/40 text-emerald-900"
+      ? "border-ok/30 bg-ok-bg text-ok"
       : step.status === "pending"
-        ? "border-amber-200 bg-amber-50/40 text-amber-900"
+        ? "border-warn/30 bg-warn-bg text-warn"
         : step.status === "expired"
-          ? "border-slate-200 bg-slate-50 text-slate-700"
-          : "border-rose-200 bg-rose-50/40 text-rose-900";
+          ? "border-line bg-surface-2 text-ink-2"
+          : "border-stop/30 bg-stop-bg text-stop";
   const glyph =
     step.status === "signed"
       ? "✓"
@@ -109,24 +109,24 @@ function ChainNode({
   return (
     <div
       role="listitem"
-      className={`flex items-start gap-3 p-3 rounded-md border ${tone}`}
+      className={`flex items-start gap-3 p-3 rounded-2xl border ${tone}`}
     >
       <span aria-hidden="true" className="text-[14px] font-medium leading-none mt-0.5">
         {glyph}
       </span>
       <div className="flex-1 min-w-0">
-        <div className="text-[12px] uppercase tracking-wider text-slate-500 font-medium">
+        <div className="text-[12px] uppercase tracking-wider text-ink-3 font-medium">
           {role}
         </div>
-        <div className="text-[13px] font-semibold">
+        <div className="text-[13px] font-semibold text-ink">
           {step.actor}
-          {suffix && <span className="text-slate-500 font-normal"> {suffix}</span>}
+          {suffix && <span className="text-ink-3 font-normal"> {suffix}</span>}
         </div>
-        <div className="mt-1 text-[11px] mono text-slate-600">{step.jtiShort}</div>
-        {step.detail && <div className="text-[11px] text-slate-500">{step.detail}</div>}
+        <div className="mt-1 text-[11px] mono text-ink-2">{step.jtiShort}</div>
+        {step.detail && <div className="text-[11px] text-ink-3">{step.detail}</div>}
         {step.timestamp && (
           <time
-            className="text-[11px] text-slate-400 mono"
+            className="text-[11px] text-ink-3 mono"
             dateTime={step.timestamp.toISOString()}
           >
             {step.timestamp.toISOString().replace("T", " ").slice(0, 19)} UTC
@@ -140,10 +140,10 @@ function ChainNode({
 function ChainEdge({ label }: { label: string }) {
   return (
     <div
-      className="ml-4 my-1 flex items-center gap-2 text-[10px] uppercase tracking-wider text-slate-400"
+      className="ml-4 my-1 flex items-center gap-2 text-[10px] uppercase tracking-wider text-ink-3"
       aria-hidden="true"
     >
-      <span className="block w-0.5 h-4 bg-slate-300" />
+      <span className="block w-0.5 h-4 bg-line-2" />
       <span className="mono">{label}</span>
     </div>
   );

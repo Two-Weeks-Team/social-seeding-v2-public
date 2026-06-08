@@ -108,6 +108,9 @@ export function MandateDetail(props: MandateDetailProps) {
 
   const guard = expiryGuard(props.draft.exp);
   const expiryLabel = formatDuration(secondsRemaining, props.locale);
+  // Human campaign ref — never the raw camp_ token. Use the campaign name when
+  // present; otherwise a short "Campaign ·{last4}" reference (mirrors mandate-card).
+  const campaignRef = props.campaignName?.trim() || `Campaign ·${props.campaignId.slice(-4)}`;
 
   const chips = props.draft.serverChips ?? props.draft.initialChips;
   const blockingChips = chips.filter(
@@ -214,7 +217,7 @@ export function MandateDetail(props: MandateDetailProps) {
       <header className="mb-4">
         <Link
           href="/approvals"
-          className="text-[11px] text-slate-500 hover:text-slate-900"
+          className="text-[12px] text-ink-3 hover:text-ink-2"
         >
           {t("back_to_inbox")}
         </Link>
@@ -228,22 +231,22 @@ export function MandateDetail(props: MandateDetailProps) {
             >
               {props.campaignName} · {t("recipients_label")}{" "}
               {t("recipients_count", { count: props.draft.recipients.length })} ·{" "}
-              <span className="mono text-slate-500 text-[16px]">
+              <span className="mono text-ink-3 text-[16px]">
                 {shortJti(props.draft.jti)}
               </span>{" "}
               <span aria-hidden="true">⚖️</span>
             </h1>
-            <div className="mt-1 text-[12px] text-slate-500">
+            <div className="mt-1 text-[12px] text-ink-3">
               {t("wait_label")}{" "}
               {Math.floor(
                 (Date.now() - new Date(props.approvalCreatedAt).getTime()) / 60000,
               )}{" "}
-              {t("wait_unit_minute")} · camp_
+              {t("wait_unit_minute")} ·{" "}
               <Link
-                className="underline hover:text-slate-900 mono"
+                className="underline underline-offset-2 hover:text-ink"
                 href={`/campaigns/${props.campaignId}`}
               >
-                {props.campaignId.slice(0, 8)}
+                {campaignRef}
               </Link>
             </div>
             <div
@@ -255,16 +258,16 @@ export function MandateDetail(props: MandateDetailProps) {
               <span
                 className={
                   guard.expired
-                    ? "text-rose-600 font-medium"
+                    ? "text-stop font-medium"
                     : guard.warn
-                      ? "text-rose-500"
-                      : "text-slate-600"
+                      ? "text-stop"
+                      : "text-ink-2"
                 }
               >
                 {t("expires_in")} {expiryLabel}
               </span>
               {guard.block && !guard.expired && (
-                <span className="ml-2 text-rose-600">[locked — &lt; 60s]</span>
+                <span className="ml-2 text-stop">[locks within 60 seconds]</span>
               )}
             </div>
           </div>
@@ -275,7 +278,7 @@ export function MandateDetail(props: MandateDetailProps) {
       <Card className="mb-5">
         <CardBody>
           <SectionLabel className="mb-2">{t("rationale_label")}</SectionLabel>
-          <p className="text-[13px] text-slate-700 leading-relaxed">
+          <p className="text-[13px] text-ink-2 leading-relaxed">
             {props.rationale}
           </p>
         </CardBody>
@@ -292,7 +295,7 @@ export function MandateDetail(props: MandateDetailProps) {
           <CardBody>
             <SectionLabel className="mb-2">{t("chips_label")}</SectionLabel>
             <ChipGrid chips={chips} locale={props.locale} />
-            <div className="mt-3 pt-3 border-t border-slate-100">
+            <div className="mt-3 pt-3 border-t border-line-2">
               <SectionLabel className="mb-2">{t("partner_label")}</SectionLabel>
               <PartnerBadge
                 partnerId={props.draft.partner}
@@ -319,10 +322,10 @@ export function MandateDetail(props: MandateDetailProps) {
       </Card>
 
       <details className="mb-4">
-        <summary className="cursor-pointer text-[12px] text-slate-600 hover:text-slate-900 px-1 py-2 select-none">
+        <summary className="cursor-pointer text-[12px] text-ink-2 hover:text-ink px-1 py-2 select-none">
           {t("raw_jws_label")} {t("raw_jws_expand")}
         </summary>
-        <pre className="mt-2 p-4 bg-slate-50 border border-slate-200 rounded-md text-[11px] mono overflow-x-auto whitespace-pre-wrap break-all">
+        <pre className="mt-2 p-4 bg-surface-2 border border-line rounded-xl text-[11px] mono overflow-x-auto whitespace-pre-wrap break-all">
           {props.draft.rawJws ??
             JSON.stringify(
               {
@@ -430,38 +433,25 @@ function shortJti(jti: string): string {
 }
 
 function formatDuration(seconds: number, locale: AP2Locale): string {
+  const t = createTranslator(locale);
   if (seconds <= 0) {
-    return locale === "ko" ? "만료됨" : locale === "ja" ? "期限切れ" : locale === "zh" ? "已过期" : "expired";
+    return t("expired");
   }
   const totalSec = Math.floor(seconds);
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
   if (h > 0) {
-    return locale === "ko"
-      ? `${h}시간 ${m}분`
-      : locale === "ja"
-        ? `${h}時間 ${m}分`
-        : locale === "zh"
-          ? `${h} 小时 ${m} 分钟`
-          : `${h}h ${m}m`;
+    return locale === "en"
+      ? `${h}h ${m}m`
+      : `${h} ${t("wait_unit_hour")} ${m} ${t("wait_unit_minute")}`;
   }
   if (m > 0) {
-    return locale === "ko"
-      ? `${m}분 ${s}초`
-      : locale === "ja"
-        ? `${m}分 ${s}秒`
-        : locale === "zh"
-          ? `${m} 分钟 ${s} 秒`
-          : `${m}m ${s}s`;
+    return locale === "en"
+      ? `${m}m ${s}s`
+      : `${m} ${t("wait_unit_minute")} ${s} ${t("wait_unit_second")}`;
   }
-  return locale === "ko"
-    ? `${s}초`
-    : locale === "ja"
-      ? `${s}秒`
-      : locale === "zh"
-        ? `${s} 秒`
-        : `${s}s`;
+  return locale === "en" ? `${s}s` : `${s} ${t("wait_unit_second")}`;
 }
 
 function SummaryGrid({
@@ -515,8 +505,8 @@ function Row({
 }) {
   return (
     <>
-      <dt className="text-slate-500">{label}:</dt>
-      <dd className={mono ? "mono text-slate-800" : "text-slate-800"}>{value}</dd>
+      <dt className="text-ink-3">{label}:</dt>
+      <dd className={mono ? "mono text-ink" : "text-ink"}>{value}</dd>
     </>
   );
 }
@@ -599,7 +589,7 @@ function RecipientTable({
   return (
     <table className="w-full text-[13px]">
       <caption className="sr-only">{t("sr_recipient_table_caption")}</caption>
-      <thead className="text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200 bg-slate-50/60">
+      <thead className="text-[11px] uppercase tracking-wider text-ink-3 border-b border-line bg-surface-2/60">
         <tr>
           <th className="text-left px-3 py-2 font-medium w-8">
             <span className="sr-only">included</span>
@@ -630,7 +620,7 @@ function RecipientTable({
             <tr
               key={r.creatorId}
               className={
-                dropped ? "border-b border-slate-100 opacity-40 line-through" : "border-b border-slate-100"
+                dropped ? "border-b border-line-2 opacity-40 line-through" : "border-b border-line-2"
               }
             >
               <td className="px-3 py-2.5">
@@ -654,11 +644,11 @@ function RecipientTable({
                     {formatMoney(amount, locale)}
                   </span>
                 ) : (
-                  <span className="text-slate-400">—</span>
+                  <span className="text-ink-3">—</span>
                 )}
                 {edit?.amount && (
                   <div
-                    className="text-[11px] text-slate-500 mono"
+                    className="text-[11px] text-ink-3 mono"
                     aria-label={`agent proposed ${formatMoneyAriaLabel(r.proposedAmount, locale)}`}
                   >
                     (was {formatMoney(r.proposedAmount, locale)})
@@ -673,10 +663,10 @@ function RecipientTable({
                       aria-hidden="true"
                       className={
                         j === "pass"
-                          ? "text-emerald-700"
+                          ? "text-ok"
                           : j === "neutral"
-                            ? "text-slate-500"
-                            : "text-rose-700"
+                            ? "text-ink-3"
+                            : "text-stop"
                       }
                     >
                       {j === "pass" ? "✓" : j === "neutral" ? "·" : "✗"}
@@ -684,14 +674,14 @@ function RecipientTable({
                   ))}
                 </span>
               </td>
-              <td className="px-3 py-2.5 text-slate-600 text-[12px] mono">
+              <td className="px-3 py-2.5 text-ink-2 text-[12px] mono">
                 {r.contractId ?? "—"}
               </td>
               <td className="px-3 py-2.5">
                 <button
                   type="button"
                   onClick={onEditClick}
-                  className="text-[12px] text-slate-500 hover:text-slate-900 hover:underline underline-offset-2 mono"
+                  className="text-[12px] text-ink-3 hover:text-ink hover:underline underline-offset-2 mono"
                 >
                   {t("recipient_table_edit")}
                 </button>
@@ -701,8 +691,8 @@ function RecipientTable({
         })}
       </tbody>
       <tfoot>
-        <tr className="border-t-2 border-slate-200">
-          <td colSpan={2} className="px-3 py-2.5 text-right text-[11px] uppercase tracking-wider text-slate-500">
+        <tr className="border-t-2 border-line">
+          <td colSpan={2} className="px-3 py-2.5 text-right text-[11px] uppercase tracking-wider text-ink-3">
             {t("recipient_table_total")}
           </td>
           <td className="px-3 py-2.5 text-right font-semibold mono">
@@ -731,23 +721,23 @@ function RejectModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-brand/40 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="reject-modal-title"
     >
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-5">
-        <h2 id="reject-modal-title" className="text-[16px] font-semibold mb-3">
+      <div className="bg-surface border border-line rounded-2xl shadow-soft w-full max-w-md p-5">
+        <h2 id="reject-modal-title" className="text-[16px] font-semibold mb-3 text-ink">
           {t("reject_modal_title")}
         </h2>
         <label className="block">
-          <span className="text-[12px] text-slate-500 block mb-1">
+          <span className="text-[12px] text-ink-3 block mb-1">
             {t("reject_reason_label")}
           </span>
           <select
             value={reason}
             onChange={(e) => setReason(e.target.value as RejectReason)}
-            className="w-full border border-slate-200 rounded px-2 py-1.5 text-[13px]"
+            className="w-full bg-surface border border-line rounded-xl px-2 py-1.5 text-[13px] text-ink"
           >
             <option value="amount_too_high">{t("reject_reason_amount_too_high")}</option>
             <option value="wrong_recipient">{t("reject_reason_wrong_recipient")}</option>
@@ -757,7 +747,7 @@ function RejectModal({
           </select>
         </label>
         <label className="block mt-3">
-          <span className="text-[12px] text-slate-500 block mb-1">
+          <span className="text-[12px] text-ink-3 block mb-1">
             {t("reject_note_label")}
           </span>
           <textarea
@@ -765,7 +755,7 @@ function RejectModal({
             onChange={(e) => setNote(e.target.value.slice(0, 500))}
             maxLength={500}
             rows={3}
-            className="w-full border border-slate-200 rounded px-2 py-1.5 text-[13px]"
+            className="w-full bg-surface border border-line rounded-xl px-2 py-1.5 text-[13px] text-ink"
           />
         </label>
         <div className="mt-4 flex justify-end gap-2">

@@ -2,26 +2,28 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 /**
- * Surface primitive. White surface · 1px slate-200 border · rounded 8px.
- * No shadow by default. The `hover` flag adds a 1-pixel translate-y on hover
- * (no shadow — the lift is enough to feel responsive).
+ * Surface primitive — C2. Ivory surface · hairline border · 16px radius · soft
+ * warm shadow. `hover` lifts 1px. `flat` drops the shadow for nested/inset use.
  */
 export function Card({
   children,
   className,
   hover = false,
+  flat = false,
   as: As = "div",
 }: {
   children: ReactNode;
   className?: string;
   hover?: boolean;
+  flat?: boolean;
   as?: "div" | "section" | "article";
 }) {
   return (
     <As
       className={cn(
-        "bg-white border border-slate-200 rounded-lg",
-        hover && "transition-transform hover:-translate-y-px",
+        "bg-surface border border-line rounded-2xl",
+        !flat && "shadow-soft",
+        hover && "transition-transform hover:-translate-y-0.5",
         className,
       )}
     >
@@ -31,7 +33,7 @@ export function Card({
 }
 
 export function CardHeader({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("px-5 py-3 border-b border-slate-200 flex items-center justify-between", className)}>{children}</div>;
+  return <div className={cn("px-5 py-4 border-b border-line-2 flex items-center justify-between gap-3", className)}>{children}</div>;
 }
 
 export function CardBody({ children, className }: { children: ReactNode; className?: string }) {
@@ -39,20 +41,17 @@ export function CardBody({ children, className }: { children: ReactNode; classNa
 }
 
 export function CardTitle({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("text-[15px] font-semibold text-slate-900", className)}>{children}</div>;
+  return <div className={cn("text-[15px] font-bold text-ink", className)}>{children}</div>;
 }
 
 export function CardSubtitle({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("text-[11px] text-slate-500", className)}>{children}</div>;
+  return <div className={cn("text-[11px] text-ink-3", className)}>{children}</div>;
 }
 
-/**
- * Section header used as a poor-cousin to CardHeader when we're not inside a
- * Card (e.g. above a table that fills its own card). All-caps + thin spacing.
- */
+/** All-caps section label above a table / group not wrapped in a Card header. */
 export function SectionLabel({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn("text-[10px] uppercase tracking-wider text-slate-500 font-medium", className)}>
+    <div className={cn("text-[10px] uppercase tracking-[0.06em] text-ink-3 font-semibold", className)}>
       {children}
     </div>
   );

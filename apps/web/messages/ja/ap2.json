@@ -9,6 +9,7 @@
       "wait_unit_minute": "分",
       "wait_unit_hour": "時間",
       "wait_unit_day": "日",
+      "wait_unit_second": "秒",
       "expires_in": "有効期限まで",
       "expired": "期限切れ",
       "rationale_label": "エージェントがこの案を選んだ理由",

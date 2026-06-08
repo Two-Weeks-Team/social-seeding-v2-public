@@ -1,43 +1,63 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardBody, SectionLabel } from "@/components/ui/card";
+import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
+import { Stat } from "@/components/ui/stat";
+import { Funnel, type FunnelRow } from "@/components/ui/funnel";
+import { StatusTag } from "@/components/ui/status-tag";
+import { Avatar } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { DiagnosticBanner } from "@/components/ui/diagnostic";
 import { getServerSession } from "@/lib/auth";
 import { campaignRepo } from "@ss/db";
 import { invokeCapability } from "@ss/capabilities";
 import { AnalyticsReportSchema, type AnalyticsReport } from "@ss/contracts";
+import { fmtNum, fmtCompactKo, creatorLabel } from "@/lib/format";
+import { resolveCreators } from "@/lib/creators";
 
 /**
- * /campaigns/[id]/performance — the live performance surface (goal brief
- * P4-(a)). Unlike /report (which renders a *delivered* Report + analyst
- * narrative), this compiles analytics.compile on demand and foregrounds the
- * "performance analysis auto-completed" story: the funnel, reach, the verified
- * -post leaderboard, and the before/after vs a human-stalled analysis.
- *
- * Reads live data for the campaign in the operator's workspace — this is the
- * authed product surface, so creator handles are shown (the PUBLIC report is
- * aggregates-only; that's the standalone HTML).
+ * /campaigns/[id]/performance — C2 redesign. The audit's headline data-honesty
+ * fixes live here: a zero-result campaign is NOT dressed in green success — it
+ * shows an honest diagnostic + recovery actions; the funnel renders 0 as empty;
+ * "—" (not computable) is visually distinct from a real 0; internal v1/v2
+ * narration is replaced with operator language.
  */
 
-const FUNNEL_ROWS: Array<{ key: keyof AnalyticsReport["funnel"]; label: string }> = [
-  { key: "outreach_sent", label: "아웃리치 발송" },
-  { key: "in_conversation", label: "대화 중" },
-  { key: "shipped", label: "샘플 발송" },
-  { key: "delivered", label: "수령" },
-  { key: "posted", label: "게시" },
-  { key: "verified", label: "검증 완료" },
+const FUNNEL_DEF: Array<{ key: keyof AnalyticsReport["funnel"]; label: string }> = [
+  { key: "outreach_sent", label: "Outreach sent" },
+  { key: "in_conversation", label: "In conversation" },
+  { key: "shipped", label: "Sample shipped" },
+  { key: "delivered", label: "Delivered" },
+  { key: "posted", label: "Posted" },
+  { key: "verified", label: "Verified" },
 ];
 
-function Kpi({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: boolean }) {
-  return (
-    <Card>
-      <CardBody>
-        <SectionLabel>{label}</SectionLabel>
-        <div className={`mt-1 text-[24px] font-semibold mono ${accent ? "text-emerald-600" : ""}`}>{value}</div>
-        {sub && <div className="mt-0.5 text-[11px] text-slate-500">{sub}</div>}
-      </CardBody>
-    </Card>
-  );
+// A funnel chart must be CUMULATIVE ("reached this stage or further"), not a current-state
+// snapshot — otherwise a verified track (counted only in `verified`) makes Verified exceed
+// Posted/Delivered. Map each lifecycle/terminal state to the furthest stage it reached, then
+// count tracks at-or-beyond each stage so the funnel is monotonically non-increasing.
+const LIFECYCLE = [
+  "candidate", "shortlisted", "outreach_sent", "in_conversation", "agreed",
+  "address_collected", "shipped", "delivered", "posted", "verified",
+] as const;
+const REACHED_AT: Record<string, (typeof LIFECYCLE)[number]> = {
+  candidate: "candidate", shortlisted: "shortlisted",
+  outreach_sent: "outreach_sent", no_response: "outreach_sent",
+  in_conversation: "in_conversation", declined: "in_conversation",
+  agreed: "agreed", address_collected: "address_collected",
+  shipped: "shipped", flaked: "shipped",
+  delivered: "delivered", posted: "posted", verified: "verified",
+};
+function reachedFunnel(fn: AnalyticsReport["funnel"]): Record<string, number> {
+  const out: Record<string, number> = {};
+  LIFECYCLE.forEach((stage, si) => {
+    let n = 0;
+    for (const [state, count] of Object.entries(fn)) {
+      const ri = LIFECYCLE.indexOf(REACHED_AT[state] ?? (state as (typeof LIFECYCLE)[number]));
+      if (ri >= si) n += count;
+    }
+    out[stage] = n;
+  });
+  return out;
 }
 
 export default async function PerformancePage({ params }: { params: Promise<{ id: string }> }) {
@@ -55,100 +75,149 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
   );
   const a: AnalyticsReport = AnalyticsReportSchema.parse(raw);
 
-  const er = a.reach.weightedEngagementRate !== null ? `${(a.reach.weightedEngagementRate * 100).toFixed(2)}%` : "—";
-  const funnelMax = Math.max(1, ...FUNNEL_ROWS.map((r) => a.funnel[r.key]));
-  const leaderboard = [...(a.tracks ?? [])]
+  const verified = a.goals.verifiedCount;
+  const goalMet = a.goals.goalMet;
+  const zeroResult = verified === 0;
+  const er = a.reach.weightedEngagementRate !== null ? `${(a.reach.weightedEngagementRate * 100).toFixed(1)}` : null;
+  const engagement = a.reach.verifiedLikes + a.reach.verifiedComments + a.reach.verifiedShares;
+  const reach = fmtCompactKo(a.reach.verifiedViews);
+
+  const header = zeroResult
+    ? { tone: "stop" as const, label: "Missed goal · no verified posts" }
+    : goalMet
+      ? { tone: "ok" as const, label: "Goal met" }
+      : { tone: "warn" as const, label: "Partial progress" };
+
+  const reached = reachedFunnel(a.funnel);
+  const funnelRows: FunnelRow[] = FUNNEL_DEF.map((r) => ({ label: r.label, value: reached[r.key] ?? 0 }));
+
+  // Rank by views (the metric the row shows), de-duped to one row per creator.
+  // The v1 import stores a creator's 2nd post as "<id>#2", which resolves to the
+  // same handle — so without de-duping the same creator shows up twice.
+  const ranked = [...(a.tracks ?? [])]
     .filter((t) => t.performanceScore !== null)
-    .sort((x, y) => (y.performanceScore ?? 0) - (x.performanceScore ?? 0))
+    .sort((x, y) => (y.views ?? 0) - (x.views ?? 0));
+  const profiles = await resolveCreators(ranked.map((t) => t.creatorId));
+  const seenCreator = new Set<string>();
+  const leaderboard = ranked
+    .filter((t) => {
+      const key = profiles.get(t.creatorId)?.handle ?? t.creatorId.replace(/#\d+$/, "");
+      if (seenCreator.has(key)) return false;
+      seenCreator.add(key);
+      return true;
+    })
     .slice(0, 12);
 
   return (
     <div className="max-w-5xl mx-auto px-8 py-8">
       <header className="mb-5">
-        <div className="flex items-center gap-2 text-[12px] text-slate-500">
-          <Link href={`/campaigns/${id}`} className="hover:text-slate-700">← {a.brief.name}</Link>
-          <span>·</span><span>{a.brief.category}</span>
+        <Link href={`/campaigns/${id}`} className="text-[12px] text-ink-3 hover:text-ink-2">← {a.brief.name}</Link>
+        <div className="mt-2 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[24px] font-bold tracking-[-0.01em]">Performance analysis</h1>
+            <div className="mt-1 text-[12.5px] text-ink-3">{a.brief.category}</div>
+          </div>
+          <StatusTag tone={header.tone}>{header.label}</StatusTag>
         </div>
-        <h1 className="mt-1 text-[22px] font-semibold">성과 분석</h1>
       </header>
 
-      {/* auto-completed banner — the core story */}
-      <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="emerald">자동 완료</Badge>
-          <span className="text-[13px] font-medium text-emerald-900">
-            성과분석 단계를 에이전트가 자율 완료했습니다.
-          </span>
-        </div>
-        <div className="mt-1.5 text-[12px] text-emerald-800/80">
-          원본 워크플로우는 <code className="mono">performanceAnalysis</code>에서 멈춰 reach·engagement가 0(미집계)이었습니다.
-          v2는 검증 게시물 {a.goals.verifiedCount}건을 집계해 아래 지표를 산출했습니다.
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <Kpi label="VERIFIED · TARGET" value={`${a.goals.verifiedCount} / ${a.goals.targetLivePosts}`}
-          sub={a.goals.percentOfGoal !== null ? `${Math.round(a.goals.percentOfGoal * 100)}% of goal` : undefined}
-          accent={a.goals.goalMet} />
-        <Kpi label="REACH (VIEWS)" value={a.reach.verifiedViews.toLocaleString()} sub={`ER ${er}`} />
-        <Kpi label="ENGAGEMENT" value={(a.reach.verifiedLikes + a.reach.verifiedComments + a.reach.verifiedShares).toLocaleString()}
-          sub={`♥ ${a.reach.verifiedLikes.toLocaleString()} · 💬 ${a.reach.verifiedComments} · ↗ ${a.reach.verifiedShares}`} />
-        <Kpi label="PERFORMANCE SCORE" value={a.performance.avgPerformanceScore !== null ? String(a.performance.avgPerformanceScore) : "—"}
-          sub={a.performance.medianPerformanceScore !== null ? `median ${a.performance.medianPerformanceScore}` : undefined} />
-      </div>
-
-      {a.flags.length > 0 && (
-        <div className="mb-6 flex flex-wrap gap-2">
-          {a.flags.map((f) => (
-            <Badge key={f} variant={f === "goal_met" ? "emerald" : f === "budget_exceeded" || f === "deadline_missed" ? "rose" : "amber"}>
-              {f}
-            </Badge>
-          ))}
+      {/* Honest diagnostic for zero-result; calm note otherwise */}
+      {zeroResult ? (
+        <DiagnosticBanner
+          tone="stop"
+          title={campaign.tracks.length > 0
+            ? `0 of ${campaign.tracks.length} creators reached posting, so the campaign missed its goal.`
+            : "No posted content yet, so the campaign has not met its goal."}
+          actions={
+            <>
+              <Link href="/campaigns/new"><Button variant="primary" size="sm">Start a broader campaign</Button></Link>
+              <Link href="/policies"><Button size="sm">Adjust reply policy</Button></Link>
+              <Link href="/settings"><Button size="sm">Check Gmail connection</Button></Link>
+            </>
+          }
+          className="mb-6"
+        >
+          Outreach was sent, but no posts were verified. The most likely cause is a narrow candidate pool from the target
+          engagement threshold (ER ≥ {(campaign.brief.targeting.minEngagementRate * 100).toFixed(1)}%). You can retry from here.
+        </DiagnosticBanner>
+      ) : (
+        <div className="mb-6 rounded-2xl border border-ok/25 bg-ok-bg px-5 py-3.5 text-[13px] text-ink-2">
+          Agents completed the performance analysis and calculated these metrics from {verified} verified posts.
         </div>
       )}
 
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">
+        <Stat
+          label="Goal / posts"
+          value={verified}
+          unit={`/ ${a.goals.targetLivePosts}`}
+          hint={a.goals.percentOfGoal !== null ? `${Math.round(a.goals.percentOfGoal * 100)}% of goal` : "No goal set"}
+          tone={zeroResult ? "stop" : goalMet ? "ok" : "default"}
+        />
+        <Stat
+          label="Total reach"
+          value={a.reach.verifiedViews > 0 ? reach.value : 0}
+          unit={a.reach.verifiedViews > 0 ? reach.unit : undefined}
+          hint={a.reach.verifiedViews > 0 ? `${fmtNum(a.reach.verifiedViews)} total views` : "No posts"}
+        />
+        <Stat
+          label="Avg engagement"
+          value={er ?? "—"}
+          unit={er ? "%" : undefined}
+          hint={`♥ ${fmtNum(a.reach.verifiedLikes)} · 💬 ${fmtNum(a.reach.verifiedComments)} · ↗ ${fmtNum(a.reach.verifiedShares)}`}
+          tone={er ? "default" : "muted"}
+        />
+        <Stat
+          label="Performance score"
+          value={a.performance.avgPerformanceScore !== null ? a.performance.avgPerformanceScore : "—"}
+          hint={a.performance.avgPerformanceScore !== null ? `${fmtNum(engagement)} total engagements` : "No measurable data"}
+          tone={a.performance.avgPerformanceScore !== null ? "brand" : "muted"}
+        />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <CardBody>
-            <SectionLabel className="mb-3">퍼널</SectionLabel>
-            <div className="space-y-2">
-              {FUNNEL_ROWS.map((r) => {
-                const v = a.funnel[r.key];
-                return (
-                  <div key={r.key} className="grid grid-cols-[110px_1fr_36px] items-center gap-2">
-                    <div className="text-[12px] text-slate-500 text-right">{r.label}</div>
-                    <div className="h-5 rounded bg-slate-100 overflow-hidden">
-                      <div className="h-full rounded bg-gradient-to-r from-violet-500 to-cyan-400"
-                        style={{ width: `${8 + (v / funnelMax) * 92}%` }} />
-                    </div>
-                    <div className="text-[12px] font-semibold mono text-right">{v}</div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardBody>
+          <CardHeader>
+            <CardTitle>Funnel — stage conversion</CardTitle>
+            <span className="text-[11px] text-ink-3 mono">0 = empty bar</span>
+          </CardHeader>
+          <CardBody><Funnel rows={funnelRows} /></CardBody>
         </Card>
 
         <Card>
-          <CardBody>
-            <SectionLabel className="mb-3">게시물 리더보드 · 상위 {leaderboard.length}</SectionLabel>
-            <div className="space-y-1.5">
-              {leaderboard.map((t, i) => (
-                <div key={t.creatorId} className="grid grid-cols-[20px_1fr_64px_44px] items-center gap-2">
-                  <div className="text-[11px] text-slate-400 mono">{i + 1}</div>
-                  <div className="text-[12px] text-slate-700 truncate">{t.creatorId}</div>
-                  <div className="text-[11px] text-slate-500 mono text-right">{(t.views ?? 0).toLocaleString()}</div>
-                  <div className="text-[12px] font-semibold mono text-right text-violet-600">{t.performanceScore}</div>
-                </div>
-              ))}
-              {leaderboard.length === 0 && <div className="text-[12px] text-slate-500">검증된 게시물이 아직 없습니다.</div>}
-            </div>
+          <CardHeader><CardTitle>Post leaderboard</CardTitle></CardHeader>
+          <CardBody className="pt-1.5">
+            {leaderboard.length === 0 ? (
+              <div className="text-[12.5px] text-ink-3 py-4">No verified posts yet.</div>
+            ) : (
+              <div className="space-y-0.5">
+                {leaderboard.map((t, i) => {
+                  const p = profiles.get(t.creatorId);
+                  const display = p?.nickname ?? p?.handle ?? creatorLabel(t.creatorId);
+                  return (
+                    <div key={t.creatorId} className="flex items-center gap-3 py-2 border-b border-line-2 last:border-0">
+                      <span className="w-5 text-[12px] text-ink-3 mono shrink-0">{i + 1}</span>
+                      <Avatar name={display} src={p?.avatar} size="sm" />
+                      <div className="min-w-0">
+                        <div className="text-[13px] text-ink truncate leading-tight">{display}</div>
+                        {p?.handle && p.handle !== display && (
+                          <div className="text-[11px] text-ink-3 mono truncate">{p.handle}</div>
+                        )}
+                      </div>
+                      <span className="ml-auto text-[13px] mono font-bold text-ink shrink-0">
+                        {fmtNum(t.views ?? 0)} <span className="text-ink-3 font-normal">views</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </CardBody>
         </Card>
       </div>
 
-      <div className="mt-4 text-[11px] text-slate-400">
-        compiled {a.generatedAt.toISOString().slice(0, 16).replace("T", " ")} · analytics.compile (no LLM) · spent ${a.cost.spentUsd.toFixed(2)}
+      <div className="mt-4 text-[11px] text-ink-3">
+        Generated {a.generatedAt.toISOString().slice(0, 16).replace("T", " ")} · spent ${a.cost.spentUsd.toFixed(2)}
       </div>
     </div>
   );

@@ -383,7 +383,7 @@ describe("ApprovalSchema — payment_mandate kind (D27)", () => {
       campaignId: "camp1",
       kind: "payment_mandate",
       recommendation: { jti: "j1" },
-      rationale: "AP2 Intent Mandate composed for 3 creator payouts (조사 완료된 후보들).",
+      rationale: "AP2 Intent Mandate composed for 3 creator payouts (researched candidates).",
       createdAt: new Date(),
     });
     expect(parsed.success).toBe(true);

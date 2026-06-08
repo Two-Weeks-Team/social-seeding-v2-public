@@ -17,7 +17,7 @@
  *     rows are passed in).
  *
  * The toolbar is "sticky" at the bottom of the viewport when 2+ rows are
- * selected. On click of `전체 서명`, the parent opens a modal (rendered
+ * selected. On click of `Sign all`, the parent opens a modal (rendered
  * separately) showing the delta-diff readback per AP2-UX.md §3.4.
  */
 
@@ -102,21 +102,21 @@ export function BulkApproveToolbar({
 
   return (
     <div
-      className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[min(96vw,960px)] z-40 bg-white border border-slate-200 rounded-lg shadow-lg px-4 py-3 flex flex-wrap items-center gap-4"
+      className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[min(96vw,960px)] z-40 bg-surface border border-line rounded-2xl shadow-soft px-4 py-3 flex flex-wrap items-center gap-4"
       role="toolbar"
       aria-label="Bulk approve toolbar"
     >
-      <div className="text-[13px] font-medium text-slate-900">
+      <div className="text-[13px] font-medium text-ink">
         ☑ {t("bulk_toolbar_count", { count: selected.length })}
       </div>
       {total && (
-        <div className="text-[13px] mono text-slate-700">
+        <div className="text-[13px] mono text-ink-2">
           <span aria-label={formatMoneyAriaLabel(total, locale)}>
             {t("bulk_toolbar_total", { amount: formatMoney(total, locale) })}
           </span>
         </div>
       )}
-      <div className="text-[12px] text-slate-700">
+      <div className="text-[12px] text-ink-2">
         <PartnerSummary partnerIds={partnerIds} locale={locale} />
       </div>
       <div className="ml-auto flex items-center gap-2">
@@ -124,7 +124,7 @@ export function BulkApproveToolbar({
           {t("button_bulk_reject_all")}
         </Button>
         {disableReasons.length > 0 && (
-          <details className="text-[11px] text-amber-700">
+          <details className="text-[11px] text-warn">
             <summary className="cursor-pointer">⚠ blocked</summary>
             <ul className="mt-1 space-y-0.5 max-w-xs">
               {disableReasons.map((r, i) => (
@@ -169,7 +169,7 @@ function BulkSeparate({
     <div className="relative">
       <button
         type="button"
-        className="text-[11px] text-slate-500 hover:text-slate-900 underline-offset-2 hover:underline"
+        className="text-[11px] text-ink-3 hover:text-ink underline-offset-2 hover:underline"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
@@ -177,21 +177,21 @@ function BulkSeparate({
       </button>
       {open && (
         <ul
-          className="absolute bottom-full right-0 mb-2 bg-white border border-slate-200 rounded-md shadow-md min-w-[220px] max-h-[260px] overflow-y-auto"
+          className="absolute bottom-full right-0 mb-2 bg-surface border border-line rounded-xl shadow-soft min-w-[220px] max-h-[260px] overflow-y-auto"
           role="menu"
         >
           {selected.map((s) => (
             <li key={s.approvalId} role="menuitem">
               <button
                 type="button"
-                className="block w-full text-left px-3 py-1.5 text-[12px] hover:bg-slate-50"
+                className="block w-full text-left px-3 py-1.5 text-[12px] text-ink hover:bg-surface-2"
                 onClick={() => {
                   onSeparate(s.approvalId);
                   setOpen(false);
                 }}
               >
                 <span className="mono">{s.approvalId.slice(0, 12)}</span>
-                <span className="text-slate-500 ml-2">
+                <span className="text-ink-3 ml-2">
                   {formatMoney(s.draft.totalAmount as Money, locale)}
                 </span>
               </button>
@@ -204,13 +204,13 @@ function BulkSeparate({
 }
 
 /**
- * Bulk-approve modal — rendered when the operator clicks `전체 서명`.
+ * Bulk-approve modal — rendered when the operator clicks `Sign all`.
  * Per AP2-UX.md §3.4 it shows:
  *   - The per-Mandate one-line summary
  *   - delta diff card (agent-draft → operator override) per changed Mandate
  *   - The warning about non-AP2-native partners
  *   - The warning about first-time partners
- *   - Final "WebAuthn 인증 후 N건 서명" button
+ *   - Final "Sign N with WebAuthn" button
  */
 export interface BulkApproveModalProps {
   selected: BulkSelectionItem[];
@@ -242,33 +242,33 @@ export function BulkApproveModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-brand/40 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="bulk-modal-title"
     >
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
-        <h2 id="bulk-modal-title" className="text-[18px] font-semibold">
+      <div className="bg-surface border border-line rounded-2xl shadow-soft w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
+        <h2 id="bulk-modal-title" className="text-[18px] font-semibold text-ink">
           {t("bulk_modal_title", { count: selected.length })}
         </h2>
-        <p className="mt-2 text-[12px] text-slate-600">{t("bulk_modal_explainer")}</p>
+        <p className="mt-2 text-[12px] text-ink-2">{t("bulk_modal_explainer")}</p>
         <ul className="mt-4 space-y-1 text-[12px]">
           {selected.map((s) => (
             <li
               key={s.approvalId}
-              className="flex items-center gap-3 px-3 py-2 border border-slate-100 rounded"
+              className="flex items-center gap-3 px-3 py-2 border border-line-2 rounded-xl"
             >
-              <span className="mono text-slate-500">{s.approvalId.slice(0, 10)}</span>
-              <span className="font-medium">
+              <span className="mono text-ink-3">{s.approvalId.slice(0, 10)}</span>
+              <span className="font-medium text-ink">
                 {s.draft.intent.category} · {s.draft.recipients.length}
               </span>
-              <span className="ml-auto mono">
+              <span className="ml-auto mono text-ink-2">
                 {formatMoney(s.draft.totalAmount as Money, locale)}
               </span>
             </li>
           ))}
         </ul>
-        <div className="mt-3 text-[12px] text-slate-700">
+        <div className="mt-3 text-[12px] text-ink-2">
           <span className="block">
             {t("bulk_modal_diff_unchanged", { count: unchangedCount })}
           </span>

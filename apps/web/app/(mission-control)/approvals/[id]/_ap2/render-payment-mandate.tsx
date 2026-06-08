@@ -21,6 +21,9 @@ import type React from "react";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { type Approval } from "@ss/contracts";
+import { DiagnosticBanner } from "@/components/ui/diagnostic";
+import { SectionLabel } from "@/components/ui/card";
+import { approvalKindKo } from "@/lib/labels";
 import { MandateDetail } from "./mandate-detail";
 import { isPaymentMandateDraft, type AP2Locale, type PaymentMandateDraft } from "@/lib/ap2/mandate";
 import { negotiateLocale } from "@/lib/ap2/i18n";
@@ -36,15 +39,20 @@ export async function renderPaymentMandateApproval(
       <div className="max-w-3xl mx-auto px-8 py-8">
         <Link
           href="/approvals"
-          className="text-[11px] text-slate-500 hover:text-slate-900"
+          className="text-[12px] text-ink-3 hover:text-ink-2"
         >
-          ← 승인 인박스
+          ← Approval inbox
         </Link>
-        <h1 className="mt-2 text-[18px] font-semibold">payment_mandate</h1>
-        <p className="mt-1 text-[13px] text-rose-600">
-          승인에 첨부된 draft가 PaymentMandateDraft 형식이 아닙니다 (ID:{" "}
-          {approval.id}). 워크플로 로그를 확인해주세요.
-        </p>
+        <div className="mt-2 mb-5">
+          <SectionLabel>{approvalKindKo("payment_mandate")}</SectionLabel>
+          <h1 className="mt-1 text-[24px] font-bold tracking-[-0.01em]">
+            {approvalKindKo("payment_mandate")}
+          </h1>
+        </div>
+        <DiagnosticBanner tone="stop" title="This item cannot be reviewed right now">
+          The attached payment mandate data does not match the expected format.
+          Check the workflow record and try again.
+        </DiagnosticBanner>
       </div>
     );
   }
@@ -67,7 +75,7 @@ export async function renderPaymentMandateApproval(
  *   1. session preference (TODO once `getServerSession` exposes
  *      `preferredLocale`; for now falls through to (2)).
  *   2. `Accept-Language` header — first matching D34 locale.
- *   3. fall back to "ko" (day-1 primary).
+ *   3. fall back to "en" for the demo/judge-facing default.
  */
 async function detectLocale(): Promise<AP2Locale> {
   try {
@@ -80,5 +88,5 @@ async function detectLocale(): Promise<AP2Locale> {
   } catch {
     // SSR / static context — fall through.
   }
-  return "ko";
+  return "en";
 }

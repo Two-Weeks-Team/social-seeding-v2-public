@@ -9,6 +9,7 @@
       "wait_unit_minute": "분 전",
       "wait_unit_hour": "시간 전",
       "wait_unit_day": "일 전",
+      "wait_unit_second": "초",
       "expires_in": "expires in",
       "expired": "만료됨",
       "rationale_label": "에이전트가 이 안을 고른 이유",

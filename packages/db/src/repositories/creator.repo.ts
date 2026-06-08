@@ -30,4 +30,24 @@ export const creatorRepo = {
     const doc = await db.collection(Collections.SHARED_TIKTOK_ACCOUNTS).findOne({ id });
     return doc ? TikTokCreatorSchema.parse(doc) : null;
   },
+
+  /**
+   * Batch lookup by TikTok `id` for MC views that render a list of tracks and
+   * need each creator's handle / nickname / avatar in one query (avoids N round
+   * trips). Unparseable docs are skipped, not thrown.
+   */
+  async listByIds(ids: string[]): Promise<TikTokCreator[]> {
+    if (ids.length === 0) return [];
+    const db = await getDb();
+    const docs = await db
+      .collection(Collections.SHARED_TIKTOK_ACCOUNTS)
+      .find({ id: { $in: ids } })
+      .toArray();
+    const out: TikTokCreator[] = [];
+    for (const doc of docs) {
+      const parsed = TikTokCreatorSchema.safeParse(doc);
+      if (parsed.success) out.push(parsed.data);
+    }
+    return out;
+  },
 };

@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import { getObservabilitySink } from "./sink";
 
@@ -30,7 +31,11 @@ export interface RunTrace {
 
 export function startTrace(campaignId: string, runId = randomUUID()): RunTrace {
   const spans: TraceSpan[] = [];
-  const stack: string[] = [];
+  // AsyncLocalStorage carries the current parent span id PER async context, so
+  // concurrent spans (e.g. a Promise.all vetting fan-out) become SIBLINGS, not a
+  // pathological nest. A single shared stack would mis-parent parallel spans
+  // (each push before any pop → each sees the previous as parent → runaway depth).
+  const parentCtx = new AsyncLocalStorage<string | undefined>();
 
   async function span<T>(
     name: string,
@@ -38,18 +43,18 @@ export function startTrace(campaignId: string, runId = randomUUID()): RunTrace {
     attrs: Record<string, unknown>,
     fn: (span: TraceSpan) => Promise<T>,
   ): Promise<T> {
-    const s: TraceSpan = { id: randomUUID(), parentId: stack.at(-1), name, kind, startedAt: Date.now(), attrs };
+    const s: TraceSpan = { id: randomUUID(), parentId: parentCtx.getStore(), name, kind, startedAt: Date.now(), attrs };
     spans.push(s);
-    stack.push(s.id);
-    try {
-      return await fn(s);
-    } catch (err) {
-      s.error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      s.endedAt = Date.now();
-      stack.pop();
-    }
+    return parentCtx.run(s.id, async () => {
+      try {
+        return await fn(s);
+      } catch (err) {
+        s.error = err instanceof Error ? err.message : String(err);
+        throw err;
+      } finally {
+        s.endedAt = Date.now();
+      }
+    });
   }
 
   async function flush(): Promise<void> {

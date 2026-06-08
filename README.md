@@ -198,7 +198,7 @@ Both hops use the same A2A v0.3 `message:send` envelope (`{"message":{"role":"us
 
 | # | Requirement | Status | Proof |
 |---|---|---|---|
-| ① | **B2B SaaS** agent product | ✓ | Multi-tenant influencer-campaign platform with per-call MCP tiers; ~99.7% vs agency management fee, TAM $1.15B ([`BUSINESS-CASE.md`](scripts/demo/submission/BUSINESS-CASE.md)). |
+| ① | **B2B** agent product | ✓ | Multi-tenant autonomous campaign **operator** (runs the loop, takes ~29% of operated spend); ~99.7% ops-cost cut vs agency, **TAM ~$27.5–37.3B media spend** ([`BUSINESS-CASE.md`](scripts/demo/submission/BUSINESS-CASE.md)). |
 | ② | Deployed on **Cloud Run** | ✓ | `ss-agents`, `ss-mcp-server`, `ss-landing` all live on Cloud Run (`min=0`); `brand-campaign-demo` on Cloud Workflows. |
 | ③ | **Model Garden** LLM routing | ✓ | `projects/ss-v2-prod/locations/us-central1/publishers/google/models/gemini-3.1-flash-lite` returned a validated `CoordinatorOutput`, exit 0; the live workflow coordinator ran with `MODEL_GARDEN_ROUTING=true` (D47). |
 | ④ | **A2A v0.3** | ✓ | `coordinator → a2a_invoke → ss-mcp.plan_creator_search` ran live in the Cloud Workflow (exec `7c08ce50`, SUCCEEDED 15.8s, 5 RankedCreators); signed agent card (JWS ES256) + JWKS (D48). |

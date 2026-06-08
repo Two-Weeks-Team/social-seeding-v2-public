@@ -1,42 +1,34 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, SectionLabel } from "@/components/ui/card";
+import { StatusTag } from "@/components/ui/status-tag";
+import { EmptyState } from "@/components/ui/empty-state";
 import { getServerSession } from "@/lib/auth";
 import { approvalRepo, campaignRepo } from "@ss/db";
 import { type Approval } from "@ss/contracts";
+import { approvalKindKo } from "@/lib/labels";
+import { fmtAgo } from "@/lib/format";
 
 /**
- * W4 — Approval inbox. Workspace-wide pending approvals grouped by kind.
- * For kind="shortlist", click → /approvals/[id] (the drill-in with the
- * candidate table). Phase 2+ kinds (outreach_send / reply_response /
- * shipment / stage_advance) render in a "coming soon" form so the user
- * sees the inventory.
+ * Approval inbox (C2). Groups pending decisions across the workspace by kind.
+ * Shortlist rows link into the candidate table drill-in.
+ * When there are zero pending items, render one calm EmptyState instead of per-kind boxes.
  */
 
-const KIND_LABEL: Record<Approval["kind"], string> = {
-  shortlist: "SHORTLIST",
-  outreach_send: "OUTREACH_SEND",
-  reply_response: "REPLY_RESPONSE",
-  shipment: "SHIPMENT",
-  stage_advance: "STAGE_ADVANCE",
-  content_review: "CONTENT_REVIEW", // approveContent — final sign-off on a verified post.
-  budget: "BUDGET", // approveBudget — spend release / contract execution.
-  payment_mandate: "PAYMENT_MANDATE", // AP2 Intent Mandate sign checkpoint (D27).
-};
+// Header display order by approval kind; only kinds with pending items render.
+const KIND_ORDER: Approval["kind"][] = [
+  "shortlist",
+  "outreach_send",
+  "reply_response",
+  "shipment",
+  "content_review",
+  "budget",
+  "payment_mandate",
+  "stage_advance",
+];
 
-const KIND_PHASE: Record<Approval["kind"], string | null> = {
-  shortlist: null,
-  outreach_send: null, // P2-C6a: drill-in live
-  reply_response: null, // P2-C6b: drill-in live
-  shipment: null, // P3-C7a: drill-in live (approveShipment producer = creator-track P3-C6)
-  stage_advance: null,
-  content_review: null, // approveContent producer = campaign-autopilot content_review stage
-  budget: null, // approveBudget producer = campaign-autopilot budget gate
-  payment_mandate: null, // Phase 6 — AP2 drill-in live (renderPaymentMandateApproval).
-};
-
+// Kinds with a drill-in review screen; these show the Review button.
 const REVIEWABLE_KINDS = new Set<Approval["kind"]>([
   "shortlist",
   "outreach_send",
@@ -47,7 +39,7 @@ const REVIEWABLE_KINDS = new Set<Approval["kind"]>([
   "payment_mandate",
 ]);
 
-/** Best-effort subject extraction from an outreach_send recommendation (which is OutreachDraft). */
+/** Best-effort subject extraction from an outreach_send recommendation (OutreachDraft). */
 function outreachSubject(rec: unknown): string | null {
   if (rec && typeof rec === "object" && !Array.isArray(rec) && "subject" in rec) {
     const s = (rec as { subject: unknown }).subject;
@@ -56,101 +48,101 @@ function outreachSubject(rec: unknown): string | null {
   return null;
 }
 
-function fmtAgo(when: Date): string {
-  const sec = Math.max(0, Math.floor((Date.now() - when.getTime()) / 1000));
-  if (sec < 60) return `${sec}s 경과`;
-  if (sec < 3600) return `${Math.floor(sec / 60)}m 경과`;
-  if (sec < 86400) return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m 경과`;
-  return `${Math.floor(sec / 86400)}d 경과`;
-}
-
 export default async function ApprovalsPage() {
   const session = await getServerSession();
   if (!session) redirect("/sign-in");
 
   const pending = await approvalRepo.listPendingByWorkspace(session.workspaceId);
-  // attach the campaign brand name for display
+  // Campaign/brand name map for display.
   const campaigns = await campaignRepo.listByWorkspace(session.workspaceId);
   const byCampaign = new Map(campaigns.map((c) => [c.id, c.brief.brandProduct.name]));
 
   const grouped = new Map<Approval["kind"], Approval[]>();
   for (const a of pending) grouped.set(a.kind, [...(grouped.get(a.kind) ?? []), a]);
 
+  // Only kinds with pending rows, in the fixed display order.
+  const activeKinds = KIND_ORDER.filter((k) => (grouped.get(k)?.length ?? 0) > 0);
+
   return (
     <div className="max-w-4xl mx-auto px-8 py-8">
-      <header className="mb-6">
-        <h1 className="text-[22px] font-semibold">
-          승인 인박스{" "}
-          <span className="text-slate-400 font-normal text-[14px]">· {pending.length} pending</span>
-        </h1>
-        <p className="mt-1 text-[13px] text-slate-500">
-          에이전트가 추천을 미리 채워뒀습니다. 한 종류씩 처리해보세요.
-        </p>
+      <header className="mb-6 flex items-start justify-between gap-5">
+        <div>
+          <h1 className="text-[24px] font-bold tracking-[-0.01em]">Approval inbox</h1>
+          <p className="mt-1 text-[13.5px] text-ink-2">
+            Agents have prefilled recommendations. Review one category at a time and make the final call.
+          </p>
+        </div>
+        {pending.length > 0 && (
+          <StatusTag tone="warn">{pending.length} pending</StatusTag>
+        )}
       </header>
 
-      <div className="space-y-5">
-        {(["shortlist", "outreach_send", "reply_response", "shipment", "content_review", "budget", "stage_advance"] as Approval["kind"][]).map((kind) => {
-          const rows = grouped.get(kind) ?? [];
-          const phase = KIND_PHASE[kind];
-          return (
-            <section key={kind}>
-              <SectionLabel className="mb-2">
-                {KIND_LABEL[kind]} · {rows.length}
-                {phase && <Badge variant="slate" className="ml-2 !text-[10px]">{phase}</Badge>}
-              </SectionLabel>
-              {rows.length === 0 ? (
-                <Card>
-                  <CardBody className="text-[12px] text-slate-500">
-                    {phase ? `${phase}부터 생성됩니다.` : "대기 중인 항목 없음."}
-                  </CardBody>
-                </Card>
-              ) : (
-                rows.map((a) => (
-                  <Card key={a.id} className="mb-2" hover>
-                    <CardBody>
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="text-[14px] font-medium text-slate-900">
-                            {byCampaign.get(a.campaignId) ?? "(unknown campaign)"}
-                            {kind === "shortlist" && (
-                              <>
-                                {" — "}
-                                <span className="mono text-slate-600">
-                                  {Array.isArray(a.recommendation) ? `${a.recommendation.length}명 후보` : "candidates"}
-                                </span>
-                              </>
-                            )}
-                            {kind === "outreach_send" && outreachSubject(a.recommendation) && (
-                              <>
-                                {" — "}
-                                <span className="text-slate-600 truncate">
-                                  “{outreachSubject(a.recommendation)?.slice(0, 60)}”
-                                </span>
-                              </>
-                            )}
+      {pending.length === 0 ? (
+        <EmptyState
+          icon="✓"
+          title="0 pending · all clear"
+          hint="When a new decision is needed, agents will place it here with a recommendation."
+          action={<Link href="/campaigns"><Button variant="primary">View campaigns</Button></Link>}
+        />
+      ) : (
+        <div className="space-y-6">
+          {activeKinds.map((kind) => {
+            const rows = grouped.get(kind) ?? [];
+            return (
+              <section key={kind}>
+                <SectionLabel className="mb-2.5">
+                  {approvalKindKo(kind)} · {rows.length} items
+                </SectionLabel>
+                <div className="space-y-2.5">
+                  {rows.map((a) => {
+                    const subject = kind === "outreach_send" ? outreachSubject(a.recommendation) : null;
+                    const candidateCount =
+                      kind === "shortlist" && Array.isArray(a.recommendation)
+                        ? a.recommendation.length
+                        : null;
+                    return (
+                      <Card key={a.id} hover>
+                        <CardBody>
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <div className="text-[15px] font-bold text-ink">
+                                {byCampaign.get(a.campaignId) ?? "Unnamed campaign"}
+                                {candidateCount != null && (
+                                  <span className="ml-2 text-[13px] font-medium text-ink-2">
+                                    {candidateCount} candidates
+                                  </span>
+                                )}
+                              </div>
+                              {subject && (
+                                <div className="mt-1 text-[13px] text-ink-2 truncate">
+                                  “{subject.slice(0, 70)}”
+                                </div>
+                              )}
+                              {a.rationale && (
+                                <p className="mt-1 text-[12.5px] text-ink-3 leading-relaxed line-clamp-2">
+                                  {a.rationale}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex flex-col items-end gap-2 shrink-0">
+                              <div className="text-[12px] text-ink-3 mono">{fmtAgo(a.createdAt)}</div>
+                              {REVIEWABLE_KINDS.has(kind) && (
+                                <Link href={`/approvals/${a.id}`}>
+                                  <Button variant="primary" size="sm">Review →</Button>
+                                </Link>
+                              )}
+                            </div>
                           </div>
-                          <div className="mt-0.5 text-[12px] text-slate-500">{a.rationale}</div>
-                          <div className="mt-1 text-[11px] mono text-slate-400">
-                            approval_{a.id.slice(0, 12)} · camp_{a.campaignId.slice(0, 12)}
-                          </div>
-                        </div>
-                        <div className="flex-shrink-0 text-right">
-                          <div className="text-[11px] text-slate-400 mono">{fmtAgo(a.createdAt)}</div>
-                          {REVIEWABLE_KINDS.has(kind) && (
-                            <Link href={`/approvals/${a.id}`} className="mt-1.5 inline-block">
-                              <Button variant="primary">검토 →</Button>
-                            </Link>
-                          )}
-                        </div>
-                      </div>
-                    </CardBody>
-                  </Card>
-                ))
-              )}
-            </section>
-          );
-        })}
-      </div>
+                        </CardBody>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

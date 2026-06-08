@@ -65,17 +65,17 @@ export function createTranslator(
 }
 
 /**
- * Negotiate the locale from a session / header / cookie. Falls back to "ko"
- * (the day-1 primary locale per D34 ordering — Korean first).
+ * Negotiate the locale from a session / header / cookie. Falls back to English,
+ * which is the default demo and judge-facing locale.
  */
 export function negotiateLocale(input: string | null | undefined): AP2Locale {
-  if (!input) return "ko";
+  if (!input) return "en";
   const lower = input.toLowerCase();
   if (lower.startsWith("ko")) return "ko";
   if (lower.startsWith("ja")) return "ja";
   if (lower.startsWith("zh")) return "zh";
   if (lower.startsWith("en")) return "en";
-  return "ko";
+  return "en";
 }
 
 /**
@@ -95,7 +95,7 @@ export function formatDateTime(date: Date, locale: AP2Locale): string {
   ).format(date);
 }
 
-/** Relative time formatter — "12 minutes ago" / "12 분 전". */
+/** Relative time formatter, e.g. "12 minutes ago". */
 export function formatRelativeMinutes(
   minutesAgo: number,
   locale: AP2Locale,
