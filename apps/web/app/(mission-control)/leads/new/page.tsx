@@ -76,7 +76,7 @@ async function createLeadCampaignAction(formData: FormData): Promise<void> {
     .map((line) => {
       const [name, url] = line.split("|").map((s) => s.trim());
       return {
-        companyName: name ?? "(Unnamed company)",
+        companyName: name || "(Unnamed company)",
         ...(url && /^https?:\/\//i.test(url) ? { homepageUrl: url } : {}),
       };
     })

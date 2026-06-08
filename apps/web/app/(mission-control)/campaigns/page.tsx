@@ -56,7 +56,7 @@ export default async function CampaignsPage({
     return true;
   });
 
-  const listProfiles = await resolveCreators(campaigns.flatMap((c) => c.tracks.slice(0, 3).map((t) => t.creatorId)));
+  const listProfiles = await resolveCreators(campaigns.flatMap((c) => (c.tracks ?? []).slice(0, 3).map((t) => t.creatorId)));
 
   const items: CampaignItem[] = campaigns.map((c) => ({
     id: c.id,

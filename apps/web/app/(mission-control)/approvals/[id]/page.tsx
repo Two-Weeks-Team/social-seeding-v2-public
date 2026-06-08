@@ -376,6 +376,7 @@ export default async function ApprovalDetailPage({ params }: { params: Promise<{
                 <tr><td colSpan={6} className="px-4 py-8 text-center text-ink-3">No candidates.</td></tr>
               )}
               {candidates.map((c) => {
+                if (!c.creator) return null;
                 const handle = creatorHandle({ uniqueId: c.creator.uniqueId });
                 return (
                   <tr key={c.creator.id} className="border-b border-line-2 last:border-0 hover:bg-surface-2/60">

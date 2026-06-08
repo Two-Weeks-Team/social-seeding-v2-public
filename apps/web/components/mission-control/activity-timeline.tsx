@@ -96,7 +96,7 @@ export function ActivityTimeline({ traces }: { traces: PersistedTraceDoc[] }) {
   return (
     <div role="feed" aria-label="Agent activity timeline" aria-live="polite" aria-busy="false" className="space-y-5">
       {traces.map((run) => {
-        const tree = buildTree(run.spans);
+        const tree = buildTree(run.spans ?? []);
         return (
           <section key={run.runId} role="article" aria-label={`Run ${fmtRunWhen(run.startedAt)}`}>
             <div className="text-[11px] text-ink-3 mb-1.5">{fmtRunWhen(run.startedAt)}</div>

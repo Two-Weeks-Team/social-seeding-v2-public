@@ -41,7 +41,7 @@ export function CampaignAsk({ campaignId }: { campaignId: string }) {
       const res = await fetch(`/api/campaigns/${campaignId}/ask`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ question: text, history }),
+        body: JSON.stringify({ question: text, history: history.slice(-10) }),
       });
       const data = (await res.json().catch(() => ({}))) as { answer?: string; citations?: string[]; reason?: string; error?: string };
       if (!res.ok) {

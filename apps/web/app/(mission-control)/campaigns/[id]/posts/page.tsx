@@ -153,7 +153,7 @@ export default async function CampaignPostsPage({
                             <div className="text-[11px] text-ink-3 mono truncate">{p.handle}</div>
                           )}
                         </div>
-                        <StatusTag tone={scoreTone(score)} size="sm">{score.toFixed(0)}</StatusTag>
+                        <StatusTag tone={scoreTone(score ?? 0)} size="sm">{score != null ? score.toFixed(0) : "—"}</StatusTag>
                       </div>
                       {c.caption && (
                         <p className="mt-2 text-[11.5px] text-ink-2 leading-snug line-clamp-2">{c.caption}</p>

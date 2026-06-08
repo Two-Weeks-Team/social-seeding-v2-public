@@ -88,7 +88,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .filter(Boolean)
     .join("\n");
 
-  const trace = startTrace(`ask-${id}-${Date.now()}`);
+  const trace = startTrace(id, `ask-${id}-${Date.now()}`);
   const ctx: AgentRunContext = { capabilityCtx: cctx, trace };
 
   try {
