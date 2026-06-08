@@ -375,10 +375,11 @@ export default async function ApprovalDetailPage({ params }: { params: Promise<{
               {candidates.length === 0 && (
                 <tr><td colSpan={6} className="px-4 py-8 text-center text-ink-3">No candidates.</td></tr>
               )}
-              {candidates.map((c, i) => {
-                const handle = creatorHandle({ uniqueId: c.creator?.uniqueId });
+              {candidates.map((c) => {
+                if (!c.creator) return null;
+                const handle = creatorHandle({ uniqueId: c.creator.uniqueId });
                 return (
-                  <tr key={c.creator?.id ?? c.creator?.uniqueId ?? i} className="border-b border-line-2 last:border-0 hover:bg-surface-2/60">
+                  <tr key={c.creator.id} className="border-b border-line-2 last:border-0 hover:bg-surface-2/60">
                     <td className="px-4 py-3">
                       <input type="checkbox" name="creatorId" value={c.creator.id} defaultChecked className="cursor-pointer accent-brand" />
                     </td>
