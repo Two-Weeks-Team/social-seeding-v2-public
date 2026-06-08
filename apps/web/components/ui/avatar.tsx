@@ -21,13 +21,14 @@ const PALETTE = [
 ];
 
 function pick(seed: string): string {
+  const s = seed ?? "";
   let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return PALETTE[h % PALETTE.length] as string;
 }
 
 function initial(name: string): string {
-  const t = name.replace(/^@/, "").trim();
+  const t = (name ?? "").replace(/^@/, "").trim();
   return (t[0] ?? "?").toUpperCase();
 }
 

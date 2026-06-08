@@ -44,10 +44,11 @@ function fmtDateShort(d?: Date): string {
 }
 
 function summarizeProducts(s: Shipment): string {
-  if (s.products.length === 0) return "—";
-  const first = s.products[0]!;
-  if (s.products.length === 1) return first.name;
-  return `${first.name} + ${s.products.length - 1} more`;
+  const products = s.products ?? [];
+  if (products.length === 0) return "—";
+  const first = products[0]!;
+  if (products.length === 1) return first.name;
+  return `${first.name} + ${products.length - 1} more`;
 }
 
 export default async function CampaignShipmentsPage({

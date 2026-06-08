@@ -45,7 +45,8 @@ export function Sidebar({
   monthlyBudgetUsd?: number;
   workspaceName?: string;
 }) {
-  const spendPct = Math.max(0, Math.min(100, Math.round((monthlySpendUsd / monthlyBudgetUsd) * 100)));
+  const budget = monthlyBudgetUsd > 0 ? monthlyBudgetUsd : 1;
+  const spendPct = Math.max(0, Math.min(100, Math.round((monthlySpendUsd / budget) * 100)));
   const wsLabel = workspaceName ?? session.workspaceId;
   return (
     <aside className="w-60 bg-surface border-r border-line flex flex-col shrink-0">

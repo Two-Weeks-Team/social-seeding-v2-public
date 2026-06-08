@@ -66,7 +66,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         .sort((x, y) => (y.views ?? 0) - (x.views ?? 0))
         .slice(0, 10)
         .map((t) => `- ${handleOf(t.creatorId)} · ${t.state}${t.views != null ? ` · ${t.views.toLocaleString()} views` : ""}${t.performanceScore != null ? ` · score ${t.performanceScore}` : ""}`)
-    : campaign.tracks.slice(0, 10).map((t) => `- ${handleOf(t.creatorId)} · ${t.state}`);
+    : (campaign.tracks ?? []).slice(0, 10).map((t) => `- ${handleOf(t.creatorId)} · ${t.state}`);
 
   const er = a?.reach.weightedEngagementRate ?? null;
   const context = [
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .filter(Boolean)
     .join("\n");
 
-  const trace = startTrace(`ask-${id}-${Date.now()}`);
+  const trace = startTrace(id, `ask-${id}-${Date.now()}`);
   const ctx: AgentRunContext = { capabilityCtx: cctx, trace };
 
   try {

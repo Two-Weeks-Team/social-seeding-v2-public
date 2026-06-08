@@ -29,7 +29,7 @@ export async function resolveCreators(ids: Array<string | null | undefined>): Pr
     const d = byId.get(id) ?? byHandle.get(id) ?? byHandle.get(id.replace(/^@/, ""));
     if (d) {
       map.set(id, {
-        handle: d.uniqueId.startsWith("@") ? d.uniqueId : `@${d.uniqueId}`,
+        handle: d.uniqueId ? (d.uniqueId.startsWith("@") ? d.uniqueId : `@${d.uniqueId}`) : creatorLabel(id),
         nickname: d.nickname || undefined,
         avatar: d.avatarThumb,
         followers: d.followerCount,

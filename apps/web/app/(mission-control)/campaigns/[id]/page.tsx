@@ -114,9 +114,9 @@ export default async function CampaignDetailPage({
   const vetCount = traces.reduce(
     (sum, t) =>
       sum +
-      t.spans
+      (t.spans ?? [])
         .filter((s) => s.name === "agent:vetting")
-        .reduce((a, s) => a + (typeof s.attrs.evaluated === "number" ? (s.attrs.evaluated as number) : 1), 0),
+        .reduce((a, s) => a + (typeof s.attrs?.evaluated === "number" ? (s.attrs.evaluated as number) : 1), 0),
     0,
   );
   const shortlistCount =

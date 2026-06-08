@@ -29,7 +29,7 @@ export interface RunTrace {
   flush(): Promise<void>;
 }
 
-export function startTrace(campaignId: string, runId = randomUUID()): RunTrace {
+export function startTrace(campaignId: string, runId: string = randomUUID()): RunTrace {
   const spans: TraceSpan[] = [];
   // AsyncLocalStorage carries the current parent span id PER async context, so
   // concurrent spans (e.g. a Promise.all vetting fan-out) become SIBLINGS, not a

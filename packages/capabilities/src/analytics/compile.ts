@@ -42,9 +42,11 @@ export const analyticsCompile = defineCapability({
     asOf: z.coerce.date().optional(),
   }),
   output: AnalyticsReportSchema,
-  async handler({ campaignId, asOf }, _ctx): Promise<AnalyticsReport> {
+  async handler({ campaignId, asOf }, ctx): Promise<AnalyticsReport> {
     const campaign = await campaignRepo.get(campaignId);
     if (!campaign) throw new Error(`analytics.compile: no campaign with id=${campaignId}`);
+    if (campaign.brief.workspaceId !== ctx.workspaceId)
+      throw new Error(`analytics.compile: campaign ${campaignId} is not in workspace ${ctx.workspaceId}`);
 
     const generatedAt = asOf ?? new Date();
     const spentUsd = await getObservabilitySink().sumCampaignUsd(campaignId);

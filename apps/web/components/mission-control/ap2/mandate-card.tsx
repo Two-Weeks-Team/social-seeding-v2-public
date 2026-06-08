@@ -83,7 +83,7 @@ export function MandateCard({
     waitMinutes >= 30 ? "rose" : waitMinutes >= 10 ? "amber" : "slate";
   // Human campaign ref — never the raw camp_ token. Use the campaign name when
   // present; otherwise a short "Campaign ·{last4}" reference (mirrors creatorLabel).
-  const campaignRef = campaignName?.trim() || `Campaign ·${campaignId.slice(-4)}`;
+  const campaignRef = campaignName?.trim() || `Campaign ·${(campaignId ?? "").slice(-4)}`;
 
   return (
     <div
