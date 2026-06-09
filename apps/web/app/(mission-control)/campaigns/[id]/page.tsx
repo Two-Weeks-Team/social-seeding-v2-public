@@ -21,6 +21,7 @@ import { cn } from "@/lib/cn";
 import { campaignStatus, approvalKindKo, trackState, stageKo } from "@/lib/labels";
 import { creatorLabel, fmtFollowers, fmtCompactKo } from "@/lib/format";
 import { resolveCreators } from "@/lib/creators";
+import { reachedFunnel } from "@/lib/funnel";
 
 /** Lifecycle controls — cancel + pause/resume (see prior history for the durable-workflow semantics). */
 async function cancelCampaignAction(formData: FormData): Promise<void> {
@@ -267,7 +268,14 @@ export default async function CampaignDetailPage({
                       <SectionLabel>Conversion funnel</SectionLabel>
                       <Link href={`/campaigns/${id}/performance`} className="text-[11.5px] text-ink-3 hover:text-ink-2">Full performance →</Link>
                     </div>
-                    <Funnel rows={FUNNEL_DEF.map((d) => ({ label: d.label, value: analytics.funnel[d.key] }))} />
+                    <Funnel
+                      rows={(() => {
+                        // Cumulative ("reached this stage or further"), matching /performance —
+                        // raw state buckets made Verified exceed Posted on completed pilots.
+                        const reached = reachedFunnel(analytics.funnel);
+                        return FUNNEL_DEF.map((d) => ({ label: d.label, value: reached[d.key] ?? 0 }));
+                      })()}
+                    />
                   </CardBody>
                 </Card>
               )}
