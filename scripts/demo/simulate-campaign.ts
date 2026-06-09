@@ -136,10 +136,12 @@ async function main(): Promise<void> {
   const PRODUCTS = {
     glow: {
       brandProduct: { name: "Live Demo — Glow Serum", category: "skincare/serum", description: "라이브 시뮬레이션 캠페인 (K-beauty 수분 세럼).", keyClaims: ["7일 보습", "무향"] },
+      shortName: "Glow Serum", // outreach copy ("our Glow Serum launch") — the full name reads broken mid-sentence
       creatorCount: 8,
     },
     hyalu: {
       brandProduct: { name: "히알루 수분세럼 · 6월", category: "skincare/serum", description: "히알루론산 수분 세럼 — 6월 신규 캠페인. 라이브 시뮬레이션.", keyClaims: ["72시간 보습", "무향"] },
+      shortName: "Hyalu Serum",
       creatorCount: 8,
     },
   } as const;
@@ -173,7 +175,7 @@ async function main(): Promise<void> {
     const c = cands.find((x) => x.h === top.creatorId);
     const handle = c?.h ?? top.creatorId;
     const nickname = c?.nickname ?? handle;
-    const productName = brief.brandProduct.name;
+    const productName = product.shortName;
     const followers = c ? `${Math.round(c.followers / 1000)}K followers on TikTok` : "seeded TikTok creator";
 
     const draft = {
