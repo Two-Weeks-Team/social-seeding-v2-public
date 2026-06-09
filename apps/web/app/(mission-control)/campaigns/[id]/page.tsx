@@ -271,20 +271,27 @@ export default async function CampaignDetailPage({
                   </CardBody>
                 </Card>
               )}
-              <Card>
-                <CardBody>
-                  <div className="flex items-center justify-between mb-3">
-                    <SectionLabel>Activity timeline</SectionLabel>
-                    {isLive && (
-                      <div className="text-[11px] text-ink-3 flex items-center gap-1.5">
-                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-ok animate-pulse" />
-                        Live
-                      </div>
-                    )}
-                  </div>
-                  <ActivityTimeline traces={traces} />
-                </CardBody>
-              </Card>
+              {/* A completed campaign with no retained agent traces (e.g. a pilot we
+                  measured rather than ran live) would otherwise show the misleading
+                  "activity will appear once sourcing starts" empty state — hide the
+                  card in that case. Live/in-progress campaigns keep it so streaming
+                  activity (or the pending-start hint) still shows. */}
+              {(traces.length > 0 || !isComplete) && (
+                <Card>
+                  <CardBody>
+                    <div className="flex items-center justify-between mb-3">
+                      <SectionLabel>Activity timeline</SectionLabel>
+                      {isLive && (
+                        <div className="text-[11px] text-ink-3 flex items-center gap-1.5">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-ok animate-pulse" />
+                          Live
+                        </div>
+                      )}
+                    </div>
+                    <ActivityTimeline traces={traces} />
+                  </CardBody>
+                </Card>
+              )}
             </div>
           )}
         </div>
