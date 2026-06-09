@@ -192,6 +192,9 @@ async function main(): Promise<void> {
         "Posts regularly in K-beauty / skincare",
         "hashtag overlap (kbeauty, skincare) with the brief",
       ],
+      // Canned scores, same as every agent decision in this offline sim (see header):
+      // the live outreach writer produces these via its judge tournament; the sim
+      // pins representative values so the gate UI renders deterministically.
       judgeScores: { brand: 0.92, conversion: 0.81, deliverability: 0.88, skeptic: 0.79 },
     };
     const approval = await approvalRepo.create({
