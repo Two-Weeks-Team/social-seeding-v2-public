@@ -5,13 +5,41 @@ import { Card, CardBody } from "@/components/ui/card";
 import { GoogleButton } from "@/components/ui/google-button";
 import { googleLoginHref } from "@/lib/auth-links";
 import { SESSION_COOKIE, cookieSecure, getServerSession, signSession } from "@/lib/auth";
+import { mintJudgeDemoSession } from "@/lib/judge-demo";
 
 /**
  * Sign-in. The production path is a real Google OAuth login (the prominent
- * button → /api/auth/google/start → consent → ss_session). A dev test-login
- * form is still rendered, but ONLY when AUTH_TEST_LOGIN_ENABLED==="true"
+ * button → /api/auth/google/start → consent → ss_session). For challenge
+ * reviewers, a one-click "Enter as judge" button mints the read-only judge-demo
+ * session (gated on JUDGE_DEMO_ENABLED, no Google account needed) — the same
+ * bypass as the `/api/auth/judge-demo` magic link, surfaced as a button so a
+ * judge who lands on the sign-in page can get in without the token URL. A dev
+ * test-login form is also rendered, but ONLY when AUTH_TEST_LOGIN_ENABLED==="true"
  * (hidden in production), demoted below a divider. C2 "Champagne & Espresso".
  */
+
+const JUDGE_DEMO_ERRORS: Record<string, string> = {
+  "404": "Judge demo is not enabled right now.",
+  "410": "The judging window has closed.",
+  "429": "Judge demo access limit reached — please use the Devpost testing link.",
+  "500": "Judge demo is temporarily misconfigured.",
+};
+
+/** Server action — read-only judge access. Only mints when JUDGE_DEMO_ENABLED=true. */
+async function judgeDemoLogin(): Promise<void> {
+  "use server";
+  if (process.env.JUDGE_DEMO_ENABLED !== "true") redirect("/sign-in?demoError=404");
+  const minted = await mintJudgeDemoSession();
+  if (!minted.ok) redirect(`/sign-in?demoError=${minted.status}`);
+  (await cookies()).set(SESSION_COOKIE, minted.sessionToken, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: minted.ttlSeconds,
+    secure: cookieSecure(),
+  });
+  redirect("/campaigns");
+}
 
 /** Server action — only callable when AUTH_TEST_LOGIN_ENABLED=true. */
 async function devLogin(): Promise<void> {
@@ -33,9 +61,16 @@ async function devLogin(): Promise<void> {
   redirect("/campaigns");
 }
 
-export default async function SignInPage(): Promise<React.ReactNode> {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ demoError?: string }>;
+}): Promise<React.ReactNode> {
   if (await getServerSession()) redirect("/campaigns");
 
+  const judgeDemoEnabled = process.env.JUDGE_DEMO_ENABLED === "true";
+  const demoError = (await searchParams)?.demoError;
+  const demoErrorMessage = demoError ? (JUDGE_DEMO_ERRORS[demoError] ?? "Judge demo is unavailable.") : null;
   const devLoginEnabled = process.env.AUTH_TEST_LOGIN_ENABLED === "true";
   const demoWorkspaceId = process.env.DEMO_LOGIN_WORKSPACE_ID ?? "ws_demo";
   const demoEmail = process.env.DEMO_LOGIN_EMAIL ?? "tester@2weeks.co";
@@ -62,6 +97,34 @@ export default async function SignInPage(): Promise<React.ReactNode> {
             Once signed in, the agent fleet runs campaigns for this workspace. External sends pass through
             policy gates, with <span className="font-semibold text-ink-2">always review</span> as the default.
           </p>
+
+          {demoErrorMessage ? (
+            <p
+              role="alert"
+              className="rounded-xl border border-stop/30 bg-stop-bg px-3 py-2 text-[12px] text-stop"
+            >
+              {demoErrorMessage}
+            </p>
+          ) : null}
+
+          {judgeDemoEnabled ? (
+            <div className="pt-4 border-t border-line space-y-2.5">
+              <div className="text-[10px] uppercase tracking-[0.06em] text-ink-3 font-semibold">
+                For challenge reviewers
+              </div>
+              <form action={judgeDemoLogin}>
+                <button
+                  type="submit"
+                  className="w-full inline-flex items-center justify-center rounded-xl border border-brand/40 bg-brand/5 px-3 py-2.5 text-[13px] font-semibold text-brand-ink hover:bg-brand/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ink focus-visible:ring-offset-2"
+                >
+                  Enter as judge — read-only demo
+                </button>
+              </form>
+              <p className="text-[11px] leading-relaxed text-ink-3">
+                No account needed. Tours a populated workspace; sends and approvals are disabled for this session.
+              </p>
+            </div>
+          ) : null}
 
           {devLoginEnabled ? (
             <div className="pt-4 border-t border-line space-y-2.5">
