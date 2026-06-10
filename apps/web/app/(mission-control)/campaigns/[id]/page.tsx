@@ -281,12 +281,13 @@ export default async function CampaignDetailPage({
                   </CardBody>
                 </Card>
               )}
-              {/* A completed campaign with no retained agent traces (e.g. a pilot we
-                  measured rather than ran live) would otherwise show the misleading
-                  "activity will appear once sourcing starts" empty state — hide the
-                  card in that case. Live/in-progress campaigns keep it so streaming
-                  activity (or the pending-start hint) still shows. */}
-              {(traces.length > 0 || !isComplete) && (
+              {/* A finished campaign (completed OR cancelled) with no retained agent
+                  traces — e.g. a pilot we measured rather than ran live — would
+                  otherwise show the misleading "activity will appear once sourcing
+                  starts" empty state — hide the card in that case. Live/in-progress
+                  campaigns keep it so streaming activity (or the pending-start hint)
+                  still shows. */}
+              {(traces.length > 0 || isLive) && (
                 <Card>
                   <CardBody>
                     <div className="flex items-center justify-between mb-3">

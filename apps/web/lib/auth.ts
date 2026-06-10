@@ -131,9 +131,12 @@ export function denyIfDemo(session: SessionClaims): Response | null {
  * No-op for real sessions.
  */
 export function demoReadonlyGuard(session: SessionClaims | null, backTo: string): void {
-  if (session?.demo) {
-    redirect(`${backTo}${backTo.includes("?") ? "&" : "?"}demoReadonly=1`);
-  }
+  if (!session?.demo) return;
+  // Keep the marker in the query (not a #fragment) and never append it twice.
+  const [pathAndQuery = "", hash] = backTo.split("#");
+  const hashPart = hash ? `#${hash}` : "";
+  if (pathAndQuery.includes("demoReadonly=1")) redirect(backTo);
+  redirect(`${pathAndQuery}${pathAndQuery.includes("?") ? "&" : "?"}demoReadonly=1${hashPart}`);
 }
 
 /** Returns the session, or a ready-to-return 401 Response. Bearer-only (API routes). */

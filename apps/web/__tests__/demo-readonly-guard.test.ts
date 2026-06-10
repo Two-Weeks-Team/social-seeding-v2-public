@@ -30,4 +30,25 @@ describe("demoReadonlyGuard (server-action read-only enforcement)", () => {
     }
     expect(digest).toContain("/campaigns/c1?tab=mail&demoReadonly=1");
   });
+
+  it("keeps the marker in the query, not inside a #fragment", () => {
+    let digest = "";
+    try {
+      demoReadonlyGuard({ ...base, demo: true }, "/campaigns/c1#timeline");
+    } catch (e) {
+      digest = String((e as { digest?: string }).digest ?? "");
+    }
+    expect(digest).toContain("/campaigns/c1?demoReadonly=1#timeline");
+  });
+
+  it("never appends the marker twice", () => {
+    let digest = "";
+    try {
+      demoReadonlyGuard({ ...base, demo: true }, "/approvals?demoReadonly=1");
+    } catch (e) {
+      digest = String((e as { digest?: string }).digest ?? "");
+    }
+    expect(digest).toContain("/approvals?demoReadonly=1");
+    expect(digest).not.toContain("demoReadonly=1&demoReadonly=1");
+  });
 });

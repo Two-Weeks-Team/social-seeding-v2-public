@@ -5,8 +5,10 @@
  * The magic-link route validates a caller-supplied `?token=` (the secret that
  * goes in Devpost "Testing access"); this helper instead trusts the server's
  * own env token, so the sign-in button needs no secret in the page HTML. Both
- * paths share one env config + one usage cap (counter keyed on HMAC(token)),
- * so total demo logins are bounded regardless of which entry a reviewer uses.
+ * paths share one env config (enable/expiry/kill-switch + per-bucket max), but
+ * the button consumes its OWN usage bucket (HMAC over token|signin-button):
+ * the button is publicly clickable, so bot traffic against it must never be
+ * able to exhaust the token-gated Devpost link's slots (codex review P2).
  *
  * The minted session carries `demo: true` → every state-mutating route refuses
  * it (`denyIfDemo`), so this is a read-only tour, never an actuator.
@@ -77,7 +79,8 @@ export async function mintJudgeDemoSession(): Promise<JudgeDemoMint> {
     return { ok: false, status: 500, error: "judge_demo_misconfigured" };
   }
 
-  const tokenHash = createHmac("sha256", secret).update(token, "utf8").digest("hex");
+  // Distinct bucket from the magic link's HMAC(token) — see header.
+  const tokenHash = createHmac("sha256", secret).update(`${token}|signin-button`, "utf8").digest("hex");
   const maxUses = Number(process.env.JUDGE_DEMO_MAX_USES) || DEFAULT_MAX_USES;
   const consumed = await consumeUsage(tokenHash, maxUses);
   if (!consumed) return { ok: false, status: 429, error: "demo_uses_exhausted" };
