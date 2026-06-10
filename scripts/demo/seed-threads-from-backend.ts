@@ -186,8 +186,14 @@ function redactContacts(s: string): string {
   //    occur in normal prose);
   //  · en/number patterns must look like an actual street / unit / city-ZIP line,
   //    so "campaign #123", "test suite" or "an apt description" are NOT redacted.
+  // av./col. keep the period form; the spelled-out words match bare; the bare
+  // abbreviations ("Av Insurgentes") need a following capital/number so prose
+  // stays safe — MX addresses are routinely written without the period.
+  // NOTE: a trailing \b after the group would NEVER match the dotted forms
+  // ("Av." → no word boundary between "." and a space) — latent in the original
+  // single-regex version too. End on a no-lowercase lookahead instead.
   const ADDR_STRONG =
-    /\b(calle|av(?:enida)?\.|col(?:onia)?\.|c\.?p\.?\s*\d{4,5}|c[oó]digo postal|direcci[oó]n|alcald[ií]a|delegaci[oó]n|cdmx|ciudad de m[eé]xico|estado de m[eé]xico)\b/i;
+    /\b(calle|av\.|avenida|av(?=\s+[\dA-ZÀ-Ý])|col\.|colonia|c\.?p\.?\s*\d{4,5}|c[oó]digo postal|direcci[oó]n|alcald[ií]a|delegaci[oó]n|cdmx|ciudad de m[eé]xico|estado de m[eé]xico)(?![a-zà-ÿ])/i;
   const ADDR_STREET =
     /\b\d{1,5}\s+[A-Za-zÀ-ÿ.'-]+(?:\s+[A-Za-zÀ-ÿ.'-]+){0,3}\s+(?:st(?:reet)?|ave(?:nue)?|r(?:oa)?d|blvd|boulevard|dr(?:ive)?|lane|ln|court|ct|way|place|pl)\.?\b/i;
   const ADDR_UNIT = /\b(?:apt|apartment|suite|unit|depto|departamento|interior|int)\.?\s*#?\s*\d{1,5}\b/i;
