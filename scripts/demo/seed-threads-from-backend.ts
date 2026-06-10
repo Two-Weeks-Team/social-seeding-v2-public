@@ -43,6 +43,8 @@ process.env.MONGODB_URI ??= "mongodb://127.0.0.1:27027/instarsearch";
 const V1_CAMPAIGN_ID = process.env.V1_CAMPAIGN_ID ?? "68a2caf0044d2ccb1c135a14";
 const V2_CAMPAIGN_ID = process.env.V2_CAMPAIGN_ID ?? "6a1f6ffd6dcae518cfc59ad2";
 const WORKSPACE_ID = process.env.WORKSPACE_ID ?? "ws_wooriliu_2nd";
+// Contact redaction is ON by default — pass --no-redact only for a private local run.
+const REDACT = !process.argv.includes("--no-redact");
 
 if (!EMAIL || !PASSWORD) {
   console.error(`[seed-threads] missing backend creds (looked in ${v1EnvPath})`);
@@ -159,6 +161,54 @@ function bodyOf(e: RawEmail): string {
   }
   return (e.snippet ?? "").trim();
 }
+/**
+ * Contact-detail redaction (default ON). The judge demo shows these REAL pilot
+ * conversations read-only; creator privacy requires stripping contact channels
+ * (emails / phones / shipping-address lines) while keeping the conversational
+ * substance verbatim. The labels are deliberately visible — an honest editorial
+ * mark, not silent substitution — and the policy is documented in
+ * scripts/demo/submission/HONEST-SCOPE.md.
+ */
+function redactContacts(s: string): string {
+  let out = s.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, "[email removed — creator privacy]");
+  // phone-ish: separator-joined digit runs that contain >= 9 digits (e.g. +52 …).
+  // Date(+time) stamps ("2026-05-22 15", "22/05/2026 15.30") clear that digit bar
+  // with only allowed separators — never treat a pure date-shaped match as a phone.
+  const DATEISH =
+    /^\s*(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})(?:[\s.]\d{1,2}(?:[:.]\d{2}){0,2})?\s*$/;
+  out = out.replace(/\+?\d[\d\s().-]{7,}\d/g, (m) => {
+    if (DATEISH.test(m)) return m;
+    const digits = m.replace(/\D/g, "");
+    return digits.length >= 9 ? "[phone removed — creator privacy]" : m;
+  });
+  // Address-looking LINES → drop the whole line. Two tiers so prose survives:
+  //  · STRONG es-MX markers suffice alone (calle / colonia / C.P. … — these don't
+  //    occur in normal prose);
+  //  · en/number patterns must look like an actual street / unit / city-ZIP line,
+  //    so "campaign #123", "test suite" or "an apt description" are NOT redacted.
+  // av./col. keep the period form; the spelled-out words match bare; the bare
+  // abbreviations ("Av Insurgentes") need a following capital/number so prose
+  // stays safe — MX addresses are routinely written without the period.
+  // NOTE: a trailing \b after the group would NEVER match the dotted forms
+  // ("Av." → no word boundary between "." and a space) — latent in the original
+  // single-regex version too. End on a no-lowercase lookahead instead.
+  const ADDR_STRONG =
+    /\b(calle|av\.|avenida|av(?=\s+[\dA-ZÀ-Ý])|col\.|colonia|c\.?p\.?\s*\d{4,5}|c[oó]digo postal|direcci[oó]n|alcald[ií]a|delegaci[oó]n|cdmx|ciudad de m[eé]xico|estado de m[eé]xico)(?![a-zà-ÿ])/i;
+  const ADDR_STREET =
+    /\b\d{1,5}\s+[A-Za-zÀ-ÿ.'-]+(?:\s+[A-Za-zÀ-ÿ.'-]+){0,3}\s+(?:st(?:reet)?|ave(?:nue)?|r(?:oa)?d|blvd|boulevard|dr(?:ive)?|lane|ln|court|ct|way|place|pl)\.?\b/i;
+  const ADDR_UNIT = /\b(?:apt|apartment|suite|unit|depto|departamento|interior|int)\.?\s*#?\s*\d{1,5}\b/i;
+  const ADDR_CITYZIP = /\b[A-Z][A-Za-zÀ-ÿ]+,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/;
+  out = out
+    .split("\n")
+    .map((line) =>
+      ADDR_STRONG.test(line) || ADDR_STREET.test(line) || ADDR_UNIT.test(line) || ADDR_CITYZIP.test(line)
+        ? "[shipping address removed — creator privacy]"
+        : line,
+    )
+    .join("\n")
+    .replace(/(\[shipping address removed — creator privacy\]\n?){2,}/g, "[shipping address removed — creator privacy]\n");
+  return out;
+}
 function whenOf(e: RawEmail): Date {
   const v = e.sentAt ?? e.date ?? e.createdAt;
   const d = v ? new Date(v) : new Date(0);
@@ -266,14 +316,17 @@ async function main(): Promise<void> {
     }
     threadsKept++;
     for (const e of msgs) {
-      const body = bodyOf(e);
+      const rawBody = bodyOf(e);
+      const body = REDACT ? redactContacts(rawBody) : rawBody;
+      const rawSubject = (e.subject ?? "").trim();
+      const subject = REDACT ? redactContacts(rawSubject) : rawSubject;
       docs.push({
         workspaceId: WORKSPACE_ID,
         campaignId: V2_CAMPAIGN_ID,
         creatorId: handle,
         threadId,
         direction: isOutbound(e) ? "outbound" : "inbound",
-        subject: (e.subject ?? "").trim() || "(제목 없음)",
+        subject: subject || "(제목 없음)",
         body: body || "(본문 없음)",
         sentAt: whenOf(e),
         classification: null,
