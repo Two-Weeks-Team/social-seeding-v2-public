@@ -12,7 +12,7 @@ import { ActivityTimeline } from "@/components/mission-control/activity-timeline
 import { CampaignCanvas } from "@/components/mission-control/campaign-canvas";
 import { CampaignAsk } from "@/components/mission-control/campaign-ask";
 import { bucketTracksByState } from "@/components/mission-control/campaign-track-buckets";
-import { getServerSession } from "@/lib/auth";
+import { demoReadonlyGuard, getServerSession } from "@/lib/auth";
 import { approvalRepo, campaignRepo, traceRepo, messageRepo } from "@ss/db";
 import { Events, AnalyticsReportSchema, type AnalyticsReport } from "@ss/contracts";
 import { inngest } from "@ss/workflows";
@@ -21,6 +21,7 @@ import { cn } from "@/lib/cn";
 import { campaignStatus, approvalKindKo, trackState, stageKo } from "@/lib/labels";
 import { creatorLabel, fmtFollowers, fmtCompactKo } from "@/lib/format";
 import { resolveCreators } from "@/lib/creators";
+import { reachedFunnel } from "@/lib/funnel";
 
 /** Lifecycle controls — cancel + pause/resume (see prior history for the durable-workflow semantics). */
 async function cancelCampaignAction(formData: FormData): Promise<void> {
@@ -29,6 +30,7 @@ async function cancelCampaignAction(formData: FormData): Promise<void> {
   if (!session) throw new Error("not authenticated");
   const campaignId = formData.get("campaignId");
   if (typeof campaignId !== "string") throw new Error("missing campaignId");
+  demoReadonlyGuard(session, `/campaigns/${campaignId}`);
   const c = await campaignRepo.get(campaignId);
   if (!c || c.brief.workspaceId !== session.workspaceId) throw new Error("forbidden");
   if (c.status === "cancelled" || c.status === "completed") {
@@ -46,6 +48,7 @@ async function pauseCampaignAction(formData: FormData): Promise<void> {
   if (!session) throw new Error("not authenticated");
   const campaignId = formData.get("campaignId");
   if (typeof campaignId !== "string") throw new Error("missing campaignId");
+  demoReadonlyGuard(session, `/campaigns/${campaignId}`);
   const c = await campaignRepo.get(campaignId);
   if (!c || c.brief.workspaceId !== session.workspaceId) throw new Error("forbidden");
   if (c.status === "cancelled" || c.status === "completed") {
@@ -267,24 +270,39 @@ export default async function CampaignDetailPage({
                       <SectionLabel>Conversion funnel</SectionLabel>
                       <Link href={`/campaigns/${id}/performance`} className="text-[11.5px] text-ink-3 hover:text-ink-2">Full performance →</Link>
                     </div>
-                    <Funnel rows={FUNNEL_DEF.map((d) => ({ label: d.label, value: analytics.funnel[d.key] }))} />
+                    <Funnel
+                      rows={(() => {
+                        // Cumulative ("reached this stage or further"), matching /performance —
+                        // raw state buckets made Verified exceed Posted on completed pilots.
+                        const reached = reachedFunnel(analytics.funnel);
+                        return FUNNEL_DEF.map((d) => ({ label: d.label, value: reached[d.key] ?? 0 }));
+                      })()}
+                    />
                   </CardBody>
                 </Card>
               )}
-              <Card>
-                <CardBody>
-                  <div className="flex items-center justify-between mb-3">
-                    <SectionLabel>Activity timeline</SectionLabel>
-                    {isLive && (
-                      <div className="text-[11px] text-ink-3 flex items-center gap-1.5">
-                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-ok animate-pulse" />
-                        Live
-                      </div>
-                    )}
-                  </div>
-                  <ActivityTimeline traces={traces} />
-                </CardBody>
-              </Card>
+              {/* A finished campaign (completed OR cancelled) with no retained agent
+                  traces — e.g. a pilot we measured rather than ran live — would
+                  otherwise show the misleading "activity will appear once sourcing
+                  starts" empty state — hide the card in that case. Live/in-progress
+                  campaigns keep it so streaming activity (or the pending-start hint)
+                  still shows. */}
+              {(traces.length > 0 || isLive) && (
+                <Card>
+                  <CardBody>
+                    <div className="flex items-center justify-between mb-3">
+                      <SectionLabel>Activity timeline</SectionLabel>
+                      {isLive && (
+                        <div className="text-[11px] text-ink-3 flex items-center gap-1.5">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-ok animate-pulse" />
+                          Live
+                        </div>
+                      )}
+                    </div>
+                    <ActivityTimeline traces={traces} />
+                  </CardBody>
+                </Card>
+              )}
             </div>
           )}
         </div>

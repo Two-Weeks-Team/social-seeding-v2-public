@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle, CardSubtitle, SectionLabel } from "@/components/ui/card";
 import { StatusTag } from "@/components/ui/status-tag";
-import { getServerSession } from "@/lib/auth";
+import { demoReadonlyGuard, getServerSession } from "@/lib/auth";
 import { workspaceRepo, defaultPolicy } from "@ss/db";
 import { type GateConfig, type WorkspacePolicy } from "@ss/contracts";
 import { gateKo } from "@/lib/labels";
@@ -70,6 +70,7 @@ async function savePolicyAction(formData: FormData): Promise<void> {
   "use server";
   const session = await getServerSession();
   if (!session) redirect("/sign-in");
+  demoReadonlyGuard(session, "/policies");
 
   const ModeEnum = z.enum(["always_ask", "auto", "auto_unless"]);
   const PolicyForm = z.object({
@@ -206,6 +207,7 @@ async function applyPresetAction(formData: FormData): Promise<void> {
   "use server";
   const session = await getServerSession();
   if (!session) redirect("/sign-in");
+  demoReadonlyGuard(session, "/policies");
   const level = z.enum(["copilot", "checkpointed", "autonomous"]).parse(formData.get("level"));
   const existing = await workspaceRepo.getPolicy(session.workspaceId);
   const next: WorkspacePolicy = {
@@ -254,6 +256,7 @@ async function toggleV2RolloutAction(formData: FormData): Promise<void> {
   "use server";
   const session = await getServerSession();
   if (!session) redirect("/sign-in");
+  demoReadonlyGuard(session, "/policies");
   // Only the workspace owner or an admin member can flip the rollout flag.
   // A non-owner member submitting the form (e.g. via a stale page they still
   // have permission to view) must not be able to redirect or roll back the

@@ -19,14 +19,24 @@ export const TikTokCreatorSchema = z.object({
   followingCount: z.number().int().nonnegative(),
   videoCount: z.number().int().nonnegative(),
   heartCount: z.number().int().nonnegative().optional(),
-  hashtags: z.array(z.string()).default([]),
+  // v1 `accounts_tiktok` stores `hashtags: null` for un-tagged creators; `.default([])`
+  // only fills an *undefined* field, so a literal null failed safeParse and dropped the
+  // creator from every read (same class as `language` below). Normalize null → [].
+  hashtags: z.preprocess((v) => (v == null ? [] : v), z.array(z.string()).default([])),
   // v2-derived. The shared v1 `accounts_tiktok` stores `language: null` (it tracks
   // `textLanguage` instead), and `.optional()` rejects an explicit null — which
   // silently failed EVERY creator's safeParse and made tiktok.search return zero.
   // Accept null and normalize it to undefined.
   language: z.preprocess((v) => (v === null ? undefined : v), z.string().length(2).optional()),
   avgViews: z.number().nonnegative().optional(),
-  engagementRate: z.number().min(0).max(1).optional(),
+  // v1 `accounts_tiktok` sometimes stores engagementRate as a percentage (e.g. 7.9),
+  // out of the 0–1 ratio range; a strict .max(1) failed safeParse and dropped the whole
+  // creator. Keep valid ratios, coerce anything out of range to undefined (unknown)
+  // rather than propagate a wrong number into ranking/display.
+  engagementRate: z.preprocess(
+    (v) => (typeof v === "number" && v >= 0 && v <= 1 ? v : undefined),
+    z.number().min(0).max(1).optional(),
+  ),
   influenceScore: z.number().min(0).max(100).optional(),
   // v2 relationship memory (per workspace) — populated by the vetting agent
   priorOutcome: z

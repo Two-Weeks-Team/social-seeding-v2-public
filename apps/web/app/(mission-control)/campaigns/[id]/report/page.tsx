@@ -6,7 +6,7 @@ import { Card, CardBody, CardHeader, CardTitle, SectionLabel } from "@/component
 import { StatusTag, type StatusTone } from "@/components/ui/status-tag";
 import { Stat } from "@/components/ui/stat";
 import { EmptyState } from "@/components/ui/empty-state";
-import { getServerSession } from "@/lib/auth";
+import { demoReadonlyGuard, getServerSession } from "@/lib/auth";
 import { campaignRepo, reportRepo } from "@ss/db";
 import { Events, AnalyticsReportSchema, type AnalyticsReport, type Report, type ReportNarrative } from "@ss/contracts";
 import { inngest } from "@ss/workflows";
@@ -32,6 +32,7 @@ async function generateReportAction(formData: FormData): Promise<void> {
   if (!session) throw new Error("not authenticated");
   const campaignId = formData.get("campaignId");
   if (typeof campaignId !== "string") throw new Error("missing campaignId");
+  demoReadonlyGuard(session, `/campaigns/${campaignId}/report`);
   const campaign = await campaignRepo.get(campaignId);
   if (!campaign || campaign.brief.workspaceId !== session.workspaceId) {
     throw new Error("forbidden");

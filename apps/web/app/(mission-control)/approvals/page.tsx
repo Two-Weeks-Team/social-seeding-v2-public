@@ -48,9 +48,16 @@ function outreachSubject(rec: unknown): string | null {
   return null;
 }
 
-export default async function ApprovalsPage() {
+export default async function ApprovalsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ demoReadonly?: string }>;
+}) {
   const session = await getServerSession();
   if (!session) redirect("/sign-in");
+  // Set when a judge-demo session attempts to resolve a gate (demoReadonlyGuard
+  // bounces the server action here) — surface why "nothing happened".
+  const demoReadonly = Boolean((await searchParams)?.demoReadonly);
 
   const pending = await approvalRepo.listPendingByWorkspace(session.workspaceId);
   // Campaign/brand name map for display.
@@ -65,6 +72,16 @@ export default async function ApprovalsPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-8 py-8">
+      {demoReadonly && (
+        <div
+          role="status"
+          className="mb-5 rounded-xl border border-warn/25 bg-warn-bg px-4 py-3 text-[13px] text-ink-2"
+        >
+          <span className="font-semibold text-ink">Read-only judge demo</span> — gates can&apos;t be resolved
+          from this session. The pending approval stays untouched; in a real workspace the operator&apos;s
+          decision here is what releases the send.
+        </div>
+      )}
       <header className="mb-6 flex items-start justify-between gap-5">
         <div>
           <h1 className="text-[24px] font-bold tracking-[-0.01em]">Approval inbox</h1>

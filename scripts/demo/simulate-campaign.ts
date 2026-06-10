@@ -23,20 +23,31 @@
  *
  *   MONGODB_URI=mongodb://127.0.0.1:27027/instarsearch \
  *   pnpm exec tsx scripts/demo/simulate-campaign.ts [--speed=1500] [--workspace=ws_demo] [--live-agents]
+ *     [--product=glow|hyalu] [--pause-at-gate]
+ *
+ *   --pause-at-gate: stop AFTER the real front half (sourcing → vetting →
+ *     shortlist + traces) and leave the campaign RUNNING at the outreach gate
+ *     with one pending `outreach_send` approval — the same record the
+ *     creator-track workflow writes before any send. Nothing is "sent": this is
+ *     the loop honestly halted where the human gate sits, so the Approvals
+ *     inbox + DECISION NEEDED card render exactly the gate moment the demo
+ *     video shows. (A read-only judge session gets 403 on Approve — by design.)
  */
 import { readdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import { brandCampaignHandler } from "../../packages/workflows/src/workflows/brand-campaign.ts";
 import type { StepLike } from "../../packages/workflows/src/gate.ts";
 import type { ModelClient } from "@ss/agents";
-import { campaignRepo, getDb, closeMongo } from "@ss/db";
+import { approvalRepo, campaignRepo, getDb, closeMongo } from "@ss/db";
 import { invokeCapability } from "@ss/capabilities";
 
 process.env.MONGODB_URI ??= "mongodb://127.0.0.1:27027/instarsearch";
 const arg = (k: string, d: string) => process.argv.find((a) => a.startsWith(`--${k}=`))?.split("=")[1] ?? d;
 const SPEED = Number(arg("speed", "1500"));
 const WORKSPACE_ID = arg("workspace", "ws_demo");
+const PRODUCT = arg("product", "glow") as "glow" | "hyalu";
+const PAUSE_AT_GATE = process.argv.includes("--pause-at-gate");
 const LIVE_AGENTS = process.argv.includes("--live-agents");
 const USER_ID = "u".repeat(21);
 const COVER_DIR = resolve(process.cwd(), "apps/web/public/demo-covers");
@@ -122,10 +133,23 @@ async function main(): Promise<void> {
   if (cands.length < 4) throw new Error("not enough seeded creators in accounts_tiktok to simulate");
 
   const deadline = new Date(); deadline.setUTCDate(deadline.getUTCDate() + 30);
+  const PRODUCTS = {
+    glow: {
+      brandProduct: { name: "Live Demo — Glow Serum", category: "skincare/serum", description: "라이브 시뮬레이션 캠페인 (K-beauty 수분 세럼).", keyClaims: ["7일 보습", "무향"] },
+      shortName: "Glow Serum", // outreach copy ("our Glow Serum launch") — the full name reads broken mid-sentence
+      creatorCount: 8,
+    },
+    hyalu: {
+      brandProduct: { name: "히알루 수분세럼 · 6월", category: "skincare/serum", description: "히알루론산 수분 세럼 — 6월 신규 캠페인. 라이브 시뮬레이션.", keyClaims: ["72시간 보습", "무향"] },
+      shortName: "Hyalu Serum",
+      creatorCount: 8,
+    },
+  } as const;
+  const product = PRODUCTS[PRODUCT];
   const brief = {
     workspaceId: WORKSPACE_ID, createdBy: USER_ID,
-    brandProduct: { name: `실시간 데모 — 글로우 세럼`, category: "skincare/serum", description: "라이브 시뮬레이션 캠페인 (K-beauty 수분 세럼).", keyClaims: ["7일 보습", "무향"] },
-    targeting: { creatorCount: 8, minEngagementRate: 0.01, languages: [] as string[], hashtags: ["kbeauty", "skincare"], excludeBlacklist: true },
+    brandProduct: { ...product.brandProduct },
+    targeting: { creatorCount: product.creatorCount, minEngagementRate: 0.01, languages: [] as string[], hashtags: ["kbeauty", "skincare"], excludeBlacklist: true },
     logistics: { shipsSamples: true },
     goals: { targetLivePosts: 6, deadline, budgetUsd: 600 },
   };
@@ -143,6 +167,58 @@ async function main(): Promise<void> {
   const tracks = (camp?.tracks ?? []).filter((t) => t.state === "shortlisted");
   console.log(`  ✓ ${tracks.length} CreatorTracks 선정 (shortlisted) + 후보/벳팅/trace 기록\n`);
   await sleep(SPEED);
+
+  // ── --pause-at-gate: halt the loop where the human gate sits ───────────────
+  if (PAUSE_AT_GATE) {
+    const top = tracks[0];
+    if (!top) throw new Error("pause-at-gate: no shortlisted tracks to draft outreach for");
+    const c = cands.find((x) => x.h === top.creatorId);
+    const handle = c?.h ?? top.creatorId;
+    const nickname = c?.nickname ?? handle;
+    const productName = product.shortName;
+    const followers = c ? `${Math.round(c.followers / 1000)}K followers on TikTok` : "seeded TikTok creator";
+
+    const draft = {
+      subject: `${nickname} — your hydration routine + our ${productName} launch`,
+      body:
+        `<p>Hi ${nickname},</p>` +
+        `<p>Your K-beauty content is exactly the vibe we're launching with. We'd love to send you our new <strong>${productName}</strong> (hyaluronic hydration serum) — no script, just your honest take.</p>` +
+        `<p>If it's a fit, we cover the sample + a performance bonus on delivered views. Want me to ship one out?</p>` +
+        `<p>— The ${productName} team</p>`,
+      angle: "peer_proof",
+      spamScore: 2,
+      groundedFacts: [
+        followers,
+        "Posts regularly in K-beauty / skincare",
+        "hashtag overlap (kbeauty, skincare) with the brief",
+      ],
+      // Canned scores, same as every agent decision in this offline sim (see header):
+      // the live outreach writer produces these via its judge tournament; the sim
+      // pins representative values so the gate UI renders deterministically.
+      judgeScores: { brand: 0.92, conversion: 0.81, deliverability: 0.88, skeptic: 0.79 },
+    };
+    const approval = await approvalRepo.create({
+      workspaceId: WORKSPACE_ID,
+      campaignId,
+      creatorId: top.creatorId,
+      kind: "outreach_send",
+      recommendation: draft,
+      rationale:
+        `Top-ranked creator by fit (@${handle}). The peer-proof angle won the writer tournament; ` +
+        `spam risk 2/10 and every claim is grounded in the sourced profile. Recommend sending the first outreach.`,
+    });
+    await campaignRepo.patchStage(campaignId, "outreach");
+    await db
+      .collection("v2_campaigns")
+      .updateOne({ _id: ObjectId.createFromHexString(campaignId) }, { $set: { pendingApprovalId: approval.id } });
+
+    console.log(`⏸  PAUSED AT GATE — outreach_send approval pending (id ${approval.id})`);
+    console.log(`   campaign stays running at stage=outreach · NOTHING was sent.`);
+    console.log(`   👀 MC: /campaigns/${campaignId} (DECISION NEEDED) · /approvals/${approval.id}`);
+    await client.close();
+    await closeMongo();
+    return;
+  }
 
   const covers = readdirSync(COVER_DIR).filter((f) => f.endsWith(".jpg"));
   const handle = (id: string) => cands.find((c) => c.h === id)?.h ?? id;
@@ -235,7 +311,7 @@ async function main(): Promise<void> {
     const r = report as { goals: { verifiedCount: number; targetLivePosts: number }; reach: { verifiedViews: number } };
     console.log(`   analytics.compile: 검증 ${r.goals.verifiedCount}/${r.goals.targetLivePosts} · 총 조회수 ${r.reach.verifiedViews.toLocaleString()}`);
   }
-  console.log(`\n   👀 MC에서 보기: /campaigns/${campaignId}  (목록 → 실시간 데모 — 글로우 세럼)`);
+  console.log(`\n   👀 MC에서 보기: /campaigns/${campaignId}  (목록 → ${brief.brandProduct.name})`);
   await client.close();
   await closeMongo();
 }

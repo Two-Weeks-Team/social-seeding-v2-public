@@ -39,9 +39,13 @@ export const creatorRepo = {
   async listByIds(ids: string[]): Promise<TikTokCreator[]> {
     if (ids.length === 0) return [];
     const db = await getDb();
+    // A track's `creatorId` is TikTok's numeric `id` for agent-sourced creators,
+    // but fixture/sim-seeded campaigns store the `uniqueId` (handle) instead.
+    // Match either key so MC views resolve a face + name regardless of how the
+    // campaign was created (resolveCreators then keys results by id AND uniqueId).
     const docs = await db
       .collection(Collections.SHARED_TIKTOK_ACCOUNTS)
-      .find({ id: { $in: ids } })
+      .find({ $or: [{ id: { $in: ids } }, { uniqueId: { $in: ids } }] })
       .toArray();
     const out: TikTokCreator[] = [];
     for (const doc of docs) {

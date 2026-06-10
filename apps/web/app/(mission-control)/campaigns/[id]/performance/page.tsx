@@ -13,6 +13,7 @@ import { invokeCapability } from "@ss/capabilities";
 import { AnalyticsReportSchema, type AnalyticsReport } from "@ss/contracts";
 import { fmtNum, fmtCompactKo, creatorLabel } from "@/lib/format";
 import { resolveCreators } from "@/lib/creators";
+import { reachedFunnel } from "@/lib/funnel";
 
 /**
  * /campaigns/[id]/performance — C2 redesign. The audit's headline data-honesty
@@ -31,34 +32,8 @@ const FUNNEL_DEF: Array<{ key: keyof AnalyticsReport["funnel"]; label: string }>
   { key: "verified", label: "Verified" },
 ];
 
-// A funnel chart must be CUMULATIVE ("reached this stage or further"), not a current-state
-// snapshot — otherwise a verified track (counted only in `verified`) makes Verified exceed
-// Posted/Delivered. Map each lifecycle/terminal state to the furthest stage it reached, then
-// count tracks at-or-beyond each stage so the funnel is monotonically non-increasing.
-const LIFECYCLE = [
-  "candidate", "shortlisted", "outreach_sent", "in_conversation", "agreed",
-  "address_collected", "shipped", "delivered", "posted", "verified",
-] as const;
-const REACHED_AT: Record<string, (typeof LIFECYCLE)[number]> = {
-  candidate: "candidate", shortlisted: "shortlisted",
-  outreach_sent: "outreach_sent", no_response: "outreach_sent",
-  in_conversation: "in_conversation", declined: "in_conversation",
-  agreed: "agreed", address_collected: "address_collected",
-  shipped: "shipped", flaked: "shipped",
-  delivered: "delivered", posted: "posted", verified: "verified",
-};
-function reachedFunnel(fn: AnalyticsReport["funnel"]): Record<string, number> {
-  const out: Record<string, number> = {};
-  LIFECYCLE.forEach((stage, si) => {
-    let n = 0;
-    for (const [state, count] of Object.entries(fn)) {
-      const ri = LIFECYCLE.indexOf(REACHED_AT[state] ?? (state as (typeof LIFECYCLE)[number]));
-      if (ri >= si) n += count;
-    }
-    out[stage] = n;
-  });
-  return out;
-}
+// Cumulative ("reached this stage or further") funnel — shared with the campaign
+// detail card via lib/funnel (see that file for the rationale).
 
 export default async function PerformancePage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();

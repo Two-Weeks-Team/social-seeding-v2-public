@@ -4,7 +4,7 @@ import Link from "next/link";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, SectionLabel } from "@/components/ui/card";
-import { getServerSession } from "@/lib/auth";
+import { demoReadonlyGuard, getServerSession } from "@/lib/auth";
 import { campaignRepo } from "@ss/db";
 import { CampaignBriefSchema, Events } from "@ss/contracts";
 import { promptGuard, PromptGuardError } from "@/lib/prompt-guard";
@@ -20,6 +20,7 @@ async function createCampaignAction(formData: FormData): Promise<void> {
   "use server";
   const session = await getServerSession();
   if (!session) redirect("/sign-in");
+  demoReadonlyGuard(session, "/campaigns");
 
   const Form = z.object({
     "brandProduct.name": z.string().min(1),
