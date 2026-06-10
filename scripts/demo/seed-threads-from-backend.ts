@@ -171,17 +171,34 @@ function bodyOf(e: RawEmail): string {
  */
 function redactContacts(s: string): string {
   let out = s.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, "[email removed — creator privacy]");
-  // phone-ish: separator-joined digit runs that contain >= 9 digits (e.g. +52 …)
+  // phone-ish: separator-joined digit runs that contain >= 9 digits (e.g. +52 …).
+  // Date(+time) stamps ("2026-05-22 15", "22/05/2026 15.30") clear that digit bar
+  // with only allowed separators — never treat a pure date-shaped match as a phone.
+  const DATEISH =
+    /^\s*(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})(?:[\s.]\d{1,2}(?:[:.]\d{2}){0,2})?\s*$/;
   out = out.replace(/\+?\d[\d\s().-]{7,}\d/g, (m) => {
+    if (DATEISH.test(m)) return m;
     const digits = m.replace(/\D/g, "");
     return digits.length >= 9 ? "[phone removed — creator privacy]" : m;
   });
-  // address-looking LINES (es/en street · city · zip markers) → drop the whole line
-  const ADDR =
-    /\b(calle|av(?:enida)?\.|col(?:onia)?\.|c\.?p\.?\s*\d{4,5}|c[oó]digo postal|direcci[oó]n|alcald[ií]a|delegaci[oó]n|cdmx|ciudad de m[eé]xico|estado de m[eé]xico|street|avenue|apt\.?|suite|#\s?\d{1,5})\b/i;
+  // Address-looking LINES → drop the whole line. Two tiers so prose survives:
+  //  · STRONG es-MX markers suffice alone (calle / colonia / C.P. … — these don't
+  //    occur in normal prose);
+  //  · en/number patterns must look like an actual street / unit / city-ZIP line,
+  //    so "campaign #123", "test suite" or "an apt description" are NOT redacted.
+  const ADDR_STRONG =
+    /\b(calle|av(?:enida)?\.|col(?:onia)?\.|c\.?p\.?\s*\d{4,5}|c[oó]digo postal|direcci[oó]n|alcald[ií]a|delegaci[oó]n|cdmx|ciudad de m[eé]xico|estado de m[eé]xico)\b/i;
+  const ADDR_STREET =
+    /\b\d{1,5}\s+[A-Za-zÀ-ÿ.'-]+(?:\s+[A-Za-zÀ-ÿ.'-]+){0,3}\s+(?:st(?:reet)?|ave(?:nue)?|r(?:oa)?d|blvd|boulevard|dr(?:ive)?|lane|ln|court|ct|way|place|pl)\.?\b/i;
+  const ADDR_UNIT = /\b(?:apt|apartment|suite|unit|depto|departamento|interior|int)\.?\s*#?\s*\d{1,5}\b/i;
+  const ADDR_CITYZIP = /\b[A-Z][A-Za-zÀ-ÿ]+,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/;
   out = out
     .split("\n")
-    .map((line) => (ADDR.test(line) ? "[shipping address removed — creator privacy]" : line))
+    .map((line) =>
+      ADDR_STRONG.test(line) || ADDR_STREET.test(line) || ADDR_UNIT.test(line) || ADDR_CITYZIP.test(line)
+        ? "[shipping address removed — creator privacy]"
+        : line,
+    )
     .join("\n")
     .replace(/(\[shipping address removed — creator privacy\]\n?){2,}/g, "[shipping address removed — creator privacy]\n");
   return out;
