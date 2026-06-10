@@ -9,7 +9,7 @@ import { StatusTag } from "@/components/ui/status-tag";
 import { Avatar } from "@/components/ui/avatar";
 import { Stat } from "@/components/ui/stat";
 import { DiagnosticBanner } from "@/components/ui/diagnostic";
-import { getServerSession } from "@/lib/auth";
+import { demoReadonlyGuard, getServerSession } from "@/lib/auth";
 import { approvalRepo, campaignRepo } from "@ss/db";
 import { inngest } from "@ss/workflows";
 import {
@@ -41,6 +41,7 @@ async function resolveAction(formData: FormData): Promise<void> {
   "use server";
   const session = await getServerSession();
   if (!session) redirect("/sign-in");
+  demoReadonlyGuard(session, "/approvals"); // judge-demo tour → bounce to the inbox, which surfaces the notice
 
   const Form = z.object({
     approvalId: z.string().min(1),

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, SectionLabel } from "@/components/ui/card";
 import { DiagnosticBanner } from "@/components/ui/diagnostic";
-import { getServerSession } from "@/lib/auth";
+import { demoReadonlyGuard, getServerSession } from "@/lib/auth";
 import { leadCampaignRepo } from "@ss/db";
 import { Events, LeadCampaignBriefSchema } from "@ss/contracts";
 import { inngest } from "@ss/workflows";
@@ -21,6 +21,7 @@ async function createLeadCampaignAction(formData: FormData): Promise<void> {
   "use server";
   const session = await getServerSession();
   if (!session) redirect("/sign-in");
+  demoReadonlyGuard(session, "/leads");
 
   const Form = z.object({
     name: z.string().min(2).max(120),

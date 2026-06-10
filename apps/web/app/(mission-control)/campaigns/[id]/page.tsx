@@ -12,7 +12,7 @@ import { ActivityTimeline } from "@/components/mission-control/activity-timeline
 import { CampaignCanvas } from "@/components/mission-control/campaign-canvas";
 import { CampaignAsk } from "@/components/mission-control/campaign-ask";
 import { bucketTracksByState } from "@/components/mission-control/campaign-track-buckets";
-import { getServerSession } from "@/lib/auth";
+import { demoReadonlyGuard, getServerSession } from "@/lib/auth";
 import { approvalRepo, campaignRepo, traceRepo, messageRepo } from "@ss/db";
 import { Events, AnalyticsReportSchema, type AnalyticsReport } from "@ss/contracts";
 import { inngest } from "@ss/workflows";
@@ -30,6 +30,7 @@ async function cancelCampaignAction(formData: FormData): Promise<void> {
   if (!session) throw new Error("not authenticated");
   const campaignId = formData.get("campaignId");
   if (typeof campaignId !== "string") throw new Error("missing campaignId");
+  demoReadonlyGuard(session, `/campaigns/${campaignId}`);
   const c = await campaignRepo.get(campaignId);
   if (!c || c.brief.workspaceId !== session.workspaceId) throw new Error("forbidden");
   if (c.status === "cancelled" || c.status === "completed") {
@@ -47,6 +48,7 @@ async function pauseCampaignAction(formData: FormData): Promise<void> {
   if (!session) throw new Error("not authenticated");
   const campaignId = formData.get("campaignId");
   if (typeof campaignId !== "string") throw new Error("missing campaignId");
+  demoReadonlyGuard(session, `/campaigns/${campaignId}`);
   const c = await campaignRepo.get(campaignId);
   if (!c || c.brief.workspaceId !== session.workspaceId) throw new Error("forbidden");
   if (c.status === "cancelled" || c.status === "completed") {

@@ -7,6 +7,7 @@
  */
 import { jwtVerify, SignJWT } from "jose";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 export const SESSION_COOKIE = "ss_session";
 
@@ -118,6 +119,21 @@ export function denyIfDemo(session: SessionClaims): Response | null {
     });
   }
   return null;
+}
+
+/**
+ * Server-action counterpart of denyIfDemo. API routes return a 403 Response,
+ * but mutating *server actions* (the MC form posts: resolve approval, pause /
+ * cancel campaign, save policy, create campaign…) can't — so they call this
+ * right after resolving the session. For a demo session it redirects back to
+ * `backTo` with `?demoReadonly=1` (pages may surface a notice; the mutation
+ * never runs), keeping the judge-demo bypass a tour, never an actuator.
+ * No-op for real sessions.
+ */
+export function demoReadonlyGuard(session: SessionClaims | null, backTo: string): void {
+  if (session?.demo) {
+    redirect(`${backTo}${backTo.includes("?") ? "&" : "?"}demoReadonly=1`);
+  }
 }
 
 /** Returns the session, or a ready-to-return 401 Response. Bearer-only (API routes). */
