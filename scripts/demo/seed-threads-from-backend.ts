@@ -43,6 +43,8 @@ process.env.MONGODB_URI ??= "mongodb://127.0.0.1:27027/instarsearch";
 const V1_CAMPAIGN_ID = process.env.V1_CAMPAIGN_ID ?? "68a2caf0044d2ccb1c135a14";
 const V2_CAMPAIGN_ID = process.env.V2_CAMPAIGN_ID ?? "6a1f6ffd6dcae518cfc59ad2";
 const WORKSPACE_ID = process.env.WORKSPACE_ID ?? "ws_wooriliu_2nd";
+// Contact redaction is ON by default — pass --no-redact only for a private local run.
+const REDACT = !process.argv.includes("--no-redact");
 
 if (!EMAIL || !PASSWORD) {
   console.error(`[seed-threads] missing backend creds (looked in ${v1EnvPath})`);
@@ -159,6 +161,31 @@ function bodyOf(e: RawEmail): string {
   }
   return (e.snippet ?? "").trim();
 }
+/**
+ * Contact-detail redaction (default ON). The judge demo shows these REAL pilot
+ * conversations read-only; creator privacy requires stripping contact channels
+ * (emails / phones / shipping-address lines) while keeping the conversational
+ * substance verbatim. The labels are deliberately visible — an honest editorial
+ * mark, not silent substitution — and the policy is documented in
+ * scripts/demo/submission/HONEST-SCOPE.md.
+ */
+function redactContacts(s: string): string {
+  let out = s.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, "[email removed — creator privacy]");
+  // phone-ish: separator-joined digit runs that contain >= 9 digits (e.g. +52 …)
+  out = out.replace(/\+?\d[\d\s().-]{7,}\d/g, (m) => {
+    const digits = m.replace(/\D/g, "");
+    return digits.length >= 9 ? "[phone removed — creator privacy]" : m;
+  });
+  // address-looking LINES (es/en street · city · zip markers) → drop the whole line
+  const ADDR =
+    /\b(calle|av(?:enida)?\.|col(?:onia)?\.|c\.?p\.?\s*\d{4,5}|c[oó]digo postal|direcci[oó]n|alcald[ií]a|delegaci[oó]n|cdmx|ciudad de m[eé]xico|estado de m[eé]xico|street|avenue|apt\.?|suite|#\s?\d{1,5})\b/i;
+  out = out
+    .split("\n")
+    .map((line) => (ADDR.test(line) ? "[shipping address removed — creator privacy]" : line))
+    .join("\n")
+    .replace(/(\[shipping address removed — creator privacy\]\n?){2,}/g, "[shipping address removed — creator privacy]\n");
+  return out;
+}
 function whenOf(e: RawEmail): Date {
   const v = e.sentAt ?? e.date ?? e.createdAt;
   const d = v ? new Date(v) : new Date(0);
@@ -266,14 +293,17 @@ async function main(): Promise<void> {
     }
     threadsKept++;
     for (const e of msgs) {
-      const body = bodyOf(e);
+      const rawBody = bodyOf(e);
+      const body = REDACT ? redactContacts(rawBody) : rawBody;
+      const rawSubject = (e.subject ?? "").trim();
+      const subject = REDACT ? redactContacts(rawSubject) : rawSubject;
       docs.push({
         workspaceId: WORKSPACE_ID,
         campaignId: V2_CAMPAIGN_ID,
         creatorId: handle,
         threadId,
         direction: isOutbound(e) ? "outbound" : "inbound",
-        subject: (e.subject ?? "").trim() || "(제목 없음)",
+        subject: subject || "(제목 없음)",
         body: body || "(본문 없음)",
         sentAt: whenOf(e),
         classification: null,
