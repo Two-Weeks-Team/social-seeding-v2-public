@@ -113,6 +113,30 @@ spec:
                 secretKeyRef:
                   name: google-oauth-client-secret
                   key: latest
+            # MongoDB — same Atlas cluster as v1; v2 owns v2_* collections, additive
+            # on shared v1 collections (see CLAUDE.md). Connection string is a secret;
+            # DB name is the shared "instarsearch".
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: web-mongodb-uri
+                  key: latest
+            - name: MONGODB_DB
+              value: "instarsearch"
+            # Judge read-only demo (challenge reviewers). ENABLED=true surfaces the public
+            # "Enter as judge" button + the /api/auth/judge-demo magic link; flip to "false"
+            # to kill it after judging (HONEST-SCOPE row 17). TOKEN is a secret (HMAC usage
+            # bucket + magic-link auth); WORKSPACE_ID is the seeded demo workspace the minted
+            # read-only session lands in. Optional: JUDGE_DEMO_EXPIRES_AT (ISO 8601) to time-box.
+            - name: JUDGE_DEMO_ENABLED
+              value: "true"
+            - name: JUDGE_DEMO_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: web-judge-demo-token
+                  key: latest
+            - name: JUDGE_DEMO_WORKSPACE_ID
+              value: "ws_wooriliu_2nd"
             - name: LOG_LEVEL
               value: "info"
           resources:
