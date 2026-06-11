@@ -1,0 +1,794 @@
+{
+  "_meta": {
+    "synthetic": true,
+    "db": "synthetic",
+    "note": "PII-free anonymized fixture; replaces the former prod export. See scripts/demo/gen-wooriliu-fixture.ts"
+  },
+  "campaign": {
+    "name": "우리리우 2차 (합성 픽스처)"
+  },
+  "campaign_influencers": [
+    {
+      "uniqueId": "creator_01",
+      "influencerName": "Creator 01",
+      "status": "content_approved",
+      "updatedAt": {
+        "$date": "2025-10-10T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_02",
+      "influencerName": "Creator 02",
+      "status": "content_approved",
+      "updatedAt": {
+        "$date": "2025-10-11T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_03",
+      "influencerName": "Creator 03",
+      "status": "content_approved",
+      "updatedAt": {
+        "$date": "2025-10-12T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_04",
+      "influencerName": "Creator 04",
+      "status": "content_approved",
+      "updatedAt": {
+        "$date": "2025-10-13T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_05",
+      "influencerName": "Creator 05",
+      "status": "content_approved",
+      "updatedAt": {
+        "$date": "2025-10-14T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_06",
+      "influencerName": "Creator 06",
+      "status": "content_approved",
+      "updatedAt": {
+        "$date": "2025-10-15T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_07",
+      "influencerName": "Creator 07",
+      "status": "content_approved",
+      "updatedAt": {
+        "$date": "2025-10-16T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_08",
+      "influencerName": "Creator 08",
+      "status": "content_approved",
+      "updatedAt": {
+        "$date": "2025-10-17T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_09",
+      "influencerName": "Creator 09",
+      "status": "content_approved",
+      "updatedAt": {
+        "$date": "2025-10-18T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_10",
+      "influencerName": "Creator 10",
+      "status": "content_approved",
+      "updatedAt": {
+        "$date": "2025-10-19T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_11",
+      "influencerName": "Creator 11",
+      "status": "product_received",
+      "updatedAt": {
+        "$date": "2025-10-20T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_12",
+      "influencerName": "Creator 12",
+      "status": "product_received",
+      "updatedAt": {
+        "$date": "2025-10-21T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_13",
+      "influencerName": "Creator 13",
+      "status": "product_received",
+      "updatedAt": {
+        "$date": "2025-10-22T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_14",
+      "influencerName": "Creator 14",
+      "status": "product_received",
+      "updatedAt": {
+        "$date": "2025-10-23T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_15",
+      "influencerName": "Creator 15",
+      "status": "product_shipped",
+      "updatedAt": {
+        "$date": "2025-10-24T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_16",
+      "influencerName": "Creator 16",
+      "status": "product_shipped",
+      "updatedAt": {
+        "$date": "2025-10-25T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_17",
+      "influencerName": "Creator 17",
+      "status": "identified",
+      "updatedAt": {
+        "$date": "2025-10-26T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_18",
+      "influencerName": "Creator 18",
+      "status": "identified",
+      "updatedAt": {
+        "$date": "2025-10-27T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_19",
+      "influencerName": "Creator 19",
+      "status": "identified",
+      "updatedAt": {
+        "$date": "2025-10-10T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_20",
+      "influencerName": "Creator 20",
+      "status": "identified",
+      "updatedAt": {
+        "$date": "2025-10-11T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_21",
+      "influencerName": "Creator 21",
+      "status": "identified",
+      "updatedAt": {
+        "$date": "2025-10-12T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_22",
+      "influencerName": "Creator 22",
+      "status": "identified",
+      "updatedAt": {
+        "$date": "2025-10-13T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_23",
+      "influencerName": "Creator 23",
+      "status": "identified",
+      "updatedAt": {
+        "$date": "2025-10-14T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_24",
+      "influencerName": "Creator 24",
+      "status": "identified",
+      "updatedAt": {
+        "$date": "2025-10-15T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_25",
+      "influencerName": "Creator 25",
+      "status": "identified",
+      "updatedAt": {
+        "$date": "2025-10-16T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_26",
+      "influencerName": "Creator 26",
+      "status": "identified",
+      "updatedAt": {
+        "$date": "2025-10-17T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_27",
+      "influencerName": "Creator 27",
+      "status": "identified",
+      "updatedAt": {
+        "$date": "2025-10-18T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_28",
+      "influencerName": "Creator 28",
+      "status": "identified",
+      "updatedAt": {
+        "$date": "2025-10-19T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_29",
+      "influencerName": "Creator 29",
+      "status": "identified",
+      "updatedAt": {
+        "$date": "2025-10-20T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_30",
+      "influencerName": "Creator 30",
+      "status": "identified",
+      "updatedAt": {
+        "$date": "2025-10-21T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_31",
+      "influencerName": "Creator 31",
+      "status": "identified",
+      "updatedAt": {
+        "$date": "2025-10-22T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_32",
+      "influencerName": "Creator 32",
+      "status": "identified",
+      "updatedAt": {
+        "$date": "2025-10-23T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_33",
+      "influencerName": "Creator 33",
+      "status": "identified",
+      "updatedAt": {
+        "$date": "2025-10-24T09:00:00.000Z"
+      }
+    },
+    {
+      "uniqueId": "creator_34",
+      "influencerName": "Creator 34",
+      "status": "identified",
+      "updatedAt": {
+        "$date": "2025-10-25T09:00:00.000Z"
+      }
+    }
+  ],
+  "campaign_contents": [
+    {
+      "tiktok": {
+        "postId": "post_01"
+      },
+      "influencer": {
+        "uniqueId": "creator_01"
+      },
+      "stats": {
+        "playCount": 38200,
+        "diggCount": 3927,
+        "commentCount": 32,
+        "shareCount": 13,
+        "engagementRate": 10.4
+      },
+      "verification": {
+        "status": "verified",
+        "hasRequiredHashtags": true,
+        "verifiedAt": {
+          "$date": "2025-10-10T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "tiktok": {
+        "postId": "post_02"
+      },
+      "influencer": {
+        "uniqueId": "creator_02"
+      },
+      "stats": {
+        "playCount": 660,
+        "diggCount": 42,
+        "commentCount": 9,
+        "shareCount": 3,
+        "engagementRate": 8.18
+      },
+      "verification": {
+        "status": "verified",
+        "hasRequiredHashtags": true,
+        "verifiedAt": {
+          "$date": "2025-10-11T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "tiktok": {
+        "postId": "post_03"
+      },
+      "influencer": {
+        "uniqueId": "creator_03"
+      },
+      "stats": {
+        "playCount": 2349,
+        "diggCount": 106,
+        "commentCount": 9,
+        "shareCount": 0,
+        "engagementRate": 4.9
+      },
+      "verification": {
+        "status": "verified",
+        "hasRequiredHashtags": true,
+        "verifiedAt": {
+          "$date": "2025-10-12T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "tiktok": {
+        "postId": "post_04"
+      },
+      "influencer": {
+        "uniqueId": "creator_04"
+      },
+      "stats": {
+        "playCount": 1788,
+        "diggCount": 77,
+        "commentCount": 2,
+        "shareCount": 0,
+        "engagementRate": 4.42
+      },
+      "verification": {
+        "status": "verified",
+        "hasRequiredHashtags": true,
+        "verifiedAt": {
+          "$date": "2025-10-13T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "tiktok": {
+        "postId": "post_05"
+      },
+      "influencer": {
+        "uniqueId": "creator_05"
+      },
+      "stats": {
+        "playCount": 164,
+        "diggCount": 20,
+        "commentCount": 4,
+        "shareCount": 5,
+        "engagementRate": 17.68
+      },
+      "verification": {
+        "status": "verified",
+        "hasRequiredHashtags": true,
+        "verifiedAt": {
+          "$date": "2025-10-14T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "tiktok": {
+        "postId": "post_06"
+      },
+      "influencer": {
+        "uniqueId": "creator_06"
+      },
+      "stats": {
+        "playCount": 379,
+        "diggCount": 40,
+        "commentCount": 10,
+        "shareCount": 1,
+        "engagementRate": 13.46
+      },
+      "verification": {
+        "status": "verified",
+        "hasRequiredHashtags": true,
+        "verifiedAt": {
+          "$date": "2025-10-15T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "tiktok": {
+        "postId": "post_07"
+      },
+      "influencer": {
+        "uniqueId": "creator_07"
+      },
+      "stats": {
+        "playCount": 361,
+        "diggCount": 9,
+        "commentCount": 0,
+        "shareCount": 0,
+        "engagementRate": 2.49
+      },
+      "verification": {
+        "status": "verified",
+        "hasRequiredHashtags": true,
+        "verifiedAt": {
+          "$date": "2025-10-16T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "tiktok": {
+        "postId": "post_08"
+      },
+      "influencer": {
+        "uniqueId": "creator_08"
+      },
+      "stats": {
+        "playCount": 310,
+        "diggCount": 22,
+        "commentCount": 2,
+        "shareCount": 0,
+        "engagementRate": 7.74
+      },
+      "verification": {
+        "status": "verified",
+        "hasRequiredHashtags": true,
+        "verifiedAt": {
+          "$date": "2025-10-17T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "tiktok": {
+        "postId": "post_09"
+      },
+      "influencer": {
+        "uniqueId": "creator_09"
+      },
+      "stats": {
+        "playCount": 1095,
+        "diggCount": 23,
+        "commentCount": 8,
+        "shareCount": 1,
+        "engagementRate": 2.92
+      },
+      "verification": {
+        "status": "verified",
+        "hasRequiredHashtags": true,
+        "verifiedAt": {
+          "$date": "2025-10-18T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "tiktok": {
+        "postId": "post_10"
+      },
+      "influencer": {
+        "uniqueId": "creator_10"
+      },
+      "stats": {
+        "playCount": 12400,
+        "diggCount": 175,
+        "commentCount": 2,
+        "shareCount": 2,
+        "engagementRate": 1.44
+      },
+      "verification": {
+        "status": "verified",
+        "hasRequiredHashtags": true,
+        "verifiedAt": {
+          "$date": "2025-10-19T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "tiktok": {
+        "postId": "post_11"
+      },
+      "influencer": {
+        "uniqueId": "creator_11"
+      },
+      "stats": {
+        "playCount": 294,
+        "diggCount": 16,
+        "commentCount": 8,
+        "shareCount": 1,
+        "engagementRate": 8.5
+      },
+      "verification": {
+        "status": "verified",
+        "hasRequiredHashtags": true,
+        "verifiedAt": {
+          "$date": "2025-10-20T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "tiktok": {
+        "postId": "post_12"
+      },
+      "influencer": {
+        "uniqueId": "creator_12"
+      },
+      "stats": {
+        "playCount": 244,
+        "diggCount": 21,
+        "commentCount": 6,
+        "shareCount": 1,
+        "engagementRate": 11.48
+      },
+      "verification": {
+        "status": "verified",
+        "hasRequiredHashtags": true,
+        "verifiedAt": {
+          "$date": "2025-10-21T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "tiktok": {
+        "postId": "post_13"
+      },
+      "influencer": {
+        "uniqueId": "creator_13"
+      },
+      "stats": {
+        "playCount": 174,
+        "diggCount": 15,
+        "commentCount": 5,
+        "shareCount": 2,
+        "engagementRate": 12.64
+      },
+      "verification": {
+        "status": "verified",
+        "hasRequiredHashtags": true,
+        "verifiedAt": {
+          "$date": "2025-10-22T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "tiktok": {
+        "postId": "post_14"
+      },
+      "influencer": {
+        "uniqueId": "creator_14"
+      },
+      "stats": {
+        "playCount": 462,
+        "diggCount": 30,
+        "commentCount": 7,
+        "shareCount": 4,
+        "engagementRate": 8.87
+      },
+      "verification": {
+        "status": "verified",
+        "hasRequiredHashtags": true,
+        "verifiedAt": {
+          "$date": "2025-10-23T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "tiktok": {
+        "postId": "post_15"
+      },
+      "influencer": {
+        "uniqueId": "creator_15"
+      },
+      "stats": {
+        "playCount": 201,
+        "diggCount": 18,
+        "commentCount": 0,
+        "shareCount": 8,
+        "engagementRate": 12.94
+      },
+      "verification": {
+        "status": "verified",
+        "hasRequiredHashtags": true,
+        "verifiedAt": {
+          "$date": "2025-10-24T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "tiktok": {
+        "postId": "post_16"
+      },
+      "influencer": {
+        "uniqueId": "creator_16"
+      },
+      "stats": {
+        "playCount": 417,
+        "diggCount": 13,
+        "commentCount": 10,
+        "shareCount": 9,
+        "engagementRate": 7.67
+      },
+      "verification": {
+        "status": "verified",
+        "hasRequiredHashtags": true,
+        "verifiedAt": {
+          "$date": "2025-10-25T00:00:00.000Z"
+        }
+      }
+    }
+  ],
+  "email_queue": [
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {}
+  ]
+}
