@@ -9,7 +9,7 @@ SocialSeed.ing — agent-operated TikTok campaigns
 
 ## 2. Project Assets (LINK)
 - **Code\*** → `https://github.com/Two-Weeks-Team/social-seeding-v2`  ⚠ repo **private** → 공개 전환 or 심사자 접근
-- **Video\*** → ⚠ `<YouTube 데모 URL>`
+- **Video\*** → `https://youtu.be/4SDvNK4cwZs`  (라이브 ✅ — README #83에서 추가, 운영자 최종 확인)
 - **Architecture diagram\*** → `https://storage.googleapis.com/ss-social-seeding-v2-docs/architecture-current.html` (200 ✅)
 - **Testing access\*** → `https://agents.socialseed.ing/api/auth/judge-demo?token=***REDACTED-JUDGE-DEMO-TOKEN***` (1-click read-only ✅)
 
@@ -51,5 +51,5 @@ TikTok public data over a RapidAPI-backed path (public data only; we have access
    Honest scope is in the repo (`scripts/demo/submission/HONEST-SCOPE.md`) — what's GA-live vs operator-gated vs Google Private Preview, line by line. The repo is dual-licensed: BUSL-1.1 for the core product, Apache-2.0 for the standalone OSS pieces (`tiktok-mcp-server`, the refactor-mcp reference). The Testing-access link is the 1-click read-only judge session.
 
 ---
-## 제출 전 운영자 확정 (⚠ 6건)
-1. repo **public/심사자 접근** 2. **Video URL** 3. **Region = South Korea** 4. Q1 점수(권장 4) 5. Q2 점수(정직히 2~3) 6. 전부 입력 후 **Submit** (19h)
+## 제출 전 운영자 확정 (⚠ 5건 — Video는 youtu.be/4SDvNK4cwZs로 해소)
+1. repo **public/심사자 접근** 2. **Region = South Korea** 3. Q1 점수(권장 4) 4. Q2 점수(정직히 2~3) 5. 전부 입력 후 **Submit** (19h)
