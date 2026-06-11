@@ -357,7 +357,7 @@ See [`built-with-tags.txt`](built-with-tags.txt). Headline GCP stack:
 - **Agent Identity design**: `gcp-research/refactor-mcp/AGENT-IDENTITY.md`
 - **Cross-call smoke test (exit 0)**: `scripts/smoke-test/run-integration-a2a.sh`
 - **Live-deploy runbook (~3 commands)**: `scripts/deploy/DEPLOY-RUNBOOK.md`
-- **Demo video (YouTube unlisted, 8× real-mouse per D30)**: `<YOUTUBE_URL>`
+- **Demo video (YouTube unlisted, 8× real-mouse per D30)**: https://www.youtube.com/watch?v=4SDvNK4cwZs
 
 ## Business case (Devpost field: Business case)
 
@@ -492,7 +492,7 @@ not retype — preserves D-ID citations).
 | What we learned | "What we learned" | 120–180 |
 | What's next | "What's next" | 80–150 |
 | Built With | `built-with-tags.txt` | ~80 tags |
-| Video URL | `<YOUTUBE_URL>` after upload | URL only |
+| Video URL | https://www.youtube.com/watch?v=4SDvNK4cwZs | URL only |
 | Try it out links | "Try it out" section | 9 links |
 | Business case | "Business case" section | 250–350 |
 | Innovation framing | "Innovation framing" section | 200–300 |
