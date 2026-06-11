@@ -1,0 +1,16 @@
+{
+  "_note": "synthetic anonymized summary — no PII (replaces the former prod export)",
+  "campaign": "우리리우 2차 (합성)",
+  "counts": {
+    "influencers": 34,
+    "contents": 16,
+    "verified": 16,
+    "emails": 154
+  },
+  "aggregates": {
+    "views": 59498,
+    "likes": 4554,
+    "comments": 114,
+    "shares": 50
+  }
+}
