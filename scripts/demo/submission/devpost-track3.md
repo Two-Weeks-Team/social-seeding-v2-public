@@ -290,7 +290,7 @@ clean-text safety check are pinned in `tests/tools/test_prompt_guard.py`.
   ecosystem.
 - **All six official Track 3 requirements met** + Agent Identity (crypto ID). See the gate table.
 - **Three live Cloud Run endpoints**, all 200, all scale-to-zero (~$1-5/mo, all `min=0`, D46).
-- **2932 pytest cases pass** (`packages/agents-adk`); `verify-build` green.
+- **2933 pytest cases pass** (`packages/agents-adk`); `verify-build` green.
 - **One real Imagen 4 generation** (D49), not a stub — a real **1024×1024, 950 KB** image from the
   committed standalone `scripts/demo/gen_sample_image.py` script (~$0.04, run once). Honest note: the
   in-fleet `creative` agent's `imagen.generate` capability tool is **W7-staged — live mode raises
