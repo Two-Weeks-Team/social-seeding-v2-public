@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Agent-orchestrated TikTok influencer-campaign operator. Two things are true at once, and the second now drives the repo:
 
 1. It is a **v2 rewrite** of v1 (`~/social-seeding`, frozen — **reference only**: port named assets, don't reinvent; see its `FREEZE.md`). The rewrite makes *the agent the operator* — a human gives a brief, a fleet of agents runs the loop (source → vet → outreach → reply → ship → verify → report), and the human only steps in at the policy gates they keep on.
-2. It is a **single Google for Startups AI Agents Challenge — Track-3 submission** (deadline **2026-06-05 17:00 PT**). The v2 product build (Phases 0-6, the TS stack) is the *foundation*; the active layer is the **challenge stack** — a Python ADK agent fleet on Vertex AI reached over **A2A v0.3** inside a deployed Cloud Workflow. Decision source-of-truth: **`gcp-research/decisions/DECISIONS.md` (D1–D53)**.
+2. It is a **single Google for Startups AI Agents Challenge — Track-3 submission** (deadline **2026-06-11 17:00 PT** — extended from 2026-06-05 per official Devpost email 2026-06-02). The v2 product build (Phases 0-6, the TS stack) is the *foundation*; the active layer is the **challenge stack** — a Python ADK agent fleet on Vertex AI reached over **A2A v0.3** inside a deployed Cloud Workflow. Decision source-of-truth: **`gcp-research/decisions/DECISIONS.md` (D1–D53)**.
 
 ## Two laws to internalize before any model or deploy work
 

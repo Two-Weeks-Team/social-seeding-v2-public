@@ -1,0 +1,27 @@
+Social Seeding v2
+Copyright (c) 2026 Two Weeks Team
+
+This repository is dual-licensed (decision D9):
+
+1. Core product IP — Business Source License 1.1 (BUSL-1.1)
+   The platform's core product code is licensed under the Business Source
+   License 1.1 (see ./LICENSE). It converts automatically to the Apache
+   License, Version 2.0 on the Change Date (2030-06-04). Non-production use
+   (evaluation, development, research, internal testing) is permitted without
+   restriction; offering it as a competing hosted/managed commercial service
+   is not.
+
+2. Ancillary / standalone open-source components — Apache License 2.0
+   The following sub-packages are released under the Apache License, Version
+   2.0 (each carries its own LICENSE file):
+     - oss/a2a-only-distribution/         (the standalone OSS tiktok-mcp-server,
+                                           reached over A2A v0.3)
+     - gcp-research/refactor-mcp/code/    (the refactored MCP server reference
+                                           implementation)
+
+This dual structure keeps the standalone A2A/MCP distribution path freely
+reusable under Apache-2.0 while protecting the core product IP under BUSL-1.1,
+with a 4-year Apache-2.0 conversion clause.
+
+Third-party dependencies are licensed under their respective terms.
+For alternative or commercial licensing, contact sejun@2weeks.co.
