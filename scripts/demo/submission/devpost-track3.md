@@ -27,7 +27,7 @@ Social Seeding — built, hardened, then refactored into an enterprise A2A agent
 ## One-line tagline
 
 ```
-A 22-agent influencer-campaign fleet we built, then hardened (triage routing accuracy 40.5% → 100.0% on train, 71.4% on an unseen holdout), then refactored into an enterprise A2A ecosystem — a coordinator A2A-invokes our OSS tiktok-mcp-server inside a live Cloud Workflow (~3.7s, 5 creators), and a Korean Marketplace-region exclusion becomes an A2A-only distribution path.
+You give one brief; a 22-agent ADK fleet runs the entire TikTok creator-campaign loop and halts at the gates you keep — discovered and called over A2A v0.3, live on Google Cloud.
 ```
 
 ## The arc in one paragraph (lead)
