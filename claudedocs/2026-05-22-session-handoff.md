@@ -17,7 +17,7 @@
 | Branch | `main` @ `380e3b4` |
 | Open PR | 없음 (이 세션 PR #10·#11 머지) |
 | Untracked | **`" 2"` 중복 파일 13개**(파일동기화 conflict-copy, 미커밋 — 정리 권장) |
-| Repo | https://github.com/Two-Weeks-Team/social-seeding-v2 |
+| Repo | https://github.com/Two-Weeks-Team/social-seeding-v2-public |
 
 **Live (Cloud Run, min=0)**:
 | 서비스 | URL / 상태 | 모델 |

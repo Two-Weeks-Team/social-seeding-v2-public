@@ -8,7 +8,7 @@ SocialSeed.ing — agent-operated TikTok campaigns
 ```
 
 ## 2. Project Assets (LINK)
-- **Code\*** → `https://github.com/Two-Weeks-Team/social-seeding-v2`  ⚠ repo **private** → 공개 전환 or 심사자 접근
+- **Code\*** → `https://github.com/Two-Weeks-Team/social-seeding-v2-public`  ⚠ repo **private** → 공개 전환 or 심사자 접근
 - **Video\*** → `https://youtu.be/4SDvNK4cwZs`  (라이브 ✅ — README #83에서 추가, 운영자 최종 확인)
 - **Architecture diagram\*** → `https://storage.googleapis.com/ss-social-seeding-v2-docs/architecture-current.html` (200 ✅)
 - **Testing access\*** → `https://agents.socialseed.ing/api/auth/judge-demo?token=***REDACTED-JUDGE-DEMO-TOKEN***` (1-click read-only ✅)

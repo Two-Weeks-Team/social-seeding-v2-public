@@ -125,7 +125,7 @@ Paste in this order:
 1. `https://ss-mcp-server-1049119860518.us-central1.run.app` (live A2A endpoint — probe `/.well-known/agent.json`)
 2. `https://ss-v2-web-722660901814.us-central1.run.app` (live Mission Control)
 3. `https://ss-landing-80064221403.us-central1.run.app` (live demo landing + report)
-4. `https://github.com/Two-Weeks-Team/social-seeding-v2` (repository, BUSL-1.1 + Apache-2.0)
+4. `https://github.com/Two-Weeks-Team/social-seeding-v2-public` (repository, BUSL-1.1 + Apache-2.0)
 5. `scripts/smoke-test/run-hardening-measure.sh` (re-runnable, $0 — prints 40.5% → 100.0% train / 71.4% holdout)
 6. `scripts/smoke-test/run-integration-a2a.sh` (cross-call smoke, exit 0 — ~3.7s, 5 creators)
 7. `scripts/demo/submission/HONEST-SCOPE.md` (the single production-vs-shipped table)

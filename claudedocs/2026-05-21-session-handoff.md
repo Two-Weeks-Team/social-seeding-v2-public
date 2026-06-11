@@ -20,7 +20,7 @@
 |---|---|
 | Branch | `main` @ `febfdab` |
 | Open PR | 없음 (PR #1–#9 전부 머지) |
-| Repo | https://github.com/Two-Weeks-Team/social-seeding-v2 |
+| Repo | https://github.com/Two-Weeks-Team/social-seeding-v2-public |
 
 **Live URLs / 배포**:
 | 서비스 | URL / rev | 모델 |

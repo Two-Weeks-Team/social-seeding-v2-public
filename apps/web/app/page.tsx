@@ -64,7 +64,7 @@ const STATS = [
 
 const VIDEO_URL = "https://youtu.be/4SDvNK4cwZs";
 const PLATFORM_MAP_URL = "https://storage.googleapis.com/ss-social-seeding-v2-docs/agent-platform-map.html";
-const REPO_URL = "https://github.com/Two-Weeks-Team/social-seeding-v2";
+const REPO_URL = "https://github.com/Two-Weeks-Team/social-seeding-v2-public";
 const AGENT_CARD_URL = "https://ss-mcp-server-1049119860518.us-central1.run.app/.well-known/agent.json";
 
 /** Inline key glyph for the judge CTA (avoids cross-OS emoji rendering). */

@@ -4,7 +4,7 @@
 
 Please report security issues **privately** — do not open a public issue for a vulnerability.
 
-- Preferred: open a [GitHub private security advisory](https://github.com/Two-Weeks-Team/social-seeding-v2/security/advisories/new).
+- Preferred: open a [GitHub private security advisory](https://github.com/Two-Weeks-Team/social-seeding-v2-public/security/advisories/new).
 - Or email **app.2weeks@gmail.com** with `[SECURITY]` in the subject.
 
 Include: affected component/endpoint, reproduction steps, and impact. We aim to acknowledge within a few business days. Please give us reasonable time to remediate before any public disclosure.

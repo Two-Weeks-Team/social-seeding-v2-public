@@ -350,7 +350,7 @@ See [`built-with-tags.txt`](built-with-tags.txt). Headline GCP stack:
 - **Mission Control (live, Cloud Run)**: `https://ss-v2-web-722660901814.us-central1.run.app` —
   `/api/healthz` 200
 - **Live demo landing + report**: `https://ss-landing-80064221403.us-central1.run.app`
-- **Repository**: `https://github.com/Two-Weeks-Team/social-seeding-v2` (BUSL-1.1 core + Apache-2.0 ancillary, D9)
+- **Repository**: `https://github.com/Two-Weeks-Team/social-seeding-v2-public` (BUSL-1.1 core + Apache-2.0 ancillary, D9)
 - **Hardening measure (re-runnable, $0)**: `scripts/smoke-test/run-hardening-measure.sh` — prints 40.5% → 100.0% (train) / 71.4% (holdout)
 - **Production-vs-shipped scope (one table)**: `scripts/demo/submission/HONEST-SCOPE.md`
 - **A2A intents manifest (req ⑥)**: `gcp-research/refactor-mcp/A2A-INTENTS.md`

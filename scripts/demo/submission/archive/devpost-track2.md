@@ -95,7 +95,7 @@ See [`built-with-tags.txt`](built-with-tags.txt) for the canonical, copy-paste-r
 
 ## Try it out (Devpost field: Try it out links)
 
-- **Repository**: `https://github.com/Two-Weeks-Team/social-seeding-v2` (BUSL-1.1 + Apache-2.0 dual, per D9)
+- **Repository**: `https://github.com/Two-Weeks-Team/social-seeding-v2-public` (BUSL-1.1 + Apache-2.0 dual, per D9)
 - **Demo video (YouTube unlisted, 3 min, 8× speed real-mouse recording per D30)**: `<YOUTUBE_TRACK2_URL>`
 - **Live Mission Control (judging window only)**: `<CLOUD_RUN_WEB_URL>`
 - **Pull Request with the 22-agent fleet + 49 capability tools + 2,668 passing tests**: `https://github.com/Two-Weeks-Team/social-seeding-v2/pull/1`

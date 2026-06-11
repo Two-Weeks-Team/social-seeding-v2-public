@@ -68,7 +68,7 @@
 1. `https://ss-mcp-server-1049119860518.us-central1.run.app` (A2A — `/.well-known/agent.json`)
 2. `https://ss-v2-web-722660901814.us-central1.run.app` (Mission Control) — 또는 `https://agents.socialseed.ing`
 3. `https://ss-landing-80064221403.us-central1.run.app/demo/` (데모/리포트)
-4. `https://github.com/Two-Weeks-Team/social-seeding-v2` (repo — §1-1 가시성 처리 후)
+4. `https://github.com/Two-Weeks-Team/social-seeding-v2-public` (repo — §1-1 가시성 처리 후)
 
 ## 5. Submit 전 최종 점검
 
